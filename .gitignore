@@ -3,7 +3,8 @@ node_modules/
 
 # Build output
 dist/
-build/
+# âncora na raiz: sem ela, "build/" engole também fontes como packages/core/src/build/
+/build/
 .turbo/
 .astro/
 
