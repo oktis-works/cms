@@ -33,7 +33,6 @@ export async function startProject(options: Record<string, string> = {}): Promis
   const includeAdmin = defaultAll || options['admin'] !== undefined || options['all'] !== undefined;
   const includeWeb = defaultAll || options['web'] !== undefined || options['all'] !== undefined;
 
-  process.env['DB_HOST'] = config.database.host ?? process.env['DB_HOST'];
   process.env['ACTIVE_THEME'] = config.activeTheme || process.env['ACTIVE_THEME'] || '';
 
   if (onlyApi) {

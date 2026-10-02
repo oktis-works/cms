@@ -127,7 +127,7 @@ export const commands: Command[] = [
   },
   {
     name: 'doctor',
-    description: 'Diagnóstico do ambiente: node, .env, DATABASE_URL, config (cli-devexp-003)',
+    description: 'Diagnóstico do ambiente: node, .env, database (DATABASE_URL ou DB_*), config',
     options: [],
     handler: async () => {
       const { runDoctorChecks } = await import('./doctor.js');

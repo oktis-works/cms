@@ -29,8 +29,9 @@ describe('parseDatabaseUrl', () => {
       database: 'cms',
     });
     expect(parseDatabaseUrl('postgresql://h/cms')).toEqual({ host: 'h', port: 5432, database: 'cms' });
-    expect(parseDatabaseUrl('mysql://h/db')).toBeNull();
+    expect(parseDatabaseUrl('mysql://h/db')).toEqual({ host: 'h', port: 3306, database: 'db' });
     expect(parseDatabaseUrl('não-é-url')).toBeNull();
+    expect(parseDatabaseUrl('http://h/cms')).toBeNull();
   });
 });
 
@@ -51,7 +52,7 @@ describe('runDoctorChecks', () => {
     const byName = Object.fromEntries(results.map((r) => [r.name, r])) as Record<string, CheckResult>;
     expect(byName['node']!.ok).toBe(false);
     expect(byName['.env']!.ok).toBe(false);
-    expect(byName['DATABASE_URL']!.ok).toBe(false);
+    expect(byName['database']!.ok).toBe(false);
     expect(results.some((r) => !r.ok && r.required)).toBe(true);
   });
 
@@ -68,9 +69,46 @@ describe('runDoctorChecks', () => {
 
     const byName = Object.fromEntries(results.map((r) => [r.name, r])) as Record<string, CheckResult>;
     expect(byName['node']!.ok).toBe(true);
-    expect(byName['postgres-tcp']!.ok).toBe(false);
-    expect(byName['postgres-tcp']!.required).toBe(false);
+    expect(byName['database']!.ok).toBe(true);
+    expect(byName['database']!.detail).toContain('DATABASE_URL');
+    expect(byName['db-tcp']!.ok).toBe(false);
+    expect(byName['db-tcp']!.required).toBe(false);
     expect(results.every((r) => !(r.required && !r.ok))).toBe(true);
+  });
+
+  it('aceita DB_* (variáveis separadas) como formato alternativo', async () => {
+    writeFileSync(
+      join(dir, '.env'),
+      'DB_HOST=db.local\nDB_PORT=5433\nDB_NAME=cms\nDB_USER=u\nDB_PASSWORD=p\n'
+    );
+    writeFileSync(join(dir, 'okcms.config.json'), '{}');
+
+    const results = await runDoctorChecks({
+      tcpProbe: async () => true,
+      env: { nodeVersion: 'v22.1.0', cwd: dir },
+    });
+
+    const byName = Object.fromEntries(results.map((r) => [r.name, r])) as Record<string, CheckResult>;
+    expect(byName['database']!.ok).toBe(true);
+    expect(byName['database']!.detail).toContain('DB_*');
+    expect(byName['database']!.detail).toContain('db.local:5433/cms');
+    expect(byName['db-tcp']!.ok).toBe(true);
+    expect(results.every((r) => !(r.required && !r.ok))).toBe(true);
+  });
+
+  it('DATABASE_URL inválida falha a check de database', async () => {
+    writeFileSync(join(dir, '.env'), 'DATABASE_URL=não-é-url\n');
+    writeFileSync(join(dir, 'okcms.config.json'), '{}');
+
+    const results = await runDoctorChecks({
+      tcpProbe: async () => false,
+      env: { nodeVersion: 'v22.1.0', cwd: dir },
+    });
+
+    const byName = Object.fromEntries(results.map((r) => [r.name, r])) as Record<string, CheckResult>;
+    expect(byName['database']!.ok).toBe(false);
+    expect(byName['database']!.detail).toContain('inválida');
+    expect(results.some((r) => r.required && !r.ok)).toBe(true);
   });
 });
 

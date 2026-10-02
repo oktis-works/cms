@@ -98,6 +98,78 @@ function getEnvBool(key: string, defaultValue: boolean): boolean {
   return value === 'true' || value === '1';
 }
 
+export interface ParsedDatabaseUrl {
+  driver: 'postgres' | 'mysql';
+  host: string;
+  port: number;
+  database: string;
+  user: string;
+  password: string;
+  ssl?: boolean;
+}
+
+/**
+ * Parseia DATABASE_URL (postgres:// | postgresql:// | mysql://).
+ * Lança erro com mensagem clara em caso de formato inválido — falha barulhenta
+ * no boot é melhor que conexão silenciosa com valores errados.
+ */
+export function parseDatabaseUrl(url: string): ParsedDatabaseUrl {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error(`DATABASE_URL inválida: não é uma URL válida — ${url}`);
+  }
+  const protocol = parsed.protocol.replace(/:$/, '');
+  let driver: 'postgres' | 'mysql';
+  if (protocol === 'postgres' || protocol === 'postgresql') driver = 'postgres';
+  else if (protocol === 'mysql') driver = 'mysql';
+  else {
+    throw new Error(
+      `DATABASE_URL inválida: protocolo "${protocol}" não suportado (use postgres:// ou mysql://)`
+    );
+  }
+  const database = decodeURIComponent(parsed.pathname.replace(/^\//, ''));
+  if (!database) {
+    throw new Error(`DATABASE_URL inválida: falta o nome do banco (ex.: postgres://user:pass@host:5432/okcms)`);
+  }
+  const sslmode = parsed.searchParams.get('sslmode');
+  return {
+    driver,
+    host: parsed.hostname || 'localhost',
+    port: parsed.port ? Number(parsed.port) : driver === 'mysql' ? 3306 : 5432,
+    database,
+    user: decodeURIComponent(parsed.username) || 'postgres',
+    password: decodeURIComponent(parsed.password),
+    ssl: sslmode === 'require' || sslmode === 'verify-ca' || sslmode === 'verify-full' ? true : undefined,
+  };
+}
+
+/**
+ * Conexão com o banco — o usuário escolhe UM formato no ambiente:
+ *   a) DATABASE_URL=postgresql://user:pass@host:5432/db  (tem precedência);
+ *   b) variáveis separadas DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD.
+ */
+function loadDatabaseConfig(): DatabaseConfig {
+  const rawUrl = process.env['DATABASE_URL']?.trim();
+  const fromUrl = rawUrl ? parseDatabaseUrl(rawUrl) : undefined;
+  const driver =
+    fromUrl?.driver ?? ((process.env['DB_DRIVER'] as DatabaseConfig['driver']) ?? 'postgres');
+  return {
+    driver,
+    host: fromUrl?.host ?? getEnv('DB_HOST', 'localhost'),
+    port: fromUrl?.port ?? getEnvInt('DB_PORT', driver === 'mysql' ? 3306 : 5432),
+    database: fromUrl?.database ?? getEnv('DB_NAME', 'okcms'),
+    user: fromUrl?.user ?? getEnv('DB_USER', 'postgres'),
+    password: fromUrl?.password ?? getEnv('DB_PASSWORD', 'postgres'),
+    ssl: fromUrl?.ssl ?? getEnvBool('DB_SSL', false),
+    maxConnections: getEnvInt('DB_MAX_CONNECTIONS', 20),
+    replica: process.env['DB_REPLICA_HOST']
+      ? { host: getEnv('DB_REPLICA_HOST', ''), port: getEnvInt('DB_REPLICA_PORT', 5433), enabled: true }
+      : undefined,
+  };
+}
+
 export function loadConfig(): Config {
   return {
     app: {
@@ -110,19 +182,7 @@ export function loadConfig(): Config {
         max: getEnvInt('RATE_LIMIT_MAX', 100),
       },
     },
-    database: {
-      driver: (process.env['DB_DRIVER'] as DatabaseConfig['driver']) ?? 'postgres',
-      host: getEnv('DB_HOST', 'localhost'),
-      port: getEnvInt('DB_PORT', process.env['DB_DRIVER'] === 'mysql' ? 3306 : 5432),
-      database: getEnv('DB_NAME', 'okcms'),
-      user: getEnv('DB_USER', 'postgres'),
-      password: getEnv('DB_PASSWORD', 'postgres'),
-      ssl: getEnvBool('DB_SSL', false),
-      maxConnections: getEnvInt('DB_MAX_CONNECTIONS', 20),
-      replica: process.env['DB_REPLICA_HOST']
-        ? { host: getEnv('DB_REPLICA_HOST', ''), port: getEnvInt('DB_REPLICA_PORT', 5433), enabled: true }
-        : undefined,
-    },
+    database: loadDatabaseConfig(),
     redis: {
       host: getEnv('REDIS_HOST', 'localhost'),
       port: getEnvInt('REDIS_PORT', 6379),

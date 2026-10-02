@@ -53,11 +53,15 @@ export async function scaffoldProject(targetDir: string, name: string): Promise<
   }
 
   const envExample = `# OkCMS
-DB_HOST=${config.database.host}
-DB_PORT=${config.database.port}
-DB_NAME=${config.database.name}
-DB_USER=${config.database.user}
+# Conexão com o banco — escolha UM formato:
+# (a) variáveis separadas (default, usadas abaixo):
+DB_HOST=${process.env['DB_HOST'] ?? 'localhost'}
+DB_PORT=${process.env['DB_PORT'] ?? '5432'}
+DB_NAME=${process.env['DB_NAME'] ?? 'okcms'}
+DB_USER=${process.env['DB_USER'] ?? 'postgres'}
 DB_PASSWORD=
+# (b) URL única — tem precedência sobre as DB_* acima:
+# DATABASE_URL=postgresql://postgres:senha@localhost:5432/okcms
 
 # Redis (cache + filas do worker)
 REDIS_HOST=localhost

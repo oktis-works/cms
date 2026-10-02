@@ -5,14 +5,8 @@ import { join } from 'node:path';
 
 export interface ProjectConfig {
   name: string;
-  database: {
-    url?: string;
-    host?: string;
-    port?: number;
-    name?: string;
-    user?: string;
-    password?: string;
-  };
+  // Conexão de banco NÃO mora aqui: fonte única é o .env
+  // (DATABASE_URL ou DB_*) — ver @oktis-works/config loadConfig().
   storage: {
     driver: 'local' | 's3' | 'r2' | 'minio';
     localPath?: string;
@@ -32,13 +26,6 @@ export const DEFAULT_CONFIG_FILENAME = 'okcms.config.json';
 export function defaultProjectConfig(name = 'my-okcms-site'): ProjectConfig {
   return {
     name,
-    database: {
-      host: process.env['DB_HOST'] ?? 'localhost',
-      port: Number(process.env['DB_PORT'] ?? 5432),
-      name: process.env['DB_NAME'] ?? 'okcms',
-      user: process.env['DB_USER'] ?? 'postgres',
-      password: process.env['DB_PASSWORD'] ?? '',
-    },
     storage: {
       driver: (process.env['STORAGE_DRIVER'] as ProjectConfig['storage']['driver']) ?? 'local',
       localPath: process.env['STORAGE_LOCAL_PATH'] ?? '.data/storage',
@@ -68,7 +55,6 @@ export function loadProjectConfig(cwd = process.cwd()): ProjectConfig {
     return {
       ...base,
       ...raw,
-      database: { ...base.database, ...(raw.database ?? {}) },
       storage: { ...base.storage, ...(raw.storage ?? {}) },
       ports: { ...base.ports, ...(raw.ports ?? {}) },
     };

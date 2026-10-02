@@ -60,6 +60,13 @@ describe('scaffoldProject', () => {
       name: string;
     };
     expect(config.name).toBe('cms-teste');
+    // conexão do banco NÃO mora no JSON — fonte única é o .env
+    expect(config).not.toHaveProperty('database');
+
+    // .env documenta os DOIS formatos de conexão (DB_* ativo, DATABASE_URL comentado)
+    const env = readFileSync(join(root, '.env'), 'utf-8');
+    expect(env).toMatch(/^DB_HOST=/m);
+    expect(env).toContain('# DATABASE_URL=postgresql://');
   });
 
   it('docker-compose sobe postgres + redis com healthcheck e volume', async () => {
