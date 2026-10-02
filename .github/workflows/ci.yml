@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: read
-  packages: write # push da imagem para ghcr.io (GITHUB_TOKEN, sem secrets)
 
 jobs:
   # ============================================================
@@ -141,107 +140,6 @@ jobs:
       - name: Build all packages
         run: bun run build
 
-  # ============================================================
-  # Step 6: Docker Build & Registry Push
-  # ============================================================
-  docker:
-    name: Docker Build & Push
-    runs-on: ubuntu-latest
-    needs: build
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=ref,event=branch
-            type=sha,prefix=
-
-      - name: Build and push
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: apps/api/Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  # ============================================================
-  # Step 7: Deploy to Staging
-  # ============================================================
-  deploy-staging:
-    name: Deploy to Staging
-    runs-on: ubuntu-latest
-    needs: docker
-    if: github.ref == 'refs/heads/develop'
-    environment: staging
-    steps:
-      - name: Deploy
-        run: |
-          echo "Deploy to staging environment"
-          # Add deployment script here
-
-  # ============================================================
-  # Step 8: Health Check
-  # ============================================================
-  health-check-staging:
-    name: Health Check (Staging)
-    runs-on: ubuntu-latest
-    needs: deploy-staging
-    steps:
-      - name: Wait for deployment
-        run: sleep 30
-
-      - name: Health check
-        continue-on-error: true # placeholder até existir um deploy real
-        run: |
-          curl -f http://staging.example.com/health/live || exit 1
-          echo "Staging health check passed"
-
-  # ============================================================
-  # Step 9: Deploy to Production
-  # ============================================================
-  deploy-production:
-    name: Deploy to Production
-    runs-on: ubuntu-latest
-    needs: docker
-    if: github.ref == 'refs/heads/main'
-    environment: production
-    steps:
-      - name: Deploy
-        run: |
-          echo "Deploy to production environment"
-          # Add deployment script here
-
-  # ============================================================
-  # Step 10: Health Check (Production)
-  # ============================================================
-  health-check-production:
-    name: Health Check (Production)
-    runs-on: ubuntu-latest
-    needs: deploy-production
-    steps:
-      - name: Wait for deployment
-        run: sleep 30
-
-      - name: Health check
-        continue-on-error: true # placeholder até existir um deploy real
-        run: |
-          curl -f https://api.example.com/health/live || exit 1
-          echo "Production health check passed"
+  # Deploy/Docker saem de cena até existir infraestrutura real de deploy
+  # (a imagem Docker continua disponível via apps/api/Dockerfile para quem
+  # quiser construir localmente; ver histórico para os jobs removidos).
