@@ -1,0 +1,26 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { TaxonomiesManager } from '../../components/apps/settings/TaxonomiesManager';
+---
+
+<DashboardLayout title="Taxonomias">
+  <div class="settings-page">
+    <div class="page-header">
+      <h2>Taxonomias</h2>
+      <p>Crie taxonomias personalizadas e vincule-as aos content types.</p>
+    </div>
+    <TaxonomiesManager client:load />
+  </div>
+</DashboardLayout>
+
+<style>
+  .settings-page .page-header {
+    margin-bottom: 1rem;
+  }
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+</style>

@@ -1,0 +1,44 @@
+{
+  "name": "@oktis-works/cms",
+  "version": "0.1.2",
+  "private": false,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "okcms": "./dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo"
+  },
+  "dependencies": {
+    "@oktis-works/config": "workspace:*",
+    "@oktis-works/core": "workspace:*",
+    "@oktis-works/database": "workspace:*",
+    "@oktis-works/validation": "workspace:*",
+    "@oktis-works/theme-runtime": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "5.7.3"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/oktis-works/cms",
+    "directory": "packages/cli"
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "name": "@oktis-works/web",
+  "version": "0.1.2",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "okcms-web": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "prepublishOnly": "bun run build",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo"
+  },
+  "dependencies": {
+    "@oktis-works/core": "workspace:*",
+    "@oktis-works/config": "workspace:*",
+    "@oktis-works/database": "workspace:*",
+    "@oktis-works/types": "workspace:*",
+    "@oktis-works/theme-sdk": "workspace:*",
+    "@oktis-works/theme-runtime": "workspace:*",
+    "hono": "4.0.0",
+    "@hono/node-server": "1.8.0",
+    "@oktis-works/plugin-runtime": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "5.7.3",
+    "tsx": "4.7.0",
+    "@types/node": "20.11.0"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/oktis-works/cms",
+    "directory": "apps/web"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

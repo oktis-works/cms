@@ -1,0 +1,43 @@
+{
+  "name": "@oktis-works/worker",
+  "version": "0.1.2",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "okcms-worker": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "prepublishOnly": "bun run build",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo"
+  },
+  "dependencies": {
+    "@oktis-works/core": "workspace:*",
+    "@oktis-works/config": "workspace:*",
+    "@oktis-works/database": "workspace:*",
+    "@oktis-works/types": "workspace:*",
+    "bullmq": "5.0.0",
+    "ioredis": "5.3.0"
+  },
+  "devDependencies": {
+    "typescript": "5.7.3",
+    "tsx": "4.7.0",
+    "@types/node": "20.11.0"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/oktis-works/cms",
+    "directory": "apps/worker"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

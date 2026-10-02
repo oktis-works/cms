@@ -1,0 +1,43 @@
+{
+  "name": "@oktis-works/admin",
+  "version": "0.1.2",
+  "type": "module",
+  "bin": {
+    "okcms-admin": "./bin/admin.js"
+  },
+  "files": [
+    "bin",
+    "dist"
+  ],
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "start": "astro dev",
+    "prepublishOnly": "bun run build",
+    "clean": "rm -rf dist .astro tsconfig.tsbuildinfo"
+  },
+  "dependencies": {
+    "@oktis-works/types": "workspace:*",
+    "@oktis-works/validation": "workspace:*",
+    "@oktis-works/plugin-sdk": "workspace:*",
+    "@oktis-works/ui": "workspace:*",
+    "@astrojs/solid-js": "4.0.0",
+    "@astrojs/node": "8.0.0",
+    "astro": "4.0.0",
+    "solid-js": "1.8.0"
+  },
+  "devDependencies": {
+    "typescript": "5.7.3"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/oktis-works/cms",
+    "directory": "apps/admin"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

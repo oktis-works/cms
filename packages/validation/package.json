@@ -1,0 +1,67 @@
+{
+  "name": "@oktis-works/validation",
+  "version": "0.1.2",
+  "description": "Pure field validation library (ACF parity) — UI-safe, sem dependência de banco",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./basic": {
+      "types": "./dist/basic.d.ts",
+      "import": "./dist/basic.js"
+    },
+    "./choice": {
+      "types": "./dist/choice.d.ts",
+      "import": "./dist/choice.js"
+    },
+    "./client-validate": {
+      "types": "./dist/client-validate.d.ts",
+      "import": "./dist/client-validate.js"
+    },
+    "./conditional": {
+      "types": "./dist/conditional.d.ts",
+      "import": "./dist/conditional.js"
+    },
+    "./media": {
+      "types": "./dist/media.d.ts",
+      "import": "./dist/media.js"
+    },
+    "./relational": {
+      "types": "./dist/relational.d.ts",
+      "import": "./dist/relational.js"
+    },
+    "./structural": {
+      "types": "./dist/structural.d.ts",
+      "import": "./dist/structural.js"
+    },
+    "./clone": {
+      "types": "./dist/clone.d.ts",
+      "import": "./dist/clone.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/oktis-works/cms",
+    "directory": "packages/validation"
+  },
+  "dependencies": {
+    "semver": "7"
+  }
+}
