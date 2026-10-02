@@ -1,13 +1,13 @@
 // @oktis-works/cms - doctor, scaffolds de extensão e build
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, existsSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { runDoctorChecks, parseDatabaseUrl, checkTcp, type CheckResult } from './doctor.js';
 import { scaffoldPlugin, scaffoldTheme } from './extension-scaffold.js';
-import { runProjectBuild } from './build.js';
+import { runProjectBuild, isWorkspaceProject } from './build.js';
 import { CMS_VERSION } from '@oktis-works/validation';
 
 let dir: string;
@@ -129,5 +129,24 @@ describe('runProjectBuild', () => {
     const { ok, results } = runProjectBuild({ spawn: spawn as never });
     expect(results).toHaveLength(3);
     expect(ok).toBe(true);
+  });
+});
+
+describe('isWorkspaceProject', () => {
+  it('false sem package.json e sem workspaces', () => {
+    expect(isWorkspaceProject(join(dir, 'nao-existe'))).toBe(false);
+
+    mkdirSync(join(dir, 'simples'));
+    writeFileSync(join(dir, 'simples', 'package.json'), '{"name":"x"}');
+    expect(isWorkspaceProject(join(dir, 'simples'))).toBe(false);
+  });
+
+  it('true quando o package.json declara workspaces (monorepo)', () => {
+    mkdirSync(join(dir, 'mono'));
+    writeFileSync(
+      join(dir, 'mono', 'package.json'),
+      '{"name":"mono","workspaces":["packages/*","apps/*"]}'
+    );
+    expect(isWorkspaceProject(join(dir, 'mono'))).toBe(true);
   });
 });

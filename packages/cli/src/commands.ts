@@ -32,12 +32,25 @@ export const commands: Command[] = [
       { name: 'dir', alias: 'd', description: 'Target directory (same as positional arg)', required: false },
     ],
     handler: async (args, options) => {
-      const { scaffoldProject } = await import('./scaffold.js');
+      const { scaffoldProject, installProjectDeps } = await import('./scaffold.js');
       // O arg posicional tem prioridade sobre -d: `init cms-teste` deve criar
       // o diretório cms-teste (o default '.' injetado pelo parser engolia args[0]).
       const target = args[0] ?? options['dir'] ?? '.';
       const name = args[1] ?? basename(resolve(target));
-      await scaffoldProject(target, name);
+      const root = await scaffoldProject(target, name);
+
+      // Zero config: instala as dependências já no init (bun, ou npm sem bun).
+      console.log('Instalando dependências do projeto...');
+      const install = installProjectDeps(root);
+      if (install.ok) {
+        console.log(`✓ dependências instaladas via ${install.tool}`);
+      } else {
+        console.warn(`⚠ instalação automática falhou via ${install.tool}. Rode manualmente em ${root}:`);
+        console.warn('  bun install   (ou: npm install)');
+        if (install.output) {
+          console.warn(install.output.split('\n').slice(-5).join('\n'));
+        }
+      }
     },
   },
   {
@@ -229,7 +242,15 @@ export const commands: Command[] = [
       { name: 'apps', alias: 'a', description: 'Apps a buildar (default: api,admin,web)', required: false },
     ],
     handler: async (_args, options) => {
-      const { runProjectBuild } = await import('./build.js');
+      const { runProjectBuild, isWorkspaceProject } = await import('./build.js');
+      // Projeto scaffold (sem workspaces) não tem o que buildar: os apps do
+      // OkCMS vêm pré-compilados do npm — o `bun run --filter` falharia com
+      // "No packages matched the filter".
+      if (!isWorkspaceProject(process.cwd())) {
+        console.log('Apps do OkCMS vêm pré-compilados do npm — nada a buildar neste projeto.');
+        console.log('Para compilar estilos de um tema use: okcms theme:build --name <tema>');
+        return;
+      }
       const appsArg = options['apps'];
       const apps = appsArg
         ? (appsArg.split(',').map((s) => s.trim()) as Array<'api' | 'admin' | 'web'>)

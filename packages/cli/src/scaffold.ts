@@ -1,11 +1,21 @@
 // @oktis-works/cms - Project Scaffolding
 
+import { spawnSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { defaultProjectConfig, DEFAULT_CONFIG_FILENAME } from './project-config.js';
 
-export async function scaffoldProject(targetDir: string, name: string): Promise<void> {
+/** Normaliza o nome do projeto para um npm name válido (slug). */
+export function toPackageName(name: string): string {
+  const slug = name
+    .toLowerCase()
+    .replace(/[^a-z0-9._~-]+/g, '-')
+    .replace(/^[-.]+|[-.]+$/g, '');
+  return slug.length > 0 ? slug : 'okcms-project';
+}
+
+export async function scaffoldProject(targetDir: string, name: string): Promise<string> {
   const root = resolve(process.cwd(), targetDir);
 
   console.log(`Criando projeto "${name}" em ${root}...`);
@@ -20,6 +30,27 @@ export async function scaffoldProject(targetDir: string, name: string): Promise<
     JSON.stringify(config, null, 2),
     'utf-8'
   );
+
+  // package.json do projeto — apps do OkCMS como dependências, na mesma
+  // versão do CLI (sistema de versionamento fixed). Assim `okcms update`
+  // enxerga node_modules/@oktis-works/* e o `bunx` dos apps resolve local,
+  // tudo sem configuração manual. Não sobrescreve manifest existente.
+  const cliPkg = await import('../package.json', { with: { type: 'json' } });
+  const cliRange = `^${cliPkg.default.version as string}`;
+  const manifestPath = join(root, 'package.json');
+  if (!existsSync(manifestPath)) {
+    const manifest = {
+      name: toPackageName(name),
+      version: '0.1.0',
+      private: true,
+      dependencies: {
+        '@oktis-works/api': cliRange,
+        '@oktis-works/admin': cliRange,
+        '@oktis-works/web': cliRange,
+      },
+    };
+    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf-8');
+  }
 
   const envExample = `# OkCMS
 DB_HOST=${config.database.host}
@@ -109,4 +140,40 @@ volumes:
   console.log(`  ${step++}. okcms start`);
   console.log('');
   console.log(`Config do projeto: ${cfgName} | para ajuda: okcms --help`);
+  return root;
+}
+
+export interface InstallResult {
+  ok: boolean;
+  tool: string;
+  output: string;
+}
+
+/**
+ * Instala as dependências do projeto scaffold (bun preferido, npm como
+ * fallback quando o bun não está no PATH). Não derruba o init se falhar —
+ * os arquivos do projeto já estão no lugar.
+ */
+export function installProjectDeps(
+  root: string,
+  options: { spawn?: typeof spawnSync } = {}
+): InstallResult {
+  const spawn = options.spawn ?? spawnSync;
+
+  const bun = spawn('bun', ['install'], { cwd: root, encoding: 'utf-8' });
+  if (!bun.error) {
+    return {
+      ok: bun.status === 0,
+      tool: 'bun',
+      output: `${bun.stdout ?? ''}${bun.stderr ?? ''}`.trim(),
+    };
+  }
+
+  // bun ausente (ENOENT) → tenta npm
+  const npm = spawn('npm', ['install'], { cwd: root, encoding: 'utf-8' });
+  return {
+    ok: npm.status === 0,
+    tool: 'npm',
+    output: `${npm.stdout ?? ''}${npm.stderr ?? ''}`.trim(),
+  };
 }

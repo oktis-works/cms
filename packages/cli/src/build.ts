@@ -1,6 +1,21 @@
 // @oktis-works/cms - cms build: build do projeto via bun filters (cli-devexp-005)
 
 import { spawnSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+/** True se o cwd é um projeto com workspaces (ex.: o monorepo) — único
+ * contexto onde `bun run --filter @oktis-works/<app>` encontra pacotes. */
+export function isWorkspaceProject(cwd: string = process.cwd()): boolean {
+  const pkgPath = join(cwd, 'package.json');
+  if (!existsSync(pkgPath)) return false;
+  try {
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as { workspaces?: unknown };
+    return pkg.workspaces !== undefined;
+  } catch {
+    return false;
+  }
+}
 
 export interface BuildStepResult {
   label: string;
