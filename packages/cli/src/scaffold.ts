@@ -31,12 +31,16 @@ export async function scaffoldProject(targetDir: string, name: string): Promise<
     'utf-8'
   );
 
-  // package.json do projeto — apps do OkCMS como dependências, na mesma
-  // versão do CLI (sistema de versionamento fixed). Assim `okcms update`
-  // enxerga node_modules/@oktis-works/* e o `bunx` dos apps resolve local,
-  // tudo sem configuração manual. Não sobrescreve manifest existente.
+  // package.json do projeto — apps do OkCMS como dependências, em range
+  // ^MAIOR.MENOR.0 (e não ^versão-exata do CLI): os apps são independentes no
+  // changesets e podem estar alguns patches atrás do CLI — range exata quebraria
+  // o install (ETARGET) sempre que CLI e apps não forem publicados juntos.
+  // Assim o `bunx` dos apps resolve local, `okcms update` enxerga
+  // node_modules/@oktis-works/* e tudo funciona sem configuração manual.
+  // Não sobrescreve manifest existente.
   const cliPkg = await import('../package.json', { with: { type: 'json' } });
-  const cliRange = `^${cliPkg.default.version as string}`;
+  const cliVersion = cliPkg.default.version as string;
+  const appRange = `^${cliVersion.split('.').slice(0, 2).join('.')}.0`;
   const manifestPath = join(root, 'package.json');
   if (!existsSync(manifestPath)) {
     const manifest = {
@@ -44,9 +48,15 @@ export async function scaffoldProject(targetDir: string, name: string): Promise<
       version: '0.1.0',
       private: true,
       dependencies: {
-        '@oktis-works/api': cliRange,
-        '@oktis-works/admin': cliRange,
-        '@oktis-works/web': cliRange,
+        '@oktis-works/api': appRange,
+        '@oktis-works/admin': appRange,
+        '@oktis-works/web': appRange,
+        '@oktis-works/worker': appRange,
+      },
+      devDependencies: {
+        // CLI fixada no projeto: `npx okcms ...` usa a versão local compatível
+        // com os apps instalados (sem buscar outra no registry).
+        '@oktis-works/cms': appRange,
       },
     };
     await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf-8');
@@ -141,7 +151,7 @@ volumes:
   console.log(`  ${step++}. docker compose up -d`);
   console.log(`  ${step++}. edite o .env (criado já — ajuste DB_PASSWORD/JWT_SECRET)`);
   console.log(`  ${step++}. okcms db:migrate`);
-  console.log(`  ${step++}. okcms start`);
+  console.log(`  ${step++}. okcms start   (sobe api, admin, web e worker)`);
   console.log('');
   console.log(`Config do projeto: ${cfgName} | para ajuda: okcms --help`);
   return root;

@@ -26,12 +26,17 @@ function spawnApp(label: string, command: string, args: string[], env: Record<st
 export async function startProject(options: Record<string, string> = {}): Promise<void> {
   const config = loadProjectConfig();
 
-  const anyFlag = options['api'] !== undefined || options['admin'] !== undefined || options['web'] !== undefined;
+  const anyFlag =
+    options['api'] !== undefined ||
+    options['admin'] !== undefined ||
+    options['web'] !== undefined ||
+    options['worker'] !== undefined;
   const defaultAll = !anyFlag && options['all'] === undefined;
 
   const onlyApi = options['api'] !== undefined && !defaultAll;
   const includeAdmin = defaultAll || options['admin'] !== undefined || options['all'] !== undefined;
   const includeWeb = defaultAll || options['web'] !== undefined || options['all'] !== undefined;
+  const includeWorker = defaultAll || options['worker'] !== undefined || options['all'] !== undefined;
 
   process.env['ACTIVE_THEME'] = config.activeTheme || process.env['ACTIVE_THEME'] || '';
 
@@ -46,6 +51,12 @@ export async function startProject(options: Record<string, string> = {}): Promis
 
     if (includeWeb) {
       spawnApp('web', 'bunx', ['@oktis-works/web'], { PORT: String(config.ports.web), API_URL: `http://localhost:${config.ports.api}` });
+    }
+
+    if (includeWorker) {
+      // Filas/jobs (bullmq) — REDIS_* vem do .env do projeto. Sem Redis, o
+      // worker só loga erros de conexão; os demais apps seguem rodando.
+      spawnApp('worker', 'bunx', ['@oktis-works/worker'], {});
     }
   }
 

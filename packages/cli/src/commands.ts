@@ -55,11 +55,12 @@ export const commands: Command[] = [
   },
   {
     name: 'start',
-    description: 'Start API + Admin + Web apps for this project',
+    description: 'Start API + Admin + Web + Worker apps for this project',
     options: [
       { name: 'api', alias: 'a', description: 'Start only the API', required: false },
       { name: 'admin', alias: 'm', description: 'Include admin app', required: false },
       { name: 'web', alias: 'w', description: 'Include web app', required: false },
+      { name: 'worker', alias: 'W', description: 'Include background worker (queues)', required: false },
       { name: 'all', alias: 'A', description: 'Start all apps (default)', required: false },
     ],
     handler: async (_args, options) => {

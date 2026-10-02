@@ -91,22 +91,34 @@ describe('scaffoldProject', () => {
     expect(readFileSync(join(workDir, 'env-test', '.env'), 'utf-8')).toContain('REDIS_HOST=');
   });
 
-  it('package.json sai do scaffold com os 3 apps na versão do CLI (zero config)', async () => {
+  it('package.json sai com apps + worker + CLI local em range tolerante (zero config)', async () => {
     await scaffoldProject('pkg-test', 'pkg-test');
 
     const pkg = JSON.parse(
       readFileSync(join(workDir, 'pkg-test', 'package.json'), 'utf-8')
-    ) as { name: string; version: string; private: boolean; dependencies: Record<string, string> };
+    ) as {
+      name: string;
+      version: string;
+      private: boolean;
+      dependencies: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    };
 
     const cliPkg = (await import('../package.json', { with: { type: 'json' } })).default as {
       version: string;
     };
+    const appRange = `^${cliPkg.version.split('.').slice(0, 2).join('.')}.0`;
     expect(pkg.name).toBe('pkg-test');
     expect(pkg.version).toBe('0.1.0');
     expect(pkg.private).toBe(true);
-    expect(pkg.dependencies['@oktis-works/api']).toBe(`^${cliPkg.version}`);
-    expect(pkg.dependencies['@oktis-works/admin']).toBe(`^${cliPkg.version}`);
-    expect(pkg.dependencies['@oktis-works/web']).toBe(`^${cliPkg.version}`);
+    expect(pkg.dependencies['@oktis-works/api']).toBe(appRange);
+    expect(pkg.dependencies['@oktis-works/admin']).toBe(appRange);
+    expect(pkg.dependencies['@oktis-works/web']).toBe(appRange);
+    expect(pkg.dependencies['@oktis-works/worker']).toBe(appRange);
+    expect(pkg.devDependencies?.['@oktis-works/cms']).toBe(appRange);
+    // range nunca é ^versão-exata do CLI — apps independentes podem estar
+    // atrás; range exata quebraria o install (ETARGET)
+    expect(appRange).not.toBe(`^${cliPkg.version}`);
   });
 
   it('não sobrescreve um package.json já existente no diretório', async () => {
