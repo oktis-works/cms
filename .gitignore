@@ -6,7 +6,10 @@ dist/
 # âncora na raiz: sem ela, "build/" engole também fontes como packages/core/src/build/
 /build/
 .turbo/
-.astro/
+# ignora o cache do Astro, mas versiona types.d.ts (env.d.ts dele referencia o
+# arquivo e o tsc falha em clone novo — astro build não o regenera)
+**/.astro/*
+!apps/admin/.astro/types.d.ts
 
 # Environment variables
 .env
