@@ -1,5 +1,16 @@
 # @oktis-works/core
 
+## 0.1.5
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @oktis-works/validation@0.1.5
+  - @oktis-works/plugin-runtime@0.1.5
+  - @oktis-works/types@0.1.5
+  - @oktis-works/config@0.1.5
+  - @oktis-works/database@0.1.5
+
 ## 0.1.4
 
 ### Patch Changes
