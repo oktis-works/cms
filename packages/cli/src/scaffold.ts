@@ -47,6 +47,17 @@ export async function scaffoldProject(targetDir: string, name: string): Promise<
       name: toPackageName(name),
       version: '0.1.0',
       private: true,
+      // Atalhos executáveis sem instalação global: npm/bun injetam
+      // node_modules/.bin no PATH de scripts — `bun run migrate` /
+      // `npm run start` funcionam logo após o init.
+      scripts: {
+        start: 'okcms start',
+        stop: 'okcms stop',
+        status: 'okcms status',
+        doctor: 'okcms doctor',
+        migrate: 'okcms db:migrate',
+        backup: 'okcms db:backup',
+      },
       dependencies: {
         '@oktis-works/api': appRange,
         '@oktis-works/admin': appRange,
@@ -164,10 +175,10 @@ volumes:
   }
   console.log(`  ${step++}. docker compose up -d`);
   console.log(`  ${step++}. edite o .env (criado já — ajuste DB_PASSWORD/JWT_SECRET)`);
-  console.log(`  ${step++}. okcms db:migrate`);
-  console.log(`  ${step++}. okcms start   (sobe api, admin, web e worker)`);
+  console.log(`  ${step++}. npx okcms db:migrate   (ou: bun run migrate)`);
+  console.log(`  ${step++}. npx okcms start        (sobe api, admin, web e worker — ou: bun run start)`);
   console.log('');
-  console.log(`Config do projeto: ${cfgName} | para ajuda: okcms --help`);
+  console.log(`Config do projeto: ${cfgName} | para ajuda: npx okcms --help`);
   console.log(`Documentação: README.md (uso local/Docker) · PLUGIN.md e THEME.md (extensões)`);
   return root;
 }

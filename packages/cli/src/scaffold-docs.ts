@@ -31,7 +31,7 @@ CMS API-first, multi-tenant e extensível. Quatro apps + uma CLI:
 |---|---|
 | \`okcms.config.json\` | Estrutura: nome, ports, storage, dirs, tema ativo. **Sem credenciais de banco.** |
 | \`.env\` | **Fonte única de conexão**: banco (\`DB_*\` ou \`DATABASE_URL\`), Redis, JWT, ports |
-| \`package.json\` | Apps do CMS (\`api\`, \`admin\`, \`web\`, \`worker\`) + CLI em devDependencies |
+| \`package.json\` | Apps do CMS (\`api\`, \`admin\`, \`web\`, \`worker\`) + CLI em devDependencies + scripts de atalho (start, migrate, doctor…) |
 | \`plugins/\`, \`themes/\` | Extensões do projeto |
 | \`migrations/\` | SQL de migrations (\`okcms db:migrate\`) |
 | \`docker-compose.yml\` | Infra local: PostgreSQL + Redis (com healthcheck e volume) |
@@ -40,6 +40,12 @@ CMS API-first, multi-tenant e extensível. Quatro apps + uma CLI:
 
 Pré-requisitos: **Node 20+** ou **Bun 1.3+** · **PostgreSQL 16+** (obrigatório) ·
 **Redis** (opcional — só para filas do worker).
+
+> **CLI do projeto:** os comandos abaixo rodam com \`npx okcms\` (com Bun,
+> \`bunx okcms\`) — a CLI é instalada em devDependencies, **não** no PATH.
+> Atalhos que já vêm no \`package.json\`: \`bun run start\` · \`bun run migrate\`
+> · \`bun run doctor\`. Para usar \`okcms\` cru sem prefixo em qualquer pasta,
+> instale a CLI globalmente: \`bun add -g @oktis-works/cms\`.
 
 \`\`\`bash
 # 1. Banco no .env — escolha UM formato:
@@ -57,13 +63,13 @@ docker compose up -d
 #   REDIS_HOST=disabled   (cache em memória; filas do worker exigem Redis)
 
 # 3. Migrações
-okcms db:migrate
+npx okcms db:migrate
 
 # 4. Sobe tudo: api + admin + web + worker
-okcms start
+npx okcms start
 
 # 5. Se algo falhar
-okcms doctor
+npx okcms doctor
 \`\`\`
 
 Ports padrão (ajustáveis no \`.env\`): **API 3000** (\`PORT\`) · **Admin 3001**
@@ -73,8 +79,8 @@ Ports padrão (ajustáveis no \`.env\`): **API 3000** (\`PORT\`) · **Admin 3001
 
 \`\`\`bash
 docker compose up -d   # só a infra: postgres:16 + redis:7 (healthcheck + volumes)
-okcms db:migrate
-okcms start            # apps rodam como processos normais, fora do compose
+npx okcms db:migrate
+npx okcms start            # apps rodam como processos normais, fora do compose
 \`\`\`
 
 O \`.env\` gerado já aponta para \`localhost\`, que é onde o compose expõe as
@@ -153,6 +159,11 @@ docker run -d --env-file /caminho/para/.env -p 3000:3000 okcms-api:v1
 
 ## Comandos da CLI
 
+> Os nomes abaixo são o comando em si: no projeto, prefixe com \`npx\`
+> (ex.: \`npx okcms doctor\`) ou use um script do \`package.json\` (\`bun run
+> doctor\`); sem prefixo, \`okcms\` só funciona com a CLI instalada
+> globalmente (\`bun add -g @oktis-works/cms\`).
+
 | Comando | O que faz |
 |---|---|
 | \`okcms init <dir>\` | Cria o projeto (arquivos + docs) e instala as dependências |
@@ -181,8 +192,8 @@ docker run -d --env-file /caminho/para/.env -p 3000:3000 okcms-api:v1
 ## Atualizando
 
 \`\`\`bash
-okcms update      # lista pacotes @oktis-works/* com versão nova
-okcms update -i   # aplica a atualização
+npx okcms update      # lista pacotes @oktis-works/* com versão nova
+npx okcms update -i   # aplica a atualização
 \`\`\`
 
 ## Próximos passos
@@ -200,10 +211,14 @@ de **hooks e filters** (transformar dados, reagir a eventos de conteúdo etc.).
 O catálogo de hooks disponíveis é servido pela API em
 \`GET /api/v1/hooks/catalog\`.
 
+> Os comandos usam \`npx\` com a CLI local do projeto (sem instalação
+> global). Com a CLI global (\`bun add -g @oktis-works/cms\`), rode
+> \`okcms ...\` direto.
+
 ## Estrutura gerada
 
 \`\`\`bash
-okcms plugin:create --name meu-plugin
+npx okcms plugin:create --name meu-plugin
 \`\`\`
 
 \`\`\`
@@ -254,22 +269,22 @@ para expor filters (transformações) — veja o que existe em
 
 \`\`\`bash
 # 1. Crie (em ./plugins do projeto, ou num workspace externo com --dir)
-okcms plugin:create --name meu-plugin
+npx okcms plugin:create --name meu-plugin
 
 # 2. Implemente plugins/meu-plugin/index.js
 
 # 3. Se criou FORA do projeto, instale (valida compatibilidade e copia para plugins/)
-okcms plugin:install --name ../meu-plugin-fonte
+npx okcms plugin:install --name ../meu-plugin-fonte
 
 # 4. Gestão
-okcms plugin:list                                # instalados + status
-okcms plugin:manage -n meu-plugin --info         # informações do manifesto
-okcms plugin:manage -n meu-plugin --disable      # desabilita (mantém os arquivos)
-okcms plugin:manage -n meu-plugin --enable       # habilita de novo
-okcms plugin:manage -n meu-plugin --uninstall    # remove arquivos + registro
+npx okcms plugin:list                                # instalados + status
+npx okcms plugin:manage -n meu-plugin --info         # informações do manifesto
+npx okcms plugin:manage -n meu-plugin --disable      # desabilita (mantém os arquivos)
+npx okcms plugin:manage -n meu-plugin --enable       # habilita de novo
+npx okcms plugin:manage -n meu-plugin --uninstall    # remove arquivos + registro
 
 # 5. Busca no npm (pacotes com a keyword okcms-plugin)
-okcms plugin:search -q galeria
+npx okcms plugin:search -q galeria
 \`\`\`
 
 ## Publicando
@@ -286,10 +301,14 @@ Tema é o visual do site público: **templates** (hierarquia de páginas) +
 **estilos**, com isolamento por \`[data-theme]\` para que um tema nunca vaze
 CSS para outro.
 
+> Os comandos usam \`npx\` com a CLI local do projeto (sem instalação
+> global). Com a CLI global (\`bun add -g @oktis-works/cms\`), rode
+> \`okcms ...\` direto.
+
 ## Estrutura gerada
 
 \`\`\`bash
-okcms theme:create --name meu-tema --style css   # css | scss | tailwind
+npx okcms theme:create --name meu-tema --style css   # css | scss | tailwind
 \`\`\`
 
 \`\`\`
@@ -353,26 +372,26 @@ sai com \`preflight: false\`).
 
 \`\`\`bash
 # 1. Crie
-okcms theme:create --name meu-tema --style scss
+npx okcms theme:create --name meu-tema --style scss
 
 # 2. Edite templates/ e estilos
 
 # 3. Compile os estilos (scss/tailwind)
-okcms theme:build --name meu-tema
+npx okcms theme:build --name meu-tema
 
 # 4. Ative (grava activeTheme no okcms.config.json)
-okcms theme:manage --name meu-tema --set-active
+npx okcms theme:manage --name meu-tema --set-active
 #    (equivalente: ACTIVE_THEME=meu-tema no .env)
 
 # 5. Gestão
-okcms theme:list                               # instalados + status
-okcms theme:manage -n meu-tema --info          # informações do theme.json
-okcms theme:manage -n meu-tema --disable|enable
-okcms theme:manage -n meu-tema --uninstall
-okcms theme:search -q blog                     # busca no npm (keyword okcms-theme)
+npx okcms theme:list                               # instalados + status
+npx okcms theme:manage -n meu-tema --info          # informações do theme.json
+npx okcms theme:manage -n meu-tema --disable|enable
+npx okcms theme:manage -n meu-tema --uninstall
+npx okcms theme:search -q blog                     # busca no npm (keyword okcms-theme)
 
 # Se criou FORA do projeto:
-okcms theme:install --name ../meu-tema-fonte
+npx okcms theme:install --name ../meu-tema-fonte
 \`\`\`
 
 ## Publicando

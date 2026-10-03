@@ -1,6 +1,6 @@
 // @oktis-works/cms - Project Scaffolding Tests (init cria dir nomeado com tudo dentro)
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtempSync, mkdirSync, rmSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -73,6 +73,16 @@ describe('scaffoldProject', () => {
     const env = readFileSync(join(root, '.env'), 'utf-8');
     expect(env).toMatch(/^DB_HOST=/m);
     expect(env).toContain('# DATABASE_URL=postgresql://');
+
+    // atalhos executáveis sem CLI global — npm/bun injetam node_modules/.bin
+    // no PATH de scripts (`bun run migrate` / `npm run start` funcionam no init)
+    const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf-8')) as {
+      scripts: Record<string, string>;
+    };
+    expect(pkg.scripts['start']).toBe('okcms start');
+    expect(pkg.scripts['migrate']).toBe('okcms db:migrate');
+    expect(pkg.scripts['doctor']).toBe('okcms doctor');
+    expect(pkg.scripts['backup']).toBe('okcms db:backup');
   });
 
   it('gera README.md, PLUGIN.md e THEME.md com o conteúdo de uso', async () => {
@@ -93,20 +103,49 @@ describe('scaffoldProject', () => {
     expect(readme).toContain('pm2 start');
     expect(readme).toContain('WORKER_MODE');
     expect(readme).toContain('apps/api/Dockerfile');
+    // comandos do quickstart executáveis sem instalação global da CLI
+    expect(readme).toContain('npx okcms db:migrate');
+    expect(readme).toContain('npx okcms start');
+    expect(readme).toContain('bun add -g @oktis-works/cms');
+    expect(readme).toContain('bun run migrate');
 
     // PLUGIN.md: scaffold, manifest e gestão
     const plugin = readFileSync(join(root, 'PLUGIN.md'), 'utf-8');
-    expect(plugin).toContain('okcms plugin:create');
+    expect(plugin).toContain('npx okcms plugin:create');
     expect(plugin).toContain('manifest.json');
     expect(plugin).toContain('compatibility');
     expect(plugin).toContain('okcms-plugin');
 
     // THEME.md: scaffold, build e ativação
     const theme = readFileSync(join(root, 'THEME.md'), 'utf-8');
-    expect(theme).toContain('okcms theme:create');
+    expect(theme).toContain('npx okcms theme:create');
     expect(theme).toContain('okcms theme:build');
     expect(theme).toContain('--set-active');
     expect(theme).toContain('okcms-theme');
+  });
+
+  it('next-steps imprime comandos executáveis sem CLI global (npx)', async () => {
+    const logged: string[] = [];
+    const spy = vi
+      .spyOn(console, 'log')
+      .mockImplementation((...args: unknown[]) => {
+        logged.push(args.join(' '));
+      });
+
+    try {
+      await scaffoldProject('steps-test', 'steps-test');
+    } finally {
+      spy.mockRestore();
+    }
+
+    const out = logged.join('\n');
+    expect(out).toContain('npx okcms db:migrate');
+    expect(out).toContain('npx okcms start');
+    expect(out).toContain('npx okcms --help');
+    expect(out).toContain('bun run migrate');
+    // nunca manda rodar `okcms` cru num passo numerado (não está no PATH
+    // sem instalação global — era exatamente o bug do "command not found")
+    expect(out).not.toMatch(/^\s*\d+\.\s+okcms\s/m);
   });
 
   it('não sobrescreve README.md já existente no re-init', async () => {
