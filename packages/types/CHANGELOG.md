@@ -1,5 +1,12 @@
 # @oktis-works/types
 
+## 0.1.11
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @oktis-works/validation@0.1.11
+
 ## 0.1.10
 
 No changes in this release.

@@ -1,5 +1,16 @@
 # @oktis-works/worker
 
+## 0.1.4
+
+### Patch Changes
+
+- Log de start do admin com URL correta: `http://` no lugar de `https://` (o `@astrojs/node` calcula o protocolo com `server instanceof https.Server`, que sob Bun responde `true` até para `http.Server`) e sem a linha `network:` com IP interno de WSL. Deps internas publicadas como range `^X.Y.Z` em vez de pin exato — o consumidor resolve a versão atual via `bun update` sem cópias aninhadas stale (ex.: `api` preso em `database@0.1.3`) e dependentes não precisam ser republicados a cada patch.
+- Updated dependencies []:
+  - @oktis-works/core@0.1.11
+  - @oktis-works/types@0.1.11
+  - @oktis-works/config@0.1.11
+  - @oktis-works/database@0.1.11
+
 ## 0.1.3
 
 ### Patch Changes
