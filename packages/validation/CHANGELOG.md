@@ -1,5 +1,11 @@
 # @oktis-works/validation
 
+## 0.1.7
+
+### Patch Changes
+
+- README do scaffold ganha seção **Produção** com os dois caminhos: pm2 (ecosystem.config.js com um processo por app, `pm2 startup/save/reload/logs`, worker com `WORKER_MODE=pm2` nativo) e Docker imutável (build do `apps/api/Dockerfile`, atualização/rollback por tag, migrate como passo de deploy), além de checklist de produção (NODE_ENV, JWT_SECRET, TLS, versões fixas, backup, Redis real, doctor).
+
 ## 0.1.6
 
 ### Patch Changes
