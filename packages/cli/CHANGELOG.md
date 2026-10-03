@@ -1,5 +1,23 @@
 # @oktis-works/cms
 
+## 0.1.8
+
+### Patch Changes
+
+- Scaffold executável sem CLI global (corrige `okcms: command not found`):
+  
+  - `package.json` gerado ganha `scripts` (start, stop, status, doctor, migrate, backup) — npm/bun injetam `node_modules/.bin` no PATH, então `bun run migrate` / `npm run start` funcionam logo após o init;
+  - next-steps do `init` imprime `npx okcms db:migrate` / `npx okcms start` / `npx okcms --help` (com alternativa `bun run`);
+  - README: callout explicando a CLI local (npx/bunx + atalhos + `bun add -g` opcional), quickstart e blocos comandos com prefixo `npx`, aviso na tabela de comandos;
+  - PLUGIN.md e THEME.md: blocos com `npx` + nota de CLI global;
+  - testes: scripts do manifest, docs com `npx` e output do next-steps (404 no total).
+- Updated dependencies []:
+  - @oktis-works/validation@0.1.8
+  - @oktis-works/core@0.1.8
+  - @oktis-works/config@0.1.8
+  - @oktis-works/database@0.1.8
+  - @oktis-works/theme-runtime@0.1.8
+
 ## 0.1.7
 
 ### Patch Changes

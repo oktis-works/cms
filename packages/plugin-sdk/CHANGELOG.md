@@ -1,5 +1,12 @@
 # @oktis-works/plugin-sdk
 
+## 0.1.8
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @oktis-works/types@0.1.8
+
 ## 0.1.7
 
 ### Patch Changes
