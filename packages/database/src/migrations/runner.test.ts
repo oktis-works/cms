@@ -121,7 +121,7 @@ describe('applyMigration', () => {
     const texts = calls.filter((c): c is TaggedCall => c.kind === 'tagged').map((c) => c.text);
     expect(texts[0]).toContain('SELECT id FROM migrations');
     expect(texts).toContain('__BEGIN__');
-    expect(texts.some((t) => t.includes('SET app.current_tenant_id'))).toBe(true);
+    expect(texts.some((t) => t.includes("set_config('app.current_tenant_id'"))).toBe(true);
 
     const insert = calls.find(
       (c): c is TaggedCall => c.kind === 'tagged' && c.text.includes('INSERT INTO migrations')

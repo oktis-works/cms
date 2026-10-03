@@ -88,7 +88,7 @@ export async function applyMigration(
   // Execute migration in transaction
   await sql.begin(async (tx) => {
     // Set tenant context for RLS
-    await tx`SET app.current_tenant_id = ${tenantId}`;
+    await tx`SELECT set_config('app.current_tenant_id', ${tenantId}, false)`;
 
     // Execute the migration SQL
     await tx.unsafe(migration.sql);
@@ -133,7 +133,7 @@ export async function rollbackMigration(
 
   // Execute rollback in transaction
   await sql.begin(async (tx) => {
-    await tx`SET app.current_tenant_id = ${tenantId}`;
+    await tx`SELECT set_config('app.current_tenant_id', ${tenantId}, false)`;
     await tx.unsafe(downSql);
 
     await tx`
@@ -232,7 +232,7 @@ export async function rollbackPluginMigrations(
 
   if (downSql) {
     await sql.begin(async (tx) => {
-      await tx`SET app.current_tenant_id = ${tenantId}`;
+      await tx`SELECT set_config('app.current_tenant_id', ${tenantId}, false)`;
       await tx.unsafe(downSql);
     });
   }

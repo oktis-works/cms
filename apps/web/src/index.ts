@@ -9,6 +9,7 @@ import { bootstrap } from '@oktis-works/core';
 import { establishTenantContext } from '@oktis-works/core';
 import { getConnection } from '@oktis-works/database';
 import { createRouter, wireThemeHooks } from './rendering.js';
+import { resolveTenantFromHost } from './tenant-resolver.js';
 import { setCurrentContent } from '@oktis-works/theme-sdk';
 
 type Variables = {
@@ -26,42 +27,17 @@ async function main() {
 
   const app = new Hono<{ Variables: Variables }>();
 
-  // Tenant resolution middleware
+  // Tenant resolution middleware (loopback → default; senão subdomain/domain)
   app.use('*', async (c, next) => {
-    // Resolve tenant from subdomain or domain
-    const host = c.req.header('host') ?? '';
-    const sql = getConnection();
+    const tenant = await resolveTenantFromHost(c.req.header('host') ?? '');
 
-    // Try subdomain resolution first
-    const subdomain = host.split('.')[0];
-    if (subdomain && subdomain !== 'www' && subdomain !== 'api') {
-      const tenants = await sql.unsafe(
-        'SELECT * FROM tenants WHERE subdomain = $1 AND status = $2',
-        [subdomain, 'ACTIVE']
-      );
-
-      if (tenants.length > 0) {
-        const tenant = tenants[0] as Record<string, unknown>;
-        await establishTenantContext(tenant['id'] as string);
-        c.set('tenant', tenant);
-        return next();
-      }
+    if (!tenant) {
+      return c.json({ error: 'Tenant not found' }, 404);
     }
 
-    // Try domain resolution
-    const tenants = await sql.unsafe(
-      'SELECT * FROM tenants WHERE domain = $1 AND status = $2',
-      [host, 'ACTIVE']
-    );
-
-    if (tenants.length > 0) {
-      const tenant = tenants[0] as Record<string, unknown>;
-      await establishTenantContext(tenant['id'] as string);
-      c.set('tenant', tenant);
-      return next();
-    }
-
-    return c.json({ error: 'Tenant not found' }, 404);
+    await establishTenantContext(tenant['id'] as string);
+    c.set('tenant', tenant);
+    return next();
   });
 
   // Health check

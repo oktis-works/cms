@@ -4,7 +4,9 @@ import { getConnection } from '../connection.js';
 
 export async function setTenantContext(tenantId: string): Promise<void> {
   const sql = getConnection();
-  await sql`SET app.current_tenant_id = ${tenantId}`;
+  // `SET` do Postgres não aceita placeholder (syntax error 42601); set_config
+  // parametriza com segurança — o tenantId pode vir do header X-Tenant-ID.
+  await sql`SELECT set_config('app.current_tenant_id', ${tenantId}, false)`;
 }
 
 export async function clearTenantContext(): Promise<void> {

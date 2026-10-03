@@ -22,10 +22,10 @@
     "@oktis-works/validation": "workspace:*",
     "@oktis-works/plugin-sdk": "workspace:*",
     "@oktis-works/ui": "workspace:*",
-    "@astrojs/solid-js": "4.0.0",
-    "@astrojs/node": "8.0.0",
-    "astro": "4.0.0",
-    "solid-js": "1.8.0"
+    "@astrojs/solid-js": "7.0.2",
+    "@astrojs/node": "11.1.6",
+    "astro": "7.3.5",
+    "solid-js": "1.9.15"
   },
   "devDependencies": {
     "typescript": "5.7.3"
