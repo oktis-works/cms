@@ -1,0 +1,37 @@
+name: 'Setup project (bun + node + install com retry)'
+description: >-
+  Setup repetido dos jobs de CI: bun 1.3.14, node 20, cache do bun install e
+  retry do frozen-lockfile — 4 jobs disparam installs simultâneos contra o
+  registry e um deles flakava com erro de rede (3 incidentes: 25116a5,
+  43d92ec, 62ed848).
+
+runs:
+  using: composite
+  steps:
+    - uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: 1.3.14
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - uses: actions/cache@v4
+      with:
+        path: ~/.bun/install/cache
+        key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+        restore-keys: |
+          bun-${{ runner.os }}-
+
+    - name: Install dependencies (retry contra flake de registry)
+      shell: bash
+      run: |
+        for attempt in 1 2 3; do
+          if bun install --frozen-lockfile; then
+            echo "install ok na tentativa ${attempt}/3"
+            exit 0
+          fi
+          echo "::warning::bun install falhou (tentativa ${attempt}/3) — nova tentativa em 15s"
+          sleep 15
+        done
+        exit 1
