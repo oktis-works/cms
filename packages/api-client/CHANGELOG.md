@@ -1,5 +1,12 @@
 # @oktis-works/api-client
 
+## 0.1.9
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @oktis-works/types@0.1.9
+
 ## 0.1.8
 
 ### Patch Changes
