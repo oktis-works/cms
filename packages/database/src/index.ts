@@ -12,4 +12,5 @@ export {
   rollbackPluginMigrations,
   type MigrationFile,
 } from './migrations/runner.js';
+export { ensureCoreSchema, resolveTenantId } from './migrations/bootstrap.js';
 export { schema, getSchema } from './schema/index.js';

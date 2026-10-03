@@ -24,6 +24,23 @@ function getTenantId(options: Record<string, string>): string {
   return options['tenant'] ?? 'default';
 }
 
+/**
+ * Prepara o banco para os comandos db:* em QUALQUER estado — inclusive um
+ * banco vazio recém-criado pelo docker compose (sem nem a tabela de controle
+ * de migrations, que sequer existe sem o schema core): aplica o schema se
+ * faltar, resolve o slug do --tenant para o UUID real de tenants.slug e
+ * devolve esse UUID.
+ */
+async function prepareDb(options: Record<string, string>): Promise<string> {
+  await initDb();
+  const { ensureCoreSchema, resolveTenantId } = await import('@oktis-works/database');
+  const applied = await ensureCoreSchema();
+  if (applied) {
+    console.log('✓ schema core aplicado (banco inicializado)');
+  }
+  return resolveTenantId(getTenantId(options));
+}
+
 export const commands: Command[] = [
   {
     name: 'init',
@@ -377,9 +394,9 @@ export const commands: Command[] = [
       { name: 'tenant', alias: 't', description: 'Tenant ID', required: false, default: 'default' },
     ],
     handler: async (args, options) => {
-      await initDb();
+      const tenantId = await prepareDb(options);
       const { runMigrations } = await import('@oktis-works/database');
-      const result = await runMigrations(getTenantId(options), getMigrationsDir(options));
+      const result = await runMigrations(tenantId, getMigrationsDir(options));
       console.log(`Applied: ${result.applied.length}, Skipped: ${result.skipped.length}`);
       for (const name of result.applied) {
         console.log(`  + ${name}`);
@@ -394,9 +411,8 @@ export const commands: Command[] = [
       { name: 'tenant', alias: 't', description: 'Tenant ID', required: false, default: 'default' },
     ],
     handler: async (args, options) => {
-      await initDb();
+      const tenantId = await prepareDb(options);
       const { getAppliedMigrations, rollbackMigration, loadMigrationsFromDir } = await import('@oktis-works/database');
-      const tenantId = getTenantId(options);
       const dir = getMigrationsDir(options);
       const applied = await getAppliedMigrations(tenantId);
       if (applied.length === 0) {
@@ -423,9 +439,9 @@ export const commands: Command[] = [
       { name: 'tenant', alias: 't', description: 'Tenant ID', required: false, default: 'default' },
     ],
     handler: async (args, options) => {
-      await initDb();
+      const tenantId = await prepareDb(options);
       const { getAppliedMigrations } = await import('@oktis-works/database');
-      const applied = await getAppliedMigrations(getTenantId(options));
+      const applied = await getAppliedMigrations(tenantId);
       if (applied.length === 0) {
         console.log('No migrations applied');
         return;
