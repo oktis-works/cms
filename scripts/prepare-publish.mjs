@@ -27,10 +27,12 @@
  *   - changesets pendentes em .changeset/*.md (valem para a PRÓXIMA release).
  *
  * REESCRIA (a menos que `--check`):
- *   - `"workspace:*"` → versão concreta do pacote de destino. O npm NÃO entende
- *     o protocolo `workspace:` e publicaria o literal, quebrando `npm install`
- *     dos consumidores. Em CI isso é efêmero; localmente restaure com
- *     `git checkout -- .` após publicar.
+ *   - `"workspace:*"` → `"^versão"` do pacote de destino (range interno: o
+ *     dependente não precisa ser republicado quando a dependência anda e o
+ *     consumidor resolve a atual via `bun update`, sem cópias aninhadas). O
+ *     npm NÃO entende o protocolo `workspace:` e publicaria o literal,
+ *     quebrando `npm install` dos consumidores. Em CI isso é efêmero;
+ *     localmente restaure com `git checkout -- .` após publicar.
  *
  * Uso:
  *   node scripts/prepare-publish.mjs                # valida + reescreve
@@ -231,8 +233,16 @@ for (const path of targets) {
         continue;
       }
       const spec = range.slice('workspace:'.length);
+      // `workspace:*` publica como ^X.Y.Z (range interno): dependente não
+      // precisa ser republicado toda vez que a dependência interna anda —
+      // sem âncora exata, o consumidor resolve a versão atual via `bun update`
+      // (sem cópias aninhadas/stale, ex.: api com database@0.1.3 preso).
       const concrete =
-        spec === '' || spec === '*' ? depVersion : spec === '^' ? `^${depVersion}` : spec === '~' ? `~${depVersion}` : spec;
+        spec === '' || spec === '*' || spec === '^'
+          ? `^${depVersion}`
+          : spec === '~'
+            ? `~${depVersion}`
+            : spec;
       plan.push({ path, section, dep, range, concrete });
     }
   }
