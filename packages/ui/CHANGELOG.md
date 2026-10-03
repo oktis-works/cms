@@ -1,5 +1,11 @@
 # @oktis-works/ui
 
+## 0.1.4
+
+### Patch Changes
+
+- Tenant context usa set_config parametrizado no setTenantContext e no migration runner (`SET x = $1` não existe no Postgres — syntax error 42601 quebrava login e X-Tenant-ID); ui atualiza solid-js para 1.9.15 (cópia única com o admin em Astro 7).
+
 ## 0.1.3
 
 ### Patch Changes
