@@ -52,6 +52,17 @@ const config: AuthConfig = {
   jwtExpiresIn: '1h',
   refreshTokenExpiresIn: '7d',
   bcryptRounds: 10,
+  cookie: {
+    sameSite: 'lax',
+    secure: false,
+    accessTokenMaxAge: 900,
+    refreshTokenMaxAge: 2592000,
+  },
+  csrf: {
+    enabled: true,
+    headerName: 'x-csrf-token',
+    cookieName: 'csrf_token',
+  },
 };
 
 const TENANT_UUID = '11111111-2222-3333-4444-555555555555';

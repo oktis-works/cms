@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/web",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -24,7 +24,7 @@
     "@oktis-works/types": "workspace:*",
     "@oktis-works/theme-sdk": "workspace:*",
     "@oktis-works/theme-runtime": "workspace:*",
-    "hono": "4.0.0",
+    "hono": "4.13.12",
     "@hono/node-server": "1.8.0",
     "@oktis-works/plugin-runtime": "workspace:*"
   },

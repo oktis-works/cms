@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/api",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -23,7 +23,7 @@
     "@oktis-works/config": "workspace:*",
     "@oktis-works/database": "workspace:*",
     "@oktis-works/types": "workspace:*",
-    "hono": "4.0.0",
+    "hono": "4.13.12",
     "@hono/node-server": "1.8.0",
     "@oktis-works/validation": "workspace:*"
   },

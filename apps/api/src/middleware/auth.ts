@@ -1,6 +1,7 @@
-// @oktis-works/api - Authentication Middleware
+// @oktis-works/api - Authentication Middleware (Bearer + HttpOnly cookie via hono/cookie)
 
 import type { Context, Next } from 'hono';
+import { getCookie } from 'hono/cookie';
 import { AuthService } from '@oktis-works/auth';
 import { loadConfig } from '@oktis-works/config';
 
@@ -8,13 +9,16 @@ const config = loadConfig();
 const authService = new AuthService(config.auth);
 
 export const authMiddleware = async (c: Context, next: Next) => {
+  // Bearer primeiro (clientes API-first), depois cookie HttpOnly (admin/navegador)
   const authHeader = c.req.header('Authorization');
+  const cookieToken = getCookie(c, 'access_token');
 
-  if (!authHeader?.startsWith('Bearer ')) {
-    return c.json({ error: 'Missing or invalid authorization header' }, 401);
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : cookieToken;
+
+  if (!token) {
+    return c.json({ error: 'Missing or invalid authorization header/cookie' }, 401);
   }
 
-  const token = authHeader.slice(7);
   const payload = await authService.verifyToken(token);
 
   if (!payload) {

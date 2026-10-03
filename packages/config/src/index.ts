@@ -34,6 +34,25 @@ export interface AuthConfig {
   jwtExpiresIn: string;
   refreshTokenExpiresIn: string;
   bcryptRounds: number;
+  /** Cookie options for auth tokens */
+  cookie: {
+    /** SameSite policy: 'strict' | 'lax' | 'none' (none requer Secure=true) */
+    sameSite: 'strict' | 'lax' | 'none';
+    /** Secure flag (auto em produção se undefined) */
+    secure?: boolean;
+    /** Access token cookie max-age in seconds (default 15min) */
+    accessTokenMaxAge?: number;
+    /** Refresh token cookie max-age in seconds (default 30d) */
+    refreshTokenMaxAge?: number;
+  };
+  /** CSRF protection (double-submit cookie) */
+  csrf: {
+    enabled: boolean;
+    /** Header name for CSRF token */
+    headerName: string;
+    /** Cookie name for CSRF token */
+    cookieName: string;
+  };
 }
 
 export interface StorageConfig {
@@ -96,6 +115,14 @@ function getEnvBool(key: string, defaultValue: boolean): boolean {
   const value = process.env[key];
   if (value === undefined) return defaultValue;
   return value === 'true' || value === '1';
+}
+
+function getEnvSameSite(key: string, defaultValue: 'strict' | 'lax' | 'none'): 'strict' | 'lax' | 'none' {
+  const value = process.env[key];
+  if (!value) return defaultValue;
+  const normalized = value.toLowerCase();
+  if (['strict', 'lax', 'none'].includes(normalized)) return normalized as 'strict' | 'lax' | 'none';
+  throw new Error(`Invalid AUTH_COOKIE_SAMESITE: "${value}" — must be 'strict', 'lax', or 'none'`);
 }
 
 export interface ParsedDatabaseUrl {
@@ -196,6 +223,17 @@ export function loadConfig(): Config {
       jwtExpiresIn: getEnv('JWT_EXPIRES_IN', '15m'),
       refreshTokenExpiresIn: getEnv('REFRESH_TOKEN_EXPIRES_IN', '7d'),
       bcryptRounds: getEnvInt('BCRYPT_ROUNDS', 12),
+      cookie: {
+        sameSite: getEnvSameSite('AUTH_COOKIE_SAMESITE', 'lax'),
+        secure: getEnvBool('AUTH_COOKIE_SECURE', false),
+        accessTokenMaxAge: getEnvInt('AUTH_COOKIE_ACCESS_MAXAGE', 60 * 15),
+        refreshTokenMaxAge: getEnvInt('AUTH_COOKIE_REFRESH_MAXAGE', 60 * 60 * 24 * 30),
+      },
+      csrf: {
+        enabled: getEnvBool('AUTH_CSRF_ENABLED', true),
+        headerName: getEnv('AUTH_CSRF_HEADER', 'x-csrf-token'),
+        cookieName: getEnv('AUTH_CSRF_COOKIE', 'csrf_token'),
+      },
     },
     storage: {
       provider: (process.env['STORAGE_PROVIDER'] as StorageConfig['provider']) ?? 'local',

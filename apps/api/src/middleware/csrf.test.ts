@@ -31,14 +31,22 @@ describe('csrfMiddleware', () => {
     expect(res.status).toBe(200);
   });
 
-  it('POST com cookie de sessão sem header CSRF é bloqueado', async () => {
+  it('POST de browser (com Origin) sem header CSRF é bloqueado', async () => {
     const res = await buildApp().request('/api/v1/things', {
       method: 'POST',
-      headers: { Cookie: `session=abc; ${CSRF_COOKIE}=tok-1` },
+      headers: { Host: 'cms.local', Origin: 'https://cms.local', Cookie: `session=abc; ${CSRF_COOKIE}=tok-1` },
     });
     expect(res.status).toBe(403);
     const body = (await res.json()) as { error: string };
     expect(body.error).toBe('CSRF_TOKEN_INVALID');
+  });
+
+  it('POST sem Origin/Referer (cliente não-browser: curl/SDK/CI) é isento de CSRF', async () => {
+    const res = await buildApp().request('/api/v1/things', {
+      method: 'POST',
+      headers: { Cookie: `session=abc; ${CSRF_COOKIE}=tok-1` },
+    });
+    expect(res.status).toBe(200);
   });
 
   it('POST com cookie + header iguais e mesma origem passa', async () => {

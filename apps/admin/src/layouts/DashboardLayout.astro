@@ -89,19 +89,21 @@ const settingsChildren = [
 <script>
   import { apiClient } from '../lib/api';
 
-  // Guarda de sessão: sem token → volta para o login (o token vive no localStorage)
-  if (!apiClient.isLoggedIn()) {
-    window.location.replace('/login');
-  }
+  // Guarda de sessão: verifica /me com cookies HttpOnly (sem localStorage —
+  // o token vive em cookie HttpOnly inacessível ao JS)
+  void (async () => {
+    if (!(await apiClient.isLoggedIn())) {
+      window.location.replace('/login');
+    }
+  })();
 
-  // Logout: encerra a sessão no backend (best-effort) e limpa o token local
+  // Logout: encerra a sessão no backend (limpa cookies HttpOnly) e volta pro login
   document.getElementById('logout-btn')?.addEventListener('click', async () => {
     try {
       await apiClient.logout();
     } catch {
       // sem rede/sessão expirada — seguimos para o login mesmo assim
     }
-    apiClient.clearTokens();
     window.location.href = '/login';
   });
 </script>

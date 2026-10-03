@@ -21,7 +21,7 @@
     },
     "apps/admin": {
       "name": "@oktis-works/admin",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "bin": {
         "okcms-admin": "./bin/admin.js",
       },
@@ -41,7 +41,7 @@
     },
     "apps/api": {
       "name": "@oktis-works/api",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "bin": {
         "okcms-api": "./dist/index.js",
       },
@@ -53,7 +53,7 @@
         "@oktis-works/database": "workspace:*",
         "@oktis-works/types": "workspace:*",
         "@oktis-works/validation": "workspace:*",
-        "hono": "4.0.0",
+        "hono": "4.13.12",
       },
       "devDependencies": {
         "@types/node": "20.11.0",
@@ -63,7 +63,7 @@
     },
     "apps/web": {
       "name": "@oktis-works/web",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "bin": {
         "okcms-web": "./dist/index.js",
       },
@@ -76,7 +76,7 @@
         "@oktis-works/theme-runtime": "workspace:*",
         "@oktis-works/theme-sdk": "workspace:*",
         "@oktis-works/types": "workspace:*",
-        "hono": "4.0.0",
+        "hono": "4.13.12",
       },
       "devDependencies": {
         "@types/node": "20.11.0",
@@ -86,7 +86,7 @@
     },
     "apps/worker": {
       "name": "@oktis-works/worker",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "bin": {
         "okcms-worker": "./dist/index.js",
       },
@@ -106,7 +106,7 @@
     },
     "packages/api-client": {
       "name": "@oktis-works/api-client",
-      "version": "0.1.11",
+      "version": "0.1.12",
       "dependencies": {
         "@oktis-works/types": "workspace:*",
       },
@@ -116,7 +116,7 @@
     },
     "packages/auth": {
       "name": "@oktis-works/auth",
-      "version": "0.1.11",
+      "version": "0.1.12",
       "dependencies": {
         "@oktis-works/config": "workspace:*",
         "@oktis-works/core": "workspace:*",
@@ -130,7 +130,7 @@
     },
     "packages/cli": {
       "name": "@oktis-works/cms",
-      "version": "0.1.11",
+      "version": "0.1.12",
       "bin": {
         "okcms": "./dist/index.js",
       },
@@ -148,7 +148,7 @@
     },
     "packages/config": {
       "name": "@oktis-works/config",
-      "version": "0.1.11",
+      "version": "0.1.12",
       "dependencies": {
         "@oktis-works/types": "workspace:*",
       },
@@ -158,7 +158,7 @@
     },
     "packages/core": {
       "name": "@oktis-works/core",
-      "version": "0.1.11",
+      "version": "0.1.12",
       "dependencies": {
         "@aws-sdk/client-s3": "3.700.0",
         "@oktis-works/config": "workspace:*",
@@ -174,7 +174,7 @@
     },
     "packages/database": {
       "name": "@oktis-works/database",
-      "version": "0.1.11",
+      "version": "0.1.12",
       "dependencies": {
         "@oktis-works/config": "workspace:*",
         "@oktis-works/types": "workspace:*",
@@ -187,7 +187,7 @@
     },
     "packages/plugin-runtime": {
       "name": "@oktis-works/plugin-runtime",
-      "version": "0.1.11",
+      "version": "0.1.12",
       "dependencies": {
         "@oktis-works/plugin-sdk": "workspace:*",
         "@oktis-works/types": "workspace:*",
@@ -200,7 +200,7 @@
     },
     "packages/plugin-sdk": {
       "name": "@oktis-works/plugin-sdk",
-      "version": "0.1.11",
+      "version": "0.1.12",
       "dependencies": {
         "@oktis-works/types": "workspace:*",
       },
@@ -211,7 +211,7 @@
     },
     "packages/theme-runtime": {
       "name": "@oktis-works/theme-runtime",
-      "version": "0.1.11",
+      "version": "0.1.12",
       "dependencies": {
         "@oktis-works/theme-sdk": "workspace:*",
         "@oktis-works/types": "workspace:*",
@@ -234,14 +234,14 @@
     },
     "packages/theme-sdk": {
       "name": "@oktis-works/theme-sdk",
-      "version": "0.1.11",
+      "version": "0.1.12",
       "devDependencies": {
         "typescript": "5.7.3",
       },
     },
     "packages/types": {
       "name": "@oktis-works/types",
-      "version": "0.1.11",
+      "version": "0.1.12",
       "dependencies": {
         "@oktis-works/validation": "workspace:*",
       },
@@ -262,7 +262,7 @@
     },
     "packages/validation": {
       "name": "@oktis-works/validation",
-      "version": "0.1.11",
+      "version": "0.1.12",
       "dependencies": {
         "semver": "7",
       },
@@ -1220,7 +1220,7 @@
 
     "hast-util-whitespace": ["hast-util-whitespace@3.0.0", "", { "dependencies": { "@types/hast": "^3.0.0" } }, "sha512-88JUN06ipLwsnv+dVn+OIYOvAuvBMy/Qoi6O7mQHxdPXpjy+Cd6xRkWwux7DKO+4sYILtLBRIKgsdpS2gQc7qw=="],
 
-    "hono": ["hono@4.0.0", "", {}, "sha512-8dKhuBBpRZEodUttQhrSFJ6PQqHRjXHyeeegfxOf132pvgbf0tOb9qqb7q7eYwAWpOcYrsUOsWdJ0sQIIovhZg=="],
+    "hono": ["hono@4.13.12", "", {}, "sha512-6E2QDAc9Ick9Sq77ZrGS/dk2WUYni91aufTw6LJKpV7w8kW5/GxVUc650FOADOmlwg3K+f7Pun6XlV+pYmW6gw=="],
 
     "html-entities": ["html-entities@2.3.3", "", {}, "sha512-DV5Ln36z34NNTDgnz0EWGBLZENelNAtkiFA4kyNOG2tDI6Mz1uSWiq1wAKdyjnJwyDiDO7Fa2SO1CTxPXL8VxA=="],
 

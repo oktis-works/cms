@@ -2,6 +2,7 @@
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const authMiddleware = vi.fn(async (_c: unknown, next: () => Promise<void>) => next());
@@ -38,7 +39,7 @@ const svc = () => vi.mocked(mediaService);
 let uploadDir: string;
 
 beforeAll(async () => {
-  uploadDir = await mkdtemp(join('/tmp/opencode/media-test-'));
+  uploadDir = await mkdtemp(join(tmpdir(), 'media-test-'));
   process.env['UPLOAD_DIR'] = uploadDir;
 });
 

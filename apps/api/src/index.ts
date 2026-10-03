@@ -6,11 +6,10 @@ import { logger } from 'hono/logger';
 import { cors } from 'hono/cors';
 import { prettyJSON } from 'hono/pretty-json';
 import { serve } from '@hono/node-server';
-import { bootstrap, getEventBus, registerEventAuditLog } from '@oktis-works/core';
+import { bootstrap, getEventBus, registerEventAuditLog, establishTenantContext } from '@oktis-works/core';
 import { traceMiddleware } from './middleware/trace.js';
 import { rateLimitMiddleware } from './middleware/rate-limit.js';
-import { csrfMiddleware, issueCsrfToken, CSRF_COOKIE } from './middleware/csrf.js';
-import { establishTenantContext } from '@oktis-works/core';
+import { csrfMiddleware } from './middleware/csrf.js';
 import authRouter from './routes/auth/index.js';
 import meRouter from './routes/auth/me.js';
 import contentRouter from './routes/content/index.js';
@@ -52,22 +51,20 @@ async function main() {
   app.use('*', traceMiddleware);
   app.use('*', logger());
   app.use('*', cors({
-    origin: '*',
+    origin: (origin: string) => {
+      // Allow admin origins with credentials (cookies HttpOnly)
+      const allowed = ['http://admin.lvh.me:3011', 'http://localhost:3011', 'http://127.0.0.1:3011'];
+      return allowed.includes(origin) ? origin : '';
+    },
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization', 'X-Tenant-ID'],
+    allowHeaders: ['Content-Type', 'Authorization', 'X-Tenant-ID', 'X-CSRF-Token'],
+    credentials: true,
   }));
   app.use('*', prettyJSON());
 
   // rest-api-003: rate limiting global (429 + Retry-After); probes isentos
   app.use('*', rateLimitMiddleware());
 
-  // security-001: emissão de cookie CSRF + validação double-submit
-  app.use('*', async (c, next) => {
-    if (!c.req.header('Cookie')?.includes(CSRF_COOKIE)) {
-      c.header('Set-Cookie', `${CSRF_COOKIE}=${issueCsrfToken()}; Path=/; SameSite=Lax; Secure`);
-    }
-    await next();
-  });
   app.use('/api/*', csrfMiddleware);
 
   // Tenant context middleware
@@ -110,14 +107,9 @@ async function main() {
   app.route('/api/v1/health', healthRouter);
   app.route('/api/v1/metrics', metricsRouter);
   app.route('/api/v1/audit-logs', auditLogsRouter);
-
-  // rest-api-004: documento OpenAPI 3.1
   app.route('/api/v1/docs', docsRouter);
-
-  // REQU-035-002: catálogo de hooks
   app.route('/api/v1/hooks/catalog', hooksCatalogRouter);
 
-  // API info endpoint
   app.get('/api', (c) => {
     return c.json({
       name: 'OkCMS API',
@@ -150,28 +142,21 @@ async function main() {
     });
   });
 
-  // 404 handler
   app.notFound((c) => {
     return c.json({ error: 'Not found' }, 404);
   });
 
-  // Error handler
   app.onError((err, c) => {
     console.error('Server error:', err);
     return c.json({ error: 'Internal server error' }, 500);
   });
 
-  // Start server
   const port = Number(process.env['PORT'] ?? 3000);
 
-  serve({
-    fetch: app.fetch,
-    port,
-  }, (info) => {
+  serve({ fetch: app.fetch, port }, (info) => {
     console.log(`OkCMS API running on http://localhost:${info.port}`);
   });
 
-  // Graceful shutdown
   process.on('SIGTERM', async () => {
     console.log('SIGTERM received, shutting down...');
     await lifecycle.stop();

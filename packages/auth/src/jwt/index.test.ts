@@ -10,6 +10,17 @@ describe('JWTService', () => {
       jwtExpiresIn: '1h',
       refreshTokenExpiresIn: '7d',
       bcryptRounds: 10,
+      cookie: {
+        sameSite: 'lax',
+        secure: false,
+        accessTokenMaxAge: 900,
+        refreshTokenMaxAge: 2592000,
+      },
+      csrf: {
+        enabled: true,
+        headerName: 'x-csrf-token',
+        cookieName: 'csrf_token',
+      },
     });
   });
 

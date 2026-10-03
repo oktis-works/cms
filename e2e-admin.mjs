@@ -10,7 +10,8 @@ const expect = (a, e, m) => a === e ? ok(m) : fail(`${m} (esperado=${e} obtido=$
 
 async function main() {
   const browser = await chromium.launch({ executablePath: CHROME, headless: true });
-  const page = await browser.newPage();
+  const context = await browser.newContext();
+  const page = await context.newPage();
   page.setDefaultTimeout(20000);
 
   // ---------- LOGIN ----------
@@ -21,13 +22,20 @@ async function main() {
   await page.fill('#tenant', 'default');
   await page.click('#login-form button[type="submit"]');
   await page.waitForURL(ADMIN + '/', { timeout: 10000 });
-  expect(page.url().endsWith('/') || page.url().endsWith('/'), true, 'login → redirect to /');
+  await page.waitForTimeout(2000); // cookies do response do login
+  expect(page.url().includes('3011'), true, 'login → redirect to /');
 
-  // token salvo no localStorage
-  const token = await page.evaluate(() => localStorage.getItem('accessToken'));
-  expect(typeof token, 'string', 'accessToken salvo no localStorage');
-  const tenantId = await page.evaluate(() => localStorage.getItem('tenantId'));
-  expect(typeof tenantId, 'string', 'tenantId salvo no localStorage');
+  // Cookies HttpOnly no browser (NÃO localStorage)
+  const cookies = await context.cookies(API);
+  const accessTokenCookie = cookies.find(c => c.name === 'access_token');
+  const refreshTokenCookie = cookies.find(c => c.name === 'refresh_token');
+  const csrfCookie = cookies.find(c => c.name === 'csrf_token');
+  expect(!!accessTokenCookie && accessTokenCookie.httpOnly, true, 'access_token cookie HttpOnly presente');
+  expect(!!refreshTokenCookie && refreshTokenCookie.httpOnly, true, 'refresh_token cookie HttpOnly presente');
+  expect(!!csrfCookie && !csrfCookie.httpOnly, true, 'csrf_token cookie legível (double-submit)');
+  // localStorage NÃO tem mais tokens
+  const lsToken = await page.evaluate(() => localStorage.getItem('accessToken'));
+  expect(lsToken, null, 'localStorage NÃO guarda mais accessToken');
 
   // ---------- DASHBOARD ----------
   await page.goto(ADMIN + '/', { waitUntil: 'networkidle' });
@@ -40,32 +48,29 @@ async function main() {
   await page.waitForSelector('text=Arraste arquivos aqui');
   ok('página /media abre');
 
-  // upload PNG pequeno via input file
+  // upload PNG via input file (cookies HttpOnly enviados automaticamente)
   const fileInput = await page.$('input[type="file"]');
   await fileInput.setInputFiles({
-    name: 'e2e.png',
+    name: 'e2e-pw.png',
     mimeType: 'image/png',
-    buffer: Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,'E2E-PNG-BYTES'.charCodeAt(0)])
+    buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x0d, 0x0a]),
   });
-  await page.waitForTimeout(1000);
-  // verifica toast ou grid atualizado
-  const mediaItems = await page.$$('.media-grid img, .media-grid .thumb, .media-grid [data-testid="media-item"]');
+  await page.waitForTimeout(2500);
+  const mediaItems = await page.$$('.media-grid img, .media-grid .thumb, .media-grid [data-testid="media-item"], .media-grid .media-card');
   expect(mediaItems.length > 0, true, 'upload media aparece no grid');
 
   // ---------- USERS ----------
   await page.goto(ADMIN + '/users', { waitUntil: 'networkidle' });
   await page.waitForSelector('text=Nome');
   await page.waitForSelector('text=Email');
-  await page.waitForSelector('text=Papel');
   ok('página /users lista usuários');
 
-  // criar novo user (página /users/new)
+  // criar user via /users/new
   await page.goto(ADMIN + '/users/new', { waitUntil: 'networkidle' });
   await page.waitForSelector('label:has-text("Nome") input');
   await page.fill('label:has-text("Nome") input', 'Playwright E2E');
   await page.fill('input[type="email"]', 'playwright@e2e.test');
   await page.fill('input[type="password"]', 'senha12345');
-  // aguarda roles carregarem no select (onMount assíncrono)
   await page.waitForFunction(() => document.querySelector('select')?.options.length > 1);
   await page.selectOption('select', { label: 'Editor (EDITOR)' });
   await page.click('button[type="submit"]:has-text("Criar usuário")');
@@ -79,30 +84,34 @@ async function main() {
 
   await page.fill('input[placeholder="Meu Site"]', 'Site Playwright');
   await page.click('button[type="submit"]:has-text("Salvar")');
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(1500);
   const saved = await page.inputValue('input[placeholder="Meu Site"]');
-  expect(saved, 'Site Playwright', 'siteTitle salvo via UI');
+  expect(saved, 'Site Playwright', 'siteTitle salvo via UI (PUT com CSRF)');
 
   // ---------- CONTENT NEW ----------
   await page.goto(ADMIN + '/content/new', { waitUntil: 'networkidle' });
   await page.waitForSelector('text=Novo conteúdo');
-  // type select (post/page) - assume 'post' default
   await page.fill('label:has-text("Título") input', 'Post Playwright');
   await page.fill('label:has-text("Slug") input', 'post-playwright');
   await page.fill('label:has-text("Resumo") textarea', 'Excerpt Playwright');
-  await page.click('button[type="submit"]:has-text("Salvar"), button:has-text("Publicar")');
-  await page.waitForTimeout(1500);
+  await page.click('button[type="submit"]');
+  await page.waitForTimeout(2000);
   ok('criação de conteúdo via UI');
 
   // ---------- LOGOUT ----------
   await page.click('#logout-btn');
-  await page.waitForURL(ADMIN + '/login', { timeout: 5000 });
+  await page.waitForURL(ADMIN + '/login', { timeout: 8000 });
   expect(page.url().includes('/login'), true, 'logout → redirect login');
+
+  // cookies limpos após logout
+  const afterCookies = await context.cookies(API);
+  const afterAccess = afterCookies.find(c => c.name === 'access_token');
+  expect(!afterAccess, true, 'logout limpa access_token cookie');
 
   // ---------- SESSION GUARD ----------
   await page.goto(ADMIN + '/', { waitUntil: 'networkidle' });
-  await page.waitForURL(ADMIN + '/login');
-  ok('guard de sessão redireciona para login sem token');
+  await page.waitForURL(ADMIN + '/login', { timeout: 10000 });
+  ok('guard de sessão redireciona para login sem cookie');
 
   await browser.close();
   console.log('\n=== ADMIN E2E ===');

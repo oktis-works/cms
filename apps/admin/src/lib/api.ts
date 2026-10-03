@@ -1,4 +1,4 @@
-// API Client for Admin Dashboard
+// API Client for Admin Dashboard (HttpOnly cookies + CSRF + auto-refresh)
 
 const API_BASE = (import.meta.env as Record<string, string>)['PUBLIC_API_URL'] ?? 'http://localhost:3000';
 
@@ -24,10 +24,6 @@ export interface LoginResponse {
     email: string;
     name: string;
   };
-  accessToken: string;
-  refreshToken: string;
-  sessionId: string;
-  /** UUID do tenant (retornado pelo login resolvido no backend) */
   tenantId?: string;
 }
 
@@ -106,48 +102,82 @@ export interface ThemeInfo {
 }
 
 class ApiClient {
-  private accessToken: string | null = null;
-  private refreshTokenValue: string | null = null;
+  private baseUrl: string;
+  private csrfToken: string | null = null;
+  private isRefreshing = false;
 
-  constructor(private baseUrl: string = API_BASE) {}
+  constructor(baseUrl: string = API_BASE) {
+    this.baseUrl = baseUrl;
+  }
 
-  setTokens(accessToken: string, refreshToken: string, tenantId?: string) {
-    this.accessToken = accessToken;
-    this.refreshTokenValue = refreshToken;
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
-      if (tenantId) localStorage.setItem('tenantId', tenantId);
+  /** Inicializa lendo CSRF do cookie (chamado no boot da app) */
+  async init(): Promise<void> {
+    try {
+      // Tenta obter token CSRF do cookie
+      const _res = await fetch(`${this.baseUrl}/api/v1/auth/me`, {
+        credentials: 'include',
+      });
+      // Se 401, não logado; se 200, sessão válida
+    } catch {
+      // ignora
     }
   }
 
-  /** Sessão válida sem tocar na rede (guarda de rota da admin). */
-  isLoggedIn(): boolean {
-    this.loadTokens();
-    return this.accessToken !== null;
-  }
-
-  getTenantId(): string | null {
-    if (typeof window !== 'undefined') return localStorage.getItem('tenantId');
-    return null;
-  }
-
-  loadTokens() {
-    if (typeof window !== 'undefined') {
-      this.accessToken = localStorage.getItem('accessToken');
-      this.refreshTokenValue = localStorage.getItem('refreshToken');
+  /** Sessão válida — verifica via /me (usa cookies HttpOnly automaticamente) */
+  async isLoggedIn(): Promise<boolean> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/v1/auth/me`, {
+        credentials: 'include',
+      });
+      return res.ok;
+    } catch {
+      return false;
     }
   }
 
-  clearTokens() {
-    this.accessToken = null;
-    this.refreshTokenValue = null;
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
+  /** Obtém tenantId do backend via /me */
+  async getTenantId(): Promise<string | null> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/v1/auth/me`, {
+        credentials: 'include',
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.tenantId ?? null;
+    } catch {
+      return null;
     }
   }
 
+  /** Login — o backend seta cookies HttpOnly e CSRF; retorna user + tenantId */
+  async login(input: LoginInput): Promise<LoginResponse> {
+    const response = await this.request<LoginResponse>('POST', '/api/v1/auth/login', input);
+    // CSRF token virá no cookie (setCsrfCookie no backend)
+    return response;
+  }
+
+  /** Logout — limpa cookies no backend */
+  async logout(): Promise<void> {
+    await this.request('POST', '/api/v1/auth/logout', {});
+    this.csrfToken = null;
+  }
+
+  /** Refresh de access token via cookie refresh_token */
+  async refreshTokens(): Promise<void> {
+    if (this.isRefreshing) return;
+    this.isRefreshing = true;
+    try {
+      await this.request('POST', '/api/v1/auth/refresh', {});
+    } finally {
+      this.isRefreshing = false;
+    }
+  }
+
+  /** Requisição genérica com:
+   * - credentials: 'include' (envia cookies HttpOnly)
+   * - auto-refresh em 401
+   * - CSRF header para mutações
+   */
   private async request<T>(
     method: string,
     path: string,
@@ -155,58 +185,60 @@ class ApiClient {
     headers?: Record<string, string>
   ): Promise<T> {
     const url = `${this.baseUrl}${path}`;
-    
+
     const requestHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
       ...headers,
     };
 
-    if (this.accessToken) {
-      requestHeaders['Authorization'] = `Bearer ${this.accessToken}`;
-    }
-    const tenantId = this.getTenantId();
-    if (tenantId) {
-      requestHeaders['X-Tenant-ID'] = tenantId;
+    // CSRF para mutações (não-GET/HEAD/OPTIONS)
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase())) {
+      const csrf = this.getCsrfToken();
+      if (csrf) requestHeaders['x-csrf-token'] = csrf;
     }
 
-    const response = await fetch(url, {
+    let response = await fetch(url, {
       method,
       headers: requestHeaders,
+      credentials: 'include', // ESSENCIAL: envia cookies HttpOnly
       body: body ? JSON.stringify(body) : undefined,
     });
 
+    // Auto-refresh em 401 (exceto em /refresh e /logout)
+    if (response.status === 401 && !path.includes('/auth/refresh') && !path.includes('/auth/logout')) {
+      await this.refreshTokens();
+      // Repete a requisição original
+      response = await fetch(url, {
+        method,
+        headers: requestHeaders,
+        credentials: 'include',
+        body: body ? JSON.stringify(body) : undefined,
+      });
+    }
+
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Request failed' }));
-      throw new Error(error.error ?? 'Request failed');
+      throw new Error(error.error ?? `Request failed: ${response.status}`);
+    }
+
+    // Atualiza CSRF token do cookie de resposta (se houver)
+    const setCookie = response.headers.get('set-cookie');
+    if (setCookie) {
+      const csrfMatch = setCookie.match(/csrf_token=([^;]+)/);
+      if (csrfMatch?.[1]) this.csrfToken = csrfMatch[1];
     }
 
     return response.json() as Promise<T>;
   }
 
-  // Auth
-  async login(input: LoginInput): Promise<LoginResponse> {
-    const response = await this.request<LoginResponse>('POST', '/api/v1/auth/login', input);
-    this.setTokens(response.accessToken, response.refreshToken, response.tenantId);
-    return response;
-  }
-
-  async logout() {
-    if (this.refreshTokenValue) {
-      await this.request('POST', '/api/v1/auth/logout', { token: this.refreshTokenValue });
+  /** Lê CSRF token do cookie (document.cookie) */
+  private getCsrfToken(): string | null {
+    if (this.csrfToken) return this.csrfToken;
+    if (typeof document !== 'undefined') {
+      const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
+      if (match?.[1]) return match[1];
     }
-    this.clearTokens();
-  }
-
-  async refreshTokens(): Promise<void> {
-    if (!this.refreshTokenValue) throw new Error('No refresh token');
-    
-    const response = await this.request<{ accessToken: string; refreshToken: string }>(
-      'POST',
-      '/api/v1/auth/refresh',
-      { refreshToken: this.refreshTokenValue }
-    );
-    
-    this.setTokens(response.accessToken, response.refreshToken);
+    return null;
   }
 
   // Content
@@ -232,7 +264,7 @@ class ApiClient {
   }
 
   async createContent(data: Partial<Content>): Promise<Content> {
-    return this.request('POST', '/api/v1/content', data);
+    return this.request('POST', `/api/v1/content`, data);
   }
 
   async updateContent(id: string, data: Partial<Content>): Promise<Content> {
@@ -335,17 +367,20 @@ class ApiClient {
     if (options?.alt) formData.append('alt', options.alt);
     if (options?.caption) formData.append('caption', options.caption);
 
-    this.loadTokens();
-    const headers: Record<string, string> = {};
-    if (this.accessToken) headers['Authorization'] = `Bearer ${this.accessToken}`;
-    const tenantId = this.getTenantId();
-    if (tenantId) headers['X-Tenant-ID'] = tenantId;
+    const url = `${this.baseUrl}/api/v1/media/upload`;
+    const requestHeaders: Record<string, string> = {};
 
-    const response = await fetch(`${this.baseUrl}/api/v1/media/upload`, {
+    // CSRF para upload
+    const csrf = this.getCsrfToken();
+    if (csrf) requestHeaders['x-csrf-token'] = csrf;
+
+    const response = await fetch(url, {
       method: 'POST',
-      headers,
+      headers: requestHeaders,
+      credentials: 'include',
       body: formData,
     });
+
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: `Upload failed: ${response.status}` }));
       throw new Error(error.error ?? `Upload failed: ${response.status}`);

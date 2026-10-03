@@ -1,5 +1,23 @@
 # @oktis-works/config
 
+## 0.1.13
+
+### Patch Changes
+
+- Segurança: tokens em cookies HttpOnly (não localStorage) + CSRF double-submit
+  
+  - Login/register/logout movidos para cookies HttpOnly + Secure + SameSite (configurável via AUTH_COOKIE_SAMESITE: strict|lax|none)
+  - Cookie CSRF legível pelo JS (httpOnly: false) — double-submit header X-CSRF-Token === cookie
+  - CSRF: clientes Bearer (API-first) isentos; sem Origin/Referer (curl/SDK/CI) isento; cross-port via TRUSTED_ORIGINS
+  - Auto-refresh de access token via cookie refresh_token em 401
+  - GET /auth/me para verificação de sessão (cookie HttpOnly)
+  - Middleware auth aceita Bearer OU cookie access_token
+  - Hono 4.0.0 → 4.13.12 (API oficial hono/cookie: setCookie/getCookie/deleteCookie)
+  - admin: api-client com credentials: include, session guard via /me, zero localStorage
+  - Tests: 486 passando; E2E API 33/33; Admin Playwright 16/16
+- Updated dependencies []:
+  - @oktis-works/types@0.1.13
+
 ## 0.1.12
 
 ### Patch Changes

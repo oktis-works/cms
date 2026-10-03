@@ -2,11 +2,16 @@
 
 import type { Context, Next } from 'hono';
 import { randomUUID } from 'node:crypto';
+import { loadConfig } from '@oktis-works/config';
+
+const config = loadConfig();
+const { csrf: csrfCfg } = config.auth;
 
 const STATE_CHANGING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
-export const CSRF_COOKIE = 'bl_csrf';
-export const CSRF_HEADER = 'X-CSRF-Token';
+// Cookie CSRF usa o nome do config (padrão: csrf_token)
+export const CSRF_COOKIE = csrfCfg.cookieName;
+export const CSRF_HEADER = csrfCfg.headerName;
 
 export function issueCsrfToken(): string {
   return randomUUID();
@@ -45,22 +50,39 @@ function readCookie(cookieHeader: string | undefined, name: string): string | nu
 }
 
 /**
- * Double-submit cookie: emite cookie bl_csrf para navegadores e valida que
- * header X-CSRF-Token === cookie em requisições state-changing com cookie de sessão.
- * Clientes não-navegador (Authorization Bearer) ficam isentos.
+ * Double-submit cookie: valida que header X-CSRF-Token === cookie em requisições
+ * state-changing de BROWSER (com Origin/Referer).
+ * - Bearer (API-first) → isento;
+ * - sem Origin/Referer → cliente não-browser (curl/SDK/CI) → isento (CSRF só
+ *   afeta browsers — navegadores SEMPRE enviam Origin em fetch state-changing);
+ * - Origin presente e diferente do Host → só passa se estiver em TRUSTED_ORIGINS
+ *   (cross-port na mesma máquina, ex. admin:3011 → api:3010).
  */
-export async function csrfMiddleware(c: Context, next: Next): Promise<Response | undefined> {
+export async function csrfMiddleware(c: Context, next: Next): Promise<Response | void> {
+  if (!csrfCfg.enabled) return next();
+
   const method = c.req.method.toUpperCase();
   if (!STATE_CHANGING.has(method)) {
     await next();
     return;
   }
 
-  // Autenticação por token (API-first) não é vulnerável a CSRF
-  const hasBearer = Boolean(c.req.header('Authorization')?.startsWith('Bearer '));
+  // Bearer (API-first) é isento de CSRF
+  if (c.req.header('Authorization')?.startsWith('Bearer ')) {
+    await next();
+    return;
+  }
+
+  // Sem Origin/Referer = cliente não-browser (curl/SDK/CI) → CSRF não se aplica
+  const origin = c.req.header('Origin') ?? c.req.header('Referer');
+  if (!origin) {
+    await next();
+    return;
+  }
+
   const cookieHeader = c.req.header('Cookie');
 
-  if (!hasBearer && cookieHeader?.includes(CSRF_COOKIE)) {
+  if (cookieHeader?.includes(CSRF_COOKIE)) {
     const cookieToken = readCookie(cookieHeader, CSRF_COOKIE);
     const headerToken = c.req.header(CSRF_HEADER);
 

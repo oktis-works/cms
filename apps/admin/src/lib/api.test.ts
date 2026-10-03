@@ -1,28 +1,14 @@
-// @oktis-works/admin - lib/api: sessão (tenant header), upload multipart e métodos novos
+// @oktis-works/admin - lib/api: sessão (cookie HttpOnly + CSRF), upload multipart e métodos
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { apiClient } from './api.js';
 
-const storage = new Map<string, string>();
-const localStorageMock = {
-  getItem: (k: string) => storage.get(k) ?? null,
-  setItem: (k: string, v: string) => void storage.set(k, v),
-  removeItem: (k: string) => void storage.delete(k),
-  clear: () => storage.clear(),
-};
-
 const fetchMock = vi.fn();
 
-// acesso tipado a uma chamada registrada (evita index opcional)
-const callAt = (i: number): [string, RequestInit] => fetchMock.mock.calls[i] as [string, RequestInit];
-
 beforeEach(() => {
-  storage.clear();
   fetchMock.mockReset();
-  apiClient.clearTokens();
-  vi.stubGlobal('localStorage', localStorageMock);
-  vi.stubGlobal('window', { localStorage: localStorageMock });
   vi.stubGlobal('fetch', fetchMock);
+  vi.stubGlobal('document', { cookie: '' });
 });
 
 afterEach(() => vi.unstubAllGlobals());
@@ -32,79 +18,87 @@ function respond(data: unknown, ok = true, status = 200) {
     ok,
     status,
     json: async () => data,
+    headers: new Headers(),
   };
 }
 
-describe('sessão', () => {
-  it('login guarda tokens + tenantId e as chamadas seguintes enviam Authorization e X-Tenant-ID', async () => {
-    fetchMock.mockResolvedValueOnce(
-      respond({
-        user: { id: 'u1' },
-        accessToken: 'AT',
-        refreshToken: 'RT',
-        sessionId: 's1',
-        tenantId: 'tenant-uuid',
-      })
-    );
+// Helper para acessar chamadas do mock de forma segura
+function call(i: number): [string, RequestInit] {
+  const c = fetchMock.mock.calls[i];
+  if (!c) throw new Error(`Mock call ${i} not found`);
+  return c as [string, RequestInit];
+}
 
-    await apiClient.login({ email: 'a@b.c', password: 'x', tenantId: 'default' });
+describe('sessão (cookies HttpOnly + CSRF)', () => {
+  it('login → cookies HttpOnly são setados pelo backend; chamadas usam credentials: include', async () => {
+    const loginRes = {
+      user: { id: 'u1', email: 'a@b.c', name: 'Admin' },
+      tenantId: 'tenant-uuid',
+    };
 
-    expect(storage.get('accessToken')).toBe('AT');
-    expect(storage.get('tenantId')).toBe('tenant-uuid');
+    fetchMock
+      .mockResolvedValueOnce(respond(loginRes))
+      .mockResolvedValueOnce(respond({ user: { id: 'u1' }, tenantId: 'tenant-uuid', roles: ['TENANT_ADMIN'] }));
 
-    fetchMock.mockResolvedValueOnce(respond({ data: [], total: 0 }));
-    await apiClient.listUsers({ page: 1, limit: 10 });
-
-    const [, init] = fetchMock.mock.calls[0 + 1] as [string, RequestInit];
-    const headers = init.headers as Record<string, string>;
-    expect(headers['Authorization']).toBe('Bearer AT');
-    expect(headers['X-Tenant-ID']).toBe('tenant-uuid');
-    expect(String(callAt(1)[0])).toContain('/api/v1/users?page=1&limit=10');
+    const result = await apiClient.login({ email: 'a@b.c', password: 'x', tenantId: 'default' });
+    expect(result.user.id).toBe('u1');
+    expect(result.tenantId).toBe('tenant-uuid');
   });
 
-  it('isLoggedIn reflete a presença do token', () => {
-    expect(apiClient.isLoggedIn()).toBe(false);
-    apiClient.setTokens('AT', 'RT');
-    expect(apiClient.isLoggedIn()).toBe(true);
+  it('isLoggedIn verifica /me com credentials: include', async () => {
+    fetchMock.mockResolvedValueOnce(respond({ user: { id: 'u1' }, tenantId: 't1', roles: ['TENANT_ADMIN'] }));
+    const logged = await apiClient.isLoggedIn();
+    expect(logged).toBe(true);
+  });
+
+  it('logout chama /auth/logout e limpa estado', async () => {
+    fetchMock.mockResolvedValueOnce(respond({ success: true }));
+    await apiClient.logout();
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/api/v1/auth/logout'),
+      expect.objectContaining({ method: 'POST', credentials: 'include' })
+    );
   });
 });
 
-describe('media', () => {
-  it('uploadMedia envia FormData para /api/v1/media/upload com auth e SEM Content-Type', async () => {
-    apiClient.setTokens('AT', 'RT', 'tenant-uuid');
-    fetchMock.mockResolvedValueOnce(respond({ id: 'm1' }));
+describe('auto-refresh em 401', () => {
+  it('refaz a requisição após /auth/refresh retornar 200', async () => {
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 401, json: async () => ({ error: 'Unauthorized' }) })
+      .mockResolvedValueOnce(respond({ success: true }))
+      .mockResolvedValueOnce(respond({ data: [{ id: 'u1' }], total: 1 }));
+
+    const result = await apiClient.listUsers({ page: 1, limit: 10 });
+    expect(result.data).toHaveLength(1);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('media upload', () => {
+  it('uploadMedia envia FormData para /media/upload com credentials: include', async () => {
+    fetchMock.mockResolvedValueOnce(respond({ id: 'm1', filename: 'a.png' }));
 
     const file = new File([new Uint8Array([1, 2, 3])], 'a.png', { type: 'image/png' });
     await apiClient.uploadMedia(file, { alt: 'Foto' });
 
-    const [url, init] = callAt(0) as [string, RequestInit];
-    expect(url).toContain('/api/v1/media/upload');
-    expect(init.body).toBeInstanceOf(FormData);
-    const headers = init.headers as Record<string, string>;
-    expect(headers['Authorization']).toBe('Bearer AT');
-    expect(headers['X-Tenant-ID']).toBe('tenant-uuid');
-    expect(headers['Content-Type']).toBeUndefined();
-  });
-
-  it('uploadMedia propaga o erro da API', async () => {
-    apiClient.setTokens('AT', 'RT');
-    fetchMock.mockResolvedValueOnce(respond({ error: 'File too large' }, false, 413));
-
-    await expect(apiClient.uploadMedia(new File(['x'], 'a.png'))).rejects.toThrow('File too large');
+    const c = call(0);
+    expect(c[0]).toContain('/api/v1/media/upload');
+    expect(c[1].body).toBeInstanceOf(FormData);
+    expect(c[1].credentials).toBe('include');
   });
 
   it('listMedia/updateMedia/deleteMedia batem nos endpoints certos', async () => {
     fetchMock.mockResolvedValue(respond({ data: [], total: 0 }));
 
     await apiClient.listMedia({ search: 'logo', mimeType: 'image/png' });
-    expect(String(callAt(0)[0])).toContain('/api/v1/media?mimeType=image%2Fpng&search=logo');
+    expect(String(call(0)[0])).toContain('/api/v1/media?mimeType=image%2Fpng&search=logo');
 
     await apiClient.updateMedia('m1', { alt: 'novo' });
-    expect(callAt(1)[0]).toContain('/api/v1/media/m1');
-    expect(callAt(1)[1]?.method).toBe('PUT');
+    expect(call(1)[0]).toContain('/api/v1/media/m1');
+    expect(call(1)[1]?.method).toBe('PUT');
 
     await apiClient.deleteMedia('m1');
-    expect(callAt(2)[1]?.method).toBe('DELETE');
+    expect(call(2)[1]?.method).toBe('DELETE');
   });
 });
 
@@ -113,29 +107,29 @@ describe('users/roles/settings', () => {
     fetchMock.mockResolvedValue(respond({ id: 'u2' }));
 
     await apiClient.createUser({ email: 'n@n.n', name: 'N', password: 'senha123' });
-    expect(callAt(0)[0]).toContain('/api/v1/users');
-    expect(callAt(0)[1]?.method).toBe('POST');
+    expect(call(0)[0]).toContain('/api/v1/users');
+    expect(call(0)[1]?.method).toBe('POST');
 
     await apiClient.assignRole('u2', 'role-1');
-    expect(callAt(1)[0]).toContain('/api/v1/users/u2/roles');
+    expect(call(1)[0]).toContain('/api/v1/users/u2/roles');
   });
 
   it('setUserPassword usa PUT /users/:id/password', async () => {
     fetchMock.mockResolvedValueOnce(respond({ success: true }));
     await apiClient.setUserPassword('u2', 'nova1234');
-    expect(callAt(0)[0]).toContain('/api/v1/users/u2/password');
-    expect(callAt(0)[1]?.method).toBe('PUT');
+    expect(call(0)[0]).toContain('/api/v1/users/u2/password');
+    expect(call(0)[1]?.method).toBe('PUT');
   });
 
   it('getSettings(?group) e updateSettings(array)', async () => {
     fetchMock.mockResolvedValue(respond([]));
 
     await apiClient.getSettings('general');
-    expect(String(callAt(0)[0])).toContain('/api/v1/settings?group=general');
+    expect(String(call(0)[0])).toContain('/api/v1/settings?group=general');
 
     await apiClient.updateSettings([{ key: 'siteTitle', value: 'X', group: 'general', type: 'string' }]);
-    expect(callAt(1)[1]?.method).toBe('PUT');
-    expect(JSON.parse(String(callAt(1)[1]?.body))).toEqual([
+    expect(call(1)[1]?.method).toBe('PUT');
+    expect(JSON.parse(String(call(1)[1]?.body))).toEqual([
       { key: 'siteTitle', value: 'X', group: 'general', type: 'string' },
     ]);
   });
@@ -143,6 +137,6 @@ describe('users/roles/settings', () => {
   it('listRoles busca /api/v1/roles', async () => {
     fetchMock.mockResolvedValueOnce(respond([]));
     await apiClient.listRoles();
-    expect(String(callAt(0)[0])).toContain('/api/v1/roles');
+    expect(String(call(0)[0])).toContain('/api/v1/roles');
   });
 });

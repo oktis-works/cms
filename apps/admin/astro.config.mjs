@@ -15,8 +15,9 @@ export default defineConfig({
     solid(),
   ],
   server: {
-    port: 3001,
+    port: 3011,
     host: true,
+    allowedHosts: ['admin.lvh.me'],
   },
   vite: {
     ssr: {
