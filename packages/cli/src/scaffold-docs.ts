@@ -81,6 +81,76 @@ O \`.env\` gerado já aponta para \`localhost\`, que é onde o compose expõe as
 portas do Postgres (5432) e do Redis (6379). Os apps em si rodam via
 \`okcms start\` — o compose é só a infraestrutura.
 
+## Produção
+
+Em produção **não use \`okcms start\` como supervisor** — ele é conveniência
+de dev: não reinicia filhos que morrem e mistura os logs de todos os apps num
+único fluxo. Escolha um dos caminhos abaixo.
+
+### Caminho 1: pm2 (processos no host)
+
+Um processo pm2 **por app** — restart em crash, log por processo, \`pm2
+startup\` na inicialização do servidor e \`pm2 reload\` individual
+(zero-downtime). Requer **Bun instalado no servidor** (os apps sobem via
+\`bunx\`).
+
+\`\`\`js
+// ecosystem.config.js
+module.exports = {
+  apps: [
+    { name: 'okcms-api',    script: 'bunx', args: '@oktis-works/api',    env: { NODE_ENV: 'production', PORT: 3000 } },
+    { name: 'okcms-admin',  script: 'bunx', args: '@oktis-works/admin',  env: { NODE_ENV: 'production', PORT: 3001 } },
+    { name: 'okcms-web',    script: 'bunx', args: '@oktis-works/web',    env: { NODE_ENV: 'production', PORT: 3002 } },
+    { name: 'okcms-worker', script: 'bunx', args: '@oktis-works/worker', env: { NODE_ENV: 'production', WORKER_MODE: 'pm2' } },
+  ],
+};
+\`\`\`
+
+\`\`\`bash
+pm2 start ecosystem.config.js
+pm2 save && pm2 startup              # sobe com o servidor
+pm2 reload okcms-api                 # atualiza sem downtime (por app)
+pm2 logs okcms-api                   # log por processo
+pm2 unmonitor okcms-api && pm2 delete okcms-api   # remover
+\`\`\`
+
+- O worker tem **modo pm2 nativo**: \`WORKER_MODE=pm2\` (cluster) combinado com
+  \`WORKER_COUNT\` e \`WORKER_CONCURRENCY\`.
+- Como cada app é um executável independente, o \`okcms start\` não é
+  necessário em produção — o pm2 supervisoria cada um diretamente.
+
+### Caminho 2: Docker imutável
+
+Deploy por **imagem**: builda → sobe → troca; nunca se atualiza pacote dentro
+de um container rodando. O template de imagem da API é multi-stage (bun,
+\`NODE_ENV=production\`, expõe 3000) e fica em \`apps/api/Dockerfile\` no
+repositório do OkCMS — o build precisa do contexto do monorepo:
+
+\`\`\`bash
+git clone https://github.com/oktis-works/cms.git
+cd cms
+docker build -f apps/api/Dockerfile -t okcms-api:v1 .
+docker run -d --env-file /caminho/para/.env -p 3000:3000 okcms-api:v1
+\`\`\`
+
+- **Atualização** = build da imagem nova + subir + desligar a antiga;
+  **rollback** = voltar à imagem anterior (tague cada build).
+- Postgres/Redis de produção: serviços gerenciados ou containers próprios com
+  volume e backup — não use o \`docker-compose.yml\` de dev.
+- **Migração como passo de deploy**: \`okcms db:migrate\` antes de subir a
+  versão nova da aplicação.
+
+### Checklist (ambos os caminhos)
+
+- [ ] \`NODE_ENV=production\` e \`JWT_SECRET\` forte e único
+- [ ] \`.env\` fora do versionamento; credenciais nunca em \`okcms.config.json\`
+- [ ] Proxy reverso com TLS (nginx/caddy) na frente de api/admin/web
+- [ ] Versões fixas no \`package.json\` do projeto (nada de \`@latest\` em deploy)
+- [ ] \`okcms db:migrate\` no pipeline de deploy e \`okcms db:backup\` agendado
+- [ ] Redis real em produção (as filas do worker não funcionam sem Redis)
+- [ ] \`okcms doctor\` verde no ambiente de destino
+- [ ] Logs com destino (pm2 logrotate, ou stdout do container coletado)
+
 ## Comandos da CLI
 
 | Comando | O que faz |

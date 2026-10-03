@@ -80,7 +80,7 @@ describe('scaffoldProject', () => {
 
     const root = resolve(workDir, 'docs-test');
 
-    // README: título do projeto, sistema, local e Docker
+    // README: título do projeto, sistema, local, Docker e produção
     const readme = readFileSync(join(root, 'README.md'), 'utf-8');
     expect(readme).toContain('# docs-test');
     expect(readme).toContain('O que é o OkCMS');
@@ -88,6 +88,11 @@ describe('scaffoldProject', () => {
     expect(readme).toContain('okcms doctor');
     expect(readme).toContain('./PLUGIN.md');
     expect(readme).toContain('./THEME.md');
+    expect(readme).toContain('## Produção');
+    expect(readme).toContain('ecosystem.config.js');
+    expect(readme).toContain('pm2 start');
+    expect(readme).toContain('WORKER_MODE');
+    expect(readme).toContain('apps/api/Dockerfile');
 
     // PLUGIN.md: scaffold, manifest e gestão
     const plugin = readFileSync(join(root, 'PLUGIN.md'), 'utf-8');
