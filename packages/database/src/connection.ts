@@ -6,11 +6,25 @@
 import postgres from 'postgres';
 import type { DatabaseConfig } from '@oktis-works/config';
 
-let _sql: postgres.Sql | null = null;
-let _replicaSql: postgres.Sql | null = null;
+/**
+ * `sql` do driver com `unsafe` alargado: o tipo original exige `JSONValue` nos
+ * parâmetros, mas em runtime o driver serializa sozinho (string/object/array/
+ * number → jsonb — boolean via CASE WHEN no settings). Restringir a JSONValue
+ * só gera ruído de tipo em queries raw, onde os params já são `unknown`.
+ */
+export type RepoSql = postgres.Sql & {
+  unsafe<T extends any[] = postgres.Row[]>(
+    query: string,
+    parameters?: any[],
+    queryOptions?: any
+  ): postgres.PendingQuery<T>;
+};
+
+let _sql: RepoSql | null = null;
+let _replicaSql: RepoSql | null = null;
 let _driver: DatabaseConfig['driver'] = 'postgres';
 
-export function createConnection(config: DatabaseConfig): postgres.Sql {
+export function createConnection(config: DatabaseConfig): RepoSql {
   if (_sql) return _sql;
   _driver = config.driver;
 
@@ -31,7 +45,7 @@ export function createConnection(config: DatabaseConfig): postgres.Sql {
     idle_timeout: 20,
     connect_timeout: 10,
     transform: { undefined: null },
-  });
+  }) as RepoSql;
 
   if (config.replica?.enabled) {
     _replicaSql = postgres({
@@ -44,19 +58,19 @@ export function createConnection(config: DatabaseConfig): postgres.Sql {
       max: config.maxConnections,
       idle_timeout: 20,
       connect_timeout: 10,
-    });
+    }) as RepoSql;
   }
 
   return _sql;
 }
 
-export function getConnection(): postgres.Sql {
+export function getConnection(): RepoSql {
   if (!_sql) throw new Error('Database connection not initialized. Call createConnection() first.');
   return _sql;
 }
 
 /** Conexão de leitura — usa replica se configurada, senão primary (transparente). */
-export function getReadConnection(): postgres.Sql {
+export function getReadConnection(): RepoSql {
   return _replicaSql ?? getConnection();
 }
 

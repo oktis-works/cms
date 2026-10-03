@@ -86,12 +86,12 @@ export class PostTypeRegistry {
         input.slug,
         input.source ?? 'ADMIN',
         input.sourceId ?? null,
-        JSON.stringify({
+        {
           supports: input.supports ?? ['title', 'editor', 'revisions'],
           hasArchive: input.hasArchive ?? false,
           menuIcon: input.menuIcon ?? 'box',
           public: input.public ?? true,
-        }),
+        },
         input.pluralLabel,
         input.singularLabel,
       ]
@@ -116,12 +116,12 @@ export class PostTypeRegistry {
       `UPDATE content_types SET schema = $1::jsonb, plural_label = $2, singular_label = $3, updated_at = NOW()
        WHERE slug = $4`,
       [
-        JSON.stringify({
+        {
           supports: merged.supports ?? [],
           hasArchive: merged.hasArchive ?? false,
           menuIcon: merged.menuIcon,
           public: merged.public ?? true,
-        }),
+        },
         merged.pluralLabel,
         merged.singularLabel,
         slug,

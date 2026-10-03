@@ -1,0 +1,20 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { MediaLibrary } from '../../components/media/MediaLibrary';
+---
+
+<DashboardLayout title="Media">
+  <div class="media-page">
+    <div class="page-header">
+      <h2>Biblioteca de mídia</h2>
+      <p>Envie e gerencie imagens, vídeos e documentos. Os arquivos ficam em <code>uploads/</code> e são servidos publicamente.</p>
+    </div>
+    <MediaLibrary client:load />
+  </div>
+</DashboardLayout>
+
+<style>
+  .media-page .page-header {
+    margin-bottom: 1rem;
+  }
+</style>

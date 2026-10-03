@@ -97,7 +97,7 @@ describe('AuditService', () => {
       'content.publish',
       'content',
       'c-uuid',
-      '{"status":"PUBLISHED"}',
+      { status: 'PUBLISHED' },
       '10.0.0.1',
       null,
     ]);

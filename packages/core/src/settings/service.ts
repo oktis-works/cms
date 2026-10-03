@@ -28,13 +28,22 @@ export class SettingsService {
     type?: string
   ): Promise<Setting> {
     const sql = getConnection();
-    const valueJson = JSON.stringify(value);
+
+    // O driver serializa string/object/array/number direto para jsonb, mas
+    // boolean nativo não tem cast para jsonb (boolean::jsonb não existe).
+    // Nesse caso o valor vira literal jsonb via CASE WHEN — o param continua
+    // boolean puro e cada variante tem seu próprio texto de prepared stmt.
+    const isBool = typeof value === 'boolean';
+    const jsonbExpr = (n: number): string =>
+      isBool
+        ? `CASE WHEN $${n} THEN 'true'::jsonb ELSE 'false'::jsonb END`
+        : `$${n}::jsonb`;
 
     const existing = await this.getByKey(key);
 
     if (existing) {
-      const setClauses: string[] = ['value = $1::jsonb'];
-      const setParams: string[] = [valueJson];
+      const setClauses: string[] = [`value = ${jsonbExpr(1)}`];
+      const setParams: unknown[] = [value];
 
       if (group !== undefined) {
         setClauses.push(`"group" = $${setParams.length + 1}`);
@@ -60,9 +69,9 @@ export class SettingsService {
 
     const result = await sql.unsafe(
       `INSERT INTO settings (id, key, value, "group", type)
-       VALUES ($1, $2, $3::jsonb, $4, $5)
+       VALUES ($1, $2, ${jsonbExpr(3)}, $4, $5)
        RETURNING *`,
-      [id, key, valueJson, group ?? null, type ?? null]
+      [id, key, value, group ?? null, type ?? null]
     );
 
     return result[0] as unknown as Setting;

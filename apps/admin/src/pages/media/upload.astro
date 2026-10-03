@@ -1,0 +1,20 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { MediaLibrary } from '../../components/media/MediaLibrary';
+---
+
+<DashboardLayout title="Upload de mídia">
+  <div class="media-page">
+    <div class="page-header">
+      <h2>Enviar arquivos</h2>
+      <p>Arraste os arquivos para a zona abaixo ou clique em <strong>Selecionar arquivos</strong>.</p>
+    </div>
+    <MediaLibrary client:load focusUpload={true} />
+  </div>
+</DashboardLayout>
+
+<style>
+  .media-page .page-header {
+    margin-bottom: 1rem;
+  }
+</style>

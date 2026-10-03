@@ -1,7 +1,7 @@
 // @oktis-works/auth - Authentication Service
 
 import { randomUUID } from 'node:crypto';
-import { getConnection } from '@oktis-works/database';
+import { getConnection, resolveTenantId, seedDefaultRoles, setTenantContext } from '@oktis-works/database';
 import type { AuthConfig } from '@oktis-works/config';
 import type { User } from '@oktis-works/types';
 import { hashPassword, verifyPassword } from './password/index.js';
@@ -14,12 +14,16 @@ export interface AuthResult {
   accessToken: string;
   refreshToken: string;
   sessionId: string;
+  /** UUID real do tenant (o form de login manda o slug, ex.: "default") */
+  tenantId: string;
 }
 
 export interface RegisterInput {
   email: string;
   password: string;
   name: string;
+  /** Slug ou UUID do tenant (default: "default") */
+  tenantId?: string;
 }
 
 export interface LoginInput {
@@ -28,6 +32,14 @@ export interface LoginInput {
   tenantId: string;
   ipAddress?: string;
   userAgent?: string;
+}
+
+/** Remove credenciais de um usuário vindo de SELECT ou RETURNING * (o casing do driver varia). */
+function sanitizeUser(user: User): User {
+  const clone = { ...user } as Record<string, unknown>;
+  delete clone['password_hash'];
+  delete clone['passwordHash'];
+  return clone as unknown as User;
 }
 
 export class AuthService {
@@ -60,11 +72,65 @@ export class AuthService {
       [randomUUID(), input.email, input.name, passwordHash]
     );
 
-    return result[0] as unknown as User;
+    const user = result[0] as unknown as User;
+
+    // Onboarding zero-config: sem vínculo em tenant_users o JWT nasce com
+    // roles [] e TODO requirePermission responde 403. O primeiro usuário do
+    // tenant vira TENANT_ADMIN; os demais recebem VIEWER (upgradeável no
+    // admin via POST /users/:id/roles).
+    await this.linkUserToTenant(user, input.tenantId ?? 'default');
+
+    return sanitizeUser(user);
+  }
+
+  private async linkUserToTenant(user: User, tenantSlug: string): Promise<void> {
+    const sql = getConnection();
+    try {
+      await seedDefaultRoles();
+      const tenantId = await resolveTenantId(tenantSlug);
+
+      const members = await sql.unsafe(
+        'SELECT COUNT(*)::int AS count FROM tenant_users WHERE tenant_id = $1',
+        [tenantId]
+      );
+      const isFirst = ((members[0] as Record<string, unknown> | undefined)?.['count'] ?? 0) === 0;
+      const roleSlug = isFirst ? 'TENANT_ADMIN' : 'VIEWER';
+
+      const roles = await sql.unsafe(
+        `SELECT id FROM roles
+         WHERE slug = $1 AND (tenant_id IS NULL OR tenant_id = $2)
+         ORDER BY tenant_id NULLS LAST
+         LIMIT 1`,
+        [roleSlug, tenantId]
+      );
+
+      if (roles.length === 0) {
+        console.warn(`[auth] role "${roleSlug}" não encontrada — usuário ${user.email} ficou sem papel`);
+        return;
+      }
+
+      await sql.unsafe(
+        `INSERT INTO tenant_users (tenant_id, user_id, role_id, status)
+         VALUES ($1, $2, $3, 'ACTIVE')
+         ON CONFLICT (tenant_id, user_id) DO NOTHING`,
+        [tenantId, user.id, roles[0]!['id'] as string]
+      );
+    } catch (error) {
+      // Registro não pode quebrar por causa do vínculo — mas o operador precisa ver.
+      console.warn(
+        `[auth] falha ao vincular papel de ${user.email}:`,
+        error instanceof Error ? error.message : error
+      );
+    }
   }
 
   async login(input: LoginInput): Promise<AuthResult> {
     const sql = getConnection();
+
+    // Slug ("default") → UUID real: sessions.tenant_id é FK UUID e o JWT
+    // deve carregar o UUID para as rotas usarem c.get('tenantId') direto.
+    const tenantId = await resolveTenantId(input.tenantId);
+    await setTenantContext(tenantId);
 
     const users = await sql.unsafe(
       'SELECT * FROM users WHERE email = $1 AND status = $2',
@@ -76,7 +142,15 @@ export class AuthService {
 
     const user = users[0] as unknown as User;
 
-    const valid = await verifyPassword(input.password, user.passwordHash);
+    // SELECT * devolve password_hash (snake_case) — aceita os dois formatos
+    // para não depender do casing do driver.
+    const row = users[0] as unknown as Record<string, unknown>;
+    const storedHash = (row['password_hash'] ?? row['passwordHash']) as string | undefined;
+    if (typeof storedHash !== 'string') {
+      throw new Error('Invalid credentials');
+    }
+
+    const valid = await verifyPassword(input.password, storedHash);
     if (!valid) {
       throw new Error('Invalid credentials');
     }
@@ -88,7 +162,7 @@ export class AuthService {
        WHERE tu.user_id = $1
          AND tu.tenant_id = $2
          AND tu.status = 'ACTIVE'`,
-      [user.id, input.tenantId]
+      [user.id, tenantId]
     );
 
     const userRoles = roles.map((r: Record<string, unknown>) => r['slug'] as string);
@@ -96,11 +170,11 @@ export class AuthService {
     const tokens = await this.jwt.generateTokenPair({
       sub: user.id,
       email: user.email,
-      tenantId: input.tenantId,
+      tenantId,
       roles: userRoles,
     });
 
-    const session = await this.session.create(user.id, input.tenantId, {
+    const session = await this.session.create(user.id, tenantId, {
       ipAddress: input.ipAddress,
       userAgent: input.userAgent,
     });
@@ -108,10 +182,11 @@ export class AuthService {
     await sql.unsafe('UPDATE users SET last_login_at = NOW() WHERE id = $1', [user.id]);
 
     return {
-      user,
+      user: sanitizeUser(user),
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
       sessionId: session.id,
+      tenantId,
     };
   }
 

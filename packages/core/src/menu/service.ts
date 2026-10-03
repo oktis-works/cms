@@ -28,7 +28,7 @@ export class MenuService {
   }): Promise<Menu> {
     const sql = getConnection();
     const id = randomUUID();
-    const itemsJson = input.items ? JSON.stringify(input.items) : null;
+    const itemsJson = input.items ?? null;
 
     const result = await sql.unsafe(
       `INSERT INTO menus (id, name, slug, items)
@@ -54,7 +54,7 @@ export class MenuService {
     if (!existing) return null;
 
     const setClauses: string[] = [];
-    const setParams: string[] = [];
+    const setParams: unknown[] = [];
 
     if (input.name !== undefined) {
       setClauses.push(`name = $${setParams.length + 1}`);
@@ -66,7 +66,7 @@ export class MenuService {
     }
     if (input.items !== undefined) {
       setClauses.push(`items = $${setParams.length + 1}::jsonb`);
-      setParams.push(JSON.stringify(input.items));
+      setParams.push(input.items);
     }
 
     if (setClauses.length === 0) return existing;

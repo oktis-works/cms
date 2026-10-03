@@ -58,7 +58,7 @@ export class TenantService {
     const sql = getConnection();
     const id = randomUUID();
     const status = 'ACTIVE';
-    const settingsJson = input.settings ? JSON.stringify(input.settings) : null;
+    const settingsJson = input.settings ?? null;
 
     const result = await sql.unsafe(
       `INSERT INTO tenants (id, name, slug, domain, subdomain, status, settings)
@@ -87,7 +87,7 @@ export class TenantService {
     if (!existing) return null;
 
     const setClauses: string[] = [];
-    const setParams: string[] = [];
+    const setParams: unknown[] = [];
 
     if (input.name !== undefined) {
       setClauses.push(`name = $${setParams.length + 1}`);
@@ -111,7 +111,7 @@ export class TenantService {
     }
     if (input.settings !== undefined) {
       setClauses.push(`settings = $${setParams.length + 1}::jsonb`);
-      setParams.push(JSON.stringify(input.settings));
+      setParams.push(input.settings);
     }
 
     if (setClauses.length === 0) return existing;

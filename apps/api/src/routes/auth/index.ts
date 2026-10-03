@@ -15,13 +15,13 @@ const authRouter = new Hono();
 authRouter.post('/register', async (c: Context) => {
   try {
     const body = await c.req.json();
-    const { email, password, name } = body;
+    const { email, password, name, tenantId } = body;
 
     if (!email || !password || !name) {
       return c.json({ error: 'Missing required fields' }, 400);
     }
 
-    const user = await authService.register({ email, password, name });
+    const user = await authService.register({ email, password, name, tenantId });
     return c.json({ user }, 201);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Registration failed';

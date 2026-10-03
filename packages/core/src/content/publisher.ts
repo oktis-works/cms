@@ -213,13 +213,13 @@ export class ContentPublisher {
     authorId: string
   ): Promise<void> {
     const sql = getConnection();
-    const bodyJson = content.body ? JSON.stringify(content.body) : null;
-    const metadataJson = content.metadata ? JSON.stringify(content.metadata) : '{}';
+    const bodyValue = content.body ?? null;
+    const metadataValue = content.metadata ?? {};
 
     await sql.unsafe(
       `INSERT INTO content_versions (id, content_id, version, title, body, metadata, author_id)
        VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7)`,
-      [randomUUID(), content.id, String(version), content.title, bodyJson, metadataJson, authorId]
+      [randomUUID(), content.id, String(version), content.title, bodyValue, metadataValue, authorId]
     );
   }
 }

@@ -7,6 +7,10 @@ export default defineConfig({
   adapter: node({
     mode: 'standalone',
   }),
+  // Sidebar/link antigos apontavam para /dashboard (inexistente) — redireciona
+  redirects: {
+    '/dashboard': '/',
+  },
   integrations: [
     solid(),
   ],

@@ -24,4 +24,17 @@ describe('RBACService', () => {
     const adminPermissions = rbacService.getUserPermissions(['admin']);
     expect(Array.isArray(adminPermissions)).toBe(true);
   });
+
+  it('TENANT_ADMIN administra qualquer recurso do tenant (inclusive a rota "roles" plural)', () => {
+    expect(rbacService.hasPermission(['TENANT_ADMIN'], 'read', 'roles')).toBe(true);
+    expect(rbacService.hasPermission(['TENANT_ADMIN'], 'create', 'role')).toBe(true);
+    expect(rbacService.hasPermission(['TENANT_ADMIN'], 'manage', 'taxonomy')).toBe(true);
+    expect(rbacService.hasPermission(['TENANT_ADMIN'], 'update', 'content-type')).toBe(true);
+  });
+
+  it('VIEWER lê conteúdo mas não escreve', () => {
+    expect(rbacService.hasPermission(['VIEWER'], 'read', 'content')).toBe(true);
+    expect(rbacService.hasPermission(['VIEWER'], 'delete', 'content')).toBe(false);
+    expect(rbacService.hasPermission(['VIEWER'], 'update', 'user')).toBe(false);
+  });
 });

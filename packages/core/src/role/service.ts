@@ -35,7 +35,7 @@ export class RoleService {
   }): Promise<Role> {
     const sql = getConnection();
     const id = randomUUID();
-    const permissionsJson = JSON.stringify(input.permissions ?? []);
+    const permissionsJson = input.permissions ?? [];
     const isSystem = false;
 
     const result = await sql.unsafe(
@@ -62,7 +62,7 @@ export class RoleService {
     if (!existing) return null;
 
     const setClauses: string[] = [];
-    const setParams: string[] = [];
+    const setParams: unknown[] = [];
 
     if (input.name !== undefined) {
       setClauses.push(`name = $${setParams.length + 1}`);
@@ -74,7 +74,7 @@ export class RoleService {
     }
     if (input.permissions !== undefined) {
       setClauses.push(`permissions = $${setParams.length + 1}::jsonb`);
-      setParams.push(JSON.stringify(input.permissions));
+      setParams.push(input.permissions);
     }
 
     if (setClauses.length === 0) return existing;

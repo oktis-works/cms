@@ -24,6 +24,9 @@ function getTenantId(options: Record<string, string>): string {
   return options['tenant'] ?? 'default';
 }
 
+/** Papéis canônicos da política RBAC (slugs em MAIÚSCULAS). */
+const VALID_ROLES = ['SUPER_ADMIN', 'TENANT_ADMIN', 'EDITOR', 'AUTHOR', 'VIEWER'] as const;
+
 /**
  * Prepara o banco para os comandos db:* em QUALQUER estado — inclusive um
  * banco vazio recém-criado pelo docker compose (sem nem a tabela de controle
@@ -33,10 +36,20 @@ function getTenantId(options: Record<string, string>): string {
  */
 async function prepareDb(options: Record<string, string>): Promise<string> {
   await initDb();
-  const { ensureCoreSchema, resolveTenantId } = await import('@oktis-works/database');
+  const { ensureCoreSchema, resolveTenantId, seedCoreData } = await import('@oktis-works/database');
   const applied = await ensureCoreSchema();
   if (applied) {
     console.log('✓ schema core aplicado (banco inicializado)');
+  }
+  // Seed idempotente (roles da política + settings gerais): roda em qualquer
+  // banco — sem ele, o primeiro usuário registra e cai em 403 em tudo.
+  try {
+    const seeded = await seedCoreData();
+    if (seeded.roles > 0 || seeded.settings > 0) {
+      console.log(`✓ seed: ${seeded.roles} roles, ${seeded.settings} settings criados`);
+    }
+  } catch (error) {
+    console.warn('⚠ seed de dados padrão falhou:', error instanceof Error ? error.message : error);
   }
   return resolveTenantId(getTenantId(options));
 }
@@ -757,24 +770,86 @@ export const commands: Command[] = [
   },
   {
     name: 'user:create',
-    description: 'Create a new user',
+    description: 'Create a new user and assign a role in the tenant',
     options: [
       { name: 'email', alias: 'e', description: 'User email', required: true },
+      { name: 'name', alias: 'n', description: 'User name', required: true },
       { name: 'password', alias: 'p', description: 'User password', required: true },
-      { name: 'role', alias: 'r', description: 'User role', required: false, default: 'editor' },
+      { name: 'role', alias: 'r', description: `User role (${VALID_ROLES.join(', ')})`, required: false, default: 'EDITOR' },
+      { name: 'tenant', alias: 't', description: 'Tenant slug', required: false, default: 'default' },
     ],
-    handler: async (_args, _options) => {
-      console.error('user:create ainda não está implementado — use o fluxo de onboarding da API (POST /api/v1/auth/register).');
-      process.exitCode = 1;
+    handler: async (_args, options) => {
+      // A política RBAC usa slugs em maiúsculas: `--role editor` → EDITOR.
+      const roleSlug = String(options['role'] ?? 'EDITOR').toUpperCase();
+      if (!(VALID_ROLES as readonly string[]).includes(roleSlug)) {
+        console.error(`Role inválida: ${options['role']} — use uma de: ${VALID_ROLES.join(', ')}`);
+        process.exitCode = 1;
+        return;
+      }
+
+      await initDb();
+      const { ensureCoreSchema, resolveTenantId, seedDefaultRoles, getConnection } = await import('@oktis-works/database');
+      const { hashPassword } = await import('@oktis-works/auth');
+      const { randomUUID } = await import('node:crypto');
+
+      await ensureCoreSchema();
+      await seedDefaultRoles();
+
+      const sql = getConnection();
+      const email = String(options['email']);
+      const existing = await sql.unsafe('SELECT id FROM users WHERE email = $1', [email]);
+      if (existing.length > 0) {
+        console.error(`Usuário já existe: ${email}`);
+        process.exitCode = 1;
+        return;
+      }
+
+      const passwordHash = await hashPassword(String(options['password']));
+      const userId = randomUUID();
+      await sql.unsafe(
+        `INSERT INTO users (id, email, name, password_hash, status)
+         VALUES ($1, $2, $3, $4, 'ACTIVE')`,
+        [userId, email, String(options['name']), passwordHash]
+      );
+
+      const tenantId = await resolveTenantId(String(options['tenant'] ?? 'default'));
+      const roles = await sql.unsafe(
+        `SELECT id FROM roles
+         WHERE slug = $1 AND (tenant_id IS NULL OR tenant_id = $2)
+         ORDER BY tenant_id NULLS LAST
+         LIMIT 1`,
+        [roleSlug, tenantId]
+      );
+      if (roles.length === 0) {
+        console.error(`Role "${roleSlug}" não encontrada após o seed.`);
+        process.exitCode = 1;
+        return;
+      }
+
+      await sql.unsafe(
+        `INSERT INTO tenant_users (tenant_id, user_id, role_id, status)
+         VALUES ($1, $2, $3, 'ACTIVE')
+         ON CONFLICT (tenant_id, user_id)
+         DO UPDATE SET role_id = EXCLUDED.role_id, status = 'ACTIVE'`,
+        [tenantId, userId, roles[0]!['id'] as string]
+      );
+
+      console.log(`✓ usuário criado: ${email} (papel ${roleSlug})`);
     },
   },
   {
     name: 'seed',
-    description: 'Seed the database with initial data',
+    description: 'Seed the database with initial data (roles + default settings)',
     options: [],
     handler: async () => {
-      console.error('seed ainda não está implementado — nenhuma alteração foi feita no banco.');
-      process.exitCode = 1;
+      await initDb();
+      const { ensureCoreSchema, seedCoreData } = await import('@oktis-works/database');
+      const applied = await ensureCoreSchema();
+      if (applied) {
+        console.log('✓ schema core aplicado (banco inicializado)');
+      }
+      const { roles, settings } = await seedCoreData();
+      console.log(`✓ seed concluído: ${roles} roles, ${settings} settings criados`);
     },
   },
   {

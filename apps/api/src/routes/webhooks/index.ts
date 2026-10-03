@@ -16,7 +16,7 @@ router.post('/', requirePermission('create', 'webhook'), async (c) => {
       `INSERT INTO webhooks (id, tenant_id, url, events, secret, active)
        VALUES ($1, $2, $3, $4::jsonb, $5, true)
        RETURNING *`,
-      [randomUUID(), c.get('tenantId' as never) as string, body.url, JSON.stringify(body.events ?? []), body.secret]
+      [randomUUID(), c.get('tenantId' as never) as string, body.url, body.events ?? [], body.secret]
     );
 
     return c.json(result[0], 201);

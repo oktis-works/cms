@@ -1,0 +1,16 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { ContentEditor } from '../../components/content/ContentEditor';
+---
+
+<DashboardLayout title="Novo conteúdo">
+  <div class="editor-page">
+    <ContentEditor client:load />
+  </div>
+</DashboardLayout>
+
+<style>
+  .editor-page {
+    max-width: 960px;
+  }
+</style>

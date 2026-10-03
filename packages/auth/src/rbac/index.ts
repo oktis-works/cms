@@ -24,16 +24,11 @@ const DEFAULT_POLICY: RBACPolicy = {
     },
     {
       role: 'TENANT_ADMIN',
-      permissions: [
-        { action: '*', resource: 'tenant' },
-        { action: '*', resource: 'user' },
-        { action: '*', resource: 'role' },
-        { action: '*', resource: 'content' },
-        { action: '*', resource: 'media' },
-        { action: '*', resource: 'plugin' },
-        { action: '*', resource: 'theme' },
-        { action: '*', resource: 'setting' },
-      ],
+      // Administrador completo DENTRO do tenant (isolamento por RLS/JWT):
+      // recursas explícitos perdiam recursos reais das rotas (ex.: rota
+      // `roles` vs política `role`, taxonomy, content-type...) e davam 403
+      // para o próprio dono do tenant.
+      permissions: [{ action: '*', resource: '*' }],
     },
     {
       role: 'EDITOR',

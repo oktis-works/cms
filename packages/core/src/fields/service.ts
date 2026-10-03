@@ -123,7 +123,7 @@ export class FieldGroupService {
         id,
         input.title,
         key,
-        JSON.stringify(input.locationRules ?? []),
+        input.locationRules ?? [],
         input.position ?? 'normal',
         input.displayStyle ?? 'standard',
         input.active ?? true,
@@ -155,7 +155,7 @@ export class FieldGroupService {
        WHERE id = $6`,
       [
         patch.title ?? existing.title,
-        JSON.stringify(patch.locationRules ?? existing.locationRules ?? []),
+        patch.locationRules ?? existing.locationRules ?? [],
         patch.position ?? existing.position ?? 'normal',
         patch.displayStyle ?? existing.displayStyle ?? 'standard',
         patch.active ?? existing.active ?? true,
@@ -259,7 +259,7 @@ export class FieldGroupService {
         input.label,
         input.instructions ?? null,
         input.required ?? false,
-        JSON.stringify({ ...(input.config ?? {}), ...(input.conditionalLogic ? { conditionalLogic: input.conditionalLogic } : {}) }),
+        { ...(input.config ?? {}), ...(input.conditionalLogic ? { conditionalLogic: input.conditionalLogic } : {}) },
         sortOrder,
       ]
     );

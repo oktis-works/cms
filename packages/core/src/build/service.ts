@@ -54,7 +54,7 @@ export class BuildService {
       `INSERT INTO builds (id, status, core_version, plugins, theme, created_at, updated_at)
        VALUES ($1, 'PENDING', $2, $3::jsonb, $4::jsonb, $5, $5)
        RETURNING *`,
-      [id, input.coreVersion, JSON.stringify(input.plugins), JSON.stringify(input.theme), now]
+      [id, input.coreVersion, input.plugins, input.theme, now]
     );
 
     return result[0] as unknown as Build;

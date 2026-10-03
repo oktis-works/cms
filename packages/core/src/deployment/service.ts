@@ -63,7 +63,7 @@ export class DeploymentService {
         input.buildId,
         input.coreVersion,
         input.themeVersion ?? null,
-        JSON.stringify(input.pluginVersions ?? {}),
+        input.pluginVersions ?? {},
         input.checksum,
         input.createdBy,
         now,

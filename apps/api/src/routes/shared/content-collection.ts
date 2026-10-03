@@ -3,6 +3,7 @@
 
 import { Hono } from 'hono';
 import { contentService } from '@oktis-works/core';
+import { resolveTenantId } from '@oktis-works/database';
 import type { ContentStatus } from '@oktis-works/types';
 import { authMiddleware, requirePermission } from '../../middleware/auth.js';
 
@@ -35,9 +36,12 @@ export function createContentCollectionRouter(config: ContentCollectionConfig): 
     try {
       const body = await c.req.json();
       const userId = c.get('userId' as never) as string;
+      // Depois do spread: tenant/autoridade vêm do JWT, nunca do body do cliente.
+      const tenantId = await resolveTenantId(String(c.get('tenantId' as never) ?? 'default'));
 
       const content = await contentService.create({
         ...body,
+        tenantId,
         type: config.type,
         authorId: userId,
       });

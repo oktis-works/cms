@@ -40,8 +40,8 @@ export class ThemeService {
         input.name,
         input.version,
         'INSTALLED',
-        JSON.stringify(input.manifest),
-        input.config ? JSON.stringify(input.config) : '{}',
+        input.manifest,
+        input.config ?? {},
         now,
       ]
     );

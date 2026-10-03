@@ -86,7 +86,7 @@ describe('event → AuditLog wiring — REQ-event-bus-005', () => {
       'content.published',
       'content',
       'c-77',
-      JSON.stringify({ eventId: 'evt-1' }),
+      { eventId: 'evt-1' },
       null,
       null,
     ]);

@@ -56,6 +56,31 @@ export function ContentEditor() {
       setErrors([err instanceof Error ? err.message : String(err)]);
     }
 
+    // Edição: /content/edit?id=... carrega o conteúdo existente (antes dos
+    // grupos de campos, para que carreguem pelo tipo real do conteúdo).
+    const editId = new URLSearchParams(window.location.search).get('id');
+    if (editId) {
+      try {
+        const existing = await apiClient.getContentById(editId);
+        const rawRow = existing as unknown as Record<string, unknown>;
+        setDraft({
+          id: existing.id,
+          type: existing.type,
+          title: existing.title,
+          slug: existing.slug,
+          excerpt: existing.excerpt,
+          featuredImageId:
+            (rawRow['featuredImageId'] as string | undefined) ??
+            (rawRow['featured_image_id'] as string | undefined),
+          status: existing.status,
+          layout: existing.layout,
+        });
+        setData((existing.body as Record<string, unknown> | undefined) ?? {});
+      } catch (err) {
+        setErrors([err instanceof Error ? err.message : String(err)]);
+      }
+    }
+
     // Carrega grupos de campos aplicáveis quando o tipo muda
     await loadGroups(draft().type);
   });

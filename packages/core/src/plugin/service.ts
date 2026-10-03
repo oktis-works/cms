@@ -78,9 +78,9 @@ export class PluginService {
         input.name,
         input.version,
         'INSTALLED',
-        JSON.stringify(input.manifest),
+        input.manifest,
         input.permissions ?? [],
-        input.config ? JSON.stringify(input.config) : null,
+        input.config ?? null,
         now,
       ]
     );
@@ -243,7 +243,7 @@ export class PluginService {
        SET config = $1::jsonb, updated_at = NOW()
        WHERE id = $2
        RETURNING *`,
-      [JSON.stringify(config), id]
+      [config, id]
     );
 
     return (result[0] as unknown as Plugin) ?? null;

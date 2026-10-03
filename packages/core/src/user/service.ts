@@ -133,22 +133,85 @@ export class UserService {
 
   async addToTenant(userId: string, tenantId: string, roleId: string): Promise<void> {
     const sql = getConnection();
-    const id = randomUUID();
 
+    // Upsert: atribuir papel de novo só troca (UNIQUE(tenant_id, user_id)).
     await sql.unsafe(
-      `INSERT INTO tenant_users (id, tenant_id, user_id, role_id, status)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [id, tenantId, userId, roleId, 'ACTIVE']
+      `INSERT INTO tenant_users (tenant_id, user_id, role_id, status)
+       VALUES ($1, $2, $3, 'ACTIVE')
+       ON CONFLICT (tenant_id, user_id)
+       DO UPDATE SET role_id = EXCLUDED.role_id, status = 'ACTIVE'`,
+      [tenantId, userId, roleId]
     );
   }
 
-  async removeFromTenant(userId: string, tenantId: string): Promise<void> {
+  async removeFromTenant(userId: string, tenantId: string, roleId?: string): Promise<void> {
     const sql = getConnection();
+
+    if (roleId) {
+      await sql.unsafe(
+        'DELETE FROM tenant_users WHERE user_id = $1 AND tenant_id = $2 AND role_id = $3',
+        [userId, tenantId, roleId]
+      );
+      return;
+    }
 
     await sql.unsafe(
       'DELETE FROM tenant_users WHERE user_id = $1 AND tenant_id = $2',
       [userId, tenantId]
     );
+  }
+
+  /** Busca uma role por id (validação da rota de atribuição). */
+  async getRoleById(roleId: string): Promise<{ id: string; name: string; slug: string } | null> {
+    const sql = getConnection();
+    const rows = await sql.unsafe('SELECT id, name, slug FROM roles WHERE id = $1', [roleId]);
+    return (rows[0] as { id: string; name: string; slug: string } | undefined) ?? null;
+  }
+
+  /** Slugs dos papéis do usuário no tenant. */
+  async rolesFor(userId: string, tenantId: string): Promise<string[]> {
+    const sql = getConnection();
+    const rows = await sql.unsafe(
+      `SELECT r.slug
+       FROM tenant_users tu
+       JOIN roles r ON r.id = tu.role_id
+       WHERE tu.tenant_id = $1 AND tu.user_id = $2 AND tu.status = 'ACTIVE'
+       ORDER BY r.slug`,
+      [tenantId, userId]
+    );
+    return rows.map((r: Record<string, unknown>) => r['slug'] as string);
+  }
+
+  /** Mapa { userId: [slugs] } para a lista de usuários (1 query só). */
+  async rolesForUsers(userIds: string[], tenantId: string): Promise<Record<string, string[]>> {
+    if (userIds.length === 0) return {};
+    const sql = getConnection();
+    const rows = await sql.unsafe(
+      `SELECT tu.user_id, r.slug
+       FROM tenant_users tu
+       JOIN roles r ON r.id = tu.role_id
+       WHERE tu.tenant_id = $1 AND tu.user_id = ANY($2::uuid[]) AND tu.status = 'ACTIVE'
+       ORDER BY r.slug`,
+      [tenantId, userIds]
+    );
+    const map: Record<string, string[]> = {};
+    for (const row of rows as Array<Record<string, unknown>>) {
+      const key = row['user_id'] as string;
+      (map[key] ??= []).push(row['slug'] as string);
+    }
+    return map;
+  }
+
+  async updatePassword(id: string, passwordHash: string): Promise<boolean> {
+    const sql = getConnection();
+    const existing = await this.getById(id);
+    if (!existing) return false;
+
+    await sql.unsafe('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [
+      passwordHash,
+      id,
+    ]);
+    return true;
   }
 }
 

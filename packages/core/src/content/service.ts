@@ -12,6 +12,8 @@ import { postTypeRegistry } from './post-types.js';
 export interface CreateContentInput {
   type: string;
   title: string;
+  /** UUID do tenant — as rotas injetam do JWT (nunca vem do body do cliente). */
+  tenantId: string;
   slug?: string;
   body?: Record<string, unknown>;
   excerpt?: string;
@@ -188,14 +190,13 @@ export class ContentService {
     const id = randomUUID();
     const slug = input.slug ?? generateSlug(input.title);
     const status = input.status ?? 'DRAFT';
-    const bodyJson = JSON.stringify(filteredInput);
-    const metadataJson = JSON.stringify(input.metadata ?? {});
+    const metadata = input.metadata ?? {};
 
     const result = await sql.unsafe(
       `INSERT INTO content (id, tenant_id, type, title, slug, body, excerpt, status, author_id, featured_image_id, seo_title, seo_description, metadata, layout)
        VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11, $12, $13::jsonb, $14)
        RETURNING *`,
-      [id, input.authorId, input.type, input.title, slug, bodyJson, input.excerpt ?? null, status, input.authorId, input.featuredImageId ?? null, input.seoTitle ?? null, input.seoDescription ?? null, metadataJson, input.layout ?? null]
+      [id, input.tenantId, input.type, input.title, slug, filteredInput, input.excerpt ?? null, status, input.authorId, input.featuredImageId ?? null, input.seoTitle ?? null, input.seoDescription ?? null, metadata, input.layout ?? null]
     );
 
     const content = result[0] as unknown as Content;
@@ -247,7 +248,7 @@ export class ContentService {
 
     const newVersion = existing.version + 1;
     const setClauses: string[] = [];
-    const setParams: Array<string | null> = [];
+    const setParams: unknown[] = [];
 
     if (input.title !== undefined) {
       setClauses.push(`title = $${setParams.length + 1}`);
@@ -259,7 +260,7 @@ export class ContentService {
     }
     if (input.body !== undefined) {
       setClauses.push(`body = $${setParams.length + 1}::jsonb`);
-      setParams.push(JSON.stringify(input.body));
+      setParams.push(input.body);
     }
     if (input.excerpt !== undefined) {
       setClauses.push(`excerpt = $${setParams.length + 1}`);
@@ -283,7 +284,7 @@ export class ContentService {
     }
     if (input.metadata !== undefined) {
       setClauses.push(`metadata = $${setParams.length + 1}::jsonb`);
-      setParams.push(JSON.stringify(input.metadata));
+      setParams.push(input.metadata);
     }
     if (input.layout !== undefined) {
       setClauses.push(`layout = $${setParams.length + 1}`);
@@ -412,14 +413,14 @@ export class ContentService {
       [
         String(revision['title']),
         revision['slug'] != null ? String(revision['slug']) : current.slug,
-        revision['body'] != null ? JSON.stringify(revision['body']) : null,
+        revision['body'] ?? null,
         revision['excerpt'] != null ? String(revision['excerpt']) : null,
         revision['featured_image_id'] != null ? String(revision['featured_image_id']) : null,
         revision['seo_title'] != null ? String(revision['seo_title']) : null,
         revision['seo_description'] != null ? String(revision['seo_description']) : null,
-        revision['metadata'] != null ? JSON.stringify(revision['metadata']) : '{}',
+        revision['metadata'] ?? {},
         contentId,
-      ] as Array<string | null>
+      ] as unknown[]
     );
 
     const restored = result[0] as unknown as Content;
@@ -446,18 +447,18 @@ export class ContentService {
     const sql = getConnection();
 
     const raw = content as unknown as Record<string, unknown>;
-    const values: Array<string | number | null> = [
+    const values: unknown[] = [
       randomUUID(),
       content.id,
       Number(content.version),
       content.title,
       typeof raw['slug'] === 'string' ? raw['slug'] : null,
-      content.body ? JSON.stringify(content.body) : null,
+      content.body ?? null,
       typeof raw['excerpt'] === 'string' ? raw['excerpt'] : null,
       typeof raw['featured_image_id'] === 'string' ? raw['featured_image_id'] : null,
       typeof raw['seo_title'] === 'string' ? raw['seo_title'] : null,
       typeof raw['seo_description'] === 'string' ? raw['seo_description'] : null,
-      JSON.stringify(content.metadata ?? {}),
+      content.metadata ?? {},
       content.authorId ?? null,
     ];
 

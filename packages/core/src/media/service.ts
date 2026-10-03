@@ -48,6 +48,8 @@ export class MediaService {
   }
 
   async create(input: {
+    /** UUID do tenant (NOT NULL em media) — a rota resolve a partir do JWT. */
+    tenantId: string;
     filename: string;
     mimeType: string;
     size: number;
@@ -60,14 +62,15 @@ export class MediaService {
   }): Promise<Media> {
     const sql = getConnection();
     const id = randomUUID();
-    const metadataJson = input.metadata ? JSON.stringify(input.metadata) : null;
+    const metadata = input.metadata ?? null;
 
     const result = await sql.unsafe(
-      `INSERT INTO media (id, filename, mime_type, size, path, url, alt, caption, metadata, uploaded_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10)
+      `INSERT INTO media (id, tenant_id, filename, mime_type, size, path, url, alt, caption, metadata, uploaded_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11)
        RETURNING *`,
       [
         id,
+        input.tenantId,
         input.filename,
         input.mimeType,
         input.size,
@@ -75,7 +78,7 @@ export class MediaService {
         input.url,
         input.alt ?? null,
         input.caption ?? null,
-        metadataJson,
+        metadata,
         input.uploadedBy,
       ]
     );
@@ -97,7 +100,7 @@ export class MediaService {
     if (!existing) return null;
 
     const setClauses: string[] = [];
-    const setParams: string[] = [];
+    const setParams: unknown[] = [];
 
     if (input.alt !== undefined) {
       setClauses.push(`alt = $${setParams.length + 1}`);
@@ -109,7 +112,7 @@ export class MediaService {
     }
     if (input.metadata !== undefined) {
       setClauses.push(`metadata = $${setParams.length + 1}::jsonb`);
-      setParams.push(JSON.stringify(input.metadata));
+      setParams.push(input.metadata);
     }
 
     if (setClauses.length === 0) return existing;

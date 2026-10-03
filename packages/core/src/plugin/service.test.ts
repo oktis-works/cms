@@ -82,7 +82,7 @@ describe('PluginService mutações — REQ-observability-004', () => {
     expect(lastQuery!.text).toContain('INSERT INTO audit_logs');
     expect(lastQuery!.values[2]).toBe('plugin.install');
     expect(lastQuery!.values[3]).toBe('plugin');
-    expect(JSON.parse(lastQuery!.values[5] as string)).toEqual({ name: 'seo', version: '1.0.0' });
+    expect(lastQuery!.values[5]).toEqual({ name: 'seo', version: '1.0.0' });
   });
 
   it('activate registra audit plugin.activate', async () => {

@@ -1,0 +1,20 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { UsersManager } from '../../components/apps/users/UsersManager';
+---
+
+<DashboardLayout title="Users">
+  <div class="users-page">
+    <div class="page-header">
+      <h2>Usuários</h2>
+      <p>Gerencie contas, papéis (roles) e acessos do projeto.</p>
+    </div>
+    <UsersManager client:load />
+  </div>
+</DashboardLayout>
+
+<style>
+  .users-page .page-header {
+    margin-bottom: 1rem;
+  }
+</style>

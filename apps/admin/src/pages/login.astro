@@ -123,7 +123,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     
     try {
       await apiClient.login({ email, password, tenantId: tenant });
-      window.location.href = '/dashboard';
+      window.location.href = '/';
     } catch (error) {
       errorMessage.textContent = error instanceof Error ? error.message : 'Login failed';
       errorMessage.style.display = 'block';

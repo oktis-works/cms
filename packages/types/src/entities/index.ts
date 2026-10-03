@@ -33,10 +33,13 @@ export interface User extends Timestamps {
   id: UUID;
   email: string;
   name: string;
-  passwordHash: string;
+  /** Omitido nas respostas da API (sanitizado pelo AuthService/UserService) */
+  passwordHash?: string;
   avatar?: string;
   status: UserStatus;
   lastLoginAt?: Date;
+  /** Papéis no tenant atual (preenchido pelas rotas /users) */
+  roles?: string[];
 }
 
 // ============================================================

@@ -1,82 +1,20 @@
 ---
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { ContentList } from '../../components/content/ContentList';
 ---
 
 <DashboardLayout title="Content">
   <div class="content-page">
     <div class="page-header">
-      <div class="header-left">
-        <input type="search" class="input" placeholder="Search content..." id="search-input">
-        <select class="input" id="type-filter">
-          <option value="">All Types</option>
-          <option value="post">Posts</option>
-          <option value="page">Pages</option>
-        </select>
-        <select class="input" id="status-filter">
-          <option value="">All Status</option>
-          <option value="DRAFT">Draft</option>
-          <option value="PUBLISHED">Published</option>
-          <option value="ARCHIVED">Archived</option>
-        </select>
-      </div>
-      <a href="/content/new" class="btn btn-primary">New Content</a>
+      <h2>Conteúdo</h2>
+      <p>Busque, filtre, edite e publique seu conteúdo.</p>
     </div>
-    
-    <div class="card">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Title</th>
-            <th>Type</th>
-            <th>Status</th>
-            <th>Author</th>
-            <th>Updated</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="content-list">
-          <tr>
-            <td colspan="6" class="text-center">Loading...</td>
-          </tr>
-        </tbody>
-      </table>
-      
-      <div class="pagination" id="pagination">
-      </div>
-    </div>
+    <ContentList client:load />
   </div>
 </DashboardLayout>
 
 <style>
-  .content-page {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-  
-  .page-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-  }
-  
-  .header-left {
-    display: flex;
-    gap: 0.5rem;
-  }
-  
-  .header-left .input {
-    width: 200px;
-  }
-  
-  .pagination {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding-top: 1rem;
-    margin-top: 1rem;
-    border-top: 1px solid var(--color-border);
+  .content-page .page-header {
+    margin-bottom: 1rem;
   }
 </style>

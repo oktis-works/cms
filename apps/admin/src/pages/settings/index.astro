@@ -1,0 +1,47 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+---
+
+<DashboardLayout title="Settings">
+  <div class="settings-page">
+    <div class="page-header">
+      <h2>Configurações</h2>
+      <p>Escolha uma seção para configurar o projeto.</p>
+    </div>
+
+    <div class="settings-cards">
+      <a class="card settings-card" href="/settings/general">
+        <h3>Geral</h3>
+        <p class="muted">Título, descrição, idioma e fuso horário do site.</p>
+      </a>
+      <a class="card settings-card" href="/settings/post-types">
+        <h3>Content Types</h3>
+        <p class="muted">Tipos de conteúdo personalizados (CPTs) além de Posts e Páginas.</p>
+      </a>
+      <a class="card settings-card" href="/settings/taxonomies">
+        <h3>Taxonomias</h3>
+        <p class="muted">Categorias, tags e taxonomias personalizadas.</p>
+      </a>
+    </div>
+  </div>
+</DashboardLayout>
+
+<style>
+  .settings-page .page-header {
+    margin-bottom: 1rem;
+  }
+  .settings-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1rem;
+  }
+  .settings-card {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.15s ease;
+  }
+  .settings-card:hover {
+    border-color: var(--color-primary);
+  }
+</style>

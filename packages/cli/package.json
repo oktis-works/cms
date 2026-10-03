@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/cms",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -19,6 +19,7 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo"
   },
   "dependencies": {
+    "@oktis-works/auth": "workspace:*",
     "@oktis-works/config": "workspace:*",
     "@oktis-works/core": "workspace:*",
     "@oktis-works/database": "workspace:*",

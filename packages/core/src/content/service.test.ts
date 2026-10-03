@@ -81,7 +81,7 @@ describe('supports enforcement — payload filtrado pelo tipo', () => {
 
     const insert = store.queries.find((q) => q.text.includes('INSERT INTO content'));
     expect(insert?.values[6]).toBeNull();
-    expect(insert?.values[5]).toBe(JSON.stringify({ local: 'SP' }));
+    expect(insert?.values[5]).toEqual({ local: 'SP' });
   });
 
   it('create mantém excerpt quando o tipo suporta (post core)', async () => {
@@ -90,11 +90,13 @@ describe('supports enforcement — payload filtrado pelo tipo', () => {
     await new ContentService().create({
       type: 'post',
       title: 'Post',
+      tenantId: 't-1',
       authorId: 'u-1',
       excerpt: 'mantido',
     });
 
     const insert = store.queries.find((q) => q.text.includes('INSERT INTO content'));
+    expect(insert?.values[1]).toBe('t-1');
     expect(insert?.values[6]).toBe('mantido');
   });
 
@@ -172,7 +174,7 @@ describe('revisions — gravação por supports e restore', () => {
     expect(updateQuery!.values.slice(0, 7)).toEqual([
       'Original',
       'original',
-      JSON.stringify({ campo: 'v0' }),
+      { campo: 'v0' },
       'ex v0',
       'm-0',
       'seo v0',

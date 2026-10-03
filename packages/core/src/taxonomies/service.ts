@@ -74,9 +74,9 @@ export class TaxonomyService {
         input.name,
         slug,
         input.hierarchical ?? false,
-        JSON.stringify(input.attachTo ?? []),
-        JSON.stringify(input.labels ?? {}),
-        JSON.stringify(input.meta ?? {}),
+        input.attachTo ?? [],
+        input.labels ?? {},
+        input.meta ?? {},
         input.source ?? 'ADMIN',
       ]
     );
@@ -111,9 +111,9 @@ export class TaxonomyService {
       [
         patch.name ?? existing.name,
         patch.hierarchical ?? existing.hierarchical,
-        JSON.stringify(patch.attachTo ?? existing.attachTo),
-        JSON.stringify(patch.labels ?? existing.labels),
-        JSON.stringify(patch.meta ?? existing.meta),
+        patch.attachTo ?? existing.attachTo,
+        patch.labels ?? existing.labels,
+        patch.meta ?? existing.meta,
         slug,
       ]
     );
@@ -183,7 +183,7 @@ export class TaxonomyService {
       `INSERT INTO taxonomy_terms (id, taxonomy_id, name, slug, description, parent_id, meta)
        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
        RETURNING *`,
-      [id, taxonomy.id, input.name, termSlug, input.description ?? null, input.parentId ?? null, JSON.stringify(input.meta ?? {})]
+      [id, taxonomy.id, input.name, termSlug, input.description ?? null, input.parentId ?? null, input.meta ?? {}]
     );
 
     const rows = await sql.unsafe('SELECT * FROM taxonomy_terms WHERE id = $1', [id]);

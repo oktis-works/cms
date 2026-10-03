@@ -73,7 +73,7 @@ export const mediaProcessHandler: JobHandler = async (job): Promise<JobResult> =
 
   await sql.unsafe(
     "UPDATE media SET metadata = metadata || $1::jsonb WHERE id = $2",
-    [JSON.stringify({ processed: true, processedAt: new Date().toISOString() }), mediaId as string]
+    [{ processed: true, processedAt: new Date().toISOString() }, mediaId as string]
   );
 
   return { success: true };

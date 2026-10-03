@@ -39,7 +39,7 @@ export class AuditService {
           entry.action,
           entry.resourceType,
           entry.resourceId ?? null,
-          entry.changes ? JSON.stringify(entry.changes) : null,
+          entry.changes ?? null,
           entry.ipAddress ?? null,
           entry.userAgent ?? null,
         ]

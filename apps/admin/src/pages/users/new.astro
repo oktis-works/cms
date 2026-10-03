@@ -1,0 +1,20 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { UserCreateForm } from '../../components/apps/users/UserCreateForm';
+---
+
+<DashboardLayout title="Novo usuário">
+  <div class="users-page">
+    <div class="page-header">
+      <h2>Novo usuário</h2>
+      <p>Crie uma conta e atribua um papel de acesso.</p>
+    </div>
+    <UserCreateForm client:load />
+  </div>
+</DashboardLayout>
+
+<style>
+  .users-page .page-header {
+    margin-bottom: 1rem;
+  }
+</style>

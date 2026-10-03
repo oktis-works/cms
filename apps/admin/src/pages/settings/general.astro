@@ -1,0 +1,21 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { GeneralSettings } from '../../components/apps/settings/GeneralSettings';
+---
+
+<DashboardLayout title="Settings · General">
+  <div class="settings-page">
+    <div class="page-header">
+      <h2>Geral</h2>
+      <p>Informações básicas exibidas no site.</p>
+      <p><a href="/settings">← Todas as configurações</a></p>
+    </div>
+    <GeneralSettings client:load />
+  </div>
+</DashboardLayout>
+
+<style>
+  .settings-page .page-header {
+    margin-bottom: 1rem;
+  }
+</style>
