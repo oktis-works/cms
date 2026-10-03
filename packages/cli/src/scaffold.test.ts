@@ -34,6 +34,9 @@ describe('scaffoldProject', () => {
       DEFAULT_CONFIG_FILENAME,
       'docker-compose.yml',
       'package.json',
+      'README.md',
+      'PLUGIN.md',
+      'THEME.md',
       'themes',
       'plugins',
       'migrations',
@@ -48,6 +51,9 @@ describe('scaffoldProject', () => {
       DEFAULT_CONFIG_FILENAME,
       'docker-compose.yml',
       'package.json',
+      'README.md',
+      'PLUGIN.md',
+      'THEME.md',
       'themes',
       'plugins',
       'migrations',
@@ -67,6 +73,47 @@ describe('scaffoldProject', () => {
     const env = readFileSync(join(root, '.env'), 'utf-8');
     expect(env).toMatch(/^DB_HOST=/m);
     expect(env).toContain('# DATABASE_URL=postgresql://');
+  });
+
+  it('gera README.md, PLUGIN.md e THEME.md com o conteúdo de uso', async () => {
+    await scaffoldProject('docs-test', 'docs-test');
+
+    const root = resolve(workDir, 'docs-test');
+
+    // README: título do projeto, sistema, local e Docker
+    const readme = readFileSync(join(root, 'README.md'), 'utf-8');
+    expect(readme).toContain('# docs-test');
+    expect(readme).toContain('O que é o OkCMS');
+    expect(readme).toContain('docker compose up -d');
+    expect(readme).toContain('okcms doctor');
+    expect(readme).toContain('./PLUGIN.md');
+    expect(readme).toContain('./THEME.md');
+
+    // PLUGIN.md: scaffold, manifest e gestão
+    const plugin = readFileSync(join(root, 'PLUGIN.md'), 'utf-8');
+    expect(plugin).toContain('okcms plugin:create');
+    expect(plugin).toContain('manifest.json');
+    expect(plugin).toContain('compatibility');
+    expect(plugin).toContain('okcms-plugin');
+
+    // THEME.md: scaffold, build e ativação
+    const theme = readFileSync(join(root, 'THEME.md'), 'utf-8');
+    expect(theme).toContain('okcms theme:create');
+    expect(theme).toContain('okcms theme:build');
+    expect(theme).toContain('--set-active');
+    expect(theme).toContain('okcms-theme');
+  });
+
+  it('não sobrescreve README.md já existente no re-init', async () => {
+    mkdirSync(join(workDir, 'keep-readme'));
+    writeFileSync(join(workDir, 'keep-readme', 'README.md'), '# Meu README editado');
+
+    await scaffoldProject('keep-readme', 'keep-readme');
+
+    expect(readFileSync(join(workDir, 'keep-readme', 'README.md'), 'utf-8')).toBe('# Meu README editado');
+    // mas PLUGIN.md/THEME.md (que não existiam) são criados
+    expect(existsSync(join(workDir, 'keep-readme', 'PLUGIN.md'))).toBe(true);
+    expect(existsSync(join(workDir, 'keep-readme', 'THEME.md'))).toBe(true);
   });
 
   it('docker-compose sobe postgres + redis com healthcheck e volume', async () => {

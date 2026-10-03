@@ -139,6 +139,20 @@ volumes:
 
   await writeFile(join(root, 'docker-compose.yml'), compose, 'utf-8');
 
+  // Documentação do projeto — só escreve se não existir (não sobrescreve
+  // README editado pelo usuário em re-init).
+  const { projectReadme, PLUGIN_DOC, THEME_DOC } = await import('./scaffold-docs.js');
+  for (const [filename, content] of [
+    ['README.md', projectReadme(name)],
+    ['PLUGIN.md', PLUGIN_DOC],
+    ['THEME.md', THEME_DOC],
+  ] as const) {
+    const docPath = join(root, filename);
+    if (!existsSync(docPath)) {
+      await writeFile(docPath, content, 'utf-8');
+    }
+  }
+
   const relTarget = targetDir === '.' ? null : targetDir;
   const cfgName = DEFAULT_CONFIG_FILENAME;
 
@@ -154,6 +168,7 @@ volumes:
   console.log(`  ${step++}. okcms start   (sobe api, admin, web e worker)`);
   console.log('');
   console.log(`Config do projeto: ${cfgName} | para ajuda: okcms --help`);
+  console.log(`Documentação: README.md (uso local/Docker) · PLUGIN.md e THEME.md (extensões)`);
   return root;
 }
 
