@@ -1,5 +1,17 @@
 # @oktis-works/cms
 
+## 0.1.6
+
+### Patch Changes
+
+- Scaffold gera documentação para o usuário final: `README.md` (visão do sistema, uso local e Docker, tabela de comandos, banco e conexão), `PLUGIN.md` (guia de desenvolvimento de plugins: manifest, hooks, fluxo create/instal/gestão, publicação) e `THEME.md` (temas: templates, engines css/scss/tailwind, build com isolamento, ativação). Arquivos não são sobrescritos em re-init.
+- Updated dependencies []:
+  - @oktis-works/validation@0.1.6
+  - @oktis-works/core@0.1.6
+  - @oktis-works/config@0.1.6
+  - @oktis-works/database@0.1.6
+  - @oktis-works/theme-runtime@0.1.6
+
 ## 0.1.5
 
 ### Patch Changes

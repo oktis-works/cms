@@ -1,5 +1,13 @@
 # @oktis-works/theme-runtime
 
+## 0.1.6
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @oktis-works/types@0.1.6
+  - @oktis-works/theme-sdk@0.1.6
+
 ## 0.1.5
 
 ### Patch Changes
