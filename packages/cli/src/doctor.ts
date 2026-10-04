@@ -4,6 +4,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { connect } from 'node:net';
 
+import type { Runner } from './docker.js';
+
 export interface CheckResult {
   name: string;
   ok: boolean;
@@ -61,7 +63,7 @@ export interface DoctorEnv {
 }
 
 export async function runDoctorChecks(
-  opts: { tcpProbe?: typeof checkTcp; env?: DoctorEnv } = {}
+  opts: { tcpProbe?: typeof checkTcp; env?: DoctorEnv; runner?: Runner } = {}
 ): Promise<CheckResult[]> {
   const results: CheckResult[] = [];
   const nodeVersion = opts.env?.nodeVersion ?? process.version;
@@ -133,6 +135,62 @@ export async function runDoctorChecks(
     ok: existsSync(configPath),
     detail: configPath,
     required: true,
+  });
+
+  // --- Deploy blue/green ---------------------------------------------------
+  // Nada aqui é `required: true`: projeto rodando local (`okcms start`) não
+  // precisa de Docker. O que importa é DIZER ao operador por que o deploy
+  // não vai funcionar, em vez de ele descobrir no meio de um swap.
+  //
+  // O módulo entra por dynamic import porque `env-schema` importa este
+  // arquivo — carregar os templates de deploy em `okcms config` seria peso
+  // morto em todo start de wizard.
+  const docker = await import('./docker.js');
+  const runner = opts.runner ?? docker.defaultRunner;
+
+  const dockerOk = docker.dockerAvailable(runner);
+  results.push({
+    name: 'docker',
+    ok: dockerOk,
+    detail: dockerOk
+      ? 'daemon acessível'
+      : 'ausente ou parado — só afeta `okcms update --mode deploy`',
+    required: false,
+  });
+
+  const compose = docker.composeAvailable(runner);
+  results.push({
+    name: 'compose',
+    ok: compose.ok,
+    detail: compose.ok
+      ? `plugin v2 (${compose.version || 'ok'})`
+      : 'plugin v2 ausente — `docker compose version` falhou (legado v1 não serve)',
+    required: false,
+  });
+
+  // Lane ativa: o estado salvo em .deploy/state.json, senão quem está no ar.
+  const lane = dockerOk ? docker.detectActiveLane(cwd, runner) : null;
+  results.push({
+    name: 'lane',
+    ok: dockerOk,
+    detail: !dockerOk
+      ? 'docker indisponível'
+      : lane
+        ? `lane ${lane} ativa (rollback: ${docker.otherLane(lane)})`
+        : 'nenhuma lane no ar — primeiro deploy',
+    required: false,
+  });
+
+  const proxy = dockerOk && docker.proxyRunning(runner);
+  results.push({
+    name: 'proxy',
+    ok: proxy || lane === null,
+    detail: proxy
+      ? 'okcms-proxy no ar'
+      : lane === null
+        ? 'ainda não implantado em Docker (uso local não precisa)'
+        : 'okcms-proxy parado com lane ativa — site inacessível',
+    required: false,
   });
 
   return results;

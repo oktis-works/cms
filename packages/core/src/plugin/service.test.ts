@@ -1,6 +1,7 @@
 // @oktis-works/core - Plugin Scope Tests (RULE-tenant-plugin-scope)
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { CMS_VERSION } from '@oktis-works/validation';
 
 type Row = Record<string, unknown>;
 let rows: Row[];
@@ -180,7 +181,7 @@ describe('Ciclo de vida avançado — instalação, ativação e desativação',
         id: 'p1',
         name: 'ok',
         status: 'INSTALLED',
-        manifest: { name: 'ok', compatibility: { okcms: '^0.1.0' } },
+        manifest: { name: 'ok', compatibility: { okcms: `^${CMS_VERSION}` } },
       },
     ];
 

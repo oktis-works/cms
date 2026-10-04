@@ -1,0 +1,123 @@
+# @oktis-works - Roteamento do proxy OkCMS (template)
+# Gerado pela CLI. Canônica em infrastructure/nginx/templates/default.conf.template
+#
+# O nginx oficial processa /etc/nginx/templates/*.template no start, com
+# envsubst limitado às variáveis definidas no ambiente (SERVER_NAME e
+# ADMIN_SERVER_NAME, vindas do .env). Tudo que for $host, $remote_addr ou
+# $upstream_* é do nginx e NÃO é substituído.
+#
+# Os upstreams moram em conf.d/00-upstreams.conf: a CLI os reescreve no swap
+# e recarrega com `nginx -s reload` — troca de lane sem derrubar conexão.
+
+map $http_upgrade $connection_upgrade {
+  default upgrade;
+  ''      close;
+}
+
+# ---------------------------------------------------------------- admin ----
+# O admin é um Astro standalone servido na RAIZ (não em /admin): ele gera
+# URLs /_astro/... e não tem base path configurado, então publicá-lo em
+# /admin/ quebraria os assets. Ele precisa de host próprio.
+server {
+  listen 80;
+  server_name ${ADMIN_SERVER_NAME};
+
+  location / {
+    proxy_pass $upstream_admin;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_read_timeout 120s;
+  }
+}
+
+# admin por porta — funciona sem DNS nenhum (http://<host>:8080/)
+server {
+  listen 8080 default_server;
+  server_name _;
+
+  location / {
+    proxy_pass $upstream_admin;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_read_timeout 120s;
+  }
+}
+
+# ---------------------------------------------------------- site público ---
+server {
+  listen 80 default_server;
+  server_name ${SERVER_NAME};
+
+  client_max_body_size 100m;
+  gzip on;
+  gzip_types text/plain text/css application/json application/javascript
+             image/svg+xml;
+
+  # healthcheck do edge: sempre no api (é quem fala com o banco)
+  location = /health {
+    access_log off;
+    proxy_pass $upstream_api;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+  }
+
+  # API + mídia (/api/v1/media/file/<tenant>/<arquivo>)
+  location /api/ {
+    proxy_pass $upstream_api;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_read_timeout 120s;
+  }
+
+  # STORAGE_PUBLIC_BASE=/storage → rota o mesmo arquivo para a API.
+  # O local driver publica <base>/<tenant>/<arquivo>, que é exatamente o
+  # formato de /api/v1/media/file/<tenant>/<arquivo>.
+  location /storage/ {
+    rewrite ^/storage/(.*)$ /api/v1/media/file/$1 break;
+    proxy_pass $upstream_api;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_cache_valid 200 30d;
+    expires 30d;
+  }
+
+  # assets de tema servidos pelo web (resolver de path do Theme SDK)
+  location /themes/ {
+    proxy_pass $upstream_web;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+
+  # SSR do site público
+  location / {
+    proxy_pass $upstream_web;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_read_timeout 120s;
+  }
+}

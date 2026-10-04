@@ -17,11 +17,17 @@ export function parseArgs(argv: string[]): ParsedArgs {
   let i = isFlag ? 0 : 1;
   while (i < sliced.length) {
     const arg = sliced[i]!;
+    const cmd = commands.find((c) => c.name === command);
     if (arg.startsWith('--')) {
       const key = arg.slice(2);
+      const repeatable = cmd?.options.find((o) => o.name === key)?.repeatable === true;
       const next = sliced[i + 1];
       if (next && !next.startsWith('--')) {
-        options[key] = next;
+        // repetível acumula em linhas; senão a 2ª ocorrência engolia a 1ª
+        options[key] =
+          repeatable && options[key] !== undefined && options[key] !== 'true'
+            ? `${options[key]}\n${next}`
+            : next;
         i += 2;
       } else {
         options[key] = 'true';
@@ -29,12 +35,15 @@ export function parseArgs(argv: string[]): ParsedArgs {
       }
     } else if (arg.startsWith('-')) {
       const alias = arg.slice(1);
-      const cmd = commands.find((c) => c.name === command);
       const opt = cmd?.options.find((o) => o.alias === alias);
       const key = opt?.name ?? alias;
+      const repeatable = opt?.repeatable === true;
       const next = sliced[i + 1];
       if (next && !next.startsWith('-')) {
-        options[key] = next;
+        options[key] =
+          repeatable && options[key] !== undefined && options[key] !== 'true'
+            ? `${options[key]}\n${next}`
+            : next;
         i += 2;
       } else {
         options[key] = 'true';

@@ -1,0 +1,189 @@
+# @oktis-works - Lanes blue/green do OkCMS
+# Gerada pela CLI. Canônica em infrastructure/compose/docker-compose.deploy.yml
+#
+# Um ARQUIVO, DOIS projetos Docker. O lane é o nome do projeto:
+#
+#   docker compose -p okcms-blue  -f docker-compose.deploy.yml up -d --build
+#   docker compose -p okcms-green -f docker-compose.deploy.yml up -d --build
+#
+# Containers ficam okcms-<lane>-<serviço> — os upstreams do nginx apontam
+# para esses nomes (gerados em deploy/nginx/conf.d/00-upstreams.conf).
+#
+# A rede okcms-net é EXTERNA (criada pelo docker-compose.infra.yml) e os
+# serviços de infra NÃO aparecem aqui de propósito: sem isso, `down` de uma
+# lane derrubaria o banco junto com a lane antiga.
+#
+# Papéis (label okcms.role, lida pelo `okcms update`):
+#   edge   api/web/admin → trocados por completo a cada deploy (blue/green)
+#   worker fila BullMQ   → NUNCA blue/green; drenado com SIGTERM no swap
+#   data   postgres/redis→ intocáveis; moram no docker-compose.infra.yml
+#
+# NB: o `down` de lane derruba CONTAINERS e REDES, mas nunca passa de
+# ``` -v ```: o volume okcms-storage é compartilhado entre blue e green,
+# é ele que mantém a mídia viva através dos deploys.
+
+x-app: &app
+  image: okcms/app:${OKCMS_VERSION:-latest}
+  build:
+    context: .
+    dockerfile: docker/Dockerfile
+  env_file:
+    # .env primeiro (portas do operador) — o environment abaixo sobrescreve
+    - .env
+  restart: unless-stopped
+  networks: [okcms]
+  environment:
+    NODE_ENV: production
+    DB_HOST: postgres
+    REDIS_HOST: redis
+  volumes:
+    - ./plugins:/app/plugins
+    - ./themes:/app/themes
+    # mídia compartilhada entre as duas lanes: deploy não perde arquivo
+    - storage-data:/app/.data/storage
+    - cache-data:/app/.data/cache
+
+x-api-health: &api-health
+  test:
+    - CMD
+    - bun
+    - -e
+    - "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  interval: 10s
+  timeout: 5s
+  retries: 12
+  start_period: 25s
+
+x-web-health: &web-health
+  test:
+    - CMD
+    - bun
+    - -e
+    - "fetch('http://127.0.0.1:'+(process.env.WEB_PORT||3001)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  interval: 10s
+  timeout: 5s
+  retries: 12
+  start_period: 25s
+
+x-admin-health: &admin-health
+  # o admin é Astro standalone: serve / e não tem /health dedicado
+  test:
+    - CMD
+    - bun
+    - -e
+    - "fetch('http://127.0.0.1:'+(process.env.PORT||3011)+'/').then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"
+  interval: 10s
+  timeout: 5s
+  retries: 12
+  start_period: 30s
+
+services:
+  # ---------------------------------------------------------------- api
+  api-blue:
+    <<: *app
+    container_name: okcms-api-blue
+    command: ["api"]
+    labels:
+      okcms.role: edge
+      okcms.lane: blue
+      okcms.service: api
+    healthcheck: *api-health
+
+  api-green:
+    <<: *app
+    container_name: okcms-api-green
+    command: ["api"]
+    labels:
+      okcms.role: edge
+      okcms.lane: green
+      okcms.service: api
+    healthcheck: *api-health
+
+  # ---------------------------------------------------------------- web
+  web-blue:
+    <<: *app
+    container_name: okcms-web-blue
+    command: ["web"]
+    labels:
+      okcms.role: edge
+      okcms.lane: blue
+      okcms.service: web
+    healthcheck: *web-health
+
+  web-green:
+    <<: *app
+    container_name: okcms-web-green
+    command: ["web"]
+    labels:
+      okcms.role: edge
+      okcms.lane: green
+      okcms.service: web
+    healthcheck: *web-health
+
+  # -------------------------------------------------------------- admin
+  # admin lê `PORT` (astro standalone) e não `ADMIN_PORT`: o environment do
+  # service substitui o do anchor `<<`, então os três comuns são repetidos.
+  admin-blue:
+    <<: *app
+    container_name: okcms-admin-blue
+    command: ["admin"]
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+      REDIS_HOST: redis
+      PORT: ${ADMIN_PORT:-3011}
+    labels:
+      okcms.role: edge
+      okcms.lane: blue
+      okcms.service: admin
+    healthcheck: *admin-health
+
+  admin-green:
+    <<: *app
+    container_name: okcms-admin-green
+    command: ["admin"]
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+      REDIS_HOST: redis
+      PORT: ${ADMIN_PORT:-3011}
+    labels:
+      okcms.role: edge
+      okcms.lane: green
+      okcms.service: admin
+    healthcheck: *admin-health
+
+  # ------------------------------------------------------------- worker
+  # Uma fila não suporta duas instâncias "fantasma": o worker só sobe depois
+  # do swap e o da lane antiga drena com SIGTERM (stop_grace_period) antes.
+  worker-blue:
+    <<: *app
+    container_name: okcms-worker-blue
+    command: ["worker"]
+    stop_grace_period: 30s
+    labels:
+      okcms.role: worker
+      okcms.lane: blue
+      okcms.service: worker
+
+  worker-green:
+    <<: *app
+    container_name: okcms-worker-green
+    command: ["worker"]
+    stop_grace_period: 30s
+    labels:
+      okcms.role: worker
+      okcms.lane: green
+      okcms.service: worker
+
+networks:
+  okcms:
+    name: okcms-net
+    external: true
+
+volumes:
+  # compartilhado entre blue e green de propósito: mídia sobrevive ao deploy
+  storage-data:
+    name: okcms-storage
+  cache-data:
+    name: okcms-cache

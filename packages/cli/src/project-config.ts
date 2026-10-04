@@ -35,8 +35,8 @@ export function defaultProjectConfig(name = 'my-okcms-site'): ProjectConfig {
     activeTheme: process.env['ACTIVE_THEME'] ?? '',
     ports: {
       api: Number(process.env['PORT'] ?? 3000),
-      admin: Number(process.env['ADMIN_PORT'] ?? 3001),
-      web: Number(process.env['WEB_PORT'] ?? 3002),
+      admin: Number(process.env['ADMIN_PORT'] ?? 3011),
+      web: Number(process.env['WEB_PORT'] ?? 3001),
     },
   };
 }

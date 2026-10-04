@@ -7,7 +7,9 @@ const valid = {
   name: 'meu-plugin',
   version: '1.2.3',
   type: 'plugin' as const,
-  compatibility: { okcms: '>=0.1.0 <1.0.0' },
+  // range derivado da versão atual: o teste valida a SEMÂNTICA da checagem,
+  // não um número fixo — assim não quebra a cada release do CMS.
+  compatibility: { okcms: `^${CMS_VERSION}` },
 };
 
 describe('checkExtensionCompatibility (BUSI-022)', () => {
@@ -38,10 +40,11 @@ describe('checkExtensionCompatibility (BUSI-022)', () => {
   });
 
   it('respeita ranges parciais (^, ~, >=)', () => {
-    for (const range of ['^0.1.0', '~0.1.0', '>=0.1.0']) {
+    // derivados de CMS_VERSION: ^ e ~ valem para a janela do minor atual
+    for (const prefix of ['^', '~', '>=']) {
       const issues = checkExtensionCompatibility('plugin', {
         ...valid,
-        compatibility: { okcms: range },
+        compatibility: { okcms: `${prefix}${CMS_VERSION}` },
       });
       expect(issues).toEqual([]);
     }

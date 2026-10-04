@@ -1,5 +1,6 @@
 import { basename, join, resolve } from 'node:path';
 import { initDb } from './db-init.js';
+import type { DocsLang } from './scaffold-docs.js';
 
 export interface Option {
   name: string;
@@ -7,6 +8,12 @@ export interface Option {
   description: string;
   required: boolean;
   default?: string;
+  /**
+   * Aceita repetição no comando (`--set A=1 --set B=2`). O parser acumula
+   * múltiplas ocorrências em `KEY` separadas por `\n` — sem isso a segunda
+   * ocorrência sobrescreveria a primeira silenciosamente.
+   */
+  repeatable?: boolean;
 }
 
 export interface Command {
@@ -60,14 +67,47 @@ export const commands: Command[] = [
     description: 'Scaffold a new OkCMS project in a directory',
     options: [
       { name: 'dir', alias: 'd', description: 'Target directory (same as positional arg)', required: false },
+      {
+        name: 'lang',
+        alias: 'l',
+        description: 'Docs language for README/PLUGIN/THEME: en or pt (asks when interactive, default en)',
+        required: false,
+      },
     ],
     handler: async (args, options) => {
       const { scaffoldProject, installProjectDeps } = await import('./scaffold.js');
+      const { DEFAULT_DOCS_LANG, parseDocsLang } = await import('./scaffold-docs.js');
+
+      // Idioma da documentação gerada (.md apenas — o código nunca muda de
+      // língua). `--lang en|pt` decide sem TTY (CI/script); sem a flag, com
+      // TTY, um menu pergunta; sem TTY e sem flag, o default é inglês.
+      const rawLang = options['lang'];
+      let lang: DocsLang;
+      if (rawLang !== undefined && rawLang !== 'true') {
+        const parsed = parseDocsLang(rawLang);
+        if (parsed === null) {
+          throw new Error(`invalid --lang "${rawLang}" — use en or pt`);
+        }
+        lang = parsed;
+      } else if (rawLang === 'true') {
+        throw new Error('--lang requires a value: en or pt');
+      } else {
+        const { select } = await import('./prompt.js');
+        lang = await select<DocsLang>(
+          'Idioma da documentação (README.md, PLUGIN.md, THEME.md)',
+          [
+            { value: 'en', label: 'English', hint: 'default' },
+            { value: 'pt', label: 'Português (Brasil)' },
+          ],
+          { defaultValue: DEFAULT_DOCS_LANG }
+        );
+      }
+
       // O arg posicional tem prioridade sobre -d: `init cms-teste` deve criar
       // o diretório cms-teste (o default '.' injetado pelo parser engolia args[0]).
       const target = args[0] ?? options['dir'] ?? '.';
       const name = args[1] ?? basename(resolve(target));
-      const root = await scaffoldProject(target, name);
+      const root = await scaffoldProject(target, name, lang);
 
       // Zero config: instala as dependências já no init (bun, ou npm sem bun).
       console.log('Instalando dependências do projeto...');
@@ -158,7 +198,7 @@ export const commands: Command[] = [
   },
   {
     name: 'doctor',
-    description: 'Diagnóstico do ambiente: node, .env, database (DATABASE_URL ou DB_*), config',
+    description: 'Diagnóstico do ambiente: node, .env, database, config, docker/compose/lane/proxy',
     options: [],
     handler: async () => {
       const { runDoctorChecks } = await import('./doctor.js');
@@ -239,27 +279,20 @@ export const commands: Command[] = [
     ],
     handler: async (_args, options) => {
       const { join } = await import('node:path');
-      const { mkdirSync, writeFileSync, readFileSync, existsSync } = await import('node:fs');
-      const { buildThemeStyles } = await import('@oktis-works/theme-runtime');
       const name = options['name'];
       if (!name) {
         console.error('--name obrigatório');
         process.exit(1);
       }
       const themesDir = options['themes-dir'] ?? join(process.cwd(), 'themes');
-      const manifestPath = join(themesDir, name, 'theme.json');
-      if (!existsSync(manifestPath)) {
-        console.error(`theme.json não encontrado em ${manifestPath}`);
-        process.exit(1);
-      }
-      const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'));
       try {
-        const { css, report } = await buildThemeStyles({ themesRoot: themesDir, themeName: name, manifest });
-        if (!report.entry) console.log(`[${name}] sem entrada de estilo (${report.engine})`);
-        for (const w of report.warnings) console.warn(`warn: ${w}`);
-        mkdirSync(join(themesDir, name, 'dist'), { recursive: true });
-        writeFileSync(join(themesDir, name, report.output), css, 'utf-8');
-        console.log(`[${name}] ${report.engine} -> ${report.output} (${css.length} bytes) isolated=${report.isolated}`);
+        const { buildThemeStylesOnDisk } = await import('./theme-build.js');
+        const outcome = await buildThemeStylesOnDisk(themesDir, name);
+        if (!outcome.entry) console.log(`[${name}] sem entrada de estilo (${outcome.engine})`);
+        for (const warning of outcome.warnings) console.warn(`warn: ${warning}`);
+        console.log(
+          `[${name}] ${outcome.engine} -> ${outcome.output} (${outcome.bytes} bytes) isolated=${outcome.isolated}`
+        );
       } catch (e) {
         console.error(e instanceof Error ? e.message : String(e));
         process.exit(1);
@@ -344,59 +377,86 @@ export const commands: Command[] = [
     },
   },
   {
-    name: 'update',
-    description: 'Check @oktis-works/* packages against npm registry latest (--install to upgrade)',
+    name: 'config',
+    description:
+      'Wizard das variáveis de ambiente (.env) — interativo, ou --list / --set CHAVE=valor',
     options: [
-      { name: 'install', alias: 'i', description: 'Run npm install for outdated packages', required: false },
+      { name: 'set', alias: 's', description: 'Define uma chave (repita para várias): --set PORT=3000', required: false, repeatable: true },
+      { name: 'list', alias: 'l', description: 'Lista as chaves do .env (segredos mascarados)', required: false },
+      { name: 'show-secrets', alias: 'S', description: 'Com --list, mostra segredos sem mascarar', required: false },
+      { name: 'non-interactive', alias: 'n', description: 'Não espera TTY (CI) — saída de --list', required: false },
+      { name: 'section', alias: 'x', description: 'Abre direto numa seção (app|database|redis|auth|storage|worker|cache|ports|theme|deploy)', required: false },
+      { name: 'force', alias: 'F', description: 'Permite rodar dentro de container (não recomendado)', required: false },
     ],
     handler: async (_args, options) => {
-      const { existsSync, readdirSync, readFileSync } = await import('node:fs');
-      const { spawnSync } = await import('node:child_process');
-      const { getLatestVersion } = await import('./npm-registry.js');
-
-      const nmDir = join(process.cwd(), 'node_modules', '@oktis-works');
-      if (!existsSync(nmDir)) {
-        console.error('Nenhum pacote @oktis-works/* instalado em node_modules.');
-        process.exit(1);
-      }
-
-      const installed = readdirSync(nmDir, { withFileTypes: true })
-        .filter((entry) => entry.isDirectory())
-        .map((entry) => entry.name);
-
-      const outdated: Array<{ pkg: string; current: string; latest: string }> = [];
-
-      for (const name of installed) {
-        let current = '?';
-        try {
-          const pkgJson = JSON.parse(readFileSync(join(nmDir, name, 'package.json'), 'utf-8')) as { version?: string };
-          current = pkgJson.version ?? '?';
-        } catch {
-          // sem package.json legível
-        }
-
-        const latest = await getLatestVersion(`@oktis-works/${name}`);
-
-        if (!latest || latest === current) {
-          console.log(`  ✓ @oktis-works/${name} ${current} (em dia)`);
-          continue;
-        }
-
-        console.log(`  ↑ @oktis-works/${name} ${current} → ${latest} disponível`);
-        outdated.push({ pkg: `@oktis-works/${name}`, current, latest });
-      }
-
-      if (outdated.length === 0) return;
-
-      if (options['install'] !== undefined) {
-        console.log('\nAtualizando...');
-        const result = spawnSync('bun', ['add', ...outdated.map((entry) => `${entry.pkg}@latest`)], {
-          stdio: 'inherit',
-        });
-        process.exitCode = result.status ?? 1;
-      } else {
-        console.log('\nUse --install para atualizar automaticamente.');
-      }
+      const { runConfigWizard } = await import('./config-wizard.js');
+      const code = await runConfigWizard({
+        set: options['set'],
+        list: options['list'] !== undefined,
+        showSecrets: options['show-secrets'] !== undefined,
+        nonInteractive: options['non-interactive'] !== undefined,
+        section: options['section'],
+        force: options['force'] !== undefined,
+      });
+      if (code !== 0) process.exitCode = code;
+    },
+  },
+  {
+    name: 'update',
+    description: 'Wizard de atualização: baixar pacotes ou deploy Docker blue/green completo',
+    options: [
+      { name: 'install', alias: 'i', description: 'Modo download: aplica as atualizações no node_modules', required: false },
+      { name: 'mode', alias: 'm', description: 'Pula o menu: download (só pacotes) ou deploy (blue/green)', required: false },
+      { name: 'no-cache', alias: 'c', description: 'Deploy: build --no-cache (rebuild limpo, mais lento)', required: false },
+      { name: 'remove-orphans', alias: 'r', description: 'Deploy: down --remove-orphans na lane antiga (default)', required: false },
+      { name: 'keep-orphans', alias: 'k', description: 'Deploy: mantém contêineres órfãos da lane antiga', required: false },
+      { name: 'yes', alias: 'y', description: 'Sem prompts: segue os defaults de cada escolha', required: false },
+      { name: 'force', alias: 'F', description: 'Permite rodar dentro de container (não recomendado)', required: false },
+    ],
+    handler: async (_args, options) => {
+      const { runUpdate } = await import('./update.js');
+      const code = await runUpdate({
+        install: options['install'] !== undefined,
+        mode: options['mode'],
+        noCache: options['no-cache'] !== undefined,
+        removeOrphans: options['remove-orphans'] !== undefined,
+        keepOrphans: options['keep-orphans'] !== undefined,
+        yes: options['yes'] !== undefined,
+        force: options['force'] !== undefined,
+      });
+      if (code !== 0) process.exitCode = code;
+    },
+  },
+  {
+    name: 'redeploy',
+    description: 'Aplica plugin/tema recém-instalado: migrations de plugin + build de tema + deploy blue/green',
+    options: [
+      { name: 'plugin', alias: 'p', description: 'Só prepara as migrations deste plugin', required: false },
+      { name: 'theme', alias: 't', description: 'Só compila este tema', required: false },
+      { name: 'skip-migrations', alias: 'M', description: 'Não copia SQL de plugin para migrations/', required: false },
+      { name: 'skip-theme-build', alias: 'B', description: 'Não compila estilos dos temas', required: false },
+      { name: 'dry-run', alias: 'n', description: 'Mostra o plano e sai sem executar nada', required: false },
+      { name: 'no-cache', alias: 'c', description: 'Deploy: build --no-cache (rebuild limpo, mais lento)', required: false },
+      { name: 'remove-orphans', alias: 'r', description: 'Deploy: down --remove-orphans na lane antiga (default)', required: false },
+      { name: 'keep-orphans', alias: 'k', description: 'Deploy: mantém contêineres órfãos da lane antiga', required: false },
+      { name: 'yes', alias: 'y', description: 'Sem prompts: segue os defaults de cada escolha', required: false },
+      { name: 'force', alias: 'F', description: 'Permite rodar dentro de container (não recomendado)', required: false },
+    ],
+    handler: async (_args, options) => {
+      const { runRedeploy } = await import('./redeploy.js');
+      const code = await runRedeploy({
+        plugin: options['plugin'],
+        theme: options['theme'],
+        skipMigrations: options['skip-migrations'] !== undefined,
+        skipThemeBuild: options['skip-theme-build'] !== undefined,
+        dryRun: options['dry-run'] !== undefined,
+        noCache: options['no-cache'] !== undefined,
+        removeOrphans: options['remove-orphans'] !== undefined,
+        keepOrphans: options['keep-orphans'] !== undefined,
+        yes: options['yes'] !== undefined,
+        force: options['force'] !== undefined,
+      });
+      if (code !== 0) process.exitCode = code;
     },
   },
   {

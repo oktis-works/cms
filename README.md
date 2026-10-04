@@ -1,14 +1,220 @@
+> 📄 **English** · [Português](./README.pt-BR.md)
+
 # OkCMS v2
 
 Hybrid, modular, API-first, extensible CMS with Astro+SolidJS frontend, Node.js/TypeScript backend, PostgreSQL, Docker immutable deployments, plugin/theme systems with sandbox, and multi-tenancy.
 
 ## Documentation
 
-| Público | Guia |
+| Audience | Guide |
 |---|---|
-| Operador (hospeda uma instalação via npm) | [Operator Guide](./docs/operator-guide.md) — pré-requisitos, CLI, deploys, backup |
-| Mantenedor (contribui com o código) | [Maintainer Guide](./docs/maintainer-guide.md) — dev local, qualidade, publicação npm/Docker, SDD |
-| Desenvolvedor de extensões | [Plugin Development](./docs/plugin-development.md) · [Theme Development](./docs/theme-development.md) |
+| **Operator** (hosts an installation) | [Operator Guide](./docs/operator-guide.md) — prerequisites, full CLI, config, update, backup |
+| **Operator** (Docker deployment) | [Docker Deploy](./docs/docker-deploy.md) — single image, blue/green lanes, rollback, security |
+| Maintainer (contributes code) | [Maintainer Guide](./docs/maintainer-guide.md) — local dev, quality, npm/Docker publishing |
+| Extension developer | [Plugin Development](./docs/plugin-development.md) · [Theme Development](./docs/theme-development.md) |
+
+---
+
+## CLI `okcms`
+
+The CLI is the **only** operational surface of the system: it creates the
+project, starts the apps, migrates the database, configures `.env`, installs
+extensions and deploys. It is zero-dependency (no prompt library), runs on
+**Node 20+ or Bun 1.3+** and never runs inside a container — deployment and
+configuration always happen from the host.
+
+### Installation
+
+```bash
+# global (allows `okcms ...` without a prefix)
+npm install -g @oktis-works/cms      # or: bun add -g @oktis-works/cms
+
+# without installing: always works with npx (or bunx with Bun)
+npx okcms --help
+
+# in a scaffolded project the CLI is already in devDependencies
+npx okcms doctor
+```
+
+### First steps
+
+```bash
+npx okcms init meu-site      # scaffolding + bun install (or npm, without bun)
+cd meu-site
+$EDITOR .env                 # set DB_PASSWORD and JWT_SECRET
+npx okcms db:migrate         # applies migrations/
+npx okcms start              # api + admin + web + worker
+npx okcms doctor             # if anything fails
+```
+
+`init` asks which language to write the docs in (`README.md`, `PLUGIN.md`,
+`THEME.md`): **English** or **Português**. In a script/CI (no TTY) it does not
+ask and defaults to English — force it with `--lang en` or `--lang pt`. Only
+the Markdown files are localized; commands, flags and code stay the same.
+
+### Command reference
+
+**Project and execution**
+
+| Command | Options | What it does |
+|---|---|---|
+| `okcms init <dir> [nome]` | `-d, --dir` · `-l, --lang en\|pt` | Creates the project: configs, `.env`, compose, Docker deploy files, docs (English or Portuguese) and `bun install` |
+| `okcms start` | `-A, --all` (default) · `-a, --api` · `-m, --admin` · `-w, --web` · `-W, --worker` | Starts the apps as host processes (pidfiles in `.data/`) |
+| `okcms stop` | — | Stops what `start` started (pidfile + detection) |
+| `okcms status` | — | Process state + project summary |
+| `okcms doctor` | — | Diagnostics: node, `.env`, database (`DB_*` or `DATABASE_URL`), config, **docker, compose v2, lane, proxy** |
+| `okcms config` | `-s, --set K=V` (repeatable) · `-l, --list` · `-S, --show-secrets` · `-n, --non-interactive` · `-x, --section <s>` · `-F, --force` | `.env` editing wizard — Enter keeps, Ctrl+C discards everything (exit 130) |
+
+`--section` accepts: `app · database · redis · auth · storage · worker · cache ·
+ports · theme · deploy`.
+
+```bash
+npx okcms config                          # interactive wizard
+npx okcms config --list                   # keys with secrets masked
+npx okcms config --set PORT=4000 --set JWT_SECRET=$(openssl rand -hex 32)
+npx okcms config --section deploy -n      # programmatic, no TTY
+```
+
+**Update and deployment**
+
+| Command | Options | What it does |
+|---|---|---|
+| `okcms update` | — | Wizard: choose between **download packages only** or **blue/green Docker deployment** |
+| `okcms update -i` | `-i, --install` | Classic download mode: scans `node_modules/@oktis-works/*` and installs whatever is behind |
+| `okcms update --mode deploy` | `-m, --mode download\|deploy` | Full blue/green deployment (see below) |
+| `okcms redeploy` | `-p, --plugin <n>` · `-t, --theme <n>` · `-M, --skip-migrations` · `-B, --skip-theme-build` · `-n, --dry-run` | Applies a newly installed plugin/theme: plugin SQL → `migrations/`, theme `dist/theme.css` and blue/green deployment (see below) |
+| (deploy flags) | `-c, --no-cache` · `-r, --remove-orphans` · `-k, --keep-orphans` · `-y, --yes` · `-F, --force` | Deployment choices, for use without TTY |
+
+```bash
+npx okcms update                     # with TTY: two-option menu
+npx okcms update -i                  # non-TTY: packages only (original behavior)
+npx okcms update --mode deploy       # blue/green deployment
+npx okcms update --mode deploy --yes # CI: no prompts, defaults
+
+npx okcms plugin:install -n ./meu-plugin   # or theme:install
+npx okcms redeploy                  # stage + build + deploy (what to do after installing)
+npx okcms redeploy --dry-run        # only shows the plan
+```
+
+> **Non-TTY never deploys by accident.** Without `--mode`, the default in
+> scripts is `download` — a `-i` in cron keeps doing exactly what it always did.
+
+**Database**
+
+| Command | Options | What it does |
+|---|---|---|
+| `okcms db:migrate` | `-d, --dir` · `-t, --tenant` | Applies the pending migrations from `migrations/` |
+| `okcms db:rollback` | `-d, --dir` · `-t, --tenant` | Reverts the last migration |
+| `okcms db:status` | `-t, --tenant` | Shows the migration state |
+| `okcms db:backup` | `-o, --out` | Custom Postgres dump with timestamp |
+| `okcms db:restore` | `-f, --file` (required) · `-c, --clean` | Restores a dump, optionally dropping first |
+
+**Extensions**
+
+| Command | Options | What it does |
+|---|---|---|
+| `okcms plugin:create` | `-n, --name` (required) · `-d, --dir` | Minimal plugin scaffold |
+| `okcms plugin:install` | `-n, --name` (required) | Installs from a local path + registers |
+| `okcms plugin:list` · `plugin:search` | `-q, --query` | Lists installed / searches npm (`okcms-plugin`) |
+| `okcms plugin:manage` | `-n, --name` (required) · `-i` · `-e` · `-d` · `-u` | Info, enable, disable, uninstall |
+| `okcms theme:create` | `-n, --name` (required) · `-d, --dir` · `-s, --style css\|scss\|tailwind` | Minimal theme scaffold |
+| `okcms theme:install` · `theme:list` · `theme:search` | `-q, --query` | Theme install/lookup |
+| `okcms theme:manage` | `-n, --name` (required) · `-i` · `-e` · `-d` · `-u` · `-s, --set-active` | Info, enable, disable, uninstall, activate |
+| `okcms theme:build` | `-n, --name` (required) · `-d, --themes-dir` | Compiles SCSS/Tailwind → isolated `dist/theme.css` |
+
+**Content and system**
+
+| Command | Options | What it does |
+|---|---|---|
+| `okcms user:create` | `-e, --email` · `-n, --name` · `-p, --password` (all required) · `-t, --tenant` | Creates a user and assigns a role in the tenant |
+| `okcms seed` | — | Initial data (roles + settings) — idempotent |
+| `okcms system:status` | — | Environment status + database health |
+| `okcms media:migrate` | `-f, --from` · `-t, --to` (required) | Moves media between drivers (`local`, `s3`, `r2`, `minio`) |
+| `okcms prerender` | `-o, --out` | Static HTML of the published pages |
+| `okcms build` | `-a, --apps api,admin,web` | Builds the apps (monorepo only) |
+
+**Conventions and exit codes**
+
+- `0` success · `1` error · `130` interrupted (Ctrl+C) — no artifact written.
+- Every boolean option is `-x` or `--long`; options marked *repeatable* (`--set`)
+  accumulate occurrences instead of overwriting.
+- Commands that change state outside the process refuse to run **inside** a
+  container (`okcms update`, `okcms redeploy`, `okcms config`); `--force` is the
+  conscious escape hatch.
+- Secrets never show up in `--list` without `--show-secrets`, and are never
+  printed back in an error.
+
+---
+
+## Docker deployment (blue/green)
+
+`okcms init` already writes everything deployment needs:
+
+```
+meu-site/
+├── docker/Dockerfile              # single okcms/app image (4 entrypoints)
+├── docker/entrypoint.sh           # routes api | admin | web | worker
+├── docker-compose.infra.yml       # `okcms` project: network, postgres, redis, proxy
+├── docker-compose.deploy.yml      # lanes project: 8 blue/green services
+├── deploy/nginx/templates/…       # proxy template (envsubst)
+├── deploy/nginx/conf.d/00-upstreams.conf   # rewritten by the CLI on swap
+└── .deploy/state.json             # active lane + history (gitignored)
+```
+
+```bash
+npx okcms update --mode deploy
+```
+
+What happens, in this order:
+
+1. preflight (docker + compose v2) and the `okcms-net` network;
+2. infrastructure up (postgres, redis, proxy) and healthcheck;
+3. `@oktis-works/*` packages updated **on the host**;
+4. `docker compose build` of the new lane — still with no traffic;
+5. `okcms db:migrate` **on the host** — it fails here and nothing changed;
+6. starts the edge (`api`, `web`, `admin`) of the new lane and waits for each healthcheck;
+7. proxy swap: `00-upstreams.conf` + `nginx -s reload` (live connections);
+8. **drains** the old worker (SIGTERM + `stop_grace_period`), starts the new one;
+9. tears down the old lane with `down` — **without `-v`**, the media volume is shared;
+10. writes `.deploy/state.json` (the old lane becomes the rollback path).
+
+Any failure in steps 4–7 undoes what was already done and leaves the current
+lane serving. Full details in **[docs/docker-deploy.md](./docs/docker-deploy.md)**.
+
+### Applying a new plugin or theme
+
+Installing an extension **doesn't change what's running**: `plugins/` and
+`themes/` get into the image through the build's `COPY . .`, and
+`themes/<n>/dist/theme.css` is compiled **on the host** (the container does not
+compile SCSS/Tailwind). A plugin that touches the database must apply its own SQL.
+
+```bash
+npx okcms plugin:install -n ./meu-plugin   # or: theme:install
+npx okcms redeploy
+```
+
+`okcms redeploy` runs the full cycle, in this order:
+
+1. copies `plugins/<n>/migrations/*.sql` to `migrations/` — idempotent, and a
+   name outside `V###__owner__nome.sql` is **never** copied (it would break every
+   `db:migrate`);
+2. compiles the style of each theme that has an entry, writing
+   `themes/<n>/dist/theme.css`;
+3. runs the same blue/green as `okcms update --mode deploy`, except **without**
+   `bun add` — what changed is extension content, not a package version.
+
+Failure in preparation (1 or 2) aborts before touching Docker; a deployment
+failure rolls back, as always. Useful options:
+
+| Flag | Effect |
+|---|---|
+| `-n, --dry-run` | Shows the plan (what would be copied/compiled) and exits |
+| `-p, --plugin <n>` / `-t, --theme <n>` | Restricts **preparation** to a single extension (the rebuild is always global) |
+| `-M, --skip-migrations` | Doesn't copy plugin SQL to `migrations/` |
+| `-B, --skip-theme-build` | Doesn't compile styles (plugin rebuild only) |
+| `-y, --yes` | No prompts (CI) — the deployment flags apply the same |
+
+---
 
 ## Architecture
 
@@ -40,13 +246,21 @@ okcms-v2/
 │   ├── theme-sdk/     # Theme development SDK
 │   ├── plugin-runtime/# Plugin sandbox and execution
 │   ├── theme-runtime/ # Theme rendering engine
-│   ├── cli/           # CLI tools
+│   ├── cli/           # `okcms` CLI (canonical deploy assets in src/assets.ts)
+│   ├── validation/    # CMS_VERSION / compatibility
 │   └── utils/         # Shared utilities
+├── infrastructure/    # Mirrors generated by the CLI (docker/, compose/, nginx/)
 ├── plugins/           # Plugin packages
 ├── themes/            # Theme packages
-├── docker/            # Docker configurations
 ├── docs/              # Documentation
 └── tests/             # Integration tests
+```
+
+`infrastructure/**` is **generated** from `packages/cli/src/assets.ts` —
+do not edit it by hand:
+
+```bash
+bun scripts/sync-infrastructure.ts
 ```
 
 ## Getting Started
@@ -55,7 +269,7 @@ okcms-v2/
 
 - Node.js 20+
 - Bun 1.3+
-- Docker & Docker Compose
+- Docker & Docker Compose v2 (only for blue/green deployment)
 - PostgreSQL 16+
 
 ### Development
@@ -85,36 +299,44 @@ bun run build
 # Build specific package
 bun run --filter @oktis-works/api build
 
-# Build Docker image
-docker build -f apps/api/Dockerfile -t okcms-api .
+# Docker image (equivalent to what deployment uses)
+docker build -f infrastructure/docker/Dockerfile -t okcms/app .
 ```
 
 ### Testing
 
 ```bash
-# Run all tests
-bun run test
-
-# Run specific package tests
-bun run --filter @oktis-works/core test
+bun run test:run
+bun run typecheck
+bun run lint
 ```
 
 ## Environment Variables
 
 ```bash
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/okcms
+# Database (format (a) variables, or (b) DATABASE_URL which takes precedence)
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=okcms
+DB_USER=postgres
+DB_PASSWORD=
+# DATABASE_URL=postgresql://user:password@localhost:5432/okcms
 
 # Redis
-REDIS_URL=redis://localhost:6379
+REDIS_HOST=localhost
+REDIS_PORT=6379
 
 # Authentication
 JWT_SECRET=your-secret-key
 
 # Application
 NODE_ENV=development
-PORT=3000
+PORT=3000        # api
+WEB_PORT=3001    # public site
+ADMIN_PORT=3011  # admin panel
 ```
+
+Edit it with the wizard: `npx okcms config`.
 
 ## API Endpoints
 

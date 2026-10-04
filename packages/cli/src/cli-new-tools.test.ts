@@ -9,6 +9,7 @@ import { runDoctorChecks, parseDatabaseUrl, checkTcp, type CheckResult } from '.
 import { scaffoldPlugin, scaffoldTheme } from './extension-scaffold.js';
 import { runProjectBuild, isWorkspaceProject } from './build.js';
 import { CMS_VERSION } from '@oktis-works/validation';
+import type { RunResult, Runner } from './docker.js';
 
 let dir: string;
 
@@ -43,9 +44,38 @@ describe('checkTcp', () => {
 });
 
 describe('runDoctorChecks', () => {
+  /**
+   * Runner de Docker fake — nenhum teste do doctor depende do daemon real
+   * (o ambiente de CI não tem um, e o developer local não deveria pagar o
+   * custo de um `docker version` por teste).
+   */
+  function dockerRunner(
+    opts: { dockerOk?: boolean; composeOk?: boolean; ps?: string; proxy?: boolean } = {}
+  ): Runner {
+    const { dockerOk = true, composeOk = true, ps = '', proxy = false } = opts;
+    return ((command: string, args: string[]) => {
+      const line = [command, ...args].join(' ');
+      const out = (stdout: string, ok = true): RunResult => ({
+        ok,
+        code: ok ? 0 : 1,
+        stdout,
+        stderr: ok ? '' : 'erro fake',
+        command: line,
+      });
+      if (args[0] === 'version') return out(dockerOk ? '29.8.2\n' : '', dockerOk);
+      if (args[0] === 'compose') return out(composeOk ? '5.6.0\n' : '', composeOk);
+      if (args[0] === 'ps') return out(ps);
+      if (args[0] === 'inspect') return out(proxy ? 'running|healthy\n' : 'exited|none\n');
+      return out('');
+    }) as Runner;
+  }
+
+  const noDocker = (): Runner => dockerRunner({ dockerOk: false, composeOk: false });
+
   it('falha sem .env e config; node antigo bloqueia', async () => {
     const results = await runDoctorChecks({
       tcpProbe: async () => false,
+      runner: noDocker(),
       env: { nodeVersion: 'v18.0.0', cwd: dir },
     });
 
@@ -64,6 +94,7 @@ describe('runDoctorChecks', () => {
 
     const results = await runDoctorChecks({
       tcpProbe: async () => false,
+      runner: dockerRunner(),
       env: { nodeVersion: 'v22.1.0', cwd: dir },
     });
 
@@ -85,6 +116,7 @@ describe('runDoctorChecks', () => {
 
     const results = await runDoctorChecks({
       tcpProbe: async () => true,
+      runner: dockerRunner(),
       env: { nodeVersion: 'v22.1.0', cwd: dir },
     });
 
@@ -102,6 +134,7 @@ describe('runDoctorChecks', () => {
 
     const results = await runDoctorChecks({
       tcpProbe: async () => false,
+      runner: noDocker(),
       env: { nodeVersion: 'v22.1.0', cwd: dir },
     });
 
@@ -109,6 +142,100 @@ describe('runDoctorChecks', () => {
     expect(byName['database']!.ok).toBe(false);
     expect(byName['database']!.detail).toContain('inválida');
     expect(results.some((r) => r.required && !r.ok)).toBe(true);
+  });
+
+  // --- deploy blue/green ---------------------------------------------------
+
+  const seedEnvAndConfig = (): void => {
+    writeFileSync(join(dir, '.env'), 'DB_HOST=localhost\n');
+    writeFileSync(join(dir, 'okcms.config.json'), '{}');
+  };
+
+  it('docker ausente vira dica opcional, nunca reprova o ambiente', async () => {
+    seedEnvAndConfig();
+    const results = await runDoctorChecks({
+      tcpProbe: async () => false,
+      runner: noDocker(),
+      env: { nodeVersion: 'v22.1.0', cwd: dir },
+    });
+
+    const byName = Object.fromEntries(results.map((r) => [r.name, r])) as Record<string, CheckResult>;
+    expect(byName['docker']!.ok).toBe(false);
+    expect(byName['docker']!.required).toBe(false);
+    expect(byName['compose']!.ok).toBe(false);
+    expect(byName['lane']!.detail).toContain('docker indisponível');
+    // required:false — `okcms start` local continua funcionando
+    expect(results.every((r) => !(r.required && !r.ok))).toBe(true);
+  });
+
+  it('docker sem compose v2 é reportado separadamente', async () => {
+    seedEnvAndConfig();
+    const results = await runDoctorChecks({
+      tcpProbe: async () => false,
+      runner: dockerRunner({ composeOk: false }),
+      env: { nodeVersion: 'v22.1.0', cwd: dir },
+    });
+
+    const byName = Object.fromEntries(results.map((r) => [r.name, r])) as Record<string, CheckResult>;
+    expect(byName['docker']!.ok).toBe(true);
+    expect(byName['compose']!.ok).toBe(false);
+    expect(byName['compose']!.detail).toContain('plugin v2');
+  });
+
+  it('sem deploy feito: lane vazia e proxy "ainda não implantado" contam como ok', async () => {
+    seedEnvAndConfig();
+    const results = await runDoctorChecks({
+      tcpProbe: async () => false,
+      runner: dockerRunner({ proxy: false }),
+      env: { nodeVersion: 'v22.1.0', cwd: dir },
+    });
+
+    const byName = Object.fromEntries(results.map((r) => [r.name, r])) as Record<string, CheckResult>;
+    expect(byName['lane']!.detail).toContain('nenhuma lane');
+    expect(byName['proxy']!.ok).toBe(true);
+    expect(byName['proxy']!.detail).toContain('ainda não implantado');
+  });
+
+  it('lane ativa com proxy morto é problema de verdade (mesmo opcional)', async () => {
+    seedEnvAndConfig();
+    mkdirSync(join(dir, '.deploy'), { recursive: true });
+    writeFileSync(
+      join(dir, '.deploy/state.json'),
+      JSON.stringify({ lane: 'green', previousLane: 'blue', version: '0.3.0', at: 'x', history: [] })
+    );
+
+    const results = await runDoctorChecks({
+      tcpProbe: async () => false,
+      runner: dockerRunner({ proxy: false }),
+      env: { nodeVersion: 'v22.1.0', cwd: dir },
+    });
+
+    const byName = Object.fromEntries(results.map((r) => [r.name, r])) as Record<string, CheckResult>;
+    expect(byName['lane']!.detail).toContain('lane green ativa');
+    expect(byName['lane']!.detail).toContain('rollback: blue');
+    expect(byName['proxy']!.ok).toBe(false);
+    expect(byName['proxy']!.detail).toContain('proxy parado');
+    expect(byName['proxy']!.required).toBe(false);
+  });
+
+  it('lane ativa + proxy no ar → tudo verde', async () => {
+    seedEnvAndConfig();
+    mkdirSync(join(dir, '.deploy'), { recursive: true });
+    writeFileSync(
+      join(dir, '.deploy/state.json'),
+      JSON.stringify({ lane: 'blue', previousLane: null, version: '0.3.0', at: 'x', history: [] })
+    );
+
+    const results = await runDoctorChecks({
+      tcpProbe: async () => true,
+      runner: dockerRunner({ proxy: true }),
+      env: { nodeVersion: 'v22.1.0', cwd: dir },
+    });
+
+    const byName = Object.fromEntries(results.map((r) => [r.name, r])) as Record<string, CheckResult>;
+    expect(byName['proxy']!.ok).toBe(true);
+    expect(byName['proxy']!.detail).toContain('okcms-proxy no ar');
+    expect(results.every((r) => r.ok)).toBe(true);
   });
 });
 

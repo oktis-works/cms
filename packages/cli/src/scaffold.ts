@@ -1,10 +1,14 @@
 // @oktis-works/cms - Project Scaffolding
 
 import { spawnSync } from 'node:child_process';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { defaultProjectConfig, DEFAULT_CONFIG_FILENAME } from './project-config.js';
+import { DEPLOY_GITIGNORE } from './assets.js';
+import { writeDeployAssets } from './bluegreen.js';
+import { DEFAULT_DOCS_LANG, docsLangLabel, pluginDoc, projectReadme, themeDoc } from './scaffold-docs.js';
+import type { DocsLang } from './scaffold-docs.js';
 
 /** Normaliza o nome do projeto para um npm name válido (slug). */
 export function toPackageName(name: string): string {
@@ -15,7 +19,56 @@ export function toPackageName(name: string): string {
   return slug.length > 0 ? slug : 'okcms-project';
 }
 
-export async function scaffoldProject(targetDir: string, name: string): Promise<string> {
+/**
+ * Range que o projeto usa para os 5 pacotes do OkCMS (4 apps + a própria CLI).
+ *
+ * Por que não `^0.2.0` (o minor da CLI):
+ *   `^0.2.0` em 0.x é `>=0.2.0 <0.3.0` — se os apps ainda não foram publicados
+ *   nesse minor (mudanças no `ignore` do changeset, como admin/web, podem ficar
+ *   um release atrás), o `bun install` do scaffold cai em ETARGET. Foi
+ *   exatamente esse o bug de 0.1.14 → 0.2.0.
+ *
+ * A janela é de DOIS minors em 0.x — para cima e para baixo — então o npm/bun
+ * sempre acha a versão mais nova publicada dentro dela. Como os cinco
+ * pacotes compartilham o MESMO range, eles também ficam consistentes entre si.
+ * A partir de 1.x vira `^MAJOR.0.0` (compatibilidade semântica madura).
+ */
+export function appRangeFor(cliVersion: string): string {
+  const [rawMajor, rawMinor] = cliVersion.split('.');
+  const major = Number(rawMajor);
+  const minor = Number(rawMinor);
+  if (!Number.isInteger(major) || !Number.isInteger(minor) || major < 0 || minor < 0) {
+    // versão ilegível → cai no comportamento histórico em vez de quebrar o init
+    return `^${cliVersion}`;
+  }
+  if (major > 0) return `>=${major}.0.0 <${major + 1}.0.0`;
+  const lower = minor > 0 ? minor - 1 : 0;
+  return `>=0.${lower}.0 <0.${minor + 1}.0`;
+}
+
+/**
+ * Acrescenta ao `.gitignore` do projeto só o que ainda não está lá.
+ *
+ * `okcms init` pode rodar num diretório que o operador já versionou — reescrever
+ * o arquivo apagaria as regras dele. Por isso é merge, sempre.
+ */
+async function mergeGitignore(root: string, entries: string[]): Promise<void> {
+  const path = join(root, '.gitignore');
+  const current = existsSync(path) ? await readFile(path, 'utf-8') : '';
+  const present = new Set(current.split(/\r?\n/).map((line) => line.trim()));
+  const missing = entries.filter((entry) => !present.has(entry));
+  if (missing.length === 0) return;
+
+  const body = current.length === 0 ? '' : `${current.replace(/\s+$/, '')}\n\n`;
+  const header = current.length === 0 ? '# OkCMS\n' : '# okcms init\n';
+  await writeFile(`${path}`, `${body}${header}${missing.join('\n')}\n`, 'utf-8');
+}
+
+export async function scaffoldProject(
+  targetDir: string,
+  name: string,
+  lang: DocsLang = DEFAULT_DOCS_LANG
+): Promise<string> {
   const root = resolve(process.cwd(), targetDir);
 
   console.log(`Criando projeto "${name}" em ${root}...`);
@@ -31,16 +84,13 @@ export async function scaffoldProject(targetDir: string, name: string): Promise<
     'utf-8'
   );
 
-  // package.json do projeto — apps do OkCMS como dependências, em range
-  // ^MAIOR.MENOR.0 (e não ^versão-exata do CLI): os apps são independentes no
-  // changesets e podem estar alguns patches atrás do CLI — range exata quebraria
-  // o install (ETARGET) sempre que CLI e apps não forem publicados juntos.
-  // Assim o `bunx` dos apps resolve local, `okcms update` enxerga
-  // node_modules/@oktis-works/* e tudo funciona sem configuração manual.
+  // package.json do projeto — apps do OkCMS como dependências. O range vem de
+  // `appRangeFor` (janela de dois minors em 0.x) e NUNCA é a versão exata do
+  // CLI; ver a documentação dessa função para o histórico do ETARGET.
   // Não sobrescreve manifest existente.
   const cliPkg = await import('../package.json', { with: { type: 'json' } });
   const cliVersion = cliPkg.default.version as string;
-  const appRange = `^${cliVersion.split('.').slice(0, 2).join('.')}.0`;
+  const appRange = appRangeFor(cliVersion);
   const manifestPath = join(root, 'package.json');
   if (!existsSync(manifestPath)) {
     const manifest = {
@@ -150,24 +200,45 @@ volumes:
 
   await writeFile(join(root, 'docker-compose.yml'), compose, 'utf-8');
 
+  // --- deploy Docker (blue/green) ------------------------------------------
+  // Escrito no init, não no primeiro deploy: o projeto nasce com a estrutura
+  // completa (imagem única, infra, lanes, template do nginx) e o operador vê
+  // tudo no git desde o primeiro commit. `writeDeployAssets` não sobrescreve
+  // nada — um re-init de projeto já configurado é no-op aqui.
+  const deployCreated = writeDeployAssets(root, 'blue', {
+    PORT: String(config.ports.api),
+    WEB_PORT: String(config.ports.web),
+    ADMIN_PORT: String(config.ports.admin),
+  });
+
+  await mergeGitignore(root, ['.env', 'node_modules/', 'dist/', ...DEPLOY_GITIGNORE]);
+
   // Documentação do projeto — só escreve se não existir (não sobrescreve
-  // README editado pelo usuário em re-init).
-  const { projectReadme, PLUGIN_DOC, THEME_DOC } = await import('./scaffold-docs.js');
+  // README editado pelo usuário em re-init). A língua (en/pt) vem do `--lang`
+  // ou do menu do init; o nome do arquivo é sempre o mesmo.
+  let docsWritten = 0;
   for (const [filename, content] of [
-    ['README.md', projectReadme(name)],
-    ['PLUGIN.md', PLUGIN_DOC],
-    ['THEME.md', THEME_DOC],
+    ['README.md', projectReadme(name, lang)],
+    ['PLUGIN.md', pluginDoc(lang)],
+    ['THEME.md', themeDoc(lang)],
   ] as const) {
     const docPath = join(root, filename);
     if (!existsSync(docPath)) {
       await writeFile(docPath, content, 'utf-8');
+      docsWritten += 1;
     }
+  }
+  if (docsWritten > 0) {
+    console.log(`Documentação gerada em ${docsLangLabel(lang)}: ${docsWritten} arquivo(s)`);
   }
 
   const relTarget = targetDir === '.' ? null : targetDir;
   const cfgName = DEFAULT_CONFIG_FILENAME;
 
   console.log(`Projeto "${name}" criado em ${root}`);
+  if (deployCreated.length > 0) {
+    console.log(`Arquivos de deploy Docker criados: ${deployCreated.join(', ')}`);
+  }
   console.log('Próximos passos:');
   let step = 1;
   if (relTarget !== null) {
