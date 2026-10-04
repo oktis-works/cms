@@ -27,6 +27,8 @@
     "@oktis-works/database": "workspace:*",
     "@oktis-works/plugin-runtime": "workspace:*",
     "@aws-sdk/client-s3": "3.700.0",
+    "bullmq": "5.0.0",
+    "ioredis": "5.3.0",
     "semver": "7"
   },
   "devDependencies": {

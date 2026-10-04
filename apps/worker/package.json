@@ -23,7 +23,8 @@
     "@oktis-works/database": "workspace:*",
     "@oktis-works/types": "workspace:*",
     "bullmq": "5.0.0",
-    "ioredis": "5.3.0"
+    "ioredis": "5.3.0",
+    "sharp": "^0.33.5"
   },
   "devDependencies": {
     "typescript": "5.7.3",
