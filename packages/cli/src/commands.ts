@@ -927,6 +927,46 @@ export const commands: Command[] = [
       console.log(`  Database: ${dbOk ? 'connected' : 'disconnected'}`);
     },
   },
+  {
+    name: 'rollback',
+    description: 'Rollback para estado anterior (lista histórico e permite escolher)',
+    options: [
+      { name: 'id', alias: 'i', description: 'ID do histórico para rollback direto (sem menu)', required: false },
+      { name: 'yes', alias: 'y', description: 'Confirma sem prompt', required: false },
+      { name: 'force', alias: 'F', description: 'Permite rodar dentro de container (não recomendado)', required: false },
+    ],
+    handler: async (_args, options) => {
+      const { runRollback } = await import('./rollback.js');
+      const code = await runRollback({
+        id: options['id'] ? Number(options['id']) : undefined,
+        yes: options['yes'] !== undefined,
+        force: options['force'] !== undefined,
+      });
+      if (code !== 0) process.exitCode = code;
+    },
+  },
+  {
+    name: 'deploy',
+    description: 'Deploy unificado: escolhe entre Docker blue/green ou PM2 (host)',
+    options: [
+      { name: 'target', alias: 't', description: 'Pula o menu: docker (blue/green) ou pm2 (host)', required: false },
+      { name: 'yes', alias: 'y', description: 'Sem prompts: usa defaults de cada modo', required: false },
+      { name: 'force', alias: 'F', description: 'Permite rodar dentro de container (não recomendado)', required: false },
+      { name: 'no-cache', alias: 'c', description: 'Docker: build --no-cache', required: false },
+      { name: 'install', alias: 'i', description: 'PM2: atualiza pacotes antes do deploy', required: false },
+    ],
+    handler: async (_args, options) => {
+      const { runDeploy } = await import('./deploy.js');
+      const code = await runDeploy({
+        target: options['target'],
+        yes: options['yes'] !== undefined,
+        force: options['force'] !== undefined,
+        noCache: options['no-cache'] !== undefined,
+        install: options['install'] !== undefined,
+      });
+      if (code !== 0) process.exitCode = code;
+    },
+  },
 ];
 
 export function getCommand(name: string): Command | undefined {

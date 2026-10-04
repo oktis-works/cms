@@ -12,6 +12,8 @@
 // (docs/plugin-development*.md) existem nos dois nomes, com banner de idioma.
 
 import { CMS_VERSION } from '@oktis-works/validation';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 /** Língua da documentação gerada no scaffold. */
 export type DocsLang = 'en' | 'pt';
@@ -45,6 +47,20 @@ export function parseDocsLang(value: string | undefined | null): DocsLang | null
 /** Rótulo legível da língua (mensagens da CLI). */
 export function docsLangLabel(lang: DocsLang): string {
   return lang === 'pt' ? 'português' : 'inglês';
+}
+
+/**
+ * Detecta a língua do projeto lendo o README.md existente.
+ * Usado pelo `okcms update`/`deploy` para atualizar docs na língua certa.
+ */
+export function detectProjectDocsLang(cwd: string): 'en' | 'pt' {
+  const readmePath = join(cwd, 'README.md');
+  if (!existsSync(readmePath)) return DEFAULT_DOCS_LANG;
+
+  const content = readFileSync(readmePath, 'utf-8');
+  if (content.includes('O que é o OkCMS') || content.includes('## Produção')) return 'pt';
+  if (content.includes('What is OkCMS') || content.includes('## Production')) return 'en';
+  return DEFAULT_DOCS_LANG;
 }
 
 /** README.md do projeto scaffoldado — versão em português. */

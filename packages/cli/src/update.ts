@@ -14,6 +14,9 @@
 //
 // A escolha entre os dois é o menu de TTY; fora de TTY vale `--mode` ou o
 // default histórico.
+//
+// Histórico e rollback: cada operação (download/deploy) grava em
+// `.deploy/update-history.json` — `okcms rollback` lista e permite voltar.
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -23,6 +26,8 @@ import { defaultRunner, type Runner } from './docker.js';
 import { assertHostOnly, type ContainerProbe } from './guards.js';
 import { getLatestVersion } from './npm-registry.js';
 import { Prompt, style, symbol } from './prompt.js';
+import { addHistoryEntry } from './history.js';
+import { updateProjectDocs } from './docs-updater.js';
 
 export type UpdateMode = 'download' | 'deploy';
 
@@ -153,7 +158,63 @@ export async function resolveDeployChoices(
   return { noCache, removeOrphans };
 }
 
-async function runDownload(
+/** Grava entrada no histórico de update + atualiza docs do projeto. */
+async function recordUpdateAndDocs(
+  cwd: string,
+  scan: ScanResult
+): Promise<string[]> {
+  const pkg = await import('../package.json', { with: { type: 'json' } });
+  const cliVer = pkg.default.version;
+
+  const packages = scan.outdated.map((entry) => ({
+    name: entry.name,
+    from: entry.current,
+    to: entry.latest,
+  }));
+
+  addHistoryEntry(cwd, {
+    mode: 'download',
+    at: new Date().toISOString(),
+    cliVersion: cliVer,
+    packages,
+    message: `Atualizados ${packages.length} pacote(s) via download`,
+  }, cliVer);
+
+  // Atualiza docs do projeto (README/PLUGIN/THEME) — só reescreve se mudou
+  const updatedDocs = updateProjectDocs(cwd);
+  return updatedDocs;
+}
+
+async function recordDeployAndDocs(
+  cwd: string,
+  scan: ScanResult,
+  lane: 'blue' | 'green',
+  previousLane: 'blue' | 'green' | null
+): Promise<string[]> {
+  const pkg = await import('../package.json', { with: { type: 'json' } });
+  const cliVer = pkg.default.version;
+
+  const packages = scan.outdated.map((entry) => ({
+    name: entry.name,
+    from: entry.current,
+    to: entry.latest,
+  }));
+
+  addHistoryEntry(cwd, {
+    mode: 'deploy',
+    at: new Date().toISOString(),
+    cliVersion: cliVer,
+    packages,
+    lane,
+    previousLane,
+    message: `Deploy blue/green → lane ${lane} (era ${previousLane ?? 'n/a'})`,
+  }, cliVer);
+
+  const updatedDocs = updateProjectDocs(cwd);
+  return updatedDocs;
+}
+
+export async function runDownload(
   scan: ScanResult,
   opts: UpdateOptions,
   prompt: Prompt
@@ -185,7 +246,13 @@ async function runDownload(
     inherit: true,
     timeoutMs: 600_000,
   });
-  if (result.ok) return 0;
+  if (result.ok) {
+    const updatedDocs = await recordUpdateAndDocs(cwd, scan);
+    if (updatedDocs.length > 0) {
+      prompt.success(`Documentação do projeto atualizada: ${updatedDocs.join(', ')}`);
+    }
+    return 0;
+  }
 
   // host sem bun: o npm faz o mesmo trabalho, só mais devagar
   const npm = runner('npm', ['install', ...specs], {
@@ -193,7 +260,14 @@ async function runDownload(
     inherit: true,
     timeoutMs: 600_000,
   });
-  return npm.ok ? 0 : 1;
+  if (npm.ok) {
+    const updatedDocs = await recordUpdateAndDocs(cwd, scan);
+    if (updatedDocs.length > 0) {
+      prompt.success(`Documentação do projeto atualizada: ${updatedDocs.join(', ')}`);
+    }
+    return 0;
+  }
+  return 1;
 }
 
 export async function runUpdate(opts: UpdateOptions = {}): Promise<number> {
@@ -278,6 +352,18 @@ export async function runUpdate(opts: UpdateOptions = {}): Promise<number> {
       log: (message) => prompt.write(`${message}\n`),
       warn: (message) => prompt.write(`${message}\n`),
     });
+
+    if (result.ok) {
+      const updatedDocs = await recordDeployAndDocs(
+        opts.cwd ?? process.cwd(),
+        scan,
+        result.lane,
+        result.previousLane
+      );
+      if (updatedDocs.length > 0) {
+        prompt.success(`Documentação do projeto atualizada: ${updatedDocs.join(', ')}`);
+      }
+    }
 
     return result.ok ? 0 : 1;
   } finally {
