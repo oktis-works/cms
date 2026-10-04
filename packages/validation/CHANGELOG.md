@@ -1,5 +1,11 @@
 # @oktis-works/validation
 
+## 0.2.0
+
+### Minor Changes
+
+- Release 0.2.0: `CMS_VERSION` passa a ser `0.2.0` — é a versão que `checkExtensionCompatibility` usa como default e que o scaffold grava em `compatibility.okcms` de plugin/tema. Sem republicar este pacote, a CLI 0.2.0 continuaria validando extensões contra 0.1.14.
+
 ## 0.1.11
 
 ### Patch Changes

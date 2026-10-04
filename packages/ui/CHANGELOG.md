@@ -1,5 +1,11 @@
 # @oktis-works/ui
 
+## 0.2.0
+
+### Minor Changes
+
+- Alinhamento da release 0.2.0: dependência interna `@oktis-works/validation` republicada como `^0.2.0` (os re-exports de `validation.ts` não mudaram).
+
 ## 0.1.6
 
 ### Patch Changes

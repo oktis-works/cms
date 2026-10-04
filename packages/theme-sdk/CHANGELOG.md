@@ -1,5 +1,9 @@
 # @oktis-works/theme-sdk
 
+## 0.2.0
+
+No changes in this release.
+
 ## 0.1.14
 
 No changes in this release.

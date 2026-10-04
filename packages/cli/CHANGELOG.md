@@ -1,5 +1,42 @@
 # @oktis-works/cms
 
+## 0.2.0
+
+### Minor Changes
+
+- F0–F4: deploy Docker blue/green, wizards da CLI, redeploy de extensões e documentação bilíngue
+  
+  - **F0/F1** — CLI de zero dependências com prompt próprio (menu numerado,
+    confirmação, input com validação e segredo sem eco) e guardas: a CLI recusa
+    rodar dentro de container e nunca monta `docker.sock`.
+  - **F1** — `.env` com schema validado (`env-schema`), wizard interativo do
+    `okcms config` (seções, `--list`, `--set`, `--section`, `--show-secrets`)
+    e editor de `.env` que preserva comentários e ordem das linhas.
+  - **F2** — assets de deploy canônicos dentro da CLI (Dockerfile único com os
+    4 entrypoints, composes de infra e de lanes, template do nginx) espelhados
+    em `infrastructure/**` por `scripts/sync-infrastructure.ts`, com teste de
+    sincronia byte a byte.
+  - **F3** — `okcms update` com wizard: **baixar pacotes** (default sem TTY, o
+    `-i` clássico não muda) ou **deploy blue/green** (`--mode deploy`) — build,
+    migrations no host antes do tráfego, healthcheck, swap do proxy via
+    `nginx -s reload`, drenagem do worker e rollback.
+  - **F4** — `okcms redeploy` para instalar plugin/tema (stage do SQL do plugin
+    em `migrations/`, build do `dist/theme.css` de todo tema e novo deploy),
+    `okcms doctor` com checagens de docker/compose/lane/proxy e `theme:build`
+    passando a usar o mesmo pipeline de build de tema.
+  - **Docs** — `README` e todos os guias de `docs/` em inglês e português
+    (`*.pt-BR.md`), e `okcms init --lang en|pt` escolhendo a língua das docs
+    geradas no projeto (menu com TTY, default inglês e `--lang` em CI).
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @oktis-works/auth@0.2.0
+  - @oktis-works/config@0.2.0
+  - @oktis-works/core@0.2.0
+  - @oktis-works/database@0.2.0
+  - @oktis-works/theme-runtime@0.2.0
+
 ## 0.1.14
 
 ### Patch Changes
