@@ -1,5 +1,10 @@
 # @oktis-works/types
 
+## 0.2.1
+
+### Minor Changes
+
+- Histórico/rollback unificado, comando deploy (Docker/PM2), docs auto-atualizadas no update/deploy
 ## 0.2.0
 
 No changes in this release.

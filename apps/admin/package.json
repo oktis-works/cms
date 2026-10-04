@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/admin",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "bin": {
     "okcms-admin": "./bin/admin.js"
