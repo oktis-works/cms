@@ -21,6 +21,7 @@ const RESOURCES = [
   ['plugins', 'Plugins — ciclo de vida'],
   ['themes', 'Temas — ciclo de vida'],
   ['deployments', 'Deployments (build & deploy)'],
+  ['builds', 'Builds (imagens Docker)'],
   ['events', 'Eventos de domínio'],
   ['webhooks', 'Webhooks assináveis'],
   ['content-types', 'Content Types'],

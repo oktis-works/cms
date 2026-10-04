@@ -1,6 +1,8 @@
 // @oktis-works/admin - Media Library (grid + upload real + edição de alt/caption)
+// Migrada para o design-system @oktis-works/ui (Button/Input/Select/Pagination).
 
-import { For, Show, createSignal, onMount } from 'solid-js';
+import { For, Show, createSignal, onMount } from '@oktis-works/ui';
+import { Button, Input, Select, Pagination } from '@oktis-works/ui';
 import { apiClient, type Media } from '../../lib/api';
 
 interface Props {
@@ -48,8 +50,6 @@ export function MediaLibrary(props: Props) {
   };
 
   onMount(load);
-
-  const totalPages = (): number => Math.max(1, Math.ceil(total() / limit));
 
   const searchNow = async (): Promise<void> => {
     setPage(1);
@@ -165,34 +165,37 @@ export function MediaLibrary(props: Props) {
       </div>
 
       <div class="toolbar">
-        <input
-          class="input"
+        <Input
+          name="media-search"
           placeholder="Buscar por nome ou alt…"
           value={search()}
-          onInput={(e) => setSearch(e.currentTarget.value)}
-          onKeyDown={(e) => e.key === 'Enter' && void searchNow()}
-        />
-        <select
-          class="input"
-          value={mimeType()}
-          onChange={(e) => {
-            setMimeType(e.currentTarget.value);
+          onInput={(value) => {
+            setSearch(value);
             void searchNow();
           }}
-        >
-          <option value="">Todos os tipos</option>
-          <option value="image/png">PNG</option>
-          <option value="image/jpeg">JPEG</option>
-          <option value="image/gif">GIF</option>
-          <option value="image/webp">WebP</option>
-          <option value="image/svg+xml">SVG</option>
-          <option value="application/pdf">PDF</option>
-          <option value="video/mp4">MP4</option>
-          <option value="audio/mpeg">MP3</option>
-        </select>
-        <button class="btn btn-secondary" type="button" onClick={() => void searchNow()}>
+        />
+        <Select
+          name="media-mime"
+          placeholder="Todos os tipos"
+          value={mimeType()}
+          options={[
+            { value: 'image/png', label: 'PNG' },
+            { value: 'image/jpeg', label: 'JPEG' },
+            { value: 'image/gif', label: 'GIF' },
+            { value: 'image/webp', label: 'WebP' },
+            { value: 'image/svg+xml', label: 'SVG' },
+            { value: 'application/pdf', label: 'PDF' },
+            { value: 'video/mp4', label: 'MP4' },
+            { value: 'audio/mpeg', label: 'MP3' },
+          ]}
+          onChange={(value) => {
+            setMimeType(value);
+            void searchNow();
+          }}
+        />
+        <Button variant="secondary" onClick={() => void searchNow()}>
           Buscar
-        </button>
+        </Button>
       </div>
 
       <Show
@@ -225,17 +228,15 @@ export function MediaLibrary(props: Props) {
         </div>
       </Show>
 
-      <Show when={totalPages() > 1}>
-        <div class="pagination">
-          <button class="btn btn-secondary btn-sm" type="button" disabled={page() <= 1} onClick={() => { setPage(page() - 1); void load(); }}>
-            ← Anterior
-          </button>
-          <span class="muted">Página {page()} de {totalPages()}</span>
-          <button class="btn btn-secondary btn-sm" type="button" disabled={page() >= totalPages()} onClick={() => { setPage(page() + 1); void load(); }}>
-            Próxima →
-          </button>
-        </div>
-      </Show>
+      <Pagination
+        page={page()}
+        limit={limit}
+        total={total()}
+        onPageChange={(next) => {
+          setPage(next);
+          void load();
+        }}
+      />
 
       <Show when={selected()}>
         {(media) => (
@@ -256,32 +257,28 @@ export function MediaLibrary(props: Props) {
                 <button class="btn btn-secondary btn-sm" type="button" onClick={() => void copyUrl(media().url)}>Copiar</button>
               </dd>
             </dl>
-            <label>
-              Texto alternativo (alt)
-              <input
-                class="input"
-                value={media().alt ?? ''}
-                onInput={(e) => setSelected({ ...media(), alt: e.currentTarget.value })}
-              />
-            </label>
-            <label>
-              Legenda
-              <input
-                class="input"
-                value={media().caption ?? ''}
-                onInput={(e) => setSelected({ ...media(), caption: e.currentTarget.value })}
-              />
-            </label>
+            <Input
+              name="media-alt"
+              label="Texto alternativo (alt)"
+              value={media().alt ?? ''}
+              onInput={(value) => setSelected({ ...media(), alt: value })}
+            />
+            <Input
+              name="media-caption"
+              label="Legenda"
+              value={media().caption ?? ''}
+              onInput={(value) => setSelected({ ...media(), caption: value })}
+            />
             <div class="media-details__actions">
-              <button class="btn btn-primary" type="button" disabled={savingDetails()} onClick={() => void saveDetails()}>
-                {savingDetails() ? 'Salvando…' : 'Salvar detalhes'}
-              </button>
-              <button class="btn btn-danger" type="button" onClick={() => void remove(media())}>
+              <Button variant="primary" disabled={savingDetails()} loading={savingDetails()} onClick={() => void saveDetails()}>
+                Salvar detalhes
+              </Button>
+              <Button variant="danger" onClick={() => void remove(media())}>
                 Excluir
-              </button>
-              <button class="btn btn-secondary" type="button" onClick={() => setSelected(null)}>
+              </Button>
+              <Button variant="secondary" onClick={() => setSelected(null)}>
                 Fechar
-              </button>
+              </Button>
             </div>
           </div>
         )}

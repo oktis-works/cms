@@ -1,0 +1,19 @@
+<main data-theme="{{site.theme}}" data-template="home">
+  <section class="hero">
+    <h1 class="hero__title">{{site.title}}</h1>
+    {{#if site.description}}
+    <p class="hero__description">{{site.description}}</p>
+    {{/if}}
+  </section>
+
+  {{#if items}}
+  <section class="listing">
+    {{#each items}}
+    <article class="card entry entry--item">
+      <h2 class="entry__title"><a href="/{{slug}}">{{title}}</a></h2>
+      {{#if excerpt}}<p class="entry__excerpt">{{excerpt}}</p>{{/if}}
+    </article>
+    {{/each}}
+  </section>
+  {{/if}}
+</main>

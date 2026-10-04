@@ -133,6 +133,16 @@ export class ThemeRenderer {
     return compiled;
   }
 
+  /**
+   * Renderiza um template carregado de arquivo (string) com o contexto dado.
+   * Caminho do app web (B1): template do tema ativo + dados do conteúdo.
+   * O `record` alimenta a API contextual do Theme SDK (runWithCurrentContent).
+   */
+  renderString(template: string, data: Record<string, unknown>, record?: Record<string, unknown>): string {
+    const compiled = this.compile(template);
+    return runWithCurrentContent(record ?? {}, () => this.execute(compiled, data));
+  }
+
   registerLayout(name: string, template: string): void {
     this.layoutCache.set(name, template);
   }
@@ -147,14 +157,24 @@ export class ThemeRenderer {
 
     while (i < template.length) {
       if (template[i] === '{' && template[i + 1] === '{') {
+        // Raw triple-brace {{{x}}} — conteúdo SEM escape (HTML do conteúdo).
+        if (template[i + 2] === '{') {
+          const rawClose = template.indexOf('}}}', i + 3);
+          if (rawClose === -1) {
+            nodes.push({ type: 'text', value: template.slice(i) });
+            break;
+          }
+          nodes.push({ type: 'variable', name: template.slice(i + 3, rawClose).trim(), raw: true });
+          i = rawClose + 3;
+          continue;
+        }
+
         const closeIndex = template.indexOf('}}', i + 2);
         if (closeIndex === -1) {
           nodes.push({ type: 'text', value: template.slice(i) });
           break;
         }
-        const raw = template[i + 2] === '{' && template[closeIndex - 1] === '}';
-        const innerStart = i + (raw ? 3 : 2);
-        const expression = template.slice(innerStart, raw ? closeIndex - 1 : closeIndex).trim();
+        const expression = template.slice(i + 2, closeIndex).trim();
 
         if (expression.startsWith('#each ')) {
           const key = expression.slice(6).trim();
@@ -169,7 +189,7 @@ export class ThemeRenderer {
           nodes.push({ type: 'if', condition, body });
           i = bodyEnd + '{{/if}}'.length;
         } else {
-          nodes.push({ type: 'variable', name: expression, raw });
+          nodes.push({ type: 'variable', name: expression, raw: false });
           i = closeIndex + 2;
         }
       } else {
@@ -225,7 +245,8 @@ export class ThemeRenderer {
       }
       case 'if': {
         const val = this.resolveVariable(node.condition, context);
-        if (val && val !== 'false' && val !== '0') {
+        const truthy = Array.isArray(val) ? val.length > 0 : Boolean(val);
+        if (truthy && val !== 'false' && val !== '0') {
           return node.body.map(n => this.renderNode(n, context)).join('');
         }
         return '';

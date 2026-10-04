@@ -275,6 +275,21 @@ class ApiClient {
     await this.request('DELETE', `/api/v1/content/${id}`);
   }
 
+  /** A2: publica via rota real do publisher (eventBus + cache + revisions). */
+  async publishContent(id: string): Promise<Content> {
+    return this.request('POST', `/api/v1/content/${id}/publish`);
+  }
+
+  /** A2: despublica via rota real do publisher. */
+  async unpublishContent(id: string): Promise<Content> {
+    return this.request('POST', `/api/v1/content/${id}/unpublish`);
+  }
+
+  /** Atalho usado pela ContentList: publish/unpublish conforme status atual. */
+  async publishToggle(id: string, isPublished: boolean): Promise<Content> {
+    return isPublished ? this.unpublishContent(id) : this.publishContent(id);
+  }
+
   // Content Types (CPTs)
   async getContentTypes(): Promise<ContentType[]> {
     return this.request('GET', '/api/v1/content-types');

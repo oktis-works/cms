@@ -1,13 +1,14 @@
 // @oktis-works/web - Runtime Rendering (catch-all SSR com hierarquia de templates)
 
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { join, resolve, sep } from 'node:path';
 import { getConnection } from '@oktis-works/database';
 import { getHookRegistry } from '@oktis-works/plugin-runtime';
 import { postTypeRegistry, HOOK_POINTS } from '@oktis-works/core';
 import {
   TemplateHierarchyResolver,
   RuntimeRouter,
+  ThemeRenderer,
   type ContentLookup,
   type TemplateFileChecker,
   buildThemeStyles,
@@ -17,14 +18,230 @@ import {
 export function createTemplateChecker(themesRoot: string, activeTheme: string): TemplateFileChecker {
   return {
     exists(file: string): boolean {
-      const candidates = [
-        join(themesRoot, activeTheme, file),
-        join(themesRoot, '_shared', file),
-        join(themesRoot, 'default', file),
-      ];
-      return candidates.some((candidate) => existsSync(candidate));
+      return templateCandidates(themesRoot, activeTheme, file).some((candidate) => existsSync(candidate));
     },
   };
+}
+
+/** Cadeia de busca do arquivo de template: tema ativo → _shared → default. */
+function templateCandidates(themesRoot: string, activeTheme: string, file: string): string[] {
+  return [
+    join(themesRoot, activeTheme, file),
+    join(themesRoot, '_shared', file),
+    join(themesRoot, 'default', file),
+  ];
+}
+
+/**
+ * B1 — carrega o ARQUIVO do template do tema ativo (fallback _shared → default).
+ * Retorna null quando nenhum candidato existe (rota cai no 404 do tema).
+ */
+export function loadTemplateSource(themesRoot: string, activeTheme: string, file: string): string | null {
+  for (const candidate of templateCandidates(themesRoot, activeTheme, file)) {
+    if (existsSync(candidate)) {
+      return readFileSync(candidate, 'utf-8');
+    }
+  }
+  return null;
+}
+
+export interface SiteSettings {
+  siteTitle: string;
+  siteDescription: string;
+}
+
+/**
+ * B1 — título/descrição do site vêm das settings (fim do "OkCMS" hardcoded).
+ * Falha de leitura nunca derruba o render (fallbacks locais).
+ */
+export async function fetchSiteSettings(sql: ReturnType<typeof getConnection>): Promise<SiteSettings> {
+  try {
+    const rows = await sql.unsafe(
+      "SELECT key, value FROM settings WHERE key IN ('siteTitle', 'siteDescription')"
+    );
+    const byKey = new Map(
+      (rows as unknown as Array<{ key: string; value: unknown }>).map((r) => [r.key, r.value])
+    );
+    return {
+      siteTitle: toText(byKey.get('siteTitle')) || 'OkCMS',
+      siteDescription: toText(byKey.get('siteDescription')) || '',
+    };
+  } catch {
+    return { siteTitle: 'OkCMS', siteDescription: '' };
+  }
+}
+
+function toText(value: unknown): string {
+  if (value == null) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return '';
+}
+
+export const themeRenderer = new ThemeRenderer();
+
+export interface ContentPageRenderInput {
+  resolution: { template?: string; contentType?: string; slug?: string; matched: boolean };
+  contentRow?: Record<string, unknown> | null;
+  data: Record<string, unknown>;
+  /** Itens de archive/home (conteúdo publicado recente do tipo). */
+  items?: Array<Record<string, unknown>>;
+  settings: SiteSettings;
+  activeTheme: string;
+  themesRoot: string;
+}
+
+/**
+ * B1 — render real: injeta `content.body`/campos no template do tema.
+ * Contexto exposto ao template:
+ *   site.title / site.description      — settings (siteTitle/siteDescription)
+ *   content.*                          — colunas da row + campos do body
+ *   page.title / page.description      — título da página (SEO) e meta description
+ *   settings                           — settings cruas (avançado)
+ */
+export function renderContentPage(input: ContentPageRenderInput): string {
+  const file = input.resolution.template ?? 'index.astro';
+  const template = loadTemplateSource(input.themesRoot, input.activeTheme, file);
+
+  if (!template) {
+    return renderFallbackPage(input);
+  }
+
+  const row = input.contentRow ?? {};
+  const title = toText(row['title']) || input.settings.siteTitle;
+  const context: Record<string, unknown> = {
+    site: {
+      title: input.settings.siteTitle,
+      description: input.settings.siteDescription,
+      theme: input.activeTheme,
+    },
+    page: {
+      title,
+      description: input.settings.siteDescription,
+      template: input.resolution.template ?? '',
+      type: input.resolution.contentType ?? '',
+      slug: input.resolution.slug ?? '',
+    },
+    content: { ...input.data, ...plainColumns(row) },
+    fields: input.data,
+    items: input.items ?? [],
+    settings: input.settings,
+  };
+
+  const body = themeRenderer.renderString(template, context, row);
+  return wrapDocument(body, title, input.settings, input.activeTheme);
+}
+
+/**
+ * B1 — envolve o fragmento do template num documento completo com title/meta
+ * das settings + CSS do tema. Template que já emite documento completo passa
+ * intocado (temas headless/full-control).
+ */
+export function wrapDocument(
+  body: string,
+  pageTitle: string,
+  settings: SiteSettings,
+  activeTheme: string
+): string {
+  if (body.includes('<html') || body.includes('<!DOCTYPE')) {
+    return body;
+  }
+
+  const title = pageTitle && pageTitle !== settings.siteTitle ? `${pageTitle} | ${settings.siteTitle}` : settings.siteTitle;
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(title)}</title>
+  <meta name="description" content="${escapeHtml(settings.siteDescription)}">
+  <link rel="stylesheet" href="/themes/${escapeHtml(activeTheme)}/dist/theme.css" data-theme-style="${escapeHtml(activeTheme)}" />
+</head>
+<body>
+${body}
+</body>
+</html>`;
+}
+
+/** Colunas da row sem `body` (o body já foi mesclado como campos). */
+function plainColumns(row: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(row)) {
+    if (key === 'body') continue;
+    out[key] = value;
+  }
+  return out;
+}
+
+/** Tema sem template para a rota: HTML mínimo com os dados reais (nunca stub). */
+function renderFallbackPage(input: ContentPageRenderInput): string {
+  const title = toText((input.contentRow ?? {})['title']) || input.settings.siteTitle;
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(title)} | ${escapeHtml(input.settings.siteTitle)}</title>
+  <meta name="description" content="${escapeHtml(input.settings.siteDescription)}">
+</head>
+<body>
+  <main data-theme="${escapeHtml(input.activeTheme)}">
+    <article>
+      <h1>${escapeHtml(title)}</h1>
+      <div class="entry__body">${escapeHtml(JSON.stringify(input.data))}</div>
+    </article>
+  </main>
+</body>
+</html>`;
+}
+
+export function escapeHtml(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/**
+ * B2 — resolução segura de asset do tema: `/themes/<tema>/<path>`.
+ * Traversal guard: o caminho resolvido PRECISA continuar dentro do diretório
+ * do tema (nega `..`, symlinks fora da raiz e paths absolutos).
+ */
+export function resolveThemeAssetPath(themesRoot: string, themeName: string, assetPath: string): string | null {
+  if (!themeName || !/^[A-Za-z0-9_-]+$/.test(themeName)) return null;
+
+  const themeRoot = resolve(themesRoot, themeName);
+  const target = resolve(themeRoot, assetPath);
+
+  // resolve() já normalizou `..` — basta garantir que segue dentro do tema.
+  if (target !== themeRoot && !target.startsWith(themeRoot + sep)) {
+    return null;
+  }
+
+  return target;
+}
+
+const CONTENT_TYPE_BY_EXT: Record<string, string> = {
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.avif': 'image/avif',
+  '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.txt': 'text/plain; charset=utf-8',
+};
+
+export function contentTypeForAsset(assetPath: string): string {
+  const dot = assetPath.lastIndexOf('.');
+  const ext = dot === -1 ? '' : assetPath.slice(dot).toLowerCase();
+  return CONTENT_TYPE_BY_EXT[ext] ?? 'application/octet-stream';
 }
 
 

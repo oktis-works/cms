@@ -4,6 +4,8 @@ import { createConnection, closeConnection } from '@oktis-works/database';
 import type { Config } from '@oktis-works/config';
 import { createCache, getCache } from '../cache/index.js';
 import { createEventBus, getEventBus } from '../events/bus.js';
+import { registerWebhookDispatch, registerCacheInvalidation } from '../events/webhooks.js';
+import { queueProducer } from '../queue/producer.js';
 import { clearCurrentContext } from '../tenant/context.js';
 
 export interface LifecycleHook {
@@ -61,6 +63,11 @@ export class ApplicationLifecycle {
     // Initialize event bus
     createEventBus();
 
+    // Fan-out assíncrono: webhooks assinados e invalidação cross-process de cache
+    // (producer é lazy — conexão Redis abre no primeiro enqueue; degrada sem fila)
+    registerWebhookDispatch(getEventBus());
+    registerCacheInvalidation(getEventBus());
+
     this.started = true;
     await this.runHooks('afterStart');
   }
@@ -75,6 +82,8 @@ export class ApplicationLifecycle {
 
     const eventBus = getEventBus();
     eventBus.clearDeadLetterQueue();
+
+    await queueProducer.close();
 
     await clearCurrentContext();
     await closeConnection();

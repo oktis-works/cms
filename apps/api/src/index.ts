@@ -11,7 +11,6 @@ import { traceMiddleware } from './middleware/trace.js';
 import { rateLimitMiddleware } from './middleware/rate-limit.js';
 import { csrfMiddleware } from './middleware/csrf.js';
 import authRouter from './routes/auth/index.js';
-import meRouter from './routes/auth/me.js';
 import contentRouter from './routes/content/index.js';
 import postsRouter from './routes/posts/index.js';
 import pagesRouter from './routes/pages/index.js';
@@ -27,6 +26,7 @@ import settingsRouter from './routes/settings/index.js';
 import pluginsRouter from './routes/plugins/index.js';
 import themesRouter from './routes/themes/index.js';
 import deploymentsRouter from './routes/deployments/index.js';
+import buildsRouter from './routes/builds/index.js';
 import eventsRouter from './routes/events/index.js';
 import webhooksRouter from './routes/webhooks/index.js';
 import contentTypesRouter from './routes/content-types/index.js';
@@ -81,9 +81,9 @@ async function main() {
   // Health routes (no auth required)
   app.route('/health', healthRouter);
 
-  // API routes
+  // API routes (GET /auth/me vive em routes/auth/index.ts — mais completa:
+  // roles + tenantId + fallback Bearer; a duplicata routes/auth/me.ts foi removida)
   app.route('/api/v1/auth', authRouter);
-  app.route('/api/v1/auth', meRouter);
   app.route('/api/v1/users', usersRouter);
   app.route('/api/v1/tenants', tenantsRouter);
   app.route('/api/v1/roles', rolesRouter);
@@ -98,6 +98,7 @@ async function main() {
   app.route('/api/v1/plugins', pluginsRouter);
   app.route('/api/v1/themes', themesRouter);
   app.route('/api/v1/deployments', deploymentsRouter);
+  app.route('/api/v1/builds', buildsRouter);
   app.route('/api/v1/events', eventsRouter);
   app.route('/api/v1/webhooks', webhooksRouter);
   app.route('/api/v1/content-types', contentTypesRouter);
@@ -132,6 +133,7 @@ async function main() {
         plugins: '/api/v1/plugins',
         themes: '/api/v1/themes',
         deployments: '/api/v1/deployments',
+        builds: '/api/v1/builds',
         events: '/api/v1/events',
         webhooks: '/api/v1/webhooks',
         contentTypes: '/api/v1/content-types',

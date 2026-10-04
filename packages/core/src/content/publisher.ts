@@ -7,6 +7,7 @@ import type { Content, ContentStatus } from '@oktis-works/types';
 import { getHookRegistry } from '@oktis-works/plugin-runtime';
 import { getEventBus } from '../events/bus.js';
 import { getCache } from '../cache/index.js';
+import { enqueueJob } from '../queue/producer.js';
 import { HOOK_POINTS } from '../hooks/points.js';
 
 export interface PublishResult {
@@ -14,11 +15,19 @@ export interface PublishResult {
   previousStatus: ContentStatus;
 }
 
+export interface PublishOptions {
+  /**
+   * Enfileira `content.publish`/`content.unpublish` para o worker (default true).
+   * O handler do worker chama com `enqueue: false` para não re-enfileirar.
+   */
+  enqueue?: boolean;
+}
+
 export class ContentPublisher {
   /**
    * Publish content: change status from DRAFT to PUBLISHED
    */
-  async publish(contentId: string, userId: string): Promise<PublishResult> {
+  async publish(contentId: string, userId: string, options: PublishOptions = {}): Promise<PublishResult> {
     const sql = getConnection();
 
     const existing = await sql.unsafe('SELECT * FROM content WHERE id = $1', [contentId]);
@@ -69,13 +78,20 @@ export class ContentPublisher {
     await cache.del(`content:${contentId}`);
     await cache.del(`content:slug:${updatedContent.slug}`);
 
+    // Job de background (worker): pós-processamento do publish. Fila opcional —
+    // Redis indisponível degrada silenciosamente. O handler do worker passa
+    // enqueue:false (o job já está sendo processado — evita re-enfileiramento).
+    if (options.enqueue !== false) {
+      await enqueueJob('content.publish', { contentId }, { tenantId: content.tenantId, userId });
+    }
+
     return { content: updatedContent, previousStatus };
   }
 
   /**
    * Unpublish content: change status from PUBLISHED back to DRAFT
    */
-  async unpublish(contentId: string, userId: string): Promise<PublishResult> {
+  async unpublish(contentId: string, userId: string, options: PublishOptions = {}): Promise<PublishResult> {
     const sql = getConnection();
 
     const existing = await sql.unsafe('SELECT * FROM content WHERE id = $1', [contentId]);
@@ -121,6 +137,11 @@ export class ContentPublisher {
     const cache = getCache();
     await cache.del(`content:${contentId}`);
     await cache.del(`content:slug:${updatedContent.slug}`);
+
+    // Job de background (worker): pós-processamento do unpublish (ver publish).
+    if (options.enqueue !== false) {
+      await enqueueJob('content.unpublish', { contentId }, { tenantId: content.tenantId, userId });
+    }
 
     return { content: updatedContent, previousStatus };
   }

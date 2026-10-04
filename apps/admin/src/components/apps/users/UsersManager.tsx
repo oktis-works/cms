@@ -1,6 +1,8 @@
 // @oktis-works/admin - Users Manager (lista, papel, senha, status, exclusão)
+// Migrada para o design-system @oktis-works/ui (Button/Input/Select/Pagination/Badge).
 
-import { For, Show, createSignal, onMount } from 'solid-js';
+import { For, Show, createSignal, onMount } from '@oktis-works/ui';
+import { Button, Input, Select, Pagination, Badge } from '@oktis-works/ui';
 import { apiClient, type AdminUser, type Role } from '../../../lib/api';
 
 function formatDate(value?: string | null): string {
@@ -46,8 +48,6 @@ export function UsersManager() {
       // papéis são opcional na tela — o assign continua funcionando com id
     }
   });
-
-  const totalPages = (): number => Math.max(1, Math.ceil(total() / limit));
 
   const searchNow = async (): Promise<void> => {
     setPage(1);
@@ -137,29 +137,32 @@ export function UsersManager() {
       </Show>
 
       <div class="toolbar">
-        <input
-          class="input"
+        <Input
+          name="user-search"
           placeholder="Buscar por nome ou email…"
           value={search()}
-          onInput={(e) => setSearch(e.currentTarget.value)}
-          onKeyDown={(e) => e.key === 'Enter' && void searchNow()}
-        />
-        <select
-          class="input"
-          value={status()}
-          onChange={(e) => {
-            setStatus(e.currentTarget.value);
+          onInput={(value) => {
+            setSearch(value);
             void searchNow();
           }}
-        >
-          <option value="">Todos os status</option>
-          <option value="ACTIVE">Ativos</option>
-          <option value="INACTIVE">Inativos</option>
-        </select>
+        />
+        <Select
+          name="user-status"
+          placeholder="Todos os status"
+          value={status()}
+          options={[
+            { value: 'ACTIVE', label: 'Ativos' },
+            { value: 'INACTIVE', label: 'Inativos' },
+          ]}
+          onChange={(value) => {
+            setStatus(value);
+            void searchNow();
+          }}
+        />
         <a class="btn btn-primary" href="/users/new">+ Novo usuário</a>
-        <button class="btn btn-secondary" type="button" onClick={() => void searchNow()}>
+        <Button variant="secondary" onClick={() => void searchNow()}>
           Buscar
-        </button>
+        </Button>
       </div>
 
       <Show when={users().length > 0} fallback={<p class="muted">Nenhum usuário encontrado.</p>}>
@@ -182,7 +185,7 @@ export function UsersManager() {
                   <td class="muted">{user.email}</td>
                   <td>
                     <Show when={user.roles.length > 0} fallback={<span class="muted">sem papel</span>}>
-                      <span class="badge">{user.roles.join(', ')}</span>
+                      <Badge>{user.roles.join(', ')}</Badge>
                     </Show>
                   </td>
                   <td>
@@ -191,12 +194,12 @@ export function UsersManager() {
                   </td>
                   <td class="muted">{formatDate(user.last_login_at)}</td>
                   <td class="users-table__actions">
-                    <button class="btn btn-secondary btn-sm" type="button" onClick={() => setSelected(user)}>
+                    <Button variant="secondary" size="sm" onClick={() => setSelected(user)}>
                       Gerenciar
-                    </button>
-                    <button class="btn btn-danger btn-sm" type="button" onClick={() => void removeUser(user)}>
+                    </Button>
+                    <Button variant="danger" size="sm" onClick={() => void removeUser(user)}>
                       Excluir
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               )}
@@ -205,17 +208,15 @@ export function UsersManager() {
         </table>
       </Show>
 
-      <Show when={totalPages() > 1}>
-        <div class="pagination">
-          <button class="btn btn-secondary btn-sm" type="button" disabled={page() <= 1} onClick={() => { setPage(page() - 1); void load(); }}>
-            ← Anterior
-          </button>
-          <span class="muted">Página {page()} de {totalPages()}</span>
-          <button class="btn btn-secondary btn-sm" type="button" disabled={page() >= totalPages()} onClick={() => { setPage(page() + 1); void load(); }}>
-            Próxima →
-          </button>
-        </div>
-      </Show>
+      <Pagination
+        page={page()}
+        limit={limit}
+        total={total()}
+        onPageChange={(next) => {
+          setPage(next);
+          void load();
+        }}
+      />
 
       <Show when={selected()}>
         {(user) => (
@@ -268,15 +269,15 @@ export function UsersManager() {
             <p class="muted">Criado em {formatDate(user().created_at)} · último acesso {formatDate(user().last_login_at)}</p>
 
             <div class="media-details__actions">
-              <button class="btn btn-primary" type="button" disabled={busy()} onClick={() => void saveUser(user())}>
-                {busy() ? 'Salvando…' : 'Salvar'}
-              </button>
-              <button class="btn btn-secondary" type="button" disabled={busy()} onClick={() => void resetPassword(user())}>
+              <Button variant="primary" disabled={busy()} loading={busy()} onClick={() => void saveUser(user())}>
+                Salvar
+              </Button>
+              <Button variant="secondary" disabled={busy()} onClick={() => void resetPassword(user())}>
                 Redefinir senha
-              </button>
-              <button class="btn btn-secondary" type="button" onClick={() => setSelected(null)}>
+              </Button>
+              <Button variant="secondary" onClick={() => setSelected(null)}>
                 Fechar
-              </button>
+              </Button>
             </div>
           </div>
         )}

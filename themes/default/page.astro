@@ -1,0 +1,13 @@
+<main data-theme="{{site.theme}}" data-template="page" data-type="{{page.type}}">
+  <article class="entry entry--page">
+    <header class="entry__header">
+      <h1 class="entry__title">{{content.title}}</h1>
+    </header>
+
+    <div class="entry__body">
+      {{#if content.html}}{{{content.html}}}{{/if}}
+      {{#if content.content}}{{{content.content}}}{{/if}}
+      {{#if content.text}}<p>{{content.text}}</p>{{/if}}
+    </div>
+  </article>
+</main>

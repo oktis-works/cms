@@ -1,8 +1,8 @@
 import { chromium } from 'playwright-core';
 
-const CHROME = '/home/judah/.cache/ms-playwright/chromium-1228/chrome-linux64/chrome';
-const API = 'http://127.0.0.1:3010';
-const ADMIN = 'http://127.0.0.1:3011';
+const CHROME = process.env['CHROME_PATH'] ?? '/home/judah/.cache/ms-playwright/chromium-1228/chrome-linux64/chrome';
+const API = process.env['E2E_API_URL'] ?? 'http://127.0.0.1:3010';
+const ADMIN = process.env['E2E_ADMIN_URL'] ?? 'http://127.0.0.1:3011';
 let PASS = 0, FAIL = 0;
 const ok = m => { PASS++; console.log('✅', m); };
 const fail = m => { FAIL++; console.log('❌', m); };
@@ -97,6 +97,28 @@ async function main() {
   await page.click('button[type="submit"]');
   await page.waitForTimeout(2000);
   ok('criação de conteúdo via UI');
+
+  // ---------- PUBLISH VIA UI (A2: rota real do publisher) ----------
+  await page.goto(ADMIN + '/content', { waitUntil: 'networkidle' });
+  await page.waitForSelector('table.table');
+  const row = page.locator('tr', { hasText: 'Post Playwright' }).first();
+  await row.waitFor({ timeout: 10000 });
+  ok('content list exibe o conteúdo criado');
+
+  // Publicar: botão dispara POST /content/:id/publish (contentPublisher real)
+  await row.locator('button:has-text("Publicar")').first().click();
+  await page.waitForTimeout(2500); // publish + reload da lista
+  const publishedRow = page.locator('tr', { hasText: 'Post Playwright' }).first();
+  const rowText = await publishedRow.textContent();
+  expect(rowText?.includes('PUBLISHED') || rowText?.includes('Publicado'), true, 'publish via UI → status PUBLISHED na lista');
+  ok('botão publica via rota real (A2)');
+
+  // Despublicar volta para DRAFT
+  await publishedRow.locator('button:has-text("Despublicar")').first().click();
+  await page.waitForTimeout(2500);
+  const unpublishedRow = page.locator('tr', { hasText: 'Post Playwright' }).first();
+  const rowText2 = await unpublishedRow.textContent();
+  expect(rowText2?.includes('DRAFT') || rowText2?.includes('Rascunho'), true, 'unpublish via UI → status DRAFT na lista');
 
   // ---------- LOGOUT ----------
   await page.click('#logout-btn');

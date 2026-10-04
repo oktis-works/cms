@@ -38,7 +38,7 @@ export interface MediaProcessJob extends JobData {
   payload: {
     mediaId: string;
     operations: Array<{
-      type: 'resize' | 'optimize' | 'convert';
+      type: 'resize' | 'thumbnail' | 'compress' | 'optimize' | 'convert';
       options: Record<string, unknown>;
     }>;
   };

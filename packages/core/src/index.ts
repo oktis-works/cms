@@ -10,6 +10,11 @@ export type { LifecycleHook } from './lifecycle/index.js';
 export { EventBus, createEventBus, getEventBus } from './events/bus.js';
 export type { EventHandler, EventBusConfig } from './events/bus.js';
 
+// Queue (produção de jobs — fila opcional, degrada sem Redis)
+export { QueueProducer, queueProducer, enqueueJob } from './queue/producer.js';
+export type { JobType, EnqueueOptions, JobEnvelope } from './queue/producer.js';
+export { registerWebhookDispatch, registerCacheInvalidation } from './events/webhooks.js';
+
 // Observability
 export { metrics, trackDeploymentProgress, MetricsRegistry, registerEventAuditLog } from './observability/index.js';
 export { createLogger, AuditService, auditService } from './observability/index.js';

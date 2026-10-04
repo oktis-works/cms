@@ -1,0 +1,2 @@
+# Migrações versionadas (V###__owner__name.sql) aplicadas via `okcms db:migrate`.
+# O schema core (schema.sql) é aplicado automaticamente pelo bootstrap do CLI.

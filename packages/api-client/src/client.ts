@@ -62,15 +62,21 @@ export class OkCMSClient {
   }
 
   async refreshToken(): Promise<RefreshTokenResponse> {
-    if (!this.tokens.refreshToken) throw new Error('No refresh token available');
+    // Híbrido: refreshToken em memória (API-first, Bearer) OU cookie HttpOnly
+    // (browser) — o backend aceita body OU cookie como fallback.
+    const body = this.tokens.refreshToken ? { refreshToken: this.tokens.refreshToken } : {};
     const res = await fetch(`${this.baseUrl}/api/v1/auth/refresh`, {
       method: 'POST',
       headers: this.headers,
-      body: JSON.stringify({ refreshToken: this.tokens.refreshToken }),
+      credentials: 'include',
+      body: JSON.stringify(body),
     });
     if (!res.ok) throw new Error(`Refresh failed: ${res.status}`);
     const data = (await res.json()) as RefreshTokenResponse;
     this.tokens.accessToken = data.accessToken;
+    if ('refreshToken' in data && typeof data.refreshToken === 'string') {
+      this.tokens.refreshToken = data.refreshToken;
+    }
     return data;
   }
 
@@ -81,7 +87,16 @@ export class OkCMSClient {
   }
 
   async register(email: string, password: string, name: string): Promise<UserResponse> {
-    return this.request<UserResponse>('POST', '/api/v1/auth/register', { email, password, name });
+    const res = await this.request<UserResponse & Partial<LoginResponse>>('POST', '/api/v1/auth/register', {
+      email,
+      password,
+      name,
+    });
+    // Auto-login pós-registro: a API retorna tokens no body E seta cookies.
+    if (res.accessToken && res.refreshToken) {
+      this.setTokens(res.accessToken, res.refreshToken);
+    }
+    return res;
   }
 
   async logout(): Promise<void> {
@@ -115,6 +130,16 @@ export class OkCMSClient {
 
   async deleteContent(id: UUID): Promise<void> {
     return this.request('DELETE', `/api/v1/content/${id}`);
+  }
+
+  /** Publica conteúdo — status DRAFT → PUBLISHED (eventBus + cache + revisions). */
+  async publishContent(id: UUID): Promise<ContentResponse> {
+    return this.request('POST', `/api/v1/content/${id}/publish`);
+  }
+
+  /** Despublica conteúdo — status PUBLISHED → DRAFT. */
+  async unpublishContent(id: UUID): Promise<ContentResponse> {
+    return this.request('POST', `/api/v1/content/${id}/unpublish`);
   }
 
   async listUsers(options?: PaginationParams & FilterParams): Promise<PaginatedResponse<UserResponse>> {
@@ -191,6 +216,7 @@ export class OkCMSClient {
     const res = await fetch(`${this.baseUrl}/api/v1/media/upload`, {
       method: 'POST',
       headers: this.authHeaders(),
+      credentials: 'include',
       body: formData,
     });
     if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
@@ -259,7 +285,8 @@ export class OkCMSClient {
   }
 
   async updateSettings(data: UpdateSettingRequest[]): Promise<SettingResponse[]> {
-    return this.request('PUT', '/api/v1/settings', { settings: data });
+    // A rota PUT /settings aceita array cru (ou objeto único) — sem envelope.
+    return this.request('PUT', '/api/v1/settings', data);
   }
 
   async listPlugins(): Promise<PluginResponse[]> {
@@ -339,6 +366,7 @@ export class OkCMSClient {
     const res = await fetch(`${this.baseUrl}${path}`, {
       method,
       headers: this.authHeaders(),
+      credentials: 'include',
       body: body ? JSON.stringify(body) : undefined,
     });
 
@@ -348,6 +376,7 @@ export class OkCMSClient {
         const retryRes = await fetch(`${this.baseUrl}${path}`, {
           method,
           headers: this.authHeaders(),
+          credentials: 'include',
           body: body ? JSON.stringify(body) : undefined,
         });
         if (!retryRes.ok) throw new Error(`Request failed: ${retryRes.status}`);

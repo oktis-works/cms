@@ -1,0 +1,26 @@
+<main data-theme="{{site.theme}}" data-template="single" data-type="{{page.type}}">
+  <article class="entry">
+    <header class="entry__header">
+      <h1 class="entry__title">{{content.title}}</h1>
+      {{#if content.excerpt}}
+      <p class="entry__excerpt">{{content.excerpt}}</p>
+      {{/if}}
+      {{#if content.thumbnail.url}}
+      <img class="entry__cover" src="{{content.thumbnail.url}}" alt="{{content.thumbnail.alt}}" loading="lazy" />
+      {{/if}}
+      {{#if content.cover.url}}
+      <img class="entry__cover" src="{{content.cover.url}}" alt="{{content.cover.alt}}" loading="lazy" />
+      {{/if}}
+    </header>
+
+    <div class="entry__body">
+      {{#if content.html}}{{{content.html}}}{{/if}}
+      {{#if content.content}}{{{content.content}}}{{/if}}
+      {{#if content.text}}<p>{{content.text}}</p>{{/if}}
+    </div>
+
+    <footer class="entry__footer">
+      <time class="entry__date" datetime="{{content.published_at}}">{{content.published_at}}</time>
+    </footer>
+  </article>
+</main>

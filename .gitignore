@@ -51,3 +51,4 @@ temp/
 
 # Estado local da ferramenta SDD (não versionar)
 .sdd/
+uploads/*

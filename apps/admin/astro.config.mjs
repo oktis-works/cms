@@ -20,8 +20,14 @@ export default defineConfig({
     allowedHosts: ['admin.lvh.me'],
   },
   vite: {
+    // Design-system: consome a FONTE do @oktis-works/ui para que o plugin Solid
+    // compile JSX por ambiente (SSR: generate 'ssr'; client: generate 'dom').
+    // O dist client-only (delegateEvents/template) quebrava o SSR do admin.
+    resolve: {
+      conditions: ['source'],
+    },
     ssr: {
-      noExternal: ['@oktis-works/types'],
+      noExternal: ['@oktis-works/types', '@oktis-works/ui'],
     },
   },
 });

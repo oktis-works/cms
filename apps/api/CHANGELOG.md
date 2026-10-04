@@ -1,5 +1,17 @@
 # @oktis-works/api
 
+## 0.1.7
+
+### Patch Changes
+
+- Fases A–D do TODO: publisher real nas rotas de conteúdo (publish/unpublish com revisions + eventBus + cache), QueueProducer no core com degradação silenciosa (fila opcional), processamento real de mídia com sharp e build Docker real no worker, renderização real do site público (templates do tema + settings), design-system Solid no @oktis-works/ui (Button/Input/Select/Card/Badge/Modal/Toast/Table/Pagination) consumido pelo admin, fluxo de auth híbrido completo (tokens no body + cookies HttpOnly) e limpeza de legado (rota /me duplicada, stub de validação).
+- Updated dependencies []:
+  - @oktis-works/core@0.1.14
+  - @oktis-works/auth@0.1.14
+  - @oktis-works/config@0.1.14
+  - @oktis-works/database@0.1.14
+  - @oktis-works/types@0.1.14
+
 ## 0.1.6
 
 ### Patch Changes

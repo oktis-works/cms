@@ -1,6 +1,9 @@
-// @oktis-works/admin - Lista de conteúdo (busca, filtros, paginação, ações)
+// @oktis-works/admin - Lista de conteúdo (busca, filtros, paginação, publish, ações)
+// Migrada para o design-system @oktis-works/ui (Button/Input/Select/Table/Pagination/Badge).
 
-import { For, Show, createSignal, onMount } from 'solid-js';
+import { Show, createSignal, onMount } from '@oktis-works/ui';
+import { Button, Input, Select, Card, Table, Pagination, Badge } from '@oktis-works/ui';
+import type { TableColumn } from '@oktis-works/ui';
 import { apiClient, type Content, type ContentType } from '../../lib/api';
 
 function raw(row: Content): Record<string, unknown> {
@@ -23,6 +26,8 @@ export function ContentList() {
   const [type, setType] = createSignal('');
   const [status, setStatus] = createSignal('');
   const [error, setError] = createSignal('');
+  const [info, setInfo] = createSignal('');
+  const [busyId, setBusyId] = createSignal('');
 
   const limit = 20;
 
@@ -51,11 +56,25 @@ export function ContentList() {
     }
   });
 
-  const totalPages = (): number => Math.max(1, Math.ceil(total() / limit));
-
   const searchNow = async (): Promise<void> => {
     setPage(1);
     await load();
+  };
+
+  const togglePublish = async (row: Content): Promise<void> => {
+    const isPublished = raw(row)['status'] === 'PUBLISHED';
+    setBusyId(row.id);
+    setError('');
+    setInfo('');
+    try {
+      await apiClient.publishToggle(row.id, isPublished);
+      setInfo(isPublished ? 'Conteúdo despublicado ✓' : 'Conteúdo publicado ✓');
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusyId('');
+    }
   };
 
   const remove = async (row: Content): Promise<void> => {
@@ -69,97 +88,113 @@ export function ContentList() {
     }
   };
 
+  const columns: TableColumn[] = [
+    { key: 'title', label: 'Título' },
+    { key: 'type', label: 'Tipo' },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (_value, row) => {
+        const statusValue = String((row as Record<string, unknown>)['status'] ?? '');
+        const variant = statusValue === 'PUBLISHED' ? 'success' : statusValue === 'ARCHIVED' ? 'warning' : 'secondary';
+        return <Badge variant={variant}>{statusValue}</Badge>;
+      },
+    },
+    { key: 'updated_at', label: 'Atualizado', render: (_value, row) => <span class="muted">{formatDate(row as Content)}</span> },
+    {
+      key: 'actions',
+      label: '',
+      render: (_value, row) => {
+        const content = row as Content;
+        const isPublished = raw(content)['status'] === 'PUBLISHED';
+        return (
+          <div class="users-table__actions">
+            <a class="btn btn-secondary btn-sm" href={`/content/edit?id=${encodeURIComponent(content.id)}`}>
+              Editar
+            </a>
+            <Button
+              variant={isPublished ? 'secondary' : 'primary'}
+              size="sm"
+              loading={busyId() === content.id}
+              onClick={() => void togglePublish(content)}
+            >
+              {isPublished ? 'Despublicar' : 'Publicar'}
+            </Button>
+            <Button variant="danger" size="sm" onClick={() => void remove(content)}>
+              Excluir
+            </Button>
+          </div>
+        );
+      },
+    },
+  ];
+
   return (
     <div class="content-list">
       <Show when={error()}>
         <div class="notice notice--error">{error()}</div>
       </Show>
+      <Show when={info()}>
+        <div class="notice">{info()}</div>
+      </Show>
 
       <div class="toolbar">
-        <input
-          class="input"
+        <Input
+          name="search"
           placeholder="Buscar conteúdo…"
           value={search()}
-          onInput={(e) => setSearch(e.currentTarget.value)}
-          onKeyDown={(e) => e.key === 'Enter' && void searchNow()}
+          onInput={(value) => {
+            setSearch(value);
+            void searchNow();
+          }}
         />
-        <select
-          class="input"
+        <Select
+          name="type"
+          placeholder="Todos os tipos"
           value={type()}
-          onChange={(e) => {
-            setType(e.currentTarget.value);
+          options={types().map((t) => ({ value: t.slug, label: t.pluralLabel || t.name }))}
+          onChange={(value) => {
+            setType(value);
             void searchNow();
           }}
-        >
-          <option value="">Todos os tipos</option>
-          <For each={types()}>{(t) => <option value={t.slug}>{t.pluralLabel || t.name}</option>}</For>
-        </select>
-        <select
-          class="input"
+        />
+        <Select
+          name="status"
+          placeholder="Todos os status"
           value={status()}
-          onChange={(e) => {
-            setStatus(e.currentTarget.value);
+          options={[
+            { value: 'DRAFT', label: 'Rascunho' },
+            { value: 'PUBLISHED', label: 'Publicado' },
+            { value: 'ARCHIVED', label: 'Arquivado' },
+          ]}
+          onChange={(value) => {
+            setStatus(value);
             void searchNow();
           }}
-        >
-          <option value="">Todos os status</option>
-          <option value="DRAFT">Rascunho</option>
-          <option value="PUBLISHED">Publicado</option>
-          <option value="ARCHIVED">Arquivado</option>
-        </select>
+        />
         <a class="btn btn-primary" href="/content/new">+ Novo conteúdo</a>
-        <button class="btn btn-secondary" type="button" onClick={() => void searchNow()}>
+        <Button variant="secondary" onClick={() => void searchNow()}>
           Buscar
-        </button>
+        </Button>
       </div>
 
-      <div class="card">
-        <Show when={items().length > 0} fallback={<p class="muted">Nenhum conteúdo encontrado.</p>}>
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Título</th>
-                <th>Tipo</th>
-                <th>Status</th>
-                <th>Atualizado</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              <For each={items()}>
-                {(row) => (
-                  <tr>
-                    <td>{String(raw(row)['title'] ?? '—')}</td>
-                    <td>{String(raw(row)['type'] ?? '—')}</td>
-                    <td>{String(raw(row)['status'] ?? '—')}</td>
-                    <td class="muted">{formatDate(row)}</td>
-                    <td class="users-table__actions">
-                      <a class="btn btn-secondary btn-sm" href={`/content/edit?id=${encodeURIComponent(row.id)}`}>
-                        Editar
-                      </a>
-                      <button class="btn btn-danger btn-sm" type="button" onClick={() => void remove(row)}>
-                        Excluir
-                      </button>
-                    </td>
-                  </tr>
-                )}
-              </For>
-            </tbody>
-          </table>
-        </Show>
-
-        <Show when={totalPages() > 1}>
-          <div class="pagination">
-            <button class="btn btn-secondary btn-sm" type="button" disabled={page() <= 1} onClick={() => { setPage(page() - 1); void load(); }}>
-              ← Anterior
-            </button>
-            <span class="muted">Página {page()} de {totalPages()}</span>
-            <button class="btn btn-secondary btn-sm" type="button" disabled={page() >= totalPages()} onClick={() => { setPage(page() + 1); void load(); }}>
-              Próxima →
-            </button>
-          </div>
-        </Show>
-      </div>
+      <Card>
+        <Table
+          columns={columns}
+          data={items() as unknown[]}
+          emptyMessage="Nenhum conteúdo encontrado."
+        />
+        <Pagination
+          page={page()}
+          limit={limit}
+          total={total()}
+          onPageChange={(next) => {
+            setPage(next);
+            void load();
+          }}
+        />
+      </Card>
     </div>
   );
 }
+

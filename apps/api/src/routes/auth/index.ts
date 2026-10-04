@@ -70,7 +70,16 @@ authRouter.post('/register', async (c: Context) => {
     setAuthCookies(c, result.accessToken, result.refreshToken);
     setCsrfCookie(c);
 
-    return c.json({ user: result.user, tenantId: result.tenantId }, 201);
+    // Tokens no body também: compat com clientes API-first (@oktis-works/api-client)
+    return c.json(
+      {
+        user: result.user,
+        tenantId: result.tenantId,
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+      },
+      201
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Registration failed';
     return c.json({ error: message }, 400);
@@ -100,17 +109,26 @@ authRouter.post('/login', async (c: Context) => {
     setAuthCookies(c, result.accessToken, result.refreshToken);
     setCsrfCookie(c);
 
-    return c.json({ user: result.user, tenantId: result.tenantId });
+    // Tokens no body também: clientes API-first (@oktis-works/api-client) usam
+    // Bearer; o browser continua nos cookies HttpOnly (nunca localStorage).
+    return c.json({
+      user: result.user,
+      tenantId: result.tenantId,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Login failed';
     return c.json({ error: message }, 401);
   }
 });
 
-// POST /auth/refresh — lê refresh_token do cookie HttpOnly
+// POST /auth/refresh — híbrido: refreshToken do cookie (browser) OU body (API-first);
+// retorna tokens no body (clientes externos) E seta cookies (browser)
 authRouter.post('/refresh', async (c: Context) => {
   try {
-    const refreshToken = getCookie(c, 'refresh_token');
+    const body = await c.req.json().catch(() => ({}));
+    const refreshToken = getCookie(c, 'refresh_token') ?? body['refreshToken'];
 
     if (!refreshToken) {
       return c.json({ error: 'Missing refresh token' }, 400);
@@ -124,7 +142,8 @@ authRouter.post('/refresh', async (c: Context) => {
 
     setAuthCookies(c, tokens.accessToken, tokens.refreshToken);
 
-    return c.json({ success: true });
+    // Tokens no body: compat com clientes API-first (@oktis-works/api-client)
+    return c.json({ success: true, accessToken: tokens.accessToken, refreshToken: tokens.refreshToken });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Token refresh failed';
     return c.json({ error: message }, 400);

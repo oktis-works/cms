@@ -1,63 +1,86 @@
 // @oktis-works/worker - Job Handlers
 
 import { createHash, randomUUID } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { isAbsolute, join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import sharp from 'sharp';
 import { getConnection } from '@oktis-works/database';
 import { getCache } from '@oktis-works/core';
-import { getEventBus, trackDeploymentProgress } from '@oktis-works/core';
+import { getEventBus, trackDeploymentProgress, contentPublisher } from '@oktis-works/core';
 import type { JobHandler, JobResult } from '../jobs/types.js';
 
+export interface MediaVariantInfo {
+  width?: number;
+  height?: number;
+  bytes: number;
+}
+
+interface MediaOperation {
+  type: string;
+  options: Record<string, unknown>;
+}
+
+/** Mesmo contrato do storage da API: UPLOAD_DIR (default "uploads" relativo ao cwd). */
+function getUploadDir(): string {
+  const dir = process.env['UPLOAD_DIR'] ?? 'uploads';
+  return isAbsolute(dir) ? dir : resolve(process.cwd(), dir);
+}
+
+/** Mesmo saneamento do storage da API: <tenant>/<uuid>.<ext>. */
+function isSafeStoredPath(relPath: string): boolean {
+  const [tenant, filename, ...rest] = relPath.split('/');
+  return (
+    rest.length === 0 &&
+    !!tenant &&
+    !!filename &&
+    /^[A-Za-z0-9_-]{1,64}$/.test(tenant) &&
+    /^[A-Za-z0-9_-]{1,64}\.[a-z0-9]{1,10}$/.test(filename)
+  );
+}
+
+/**
+ * Publicação assíncrona (`POST /content/:id/publish?mode=async`).
+ * Delega ao contentPublisher do core — mesma paridade do caminho síncrono
+ * (versionamento + hooks + eventos + cache). Idempotente: conteúdo já
+ * publicado (ex.: caminho síncrono executou antes do job) → sucesso sem efeitos.
+ * `enqueue:false`: o job já está em processamento — não re-enfileira.
+ */
 export const contentPublishHandler: JobHandler = async (job): Promise<JobResult> => {
   const { contentId } = job.payload;
-  const sql = getConnection();
 
-  await sql.unsafe(
-    "UPDATE content SET status = 'PUBLISHED', published_at = NOW() WHERE id = $1",
-    [contentId as string]
-  );
-
-  const eventBus = getEventBus();
-  await eventBus.emit({
-    id: randomUUID(),
-    type: 'content.published',
-    aggregateType: 'content',
-    aggregateId: contentId as string,
-    payload: { contentId },
-    processed: false,
-    createdAt: new Date(),
-  });
-
-  const cache = getCache();
-  await cache.del(`content:${contentId}`);
-
-  return { success: true };
+  try {
+    await contentPublisher.publish(contentId as string, job.userId ?? 'system', { enqueue: false });
+    return { success: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Publish failed';
+    if (message.includes('already published')) return { success: true };
+    return { success: false, error: message };
+  }
 };
 
+/** Despublicação assíncrona (`?mode=async`) — mesmas regras do publish. */
 export const contentUnpublishHandler: JobHandler = async (job): Promise<JobResult> => {
   const { contentId } = job.payload;
-  const sql = getConnection();
 
-  await sql.unsafe(
-    "UPDATE content SET status = 'DRAFT', published_at = NULL WHERE id = $1",
-    [contentId as string]
-  );
-
-  const eventBus = getEventBus();
-  await eventBus.emit({
-    id: randomUUID(),
-    type: 'content.unpublished',
-    aggregateType: 'content',
-    aggregateId: contentId as string,
-    payload: { contentId },
-    processed: false,
-    createdAt: new Date(),
-  });
-
-  const cache = getCache();
-  await cache.del(`content:${contentId}`);
-
-  return { success: true };
+  try {
+    await contentPublisher.unpublish(contentId as string, job.userId ?? 'system', { enqueue: false });
+    return { success: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unpublish failed';
+    if (message.includes('is not published')) return { success: true };
+    return { success: false, error: message };
+  }
 };
 
+/**
+ * C1 — processamento REAL de imagens com sharp:
+ *   resize    → redimensiona o original (op.options.width/height)
+ *   thumbnail → variante `_thumb` (300px) ao lado do original
+ *   compress  → re-encode com qualidade (op.options.quality, default 80)
+ * metadata recebe as variantes com width/height/bytes reais.
+ */
 export const mediaProcessHandler: JobHandler = async (job): Promise<JobResult> => {
   const { mediaId, operations } = job.payload;
   const sql = getConnection();
@@ -67,18 +90,122 @@ export const mediaProcessHandler: JobHandler = async (job): Promise<JobResult> =
     return { success: false, error: 'Media not found' };
   }
 
-  for (const op of operations as Array<{ type: string; options: Record<string, unknown> }>) {
-    console.log(`Processing media ${mediaId}: ${op.type}`, op.options);
+  const media = mediaResult[0] as Record<string, unknown>;
+  const relPath = String(media['path'] ?? '');
+  if (!relPath || !isSafeStoredPath(relPath)) {
+    return { success: false, error: `Invalid media path: ${relPath}` };
   }
 
-  await sql.unsafe(
-    "UPDATE media SET metadata = metadata || $1::jsonb WHERE id = $2",
-    [{ processed: true, processedAt: new Date().toISOString() }, mediaId as string]
-  );
+  const absPath = join(getUploadDir(), relPath);
+  let buffer: Buffer;
+  try {
+    buffer = readFileSync(absPath);
+  } catch {
+    return { success: false, error: `Media file not found on disk: ${relPath}` };
+  }
 
-  return { success: true };
+  try {
+    const baseMetadata = await sharp(buffer).metadata();
+    const variants: Record<string, MediaVariantInfo> = {};
+    let currentBuffer = buffer;
+    let needsRewrite = false;
+
+    for (const op of (operations ?? []) as MediaOperation[]) {
+      switch (op.type) {
+        case 'resize': {
+          const width = toPositiveInt(op.options['width']);
+          const height = toPositiveInt(op.options['height']);
+          if (!width && !height) break;
+          currentBuffer = await sharp(currentBuffer)
+            .resize({ width: width ?? undefined, height: height ?? undefined, fit: 'inside', withoutEnlargement: true })
+            .toBuffer();
+          const meta = await sharp(currentBuffer).metadata();
+          variants['resized'] = { width: meta.width, height: meta.height, bytes: currentBuffer.byteLength };
+          needsRewrite = true;
+          break;
+        }
+        case 'thumbnail': {
+          const thumbWidth = toPositiveInt(op.options['width']) ?? 300;
+          const thumbBuffer = await sharp(currentBuffer)
+            .resize({ width: thumbWidth, withoutEnlargement: true })
+            .toBuffer();
+          const thumbMeta = await sharp(thumbBuffer).metadata();
+          writeFileSync(thumbFilename(absPath), thumbBuffer);
+          variants['thumb'] = { width: thumbMeta.width, height: thumbMeta.height, bytes: thumbBuffer.byteLength };
+          break;
+        }
+        case 'compress': {
+          const quality = toPositiveInt(op.options['quality']) ?? 80;
+          currentBuffer = await reencode(currentBuffer, quality);
+          const meta = await sharp(currentBuffer).metadata();
+          variants['compressed'] = { width: meta.width, height: meta.height, bytes: currentBuffer.byteLength };
+          needsRewrite = true;
+          break;
+        }
+        default:
+          console.warn(`[media.process] Operação desconhecida ignorada: ${op.type}`);
+      }
+    }
+
+    if (needsRewrite) {
+      writeFileSync(absPath, currentBuffer);
+    }
+
+    const metadata = {
+      ...((media['metadata'] as Record<string, unknown>) ?? {}),
+      processed: true,
+      processedAt: new Date().toISOString(),
+      width: baseMetadata.width,
+      height: baseMetadata.height,
+      variants,
+    };
+
+    await sql.unsafe('UPDATE media SET metadata = $1::jsonb WHERE id = $2', [metadata, mediaId as string]);
+
+    return { success: true, data: { variants } };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Media processing failed';
+    console.error(`[media.process] Falha ao processar ${mediaId}:`, message);
+    return { success: false, error: message };
+  }
 };
 
+function toPositiveInt(value: unknown): number | null {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : null;
+}
+
+/** Variante _thumb ao lado do original: <uuid>.<ext> → <uuid>_thumb.<ext>. */
+function thumbFilename(absPath: string): string {
+  const dot = absPath.lastIndexOf('.');
+  return dot === -1 ? `${absPath}_thumb` : `${absPath.slice(0, dot)}_thumb${absPath.slice(dot)}`;
+}
+
+/** Re-encode preservando o formato (jpeg/webp/avif usam quality; png usa palette). */
+async function reencode(buffer: Buffer, quality: number): Promise<Buffer> {
+  const meta = await sharp(buffer).metadata();
+  const image = sharp(buffer);
+  switch (meta.format) {
+    case 'jpeg':
+      return image.jpeg({ quality, mozjpeg: true }).toBuffer();
+    case 'webp':
+      return image.webp({ quality }).toBuffer();
+    case 'avif':
+      return image.avif({ quality }).toBuffer();
+    case 'png':
+      return image.png({ compressionLevel: 9, palette: true }).toBuffer();
+    default:
+      return buffer;
+  }
+}
+
+/**
+ * C2 — build REAL da imagem Docker via spawnSync:
+ *   docker build -f <dockerfile> -t okcms/{buildId}:latest <contexto>
+ * Falha de build → status FAILED + error real (stderr do docker).
+ * DOCKER_AVAILABLE=false (env) → pula o docker, marca docker_image como NULL
+ * e loga claramente (degradação para dev sem docker).
+ */
 export const buildCreateHandler: JobHandler = async (job): Promise<JobResult> => {
   const { buildId, plugins, theme } = job.payload;
   const sql = getConnection();
@@ -89,19 +216,62 @@ export const buildCreateHandler: JobHandler = async (job): Promise<JobResult> =>
   );
 
   try {
-    const dockerfile = generateDockerfile(plugins as Record<string, string>, theme as Record<string, string>);
+    const dockerfile = generateDockerfile(
+      (plugins as Record<string, string>) ?? {},
+      (theme as Record<string, string>) ?? {}
+    );
     const checksum = computeBuildChecksum(dockerfile);
 
-    console.log(`Building Docker image for build ${buildId} (checksum ${checksum.slice(0, 12)})`);
+    // Degradacao: dev sem docker — build "conclui" sem imagem (docker_image NULL)
+    if (process.env['DOCKER_AVAILABLE'] === 'false') {
+      console.log(
+        `[build.create] DOCKER_AVAILABLE=false — docker pulado para o build ${buildId} (docker_image=NULL, degradação para dev sem docker)`
+      );
+      await sql.unsafe(
+        "UPDATE builds SET status = 'COMPLETED', completed_at = NOW(), docker_image = NULL, checksum = $1, build_log = $2 WHERE id = $3",
+        [checksum, 'docker skipped: DOCKER_AVAILABLE=false', buildId as string]
+      );
+      return { success: true, data: { skipped: true, reason: 'DOCKER_AVAILABLE=false' } };
+    }
 
-    await sql.unsafe(
-      "UPDATE builds SET status = 'COMPLETED', completed_at = NOW(), docker_image = $1, checksum = $2 WHERE id = $3",
-      [`okcms/${buildId}:latest`, checksum, buildId as string]
-    );
+    // Dockerfile num dir temporário (-f absoluto); contexto = cwd do worker
+    // (raiz do projeto — os COPY referenciam packages/, plugins/, themes/).
+    const tmpDir = mkdtempSync(join(tmpdir(), 'okcms-build-'));
+    const dockerfilePath = join(tmpDir, 'Dockerfile');
+    writeFileSync(dockerfilePath, dockerfile);
 
-    return { success: true };
+    try {
+      const imageTag = `okcms/${buildId}:latest`;
+      console.log(`[build.create] docker build -f ${dockerfilePath} -t ${imageTag} ${process.cwd()}`);
+
+      const result = spawnSync('docker', ['build', '-f', dockerfilePath, '-t', imageTag, process.cwd()], {
+        encoding: 'utf-8',
+        timeout: 10 * 60 * 1000,
+        maxBuffer: 16 * 1024 * 1024,
+      });
+
+      const stdoutTail = (result.stdout ?? '').split('\n').slice(-40).join('\n');
+      const stderr = result.stderr ?? '';
+
+      if (result.error || result.status !== 0) {
+        const message =
+          result.error?.message ??
+          (stderr.trim() || stdoutTail.trim() || `docker build exited with status ${result.status}`);
+        throw new Error(message);
+      }
+
+      await sql.unsafe(
+        "UPDATE builds SET status = 'COMPLETED', completed_at = NOW(), docker_image = $1, checksum = $2, build_log = $3 WHERE id = $4",
+        [imageTag, checksum, stdoutTail, buildId as string]
+      );
+
+      return { success: true, data: { image: imageTag, checksum } };
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Build failed';
+    console.error(`[build.create] Falha no build ${buildId}:`, message);
 
     await sql.unsafe(
       "UPDATE builds SET status = 'FAILED', completed_at = NOW(), error = $1 WHERE id = $2",
@@ -123,6 +293,15 @@ export const deploymentCreateHandler: JobHandler = async (job): Promise<JobResul
   trackDeploymentProgress(deploymentId as string, 'deploying');
 
   try {
+    // Pipeline build → deployment: com o build EXISTENTE e ainda não COMPLETED,
+    // o deploy falha → retry do BullMQ (backoff exponencial) até o build concluir.
+    // Build inexistente segue o fluxo legado (sem gate).
+    const buildRows = await sql.unsafe('SELECT status FROM builds WHERE id = $1', [buildId as string]);
+    const buildStatus = (buildRows[0] as { status?: string } | undefined)?.status;
+    if (buildRows.length > 0 && buildStatus !== 'COMPLETED') {
+      throw new Error(`Build ${buildId} ainda não está COMPLETED (status: ${buildStatus}) — retry agendado`);
+    }
+
     console.log(`Deploying build ${buildId} as deployment ${deploymentId}`);
 
     // RULE-health-check-protocol: readiness/liveness gate antes de ativar.

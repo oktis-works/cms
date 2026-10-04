@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { deploymentService } from '@oktis-works/core';
+import { deploymentService, buildService, enqueueJob } from '@oktis-works/core';
 import { authMiddleware, requirePermission } from '../../middleware/auth.js';
 
 const router = new Hono();
@@ -19,6 +19,7 @@ router.post('/', requirePermission('create', 'deployment'), async (c) => {
   try {
     const body = await c.req.json();
     const userId = c.get('userId' as never) as string;
+    const tenantId = String(c.get('tenantId' as never) ?? 'default');
 
     const result = await deploymentService.create({
       buildId: body.buildId,
@@ -28,6 +29,28 @@ router.post('/', requirePermission('create', 'deployment'), async (c) => {
       checksum: body.checksum,
       createdBy: userId,
     });
+
+    // A3: pipeline build → deployment roda no worker. Se o build ainda está
+    // PENDING, enfileira o build também; o handler de deployment aguarda o
+    // build COMPLETED via retries do BullMQ (backoff exponencial).
+    const build = await buildService.getById(String(body.buildId));
+    if (build && build.status === 'PENDING') {
+      void enqueueJob(
+        'build.create',
+        {
+          buildId: build.id,
+          plugins: (build.plugins as Record<string, string> | null) ?? {},
+          theme: (build.theme as Record<string, string> | null) ?? {},
+        },
+        { tenantId, userId, jobId: `build.create:${build.id}` }
+      );
+    }
+    void enqueueJob(
+      'deployment.create',
+      { deploymentId: result.id, buildId: String(body.buildId) },
+      { tenantId, userId, jobId: `deployment.create:${result.id}` }
+    );
+
     return c.json(result, 201);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to create deployment';

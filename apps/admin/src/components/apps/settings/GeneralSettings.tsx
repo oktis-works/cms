@@ -1,6 +1,8 @@
 // @oktis-works/admin - Settings → General (grupo "general")
+// Migrada para o design-system @oktis-works/ui (Input/Select/Card/Button).
 
-import { For, Show, createSignal, onMount } from 'solid-js';
+import { Show, createSignal, onMount } from '@oktis-works/ui';
+import { Card, Input, Select, Button } from '@oktis-works/ui';
 import { apiClient } from '../../../lib/api';
 
 const FIELDS = [
@@ -74,44 +76,37 @@ export function GeneralSettings() {
       </Show>
 
       <Show when={loaded()} fallback={<p class="muted">Carregando…</p>}>
-        <form class="card" onSubmit={submit}>
-          <h3>Geral</h3>
-          <div class="form-grid">
-            <For each={FIELDS}>
-              {(field) => (
-                <label>
-                  {field.label}
-                  <Show
-                    when={field.type === 'select'}
-                    fallback={
-                      <input
-                        class="input"
-                        placeholder={'placeholder' in field ? field.placeholder : ''}
-                        value={values()[field.key] ?? ''}
-                        onInput={(e) => setValues({ ...values(), [field.key]: e.currentTarget.value })}
-                      />
-                    }
-                  >
-                    <select
-                      class="input"
-                      value={values()[field.key] ?? ''}
-                      onChange={(e) => setValues({ ...values(), [field.key]: e.currentTarget.value })}
-                    >
-                      <For each={'options' in field ? field.options : []}>
-                        {(option) => <option value={option}>{option}</option>}
-                      </For>
-                    </select>
-                  </Show>
-                </label>
+        <Card>
+          <form onSubmit={submit}>
+            <h3>Geral</h3>
+            <div class="form-grid">
+              {FIELDS.map((field) =>
+                field.type === 'select' ? (
+                  <Select
+                    name={field.key}
+                    label={field.label}
+                    value={values()[field.key] ?? ''}
+                    options={'options' in field ? field.options.map((option) => ({ value: option, label: option })) : []}
+                    onChange={(value) => setValues({ ...values(), [field.key]: value })}
+                  />
+                ) : (
+                  <Input
+                    name={field.key}
+                    label={field.label}
+                    placeholder={'placeholder' in field ? field.placeholder : ''}
+                    value={values()[field.key] ?? ''}
+                    onInput={(value) => setValues({ ...values(), [field.key]: value })}
+                  />
+                )
               )}
-            </For>
-          </div>
-          <div class="media-details__actions">
-            <button class="btn btn-primary" type="submit" disabled={saving()}>
-              {saving() ? 'Salvando…' : 'Salvar'}
-            </button>
-          </div>
-        </form>
+            </div>
+            <div class="media-details__actions">
+              <Button variant="primary" type="submit" disabled={saving()} loading={saving()}>
+                Salvar
+              </Button>
+            </div>
+          </form>
+        </Card>
       </Show>
     </div>
   );

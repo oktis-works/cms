@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { Context } from 'hono';
-import { mediaService } from '@oktis-works/core';
+import { mediaService, enqueueJob } from '@oktis-works/core';
 import { resolveTenantId } from '@oktis-works/database';
 import { authMiddleware, requirePermission } from '../../middleware/auth.js';
 import {
@@ -113,6 +113,25 @@ async function handleUpload(c: Context): Promise<Response> {
       caption: typeof body['caption'] === 'string' ? body['caption'] : undefined,
       uploadedBy: userId,
     });
+
+    // A3: processamento de imagem no worker (thumbnail + compress). Fila
+    // opcional — sem Redis o upload continua válido (degradação silenciosa).
+    // Row cru vem snake_case do RETURNING *.
+    const row = result as unknown as Record<string, unknown>;
+    const mimeType = String(row['mime_type'] ?? row['mimeType'] ?? '');
+    if (mimeType.startsWith('image/') && !mimeType.includes('svg')) {
+      void enqueueJob(
+        'media.process',
+        {
+          mediaId: result.id,
+          operations: [
+            { type: 'thumbnail', options: { width: 300 } },
+            { type: 'compress', options: { quality: 80 } },
+          ],
+        },
+        { tenantId, userId }
+      );
+    }
 
     return c.json(result, 201);
   } catch (error) {

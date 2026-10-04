@@ -1,5 +1,6 @@
 ---
 import BaseLayout from './BaseLayout.astro';
+import { PluginExtensionsSlot } from '../ext/extensions';
 
 interface Props {
   title: string;
@@ -68,6 +69,9 @@ const settingsChildren = [
             </a>
           ))}
         </div>
+
+        <!-- D1: slots de extensão — páginas de menu declaradas por plugins ativos -->
+        <PluginExtensionsSlot client:load />
       </nav>
     </aside>
 

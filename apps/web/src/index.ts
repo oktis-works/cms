@@ -3,18 +3,32 @@
 // Renders sites via themes using Theme SDK
 
 import { Hono } from 'hono';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { serve } from '@hono/node-server';
 import { bootstrap } from '@oktis-works/core';
 import { establishTenantContext } from '@oktis-works/core';
 import { getConnection } from '@oktis-works/database';
-import { createRouter, wireThemeHooks } from './rendering.js';
+import {
+  createRouter,
+  wireThemeHooks,
+  renderContentPage,
+  fetchSiteSettings,
+  resolveThemeAssetPath,
+  contentTypeForAsset,
+} from './rendering.js';
 import { resolveTenantFromHost } from './tenant-resolver.js';
 import { setCurrentContent } from '@oktis-works/theme-sdk';
 
 type Variables = {
   tenant: Record<string, unknown>;
 };
+
+type ContentRow = Record<string, unknown>;
+
+function bodyOf(row: ContentRow): Record<string, unknown> {
+  return ((row['body'] as Record<string, unknown>) ?? {}) as Record<string, unknown>;
+}
 
 async function main() {
   const lifecycle = await bootstrap();
@@ -49,7 +63,25 @@ async function main() {
     });
   });
 
-  // Content rendering routes (FEAT-095: runtime routing catch-all)
+  // B2 — assets do tema: GET /themes/<tema>/<path> → serveStatic do diretório
+  // themes/ com traversal guard (resolveThemeAssetPath nega qualquer escape).
+  app.get('/themes/*', async (c) => {
+    const wildcard = c.req.path.replace(/^\/themes\//, '');
+    const [themeName, ...rest] = wildcard.split('/');
+    const assetPath = rest.join('/');
+
+    const target = resolveThemeAssetPath(themesRoot, themeName ?? '', assetPath);
+    if (!target || !existsSync(target) || !statSync(target).isFile()) {
+      return c.notFound();
+    }
+
+    return c.body(new Uint8Array(readFileSync(target)), 200, {
+      'Content-Type': contentTypeForAsset(target),
+      'Cache-Control': 'public, max-age=3600',
+    });
+  });
+
+  // Content rendering routes (FEAT-095: runtime routing catch-all) — render REAL
   app.get('*', async (c) => {
     const path = c.req.path;
 
@@ -60,35 +92,59 @@ async function main() {
         return c.notFound();
       }
 
+      // B1 — conteúdo real: row publicada do slug resolvido
+      let contentRow: ContentRow | null = null;
+      let data: Record<string, unknown> = {};
       if (resolution.slug && resolution.contentType) {
         const rows = await getConnection().unsafe(
           "SELECT * FROM content WHERE slug = $1 AND type = $2 AND status = 'PUBLISHED' LIMIT 1",
           [resolution.slug, resolution.contentType]
         );
-        const row = (rows as unknown as Array<Record<string, unknown>>)[0];
-        if (row) setCurrentContent(row);
+        contentRow = (rows as unknown as ContentRow[])[0] ?? null;
+        if (contentRow) {
+          setCurrentContent(contentRow);
+          data = bodyOf(contentRow);
+        }
       }
 
-      const escapeAttr = (value: string): string =>
-        value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      const template = escapeAttr(resolution.template ?? '');
-      const contentType = escapeAttr(resolution.contentType ?? '');
-      const themeAttr = escapeAttr(activeTheme);
+      // B1 — archives/home: itens publicados recentes do tipo resolvido
+      const items: Record<string, unknown>[] = [];
+      if (!resolution.slug) {
+        const typeFilter = resolution.contentType
+          ? 'WHERE type = $1 AND status = \'PUBLISHED\''
+          : "WHERE status = 'PUBLISHED'";
+        const params = resolution.contentType ? [resolution.contentType] : [];
+        const rows = await getConnection().unsafe(
+          `SELECT * FROM content ${typeFilter} ORDER BY published_at DESC NULLS LAST, updated_at DESC LIMIT 20`,
+          params
+        );
+        items.push(
+          ...(rows as unknown as ContentRow[]).map((row) => ({
+            ...bodyOf(row),
+            title: row['title'],
+            slug: row['slug'],
+            type: row['type'],
+            excerpt: row['excerpt'],
+            published_at: row['published_at'],
+            updated_at: row['updated_at'],
+          }))
+        );
+      }
 
-      return c.html(`<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OkCMS</title>
-  <link rel="stylesheet" href="/themes/${themeAttr}/dist/theme.css" data-theme-style="${themeAttr}" />
-</head>
-<body>
-  <main data-theme="${themeAttr}" data-template="${template}" data-type="${contentType}">
-    <!-- Rendered by theme template (isolado via [data-theme="${themeAttr}"]) -->
-  </main>
-</body>
-</html>`);
+      // B1 — título/meta das settings (fim do "OkCMS" hardcoded)
+      const settings = await fetchSiteSettings(getConnection());
+
+      const html = renderContentPage({
+        resolution,
+        contentRow,
+        data,
+        items,
+        settings,
+        activeTheme,
+        themesRoot,
+      });
+
+      return c.html(html);
     } catch (error) {
       console.error('[web] Falha ao resolver rota:', error);
       return c.json({ error: 'Internal server error' }, 500);

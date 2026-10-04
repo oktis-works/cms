@@ -87,7 +87,8 @@ export function FieldRenderer(props: FieldRendererProps) {
 
   const valueFor = (): unknown => props.values[props.field.name];
 
-  // Validação client-side (mesmas regras do core, executadas no browser)
+  // Validação client-side (mesmas regras do core, executadas no browser).
+  // validateFieldClient retorna a primeira mensagem de erro ou null (válido).
   const validationError = createMemo(() => {
     if (!dirty()) return null;
     return validateFieldClient(props.field as never, props.values[props.field.name]);
@@ -114,9 +115,9 @@ export function FieldRenderer(props: FieldRendererProps) {
 
         <FieldControl field={props.field} value={valueFor()} onChange={setValue} values={props.values} />
 
-        <Show when={validationError() && !validationError()?.valid}>
+        <Show when={validationError()}>
           <p class="field-renderer__error" role="alert">
-            {validationError()?.errors.join(', ')}
+            {validationError()}
           </p>
         </Show>
       </div>
