@@ -40,7 +40,7 @@ describe('sessão (cookies HttpOnly + CSRF)', () => {
       .mockResolvedValueOnce(respond(loginRes))
       .mockResolvedValueOnce(respond({ user: { id: 'u1' }, tenantId: 'tenant-uuid', roles: ['TENANT_ADMIN'] }));
 
-    const result = await apiClient.login({ email: 'a@b.c', password: 'x', tenantId: 'default' });
+    const result = await apiClient.login({ email: 'a@b.c', password: 'x' });
     expect(result.user.id).toBe('u1');
     expect(result.tenantId).toBe('tenant-uuid');
   });
