@@ -17,10 +17,7 @@ ENV NODE_ENV=production
 # this `install`.
 FROM base AS deps
 COPY package.json bun.lock* package-lock.json* yarn.lock* pnpm-lock.yaml* ./
-# Fallbacks: missing/divergent lock (npm/yarn) or old bun without --production
-RUN bun install --production --frozen-lockfile \
- || bun install --production \
- || bun install
+RUN bun install --production --frozen-lockfile
 
 # --- runtime ----------------------------------------------------------------
 FROM base AS runtime

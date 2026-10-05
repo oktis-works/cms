@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/ui",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -8,9 +8,9 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
       "source": "./src/index.ts",
       "node": "./dist/server.js",
+      "import": "./dist/index.js",
       "default": "./dist/index.js"
     }
   },

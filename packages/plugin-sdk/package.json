@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/plugin-sdk",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",

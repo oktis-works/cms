@@ -49,10 +49,7 @@ ENV NODE_ENV=production
 # this \`install\`.
 FROM base AS deps
 COPY package.json bun.lock* package-lock.json* yarn.lock* pnpm-lock.yaml* ./
-# Fallbacks: missing/divergent lock (npm/yarn) or old bun without --production
-RUN bun install --production --frozen-lockfile \\
- || bun install --production \\
- || bun install
+RUN bun install --production --frozen-lockfile
 
 # --- runtime ----------------------------------------------------------------
 FROM base AS runtime
@@ -150,6 +147,27 @@ deploy/
 .claude
 *.md
 !README.md
+
+# Source code & tests (not needed in runtime image)
+*.ts
+*.tsx
+*.test.*
+*.spec.*
+test/
+tests/
+spec/
+__tests__/
+__mocks__/
+
+# Docs & tooling
+scripts/
+docs/
+
+# Maps & build artifacts
+*.map
+tsconfig*.json
+.turbo/
+.cache/
 
 # infrastructure mounted at runtime, not copied inside
 docker-compose*.yml

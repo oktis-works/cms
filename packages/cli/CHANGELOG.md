@@ -1,5 +1,11 @@
 # @oktis-works/cms
 
+## 0.3.2
+
+### Patch Changes
+
+- Docker build hardening: deterministic production install (single `bun install --production --frozen-lockfile`, no fallbacks) and expanded `.dockerignore` for a leaner, more reproducible image build
+
 ## 0.3.1
 
 ### Patch Changes

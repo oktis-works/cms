@@ -1,5 +1,11 @@
 # @oktis-works/theme-sdk
 
+## 0.3.2
+
+### Patch Changes
+
+- Patch alignment 0.3.2 (docker build hardening + admin SSR fix shipped via `@oktis-works/cms` and `@oktis-works/ui`)
+
 ## 0.3.1
 
 ### Patch Changes

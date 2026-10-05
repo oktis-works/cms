@@ -1,5 +1,11 @@
 # @oktis-works/ui
 
+## 0.3.2
+
+### Patch Changes
+
+- Fix `exports` condition order so Node/Astro SSR resolves the SSR build (`dist/server.js`) instead of the client build — fixes "Client-only API called on the server side" (admin HTTP 500) during island SSR
+
 ## 0.3.1
 
 ### Patch Changes

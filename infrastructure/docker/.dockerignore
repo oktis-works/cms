@@ -37,6 +37,27 @@ deploy/
 *.md
 !README.md
 
+# Source code & tests (not needed in runtime image)
+*.ts
+*.tsx
+*.test.*
+*.spec.*
+test/
+tests/
+spec/
+__tests__/
+__mocks__/
+
+# Docs & tooling
+scripts/
+docs/
+
+# Maps & build artifacts
+*.map
+tsconfig*.json
+.turbo/
+.cache/
+
 # infrastructure mounted at runtime, not copied inside
 docker-compose*.yml
 deploy/nginx/certs
