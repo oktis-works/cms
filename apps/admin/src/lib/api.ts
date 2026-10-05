@@ -15,7 +15,6 @@ export interface PaginatedResponse<T> {
 export interface LoginInput {
   email: string;
   password: string;
-  tenantId: string;
 }
 
 export interface LoginResponse {

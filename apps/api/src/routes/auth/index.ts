@@ -6,11 +6,53 @@ import { setCookie, getCookie, deleteCookie } from 'hono/cookie';
 import { AuthService } from '@oktis-works/auth';
 import { loadConfig } from '@oktis-works/config';
 import { establishTenantContext } from '@oktis-works/core';
+import { getConnection } from '@oktis-works/database';
 import { setCsrfCookie } from '../../utils/csrf.js';
 
 const config = loadConfig();
 const authService = new AuthService(config.auth);
 const { cookie: cookieCfg } = config.auth;
+
+/** Resolve tenant from Host header — same logic as web app's resolveTenantFromHost. */
+async function resolveTenantFromHost(rawHost: string): Promise<{ id: string; slug: string } | null> {
+  const host = rawHost.replace(/:\d+$/, '');
+  const sql = getConnection();
+
+  const isLoopback = host === 'localhost' || host === '::1' || host === '[::1]' || /^127\./.test(host);
+
+  if (isLoopback) {
+    // Dev zero-config: tenant padrão criado no primeiro db:migrate
+    const defaults = await sql.unsafe('SELECT id, slug FROM tenants WHERE slug = $1 AND status = $2', [
+      'default',
+      'ACTIVE',
+    ]);
+    if (defaults.length > 0) return defaults[0] as unknown as { id: string; slug: string };
+
+    // Sem tenant default: aceita domain 'localhost' configurado manualmente
+    const byDomain = await sql.unsafe('SELECT id, slug FROM tenants WHERE domain = $1 AND status = $2', [
+      host,
+      'ACTIVE',
+    ]);
+    return byDomain.length > 0 ? (byDomain[0] as unknown as { id: string; slug: string }) : null;
+  }
+
+  // Subdomain primeiro (apenas host com ponto: loja.exemplo.com)
+  const subdomain = host.split('.')[0];
+  if (host.includes('.') && subdomain && subdomain !== 'www' && subdomain !== 'api') {
+    const tenants = await sql.unsafe('SELECT id, slug FROM tenants WHERE subdomain = $1 AND status = $2', [
+      subdomain,
+      'ACTIVE',
+    ]);
+    if (tenants.length > 0) return tenants[0] as unknown as { id: string; slug: string };
+  }
+
+  // Domain exato (já sem porta)
+  const tenants = await sql.unsafe('SELECT id, slug FROM tenants WHERE domain = $1 AND status = $2', [
+    host,
+    'ACTIVE',
+  ]);
+  return tenants.length > 0 ? (tenants[0] as unknown as { id: string; slug: string }) : null;
+}
 
 const authRouter = new Hono();
 
@@ -90,18 +132,26 @@ authRouter.post('/register', async (c: Context) => {
 authRouter.post('/login', async (c: Context) => {
   try {
     const body = await c.req.json();
-    const { email, password, tenantId } = body;
+    const { email, password } = body;
 
-    if (!email || !password || !tenantId) {
+    if (!email || !password) {
       return c.json({ error: 'Missing required fields' }, 400);
     }
 
-    await establishTenantContext(tenantId);
+    // Resolve tenant from Host header automatically
+    const host = c.req.header('host') ?? '';
+    const tenant = await resolveTenantFromHost(host);
+    
+    if (!tenant) {
+      return c.json({ error: 'Tenant not found for this host' }, 404);
+    }
+
+    await establishTenantContext(tenant.id);
 
     const result = await authService.login({
       email,
       password,
-      tenantId,
+      tenantId: tenant.id,
       ipAddress: c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip'),
       userAgent: c.req.header('user-agent'),
     });
