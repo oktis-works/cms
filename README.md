@@ -52,13 +52,19 @@ npx okcms doctor             # if anything fails
 ask and defaults to English — force it with `--lang en` or `--lang pt`. Only
 the Markdown files are localized; commands, flags and code stay the same.
 
+Right after, it asks whether to install the project dependencies now (same
+arrow-key menu). Answering **No** — or passing `--no-install` — skips the
+install. When `bun` is available the install runs behind a live loader that
+shows each package's real version as it lands; without bun it falls back to
+`npm`.
+
 ### Command reference
 
 **Project and execution**
 
 | Command | Options | What it does |
 |---|---|---|
-| `okcms init <dir> [nome]` | `-d, --dir` · `-l, --lang en\|pt` | Creates the project: configs, `.env`, compose, Docker deploy files, docs (English or Portuguese) and `bun install` |
+| `okcms init <dir> [nome]` | `-d, --dir` · `-l, --lang en\|pt` · `-n, --no-install` | Creates the project: configs, `.env`, compose, Docker deploy files, docs (English or Portuguese) and the dependency install (bun, or npm) |
 | `okcms start` | `-A, --all` (default) · `-a, --api` · `-m, --admin` · `-w, --web` · `-W, --worker` | Starts the apps as host processes (pidfiles in `.data/`) |
 | `okcms stop` | — | Stops what `start` started (pidfile + detection) |
 | `okcms status` | — | Process state + project summary |

@@ -1,6 +1,5 @@
 // @oktis-works/cms - Project Scaffolding
 
-import { spawnSync } from 'node:child_process';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -9,6 +8,7 @@ import { DEPLOY_GITIGNORE } from './assets.js';
 import { writeDeployAssets } from './bluegreen.js';
 import { DEFAULT_DOCS_LANG, docsLangLabel, pluginDoc, projectReadme, themeDoc } from './scaffold-docs.js';
 import type { DocsLang } from './scaffold-docs.js';
+import { style, symbol } from './prompt.js';
 
 /** Normaliza o nome do projeto para um npm name válido (slug). */
 export function toPackageName(name: string): string {
@@ -230,72 +230,56 @@ volumes:
       docsWritten += 1;
     }
   }
-  if (docsWritten > 0) {
-    console.log(`Docs (${docsLangLabel(lang)}): ${docsWritten} file(s)`);
-  }
-
   const relTarget = targetDir === '.' ? null : targetDir;
   const cfgName = DEFAULT_CONFIG_FILENAME;
+
+  // What was created, before the (possibly slow) dependency install: the user
+  // sees concrete progress while the loader is still spinning below.
+  console.log('');
+  console.log(`  ${style.green(symbol.ok)} Project "${name}" created at ${root}`);
+  if (deployCreated.length > 0) {
+    console.log(
+      `  ${style.green(symbol.ok)} Docker deploy files ready (${deployCreated.length})`
+    );
+  }
+  if (docsWritten > 0) {
+    console.log(`  ${style.green(symbol.ok)} Docs written (${docsLangLabel(lang)})`);
+  }
 
   // Dependency install comes before the summary: printing "Next steps" and
   // then blocking for a minute on `bun install` makes the user type into a
   // shell that is not ready yet.
   if (beforeSummary) await beforeSummary();
 
+  // --- Next steps -----------------------------------------------------------
+  // Compact and single-column on purpose: two numbered steps to get moving
+  // (cd + README), then the day-to-day commands grouped as DEV and PROD. Every
+  // command sits on a fixed column so it never wraps on an 80-col terminal,
+  // and the hints carry the alternatives (bun run *, scripts).
+  const INDENT = '         '; // aligns with "  DEV    " / "  PROD   "
+  const command = (label: string, hint: string): string =>
+    `${INDENT}${label.padEnd(26)}${style.dim(hint)}`;
+
   console.log('');
-  console.log(`  ✓ Project "${name}" created at ${root}`);
-  if (deployCreated.length > 0) {
-    console.log(`  ✓ Docker deploy files: ${deployCreated.join(', ')}`);
-  }
-  console.log('');
-  console.log('Next steps:');
+  console.log(`  ${style.bold('Next steps')}`);
   let step = 1;
   if (relTarget !== null) {
-    console.log(`  ${step++}. cd ${relTarget}`);
+    console.log(`    ${step++}. cd ${relTarget}`);
   }
-  console.log(`  ${step++}. docker compose up -d`);
-  console.log(`  ${step++}. edit .env  (set DB_PASSWORD and JWT_SECRET)`);
-  console.log(`  ${step++}. npx okcms db:migrate   (or: bun run migrate)`);
-  console.log(
-    `  ${step++}. npx okcms start        (api, admin, web, worker — or: bun run start)`
-  );
+  console.log(`    ${step++}. Read README.md to get started`);
+
   console.log('');
-  console.log(`  config: ${cfgName} · help: npx okcms --help`);
-  console.log('  docs: README.md (local/Docker) · PLUGIN.md, THEME.md (extensions)');
+  console.log(`  ${style.bold('DEV')}    ${'edit .env'.padEnd(26)}${style.dim('(DB_PASSWORD · JWT_SECRET)')}`);
+  console.log(command('docker compose up -d', '(Postgres + Redis)'));
+  console.log(command('npx okcms db:migrate', '(or: bun run migrate)'));
+  console.log(command('npx okcms start', '(api · admin · web · worker)'));
+
+  console.log('');
+  console.log(`  ${style.bold('PROD')}   ${'npx okcms deploy'.padEnd(26)}${style.dim('(docker · blue/green, simple or pm2)')}`);
+
+  console.log('');
+  console.log(`  ${style.bold('config')}  ${cfgName}`);
+  console.log(`  ${style.bold('docs')}    README.md · PLUGIN.md · THEME.md`);
+  console.log(`  ${style.bold('help')}    npx okcms --help`);
   return root;
-}
-
-export interface InstallResult {
-  ok: boolean;
-  tool: string;
-  output: string;
-}
-
-/**
- * Instala as dependências do projeto scaffold (bun preferido, npm como
- * fallback quando o bun não está no PATH). Não derruba o init se falhar —
- * os arquivos do projeto já estão no lugar.
- */
-export function installProjectDeps(
-  root: string,
-  options: { spawn?: typeof spawnSync } = {}
-): InstallResult {
-  const spawn = options.spawn ?? spawnSync;
-
-  const bun = spawn('bun', ['install'], { cwd: root, encoding: 'utf-8' });
-  if (!bun.error) {
-    return {
-      ok: bun.status === 0,
-      tool: 'bun',
-      output: `${bun.stdout ?? ''}${bun.stderr ?? ''}`.trim(),
-    };
-  }
-
-  // bun ausente (ENOENT) → tenta npm
-  const npm = spawn('npm', ['install'], { cwd: root, encoding: 'utf-8' });
-  return {
-    ok: npm.status === 0,
-    tool: 'npm',
-    output: `${npm.stdout ?? ''}${npm.stderr ?? ''}`.trim(),
-  };
 }

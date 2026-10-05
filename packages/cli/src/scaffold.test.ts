@@ -4,9 +4,16 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtempSync, mkdirSync, rmSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { scaffoldProject, installProjectDeps, toPackageName, appRangeFor } from './scaffold.js';
+import { scaffoldProject, toPackageName, appRangeFor } from './scaffold.js';
+import {
+  detectPackageManager,
+  installProjectDepsLive,
+  parseAddedVersions,
+  parseInstallTotal,
+} from './install-loader.js';
 import { DEFAULT_CONFIG_FILENAME } from './project-config.js';
 import { DEPLOY_PATHS } from './assets.js';
+import { EventEmitter } from 'node:events';
 
 let workDir: string;
 let originalCwd: string;
@@ -171,13 +178,24 @@ describe('scaffoldProject', () => {
     }
 
     const out = logged.join('\n');
+    // dois passos numerados, direto ao ponto
+    expect(out).toContain('cd steps-test');
+    expect(out).toContain('Read README.md to get started');
+    // grupos DEV e PROD com os comandos do dia a dia
+    expect(out).toContain('DEV');
+    expect(out).toContain('PROD');
     expect(out).toContain('npx okcms db:migrate');
     expect(out).toContain('npx okcms start');
+    expect(out).toContain('npx okcms deploy');
     expect(out).toContain('npx okcms --help');
     expect(out).toContain('bun run migrate');
     // nunca manda rodar `okcms` cru num passo numerado (não está no PATH
     // sem instalação global — era exatamente o bug do "command not found")
     expect(out).not.toMatch(/^\s*\d+\.\s+okcms\s/m);
+    // compacto: nenhuma linha do resumo passa de 80 colunas
+    for (const line of logged) {
+      expect(line.length).toBeLessThanOrEqual(80);
+    }
   });
 
   it('não sobrescreve README.md já existente no re-init', async () => {
@@ -292,43 +310,160 @@ describe('scaffoldProject', () => {
     expect(toPackageName('***')).toBe('okcms-project');
   });
 
-  it('installProjectDeps roda bun install com cwd no projeto', () => {
+});
+
+describe('installProjectDepsLive (loader de dependências do init)', () => {
+  type FakeChild = EventEmitter & {
+    stdout: EventEmitter;
+    stderr: EventEmitter;
+    kill: (signal?: string) => boolean;
+  };
+
+  /** ChildProcess mínimo: emite os chunks e fecha com o status dado. */
+  function fakeChild(status: number, out: string[] = [], err: string[] = []): FakeChild {
+    const child = new EventEmitter() as FakeChild;
+    child.stdout = new EventEmitter();
+    child.stderr = new EventEmitter();
+    child.kill = () => true;
+    queueMicrotask(() => {
+      for (const chunk of out) child.stdout.emit('data', chunk);
+      for (const chunk of err) child.stderr.emit('data', chunk);
+      child.emit('close', status);
+    });
+    return child;
+  }
+
+  it('detectPackageManager prefere bun e cai para npm quando o probe falha', () => {
+    const bun = (() => ({ status: 0 })) as never;
+    expect(detectPackageManager(bun)).toBe('bun');
+
+    const enoent = (() => ({ error: new Error('ENOENT'), status: null })) as never;
+    expect(detectPackageManager(enoent)).toBe('npm');
+
+    const broken = (() => ({ status: 1 })) as never;
+    expect(detectPackageManager(broken)).toBe('npm');
+  });
+
+  it('installProjectDepsLive roda bun install com cwd no projeto e captura versões do stream', async () => {
     const calls: Array<{ cmd: string; args: string[]; cwd?: string }> = [];
+    const root = join(workDir, 'loader-bun');
+    mkdirSync(root, { recursive: true });
+    writeFileSync(
+      join(root, 'package.json'),
+      JSON.stringify({
+        dependencies: {
+          '@oktis-works/api': '>=0.1.0 <0.3.0',
+          '@oktis-works/web': '>=0.1.0 <0.3.0',
+        },
+      })
+    );
+
     const spawn = ((cmd: string, args: string[], opts?: { cwd?: string }) => {
       calls.push({ cmd, args, cwd: opts?.cwd });
-      return { status: 0, stdout: 'ok', stderr: '' } as never;
+      return fakeChild(0, [
+        '\n  + @oktis-works/api@0.3.2\n  + @oktis-works/web@0.3.2\n\n  2 packages installed\n',
+      ]);
     }) as never;
 
-    const root = join(workDir, 'proj');
-    const result = installProjectDeps(root, { spawn });
+    const result = await installProjectDepsLive(root, {
+      spawn,
+      probe: (() => ({ status: 0 })) as never,
+    });
 
     expect(result.ok).toBe(true);
     expect(result.tool).toBe('bun');
+    expect(result.total).toBe(2);
     expect(calls).toEqual([{ cmd: 'bun', args: ['install'], cwd: root }]);
+    expect(result.direct).toEqual([
+      { name: '@oktis-works/api', version: '0.3.2' },
+      { name: '@oktis-works/web', version: '0.3.2' },
+    ]);
   });
 
-  it('installProjectDeps faz fallback para npm quando o bun não existe', () => {
-    const calls: string[] = [];
+  it('installProjectDepsLive faz fallback para npm quando o bun não existe', async () => {
+    const calls: Array<{ cmd: string; args: string[] }> = [];
     const spawn = ((cmd: string, args: string[]) => {
-      calls.push([cmd, ...args].join(' '));
-      if (cmd === 'bun') {
-        return { error: new Error('ENOENT'), status: null, stdout: '', stderr: '' } as never;
-      }
-      return { status: 0, stdout: 'npm ok', stderr: '' } as never;
+      calls.push({ cmd, args });
+      return fakeChild(0, [], ['added 5 packages in 3s\n']);
     }) as never;
 
-    const result = installProjectDeps(workDir, { spawn });
+    const result = await installProjectDepsLive(workDir, {
+      spawn,
+      probe: (() => ({ error: new Error('ENOENT'), status: null })) as never,
+    });
 
     expect(result.ok).toBe(true);
     expect(result.tool).toBe('npm');
-    expect(calls).toEqual(['bun install', 'npm install']);
+    expect(result.total).toBe(5);
+    expect(calls).toEqual([
+      { cmd: 'npm', args: ['install', '--no-fund', '--no-audit', '--loglevel=error'] },
+    ]);
   });
 
-  it('installProjectDeps reporta falha sem lançar exceção', () => {
-    const spawn = (() => ({ status: 1, stdout: '', stderr: 'registry fora do ar' })) as never;
-    const result = installProjectDeps(workDir, { spawn });
-    expect(result.ok).toBe(false);
-    expect(result.output).toContain('registry fora do ar');
+  it('installProjectDepsLive reconcilia versões pelo node_modules quando o stream não lista (npm)', async () => {
+    const root = join(workDir, 'loader-reconcile');
+    mkdirSync(join(root, 'node_modules', '@oktis-works', 'admin'), { recursive: true });
+    writeFileSync(
+      join(root, 'package.json'),
+      JSON.stringify({ dependencies: { '@oktis-works/admin': '>=0.1.0 <0.3.0' } })
+    );
+    writeFileSync(
+      join(root, 'node_modules', '@oktis-works', 'admin', 'package.json'),
+      JSON.stringify({ name: '@oktis-works/admin', version: '0.3.2' })
+    );
+
+    const spawn = (() => fakeChild(0, [], ['added 1 package in 2s\n'])) as never;
+
+    const result = await installProjectDepsLive(root, {
+      spawn,
+      probe: (() => ({ error: new Error('ENOENT'), status: null })) as never,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.direct).toEqual([{ name: '@oktis-works/admin', version: '0.3.2' }]);
+  });
+
+  it('installProjectDepsLive reporta falha sem lançar exceção', async () => {
+    const logged: string[] = [];
+    const spy = vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
+      logged.push(args.join(' '));
+    });
+
+    try {
+      const spawn = (() => fakeChild(1, [], ['npm ERR! registry fora do ar\n'])) as never;
+      const result = await installProjectDepsLive(workDir, {
+        spawn,
+        probe: (() => ({ error: new Error('ENOENT'), status: null })) as never,
+      });
+
+      expect(result.ok).toBe(false);
+      expect(result.output).toContain('registry fora do ar');
+
+      const out = logged.join('\n');
+      expect(out).toContain('Install failed with npm');
+      expect(out).toContain('bun install');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('parseAddedVersions extrai pares nome@versão do output do bun', () => {
+    const added = parseAddedVersions(
+      'bun install v1.2.3\n\n  + @oktis-works/api@0.3.2\n  + lodash@4.17.21\n'
+    );
+    expect(added).toEqual([
+      { name: '@oktis-works/api', version: '0.3.2' },
+      { name: 'lodash', version: '4.17.21' },
+    ]);
+    // npm no loglevel=error não lista pacotes — nada para extrair
+    expect(parseAddedVersions('added 5 packages in 2s')).toEqual([]);
+  });
+
+  it('parseInstallTotal entende o resumo dos dois package managers', () => {
+    expect(parseInstallTotal('  5 packages installed\n')).toBe(5);
+    expect(parseInstallTotal('1 package installed\n')).toBe(1);
+    expect(parseInstallTotal('added 154 packages in 12s\n')).toBe(154);
+    expect(parseInstallTotal('sem resumo')).toBeNull();
   });
 });
 
@@ -390,6 +525,16 @@ describe('scaffold-docs bilíngue', () => {
     expect(lang?.alias).toBe('l');
     expect(lang?.required).toBe(false);
     expect(lang?.description).toContain('en or pt');
+  });
+
+  it('o comando init expõe --no-install (-n) para pular a instalação sem TTY', async () => {
+    const { getCommand } = await import('./commands.js');
+    const init = getCommand('init');
+    const noInstall = init?.options.find((option) => option.name === 'no-install');
+
+    expect(noInstall).toBeDefined();
+    expect(noInstall?.alias).toBe('n');
+    expect(noInstall?.required).toBe(false);
   });
 });
 

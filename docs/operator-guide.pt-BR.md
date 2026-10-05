@@ -57,6 +57,11 @@ pergunta não aparece e o default é **inglês** — force com `--lang en` ou
 `--lang pt`. Só os arquivos Markdown mudam de língua; comandos, flags e
 mensagens de log continuam iguais.
 
+A pergunta seguinte é se quer instalar as dependências do projeto na hora.
+Responda **Não** — ou passe `--no-install` — para pular. Com `bun` instalado,
+a instalação roda com um loader ao vivo que mostra a versão real de cada
+pacote; sem bun, ele usa o `npm`.
+
 ```
 meu-site/
 ├── okcms.config.json     # nome, ports, storage, dirs, tema ativo (sem credenciais)
@@ -228,7 +233,7 @@ deploy, mas backup fora do servidor é o único que aguenta perda da máquina.
 
 | Comando | O que faz |
 |---|---|
-| `okcms init <dir> [nome]` | Cria o projeto (configs, `.env`, compose, deploy, docs em inglês ou português — `--lang en\|pt`) + install |
+| `okcms init <dir> [nome]` | Cria o projeto (configs, `.env`, compose, deploy, docs em inglês ou português — `--lang en\|pt`) + install (`--no-install` pula) |
 | `okcms start` / `stop` / `status` | Sobe / para / mostra os processos do host |
 | `okcms doctor` | Diagnóstico completo (node, `.env`, banco, config, docker, compose, lane, proxy) |
 | `okcms config` | Wizard do `.env` (`--list`, `--set`, `--section`, `--show-secrets`) |

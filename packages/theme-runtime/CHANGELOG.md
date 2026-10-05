@@ -1,5 +1,11 @@
 # @oktis-works/theme-runtime
 
+## 0.3.3
+
+### Patch Changes
+
+- Patch alignment 0.3.3 (interactive install prompt + live dependency loader shipped via `@oktis-works/cms`)
+
 ## 0.3.2
 
 ### Patch Changes

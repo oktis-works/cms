@@ -1,5 +1,12 @@
 # @oktis-works/cms
 
+## 0.3.3
+
+### Minor Changes
+
+- `okcms init` asks whether to install the project dependencies right after the language prompt (same arrow-key menu; `--no-install` skips for CI/scripts) and installs with a live loader: bun detection with npm fallback, animated spinner and each package's real version as it lands (streamed from bun, reconciled from `node_modules` for npm)
+- Redesigned post-init summary: compact English output — numbered quick start (`cd` + `Read README.md to get started`) plus DEV and PROD command sections, never wider than 80 columns
+
 ## 0.3.2
 
 ### Patch Changes

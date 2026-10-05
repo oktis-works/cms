@@ -1,6 +1,7 @@
 import { basename, join, resolve } from 'node:path';
 import { initDb } from './db-init.js';
 import type { DocsLang } from './scaffold-docs.js';
+import { style } from './prompt.js';
 
 export interface Option {
   name: string;
@@ -73,9 +74,15 @@ export const commands: Command[] = [
         description: 'Docs language for README/PLUGIN/THEME: en or pt (asks when interactive, default en)',
         required: false,
       },
+      {
+        name: 'no-install',
+        alias: 'n',
+        description: 'Skip dependency install (and the install prompt)',
+        required: false,
+      },
     ],
     handler: async (args, options) => {
-      const { scaffoldProject, installProjectDeps } = await import('./scaffold.js');
+      const { scaffoldProject } = await import('./scaffold.js');
       const { DEFAULT_DOCS_LANG, parseDocsLang } = await import('./scaffold-docs.js');
       const { Prompt } = await import('./prompt.js');
 
@@ -107,6 +114,23 @@ export const commands: Command[] = [
         lang = DEFAULT_DOCS_LANG;
       }
 
+      // Install the dependencies now? Same arrow-key menu as the language
+      // selector. `--no-install` answers for scripts/CI; without a TTY the
+      // default is Yes — pipelines keep getting an automatic install.
+      let install = true;
+      if (options['no-install'] !== undefined) {
+        install = false;
+      } else if (prompt.interactive) {
+        install = await prompt.select<boolean>(
+          'Install project dependencies now?',
+          [
+            { value: true, label: 'Yes', hint: 'recommended' },
+            { value: false, label: 'No', hint: 'install later with bun/npm' },
+          ],
+          { defaultValue: true }
+        );
+      }
+
       // The positional arg wins over -d: `init my-site` must create my-site
       // (the parser's default '.' would swallow args[0]). Without either, an
       // interactive run asks where to put the project.
@@ -121,21 +145,17 @@ export const commands: Command[] = [
 
       // Zero config: dependencies are installed right in `init` (bun, or npm
       // when bun is missing) — and BEFORE the summary, so the next steps are
-      // the last thing on screen.
+      // the last thing on screen. The live loader (spinner + real package
+      // versions) lives in install-loader.ts; without a TTY it prints static.
       await scaffoldProject(target, name, lang, async () => {
-        console.log('Installing project dependencies...');
-        const install = installProjectDeps(root);
-        if (install.ok) {
-          console.log(`✓ dependencies installed with ${install.tool}`);
-        } else {
-          console.warn(
-            `⚠ automatic install failed with ${install.tool}. Run it manually in ${root}:`
+        if (!install) {
+          console.log(
+            style.gray('  → Dependencies not installed — run "bun install" (or "npm install")')
           );
-          console.warn('  bun install   (or: npm install)');
-          if (install.output) {
-            console.warn(install.output.split('\n').slice(-5).join('\n'));
-          }
+          return;
         }
+        const { installProjectDepsLive } = await import('./install-loader.js');
+        await installProjectDepsLive(root, { interactive: prompt.interactive });
       });
       prompt.close();
     },

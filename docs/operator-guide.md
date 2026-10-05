@@ -57,6 +57,11 @@ question does not appear and **English** is the default — force it with
 `--lang en` or `--lang pt`. Only the Markdown files change language; commands,
 flags and log messages stay as they are.
 
+The next question is whether to install the project dependencies right away.
+Answer **No** — or pass `--no-install` — to skip. With `bun` installed, the
+install runs behind a live loader that shows each package's real version;
+without bun, it uses `npm`.
+
 ```
 meu-site/
 ├── okcms.config.json     # name, ports, storage, dirs, active theme (no credentials)
@@ -228,7 +233,7 @@ deploy, but an off-server backup is the only one that survives losing the machin
 
 | Command | What it does |
 |---|---|
-| `okcms init <dir> [nome]` | Creates the project (configs, `.env`, compose, deploy, docs in English or Portuguese — `--lang en\|pt`) + install |
+| `okcms init <dir> [nome]` | Creates the project (configs, `.env`, compose, deploy, docs in English or Portuguese — `--lang en\|pt`) + install (`--no-install` skips) |
 | `okcms start` / `stop` / `status` | Starts / stops / shows the host processes |
 | `okcms doctor` | Full diagnostics (node, `.env`, database, config, docker, compose, lane, proxy) |
 | `okcms config` | `.env` wizard (`--list`, `--set`, `--section`, `--show-secrets`) |

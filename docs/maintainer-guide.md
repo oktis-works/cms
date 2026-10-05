@@ -151,7 +151,9 @@ link to the other version).
 Only Markdown is localized. Inside the product, the language is chosen at
 `okcms init` for the docs it writes (`README.md`, `PLUGIN.md`, `THEME.md`):
 a menu appears on a TTY, `--lang en|pt` forces it, and without a TTY the
-default is English. Commands, flags, logs and code never change language.
+default is English. A second menu of the same kind asks whether to install
+the dependencies (`--no-install` skips it). Commands, flags, logs and code
+never change language.
 
 After touching `scaffold-docs.ts`, regenerate the repository guides — the
 script writes both languages, with the banner:

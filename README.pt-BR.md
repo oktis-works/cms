@@ -52,13 +52,19 @@ O `init` pergunta em que língua escrever as docs (`README.md`, `PLUGIN.md`,
 pergunta e o default é inglês — force com `--lang en` ou `--lang pt`. Só os
 arquivos Markdown são traduzidos; comandos, flags e código continuam iguais.
 
+Logo depois, ele pergunta se quer instalar as dependências do projeto agora
+(mesmo menu de setas). Respondendo **Não** — ou passando `--no-install` — a
+instalação é pulada. Com `bun` disponível ela roda com um loader ao vivo que
+mostra a versão real de cada pacote conforme instala; sem bun, ele cai para o
+`npm`.
+
 ### Referência de comandos
 
 **Projeto e execução**
 
 | Comando | Opções | O que faz |
 |---|---|---|
-| `okcms init <dir> [nome]` | `-d, --dir` · `-l, --lang en\|pt` | Cria o projeto: configs, `.env`, compose, arquivos de deploy Docker, docs (em inglês ou português) e `bun install` |
+| `okcms init <dir> [nome]` | `-d, --dir` · `-l, --lang en\|pt` · `-n, --no-install` | Cria o projeto: configs, `.env`, compose, arquivos de deploy Docker, docs (em inglês ou português) e a instalação das dependências (bun, ou npm) |
 | `okcms start` | `-A, --all` (default) · `-a, --api` · `-m, --admin` · `-w, --web` · `-W, --worker` | Sobe os apps como processos do host (pidfiles em `.data/`) |
 | `okcms stop` | — | Para o que `start` subiu (pidfile + detecção) |
 | `okcms status` | — | Estado dos processos + resumo do projeto |
