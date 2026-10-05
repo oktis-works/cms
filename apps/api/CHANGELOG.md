@@ -1,5 +1,11 @@
 # @oktis-works/api
 
+## 0.3.1
+
+### Patch Changes
+
+- Fix @oktis-works/admin missing bin/admin.js entry point for standalone Astro server
+
 ## 0.2.0
 
 ### Patch Changes

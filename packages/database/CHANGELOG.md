@@ -1,5 +1,11 @@
 # @oktis-works/database
 
+## 0.3.1
+
+### Patch Changes
+
+- Fix @oktis-works/admin missing bin/admin.js entry point for standalone Astro server
+
 ## 0.3.0
 
 ### Minor Changes
