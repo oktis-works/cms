@@ -17,7 +17,7 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo"
   },
   "dependencies": {
-    "@oktis-works/validation": "workspace:*"
+    "@oktis-works/validation": "^0.3.5"
   },
   "devDependencies": {
     "typescript": "5.7.3"

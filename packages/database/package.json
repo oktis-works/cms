@@ -19,8 +19,8 @@
     "db:rollback": "node --loader ts-node/esm src/migrations/runner.ts rollback"
   },
   "dependencies": {
-    "@oktis-works/types": "workspace:*",
-    "@oktis-works/config": "workspace:*",
+    "@oktis-works/types": "^0.3.5",
+    "@oktis-works/config": "^0.3.5",
     "postgres": "3.4.0"
   },
   "devDependencies": {

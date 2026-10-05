@@ -17,10 +17,10 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo"
   },
   "dependencies": {
-    "@oktis-works/types": "workspace:*",
-    "@oktis-works/config": "workspace:*",
-    "@oktis-works/database": "workspace:*",
-    "@oktis-works/core": "workspace:*"
+    "@oktis-works/types": "^0.3.5",
+    "@oktis-works/config": "^0.3.5",
+    "@oktis-works/database": "^0.3.5",
+    "@oktis-works/core": "^0.3.5"
   },
   "devDependencies": {
     "typescript": "5.7.3",

@@ -16,9 +16,9 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo"
   },
   "dependencies": {
-    "@oktis-works/plugin-sdk": "workspace:*",
-    "@oktis-works/types": "workspace:*",
-    "@oktis-works/validation": "workspace:*",
+    "@oktis-works/plugin-sdk": "^0.3.5",
+    "@oktis-works/types": "^0.3.5",
+    "@oktis-works/validation": "^0.3.5",
     "semver": "7"
   },
   "devDependencies": {
