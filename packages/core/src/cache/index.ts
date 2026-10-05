@@ -112,7 +112,6 @@ export function createCache(config: CacheConfig, redisConfig?: RedisConfig): Cac
   // Tenta Redis, fallback memória em falha — CMS nunca fica sem cache
   try {
     // Lazy import para não quebrar se ioredis não instalado
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const Redis = require('ioredis');
     const redis = redisConfig.cluster
       ? new Redis.Cluster([{ host: redisConfig.host, port: redisConfig.port }], { scaleReads: 'slave' })

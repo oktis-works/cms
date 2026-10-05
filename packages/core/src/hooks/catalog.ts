@@ -27,7 +27,10 @@ export interface HookCatalog {
 export function getHookCatalog(): HookCatalog {
   const registry = getHookRegistry();
   const registered = registry.listRegistered();
-  const byHook = new Map(registered.map((entry) => [entry.hook, entry]));
+  /** Mapa de hook -> registro (tipado explicitamente para evitar 'unknown'). */
+  const byHook = new Map<string, { hook: string; type: 'action' | 'filter'; priorities: number[]; sources: string[]; total: number }>(
+    registered.map((entry) => [entry.hook, entry])
+  );
 
   const known = new Set<string>();
 

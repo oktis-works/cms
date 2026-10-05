@@ -467,10 +467,16 @@ CREATE TABLE IF NOT EXISTS content_types (
   schema JSONB NOT NULL,
   plural_label VARCHAR(255) NOT NULL,
   singular_label VARCHAR(255) NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+  default_fields JSONB NOT NULL DEFAULT '["title","slug","content","excerpt","featured_image","seo_title","seo_description","status","author"]'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_content_types_slug ON content_types(slug);
+
+-- Add new columns to existing content_types table (idempotent)
+ALTER TABLE content_types ADD COLUMN IF NOT EXISTS default_fields JSONB NOT NULL DEFAULT '["title","slug","content","excerpt","featured_image","seo_title","seo_description","status","author"]'::jsonb;
+ALTER TABLE content_types ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
 -- ============================================================
 -- Webhooks
@@ -527,8 +533,15 @@ CREATE TABLE IF NOT EXISTS taxonomies (
 CREATE INDEX IF NOT EXISTS idx_taxonomies_tenant ON taxonomies(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_taxonomies_slug ON taxonomies(slug);
 ALTER TABLE taxonomies ENABLE ROW LEVEL SECURITY;
-CREATE POLICY tenant_isolation_taxonomies ON taxonomies
-  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid OR tenant_id IS NULL);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE policyname = 'tenant_isolation_taxonomies' AND tablename = 'taxonomies'
+  ) THEN
+    CREATE POLICY tenant_isolation_taxonomies ON taxonomies USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid OR tenant_id IS NULL);
+  END IF;
+END $$;
 
 -- ============================================================
 -- Field Groups (SDD ENTI-026)
@@ -550,8 +563,15 @@ CREATE TABLE IF NOT EXISTS field_groups (
 CREATE INDEX IF NOT EXISTS idx_field_groups_tenant ON field_groups(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_field_groups_active ON field_groups(active);
 ALTER TABLE field_groups ENABLE ROW LEVEL SECURITY;
-CREATE POLICY tenant_isolation_field_groups ON field_groups
-  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid OR tenant_id IS NULL);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE policyname = 'tenant_isolation_field_groups' AND tablename = 'field_groups'
+  ) THEN
+    CREATE POLICY tenant_isolation_field_groups ON field_groups USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid OR tenant_id IS NULL);
+  END IF;
+END $$;
 
 -- ============================================================
 -- Field Definitions (SDD ENTI-027)
@@ -569,19 +589,68 @@ CREATE TABLE IF NOT EXISTS field_definitions (
   required BOOLEAN NOT NULL DEFAULT false,
   config JSONB NOT NULL DEFAULT '{}'::jsonb,
   sort_order INTEGER NOT NULL DEFAULT 0,
+  is_core_field BOOLEAN NOT NULL DEFAULT false,
+  is_locked BOOLEAN NOT NULL DEFAULT false,
+  core_field_key VARCHAR(100),
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
+-- Add new columns to existing field_definitions table (idempotent)
+ALTER TABLE field_definitions ADD COLUMN IF NOT EXISTS is_core_field BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE field_definitions ADD COLUMN IF NOT EXISTS is_locked BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE field_definitions ADD COLUMN IF NOT EXISTS core_field_key VARCHAR(100);
+
 CREATE INDEX IF NOT EXISTS idx_field_definitions_group ON field_definitions(group_id);
 CREATE INDEX IF NOT EXISTS idx_field_definitions_parent ON field_definitions(parent_field_id) WHERE parent_field_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_field_definitions_core ON field_definitions(is_core_field) WHERE is_core_field = true;
+CREATE INDEX IF NOT EXISTS idx_field_definitions_locked ON field_definitions(is_locked) WHERE is_locked = true;
+CREATE INDEX IF NOT EXISTS idx_field_definitions_core_key ON field_definitions(core_field_key) WHERE core_field_key IS NOT NULL;
 ALTER TABLE field_definitions ENABLE ROW LEVEL SECURITY;
-CREATE POLICY tenant_isolation_field_definitions ON field_definitions
-  USING (EXISTS (
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE policyname = 'tenant_isolation_field_definitions' AND tablename = 'field_definitions'
+  ) THEN
+    CREATE POLICY tenant_isolation_field_definitions ON field_definitions USING (EXISTS (
     SELECT 1 FROM field_groups fg
     WHERE fg.id = field_definitions.group_id
       AND (fg.tenant_id = current_setting('app.current_tenant_id', true)::uuid OR fg.tenant_id IS NULL)
   ));
+  END IF;
+END $$;
+
+-- ============================================================
+-- Field Values (valores isolados por entidade)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS field_values (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  field_definition_id UUID NOT NULL REFERENCES field_definitions(id) ON DELETE CASCADE,
+  entity_type VARCHAR(50) NOT NULL CHECK (entity_type IN ('content', 'taxonomy_term')),
+  entity_id UUID NOT NULL,
+  value JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(field_definition_id, entity_type, entity_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_field_values_entity ON field_values(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_field_values_field ON field_values(field_definition_id);
+CREATE INDEX IF NOT EXISTS idx_field_values_updated ON field_values(updated_at DESC);
+
+CREATE OR REPLACE FUNCTION update_field_values_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_field_values_updated ON field_values;
+CREATE TRIGGER trg_field_values_updated
+  BEFORE UPDATE ON field_values
+  FOR EACH ROW EXECUTE FUNCTION update_field_values_timestamp();
 
 -- ============================================================
 -- Flexible Layouts (SDD ENTI-028)
@@ -650,44 +719,142 @@ ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE webhooks ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies using app.current_tenant_id session variable
-CREATE POLICY tenant_isolation_content ON content
-  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE policyname = 'tenant_isolation_content' AND tablename = 'content'
+  ) THEN
+    CREATE POLICY tenant_isolation_content ON content USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+  END IF;
+END $$;
 
-CREATE POLICY tenant_isolation_media ON media
-  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE policyname = 'tenant_isolation_media' AND tablename = 'media'
+  ) THEN
+    CREATE POLICY tenant_isolation_media ON media USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+  END IF;
+END $$;
 
-CREATE POLICY tenant_isolation_categories ON categories
-  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE policyname = 'tenant_isolation_categories' AND tablename = 'categories'
+  ) THEN
+    CREATE POLICY tenant_isolation_categories ON categories USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+  END IF;
+END $$;
 
-CREATE POLICY tenant_isolation_tags ON tags
-  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE policyname = 'tenant_isolation_tags' AND tablename = 'tags'
+  ) THEN
+    CREATE POLICY tenant_isolation_tags ON tags USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+  END IF;
+END $$;
 
-CREATE POLICY tenant_isolation_menus ON menus
-  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE policyname = 'tenant_isolation_menus' AND tablename = 'menus'
+  ) THEN
+    CREATE POLICY tenant_isolation_menus ON menus USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+  END IF;
+END $$;
 
-CREATE POLICY tenant_isolation_settings ON settings
-  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid OR tenant_id IS NULL);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE policyname = 'tenant_isolation_settings' AND tablename = 'settings'
+  ) THEN
+    CREATE POLICY tenant_isolation_settings ON settings USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid OR tenant_id IS NULL);
+  END IF;
+END $$;
 
-CREATE POLICY tenant_isolation_plugins ON plugins
-  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid OR tenant_id IS NULL);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE policyname = 'tenant_isolation_plugins' AND tablename = 'plugins'
+  ) THEN
+    CREATE POLICY tenant_isolation_plugins ON plugins USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid OR tenant_id IS NULL);
+  END IF;
+END $$;
 
-CREATE POLICY tenant_isolation_themes ON themes
-  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid OR tenant_id IS NULL);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE policyname = 'tenant_isolation_themes' AND tablename = 'themes'
+  ) THEN
+    CREATE POLICY tenant_isolation_themes ON themes USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid OR tenant_id IS NULL);
+  END IF;
+END $$;
 
-CREATE POLICY tenant_isolation_builds ON builds
-  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE policyname = 'tenant_isolation_builds' AND tablename = 'builds'
+  ) THEN
+    CREATE POLICY tenant_isolation_builds ON builds USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+  END IF;
+END $$;
 
-CREATE POLICY tenant_isolation_deployments ON deployments
-  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE policyname = 'tenant_isolation_deployments' AND tablename = 'deployments'
+  ) THEN
+    CREATE POLICY tenant_isolation_deployments ON deployments USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+  END IF;
+END $$;
 
-CREATE POLICY tenant_isolation_events ON events
-  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE policyname = 'tenant_isolation_events' AND tablename = 'events'
+  ) THEN
+    CREATE POLICY tenant_isolation_events ON events USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+  END IF;
+END $$;
 
-CREATE POLICY tenant_isolation_audit_logs ON audit_logs
-  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE policyname = 'tenant_isolation_audit_logs' AND tablename = 'audit_logs'
+  ) THEN
+    CREATE POLICY tenant_isolation_audit_logs ON audit_logs USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+  END IF;
+END $$;
 
-CREATE POLICY tenant_isolation_sessions ON sessions
-  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE policyname = 'tenant_isolation_sessions' AND tablename = 'sessions'
+  ) THEN
+    CREATE POLICY tenant_isolation_sessions ON sessions USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+  END IF;
+END $$;
 
-CREATE POLICY tenant_isolation_webhooks ON webhooks
-  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE policyname = 'tenant_isolation_webhooks' AND tablename = 'webhooks'
+  ) THEN
+    CREATE POLICY tenant_isolation_webhooks ON webhooks USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+  END IF;
+END $$;
