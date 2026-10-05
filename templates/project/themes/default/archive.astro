@@ -1,0 +1,18 @@
+<main data-theme="{{site.theme}}" data-template="archive" data-type="{{page.type}}">
+  <header class="archive-header">
+    <h1 class="archive-header__title">{{page.title}}</h1>
+    {{#if site.description}}
+    <p class="archive-header__description">{{site.description}}</p>
+    {{/if}}
+  </header>
+
+  <section class="listing">
+    {{#each items}}
+    <article class="card entry entry--item">
+      <h2 class="entry__title"><a href="/{{slug}}">{{title}}</a></h2>
+      {{#if excerpt}}<p class="entry__excerpt">{{excerpt}}</p>{{/if}}
+      {{#if published_at}}<time class="entry__date" datetime="{{published_at}}">{{published_at}}</time>{{/if}}
+    </article>
+    {{/each}}
+  </section>
+</main>

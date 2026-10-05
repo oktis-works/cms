@@ -1,0 +1,28 @@
+{
+  "name": "default",
+  "version": "0.1.0",
+  "description": "Tema padrão do OkCMS — templates hierárquicos com interpolação real de conteúdo",
+  "author": "Oktis Works",
+  "provides": {
+    "layouts": ["home", "index", "single", "page", "archive", "404"],
+    "assets": ["dist/theme.css"]
+  },
+  "stylesConfig": {
+    "engine": "css",
+    "isolation": true
+  },
+  "settings": [
+    {
+      "name": "siteTitle",
+      "type": "text",
+      "label": "Título do site",
+      "default": "OkCMS"
+    },
+    {
+      "name": "siteDescription",
+      "type": "text",
+      "label": "Descrição do site",
+      "default": ""
+    }
+  ]
+}

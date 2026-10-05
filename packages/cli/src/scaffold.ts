@@ -155,7 +155,7 @@ WEB_PORT=${config.ports.web}
 JWT_SECRET=change-me
 
 # Active theme
-ACTIVE_THEME=
+ACTIVE_THEME=default
 `;
 
   await writeFile(join(root, '.env.example'), envExample, 'utf-8');
