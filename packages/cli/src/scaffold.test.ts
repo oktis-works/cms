@@ -377,8 +377,8 @@ describe('scaffold-docs bilíngue', () => {
     expect(pluginDoc()).toBe(pluginDoc('en'));
     expect(themeDoc()).toBe(themeDoc('en'));
 
-    expect(docsLangLabel('en')).toBe('inglês');
-    expect(docsLangLabel('pt')).toBe('português');
+    expect(docsLangLabel('en')).toBe('English');
+    expect(docsLangLabel('pt')).toBe('Portuguese');
   });
 
   it('o comando init expõe --lang (-l) para decidir sem TTY', async () => {

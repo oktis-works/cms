@@ -1,5 +1,22 @@
 # @oktis-works/cms
 
+## 0.3.0
+
+### Minor Changes
+
+- Interactive everywhere: every `okcms` menu is navigated with ↑/↓ and confirmed with
+  Enter (native arrow-key prompts, zero dependencies), all terminal output is English
+  and the wording is shorter and plainer.
+- New deploy target — **simple containers behind the nginx proxy** (`docker-compose.app.yml`,
+  project `okcms-app`, no lanes/green/swap) — side by side with blue/green lanes and PM2 in
+  `okcms deploy`, `okcms update --mode deploy` and `okcms redeploy`.
+- The target is asked on every deploy/update/redeploy and remembered in
+  `.deploy/state.json` (plus `--target blue-green|simple|pm2` to skip the menu).
+- `okcms deploy` (first deploy) no longer exposes `--no-cache` / `--remove-orphans` —
+  those belong to `redeploy` and `update --mode deploy`.
+- `okcms init` asks for the project directory when none is given and prints a shorter,
+  aligned summary.
+
 ## 0.2.1
 
 ### Minor Changes

@@ -1,5 +1,13 @@
 # @oktis-works/theme-sdk
 
+## 0.3.0
+
+### Minor Changes
+
+- Release 0.3.0, aligned with tag v0.3.0: interactive arrow-key menus and English
+  output across the `okcms` CLI, plus a third deploy target (simple containers in
+  front of the proxy) next to blue/green and PM2.
+
 ## 0.2.1
 
 ### Minor Changes

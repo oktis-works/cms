@@ -45,16 +45,16 @@ export interface EnvSection {
 }
 
 export const ENV_SECTIONS: EnvSection[] = [
-  { id: 'app', title: 'Aplicação', hint: 'NODE_ENV, portas e rate limit' },
-  { id: 'database', title: 'Banco de dados', hint: 'Postgres via DB_* ou DATABASE_URL' },
-  { id: 'redis', title: 'Redis', hint: 'cache e filas do worker' },
-  { id: 'auth', title: 'Autenticação', hint: 'JWT, cookies e CSRF' },
-  { id: 'storage', title: 'Storage', hint: 'local, s3, r2 ou minio' },
-  { id: 'worker', title: 'Worker', hint: 'concorrência e retries das filas' },
-  { id: 'cache', title: 'Cache', hint: 'TTL e prefixo das chaves' },
-  { id: 'ports', title: 'Ports dos apps', hint: 'admin e web' },
-  { id: 'theme', title: 'Tema', hint: 'tema ativo do site' },
-  { id: 'deploy', title: 'Deploy (Docker)', hint: 'imagem blue/green e host do proxy' },
+  { id: 'app', title: 'Application', hint: 'NODE_ENV, ports and rate limit' },
+  { id: 'database', title: 'Database', hint: 'Postgres via DB_* or DATABASE_URL' },
+  { id: 'redis', title: 'Redis', hint: 'cache and worker queues' },
+  { id: 'auth', title: 'Authentication', hint: 'JWT, cookies and CSRF' },
+  { id: 'storage', title: 'Storage', hint: 'local, s3, r2 or minio' },
+  { id: 'worker', title: 'Worker', hint: 'queue concurrency and retries' },
+  { id: 'cache', title: 'Cache', hint: 'TTL and key prefix' },
+  { id: 'ports', title: 'App ports', hint: 'admin and web' },
+  { id: 'theme', title: 'Theme', hint: 'active site theme' },
+  { id: 'deploy', title: 'Deploy (Docker)', hint: 'blue/green image and proxy host' },
 ];
 
 export const ENV_FIELDS: EnvField[] = [
@@ -72,7 +72,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'HOST',
     section: 'app',
     label: 'HOST',
-    description: 'Interface de bind da API',
+    description: 'API bind interface',
     type: 'string',
     default: '0.0.0.0',
     example: '0.0.0.0',
@@ -81,7 +81,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'PORT',
     section: 'app',
     label: 'PORT',
-    description: 'Porta da API',
+    description: 'API port',
     type: 'port',
     default: '3000',
   },
@@ -89,7 +89,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'CORS_ORIGINS',
     section: 'app',
     label: 'CORS_ORIGINS',
-    description: 'Origens liberadas (separadas por vírgula)',
+    description: 'Allowed origins (comma-separated)',
     type: 'string',
     default: 'http://localhost:4321',
     example: 'https://meusite.com,https://admin.meusite.com',
@@ -98,7 +98,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'RATE_LIMIT_WINDOW_MS',
     section: 'app',
     label: 'RATE_LIMIT_WINDOW_MS',
-    description: 'Janela do rate limit em milissegundos',
+    description: 'Rate limit window in milliseconds',
     type: 'number',
     default: '60000',
   },
@@ -106,7 +106,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'RATE_LIMIT_MAX',
     section: 'app',
     label: 'RATE_LIMIT_MAX',
-    description: 'Requisições máximas por janela',
+    description: 'Max requests per window',
     type: 'number',
     default: '100',
   },
@@ -116,7 +116,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'DB_HOST',
     section: 'database',
     label: 'DB_HOST',
-    description: 'Ignorado quando DATABASE_URL estiver definida',
+    description: 'Ignored when DATABASE_URL is set',
     type: 'string',
     default: 'localhost',
     when: (r) => !r['DATABASE_URL'],
@@ -125,7 +125,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'DB_PORT',
     section: 'database',
     label: 'DB_PORT',
-    description: 'Porta do Postgres',
+    description: 'Postgres port',
     type: 'port',
     default: '5432',
     when: (r) => !r['DATABASE_URL'],
@@ -134,7 +134,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'DB_NAME',
     section: 'database',
     label: 'DB_NAME',
-    description: 'Nome do banco',
+    description: 'Database name',
     type: 'string',
     default: 'okcms',
     when: (r) => !r['DATABASE_URL'],
@@ -143,7 +143,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'DB_USER',
     section: 'database',
     label: 'DB_USER',
-    description: 'Usuário do banco',
+    description: 'Database user',
     type: 'string',
     default: 'postgres',
     when: (r) => !r['DATABASE_URL'],
@@ -152,7 +152,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'DB_PASSWORD',
     section: 'database',
     label: 'DB_PASSWORD',
-    description: 'Senha do banco',
+    description: 'Database password',
     type: 'secret',
     required: true,
     when: (r) => !r['DATABASE_URL'],
@@ -161,7 +161,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'DB_SSL',
     section: 'database',
     label: 'DB_SSL',
-    description: 'TLS no Postgres (true em provedor gerenciado)',
+    description: 'TLS for Postgres (true on managed providers)',
     type: 'boolean',
     default: 'false',
     when: (r) => !r['DATABASE_URL'],
@@ -170,7 +170,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'DB_MAX_CONNECTIONS',
     section: 'database',
     label: 'DB_MAX_CONNECTIONS',
-    description: 'Pool máximo de conexões',
+    description: 'Max connection pool size',
     type: 'number',
     default: '20',
     when: (r) => !r['DATABASE_URL'],
@@ -179,10 +179,9 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'DATABASE_URL',
     section: 'database',
     label: 'DATABASE_URL',
-    description:
-      'Formato único — tem precedência sobre DB_* (postgres://user:senha@host:5432/banco)',
+    description: 'Single URL — overrides DB_* (postgres://user:pass@host:5432/db)',
     type: 'database-url',
-    example: 'postgresql://postgres:senha@localhost:5432/okcms',
+    example: 'postgresql://postgres:pass@localhost:5432/okcms',
   },
 
   // -- Redis ----------------------------------------------------------------
@@ -190,7 +189,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'REDIS_HOST',
     section: 'redis',
     label: 'REDIS_HOST',
-    description: 'use "disabled" para rodar sem Redis (memória)',
+    description: 'use "disabled" to run without Redis (in-memory)',
     type: 'string',
     default: 'localhost',
   },
@@ -198,7 +197,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'REDIS_PORT',
     section: 'redis',
     label: 'REDIS_PORT',
-    description: 'Porta do Redis',
+    description: 'Redis port',
     type: 'port',
     default: '6379',
   },
@@ -206,14 +205,14 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'REDIS_PASSWORD',
     section: 'redis',
     label: 'REDIS_PASSWORD',
-    description: 'Senha do Redis (vazio se não houver)',
+    description: 'Redis password (empty if none)',
     type: 'secret',
   },
   {
     key: 'REDIS_DB',
     section: 'redis',
     label: 'REDIS_DB',
-    description: 'Índice da database do Redis',
+    description: 'Redis database index',
     type: 'number',
     default: '0',
   },
@@ -223,7 +222,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'JWT_SECRET',
     section: 'auth',
     label: 'JWT_SECRET',
-    description: 'Segredo de assinatura dos tokens — mínimo 16 caracteres',
+    description: 'Token signing secret — min 16 characters',
     type: 'secret',
     required: true,
   },
@@ -231,7 +230,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'JWT_EXPIRES_IN',
     section: 'auth',
     label: 'JWT_EXPIRES_IN',
-    description: 'Validade do access token',
+    description: 'Access token lifetime',
     type: 'duration',
     default: '15m',
     example: '15m, 2h, 7d',
@@ -240,7 +239,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'REFRESH_TOKEN_EXPIRES_IN',
     section: 'auth',
     label: 'REFRESH_TOKEN_EXPIRES_IN',
-    description: 'Validade do refresh token',
+    description: 'Refresh token lifetime',
     type: 'duration',
     default: '7d',
     example: '1d, 30d',
@@ -249,7 +248,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'BCRYPT_ROUNDS',
     section: 'auth',
     label: 'BCRYPT_ROUNDS',
-    description: 'Custo do hash de senha (10..15)',
+    description: 'Password hash cost (10..15)',
     type: 'number',
     default: '12',
   },
@@ -257,7 +256,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'AUTH_COOKIE_SAMESITE',
     section: 'auth',
     label: 'AUTH_COOKIE_SAMESITE',
-    description: 'strict | lax | none (none exige secure=true)',
+    description: 'strict | lax | none (none requires secure=true)',
     type: 'enum',
     options: ['strict', 'lax', 'none'],
     default: 'lax',
@@ -266,7 +265,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'AUTH_COOKIE_SECURE',
     section: 'auth',
     label: 'AUTH_COOKIE_SECURE',
-    description: 'true atrás de TLS',
+    description: 'true behind TLS',
     type: 'boolean',
     default: 'false',
   },
@@ -274,7 +273,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'AUTH_CSRF_ENABLED',
     section: 'auth',
     label: 'AUTH_CSRF_ENABLED',
-    description: 'Proteção CSRF double-submit',
+    description: 'CSRF double-submit protection',
     type: 'boolean',
     default: 'true',
   },
@@ -284,7 +283,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'STORAGE_DRIVER',
     section: 'storage',
     label: 'STORAGE_DRIVER',
-    description: 'Onde a mídia é gravada',
+    description: 'Where media is stored',
     type: 'enum',
     options: ['local', 's3', 'r2', 'minio'],
     default: 'local',
@@ -293,7 +292,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'STORAGE_LOCAL_PATH',
     section: 'storage',
     label: 'STORAGE_LOCAL_PATH',
-    description: 'Pasta local da mídia (driver=local) — monte como volume no Docker',
+    description: 'Local media folder (driver=local) — mount as a Docker volume',
     type: 'path',
     default: '.data/storage',
     when: (r) => (r['STORAGE_DRIVER'] ?? 'local') === 'local',
@@ -302,7 +301,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'STORAGE_PUBLIC_BASE',
     section: 'storage',
     label: 'STORAGE_PUBLIC_BASE',
-    description: 'Prefixo público das URLs de mídia',
+    description: 'Public prefix for media URLs',
     type: 'path',
     default: '/storage',
     when: (r) => (r['STORAGE_DRIVER'] ?? 'local') === 'local',
@@ -319,7 +318,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'STORAGE_ENDPOINT',
     section: 'storage',
     label: 'STORAGE_ENDPOINT',
-    description: 'Endpoint S3-compatível',
+    description: 'S3-compatible endpoint',
     type: 'url',
     example: 'http://localhost:9000',
     when: (r) => (r['STORAGE_DRIVER'] ?? 'local') !== 'local',
@@ -328,7 +327,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'STORAGE_ACCESS_KEY',
     section: 'storage',
     label: 'STORAGE_ACCESS_KEY',
-    description: 'Chave de acesso do objeto',
+    description: 'Object access key',
     type: 'secret',
     when: (r) => (r['STORAGE_DRIVER'] ?? 'local') !== 'local',
   },
@@ -336,7 +335,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'STORAGE_SECRET_KEY',
     section: 'storage',
     label: 'STORAGE_SECRET_KEY',
-    description: 'Chave secreta do objeto',
+    description: 'Object secret key',
     type: 'secret',
     when: (r) => (r['STORAGE_DRIVER'] ?? 'local') !== 'local',
   },
@@ -355,7 +354,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'WORKER_COUNT',
     section: 'worker',
     label: 'WORKER_COUNT',
-    description: 'Quantos processos de worker',
+    description: 'Number of worker processes',
     type: 'number',
     default: '1',
   },
@@ -363,7 +362,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'WORKER_CONCURRENCY',
     section: 'worker',
     label: 'WORKER_CONCURRENCY',
-    description: 'Jobs simultâneos por processo',
+    description: 'Concurrent jobs per process',
     type: 'number',
     default: '5',
   },
@@ -371,7 +370,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'WORKER_RETRY_ATTEMPTS',
     section: 'worker',
     label: 'WORKER_RETRY_ATTEMPTS',
-    description: 'Tentativas de retry por job',
+    description: 'Retry attempts per job',
     type: 'number',
     default: '3',
   },
@@ -379,7 +378,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'WORKER_RETRY_DELAY',
     section: 'worker',
     label: 'WORKER_RETRY_DELAY',
-    description: 'Delay entre tentativas (ms)',
+    description: 'Delay between attempts (ms)',
     type: 'number',
     default: '1000',
   },
@@ -389,7 +388,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'CACHE_TTL',
     section: 'cache',
     label: 'CACHE_TTL',
-    description: 'Validade padrão do cache (s)',
+    description: 'Default cache TTL (s)',
     type: 'number',
     default: '3600',
   },
@@ -397,7 +396,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'CACHE_PREFIX',
     section: 'cache',
     label: 'CACHE_PREFIX',
-    description: 'Prefixo das chaves no Redis',
+    description: 'Key prefix in Redis',
     type: 'string',
     default: 'bl:',
   },
@@ -410,7 +409,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'ADMIN_PORT',
     section: 'ports',
     label: 'ADMIN_PORT',
-    description: 'Porta do admin',
+    description: 'Admin port',
     type: 'port',
     default: '3011',
   },
@@ -418,7 +417,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'WEB_PORT',
     section: 'ports',
     label: 'WEB_PORT',
-    description: 'Porta do site público',
+    description: 'Public site port',
     type: 'port',
     default: '3001',
   },
@@ -428,7 +427,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'ACTIVE_THEME',
     section: 'theme',
     label: 'ACTIVE_THEME',
-    description: 'Nome da pasta em themes/ (vazio = tema default)',
+    description: 'Folder name in themes/ (empty = default theme)',
     type: 'string',
     example: 'default',
   },
@@ -438,7 +437,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'OKCMS_VERSION',
     section: 'deploy',
     label: 'OKCMS_VERSION',
-    description: 'Tag da imagem okcms/app usada no compose de deploy blue/green',
+    description: 'okcms/app image tag used by the blue/green deploy compose',
     type: 'string',
     default: 'latest',
     example: '0.2.0',
@@ -447,7 +446,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'SERVER_NAME',
     section: 'deploy',
     label: 'SERVER_NAME',
-    description: 'server_name do nginx (site público)',
+    description: 'nginx server_name (public site)',
     type: 'string',
     default: '_',
     example: 'meusite.com',
@@ -456,7 +455,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'ADMIN_SERVER_NAME',
     section: 'deploy',
     label: 'ADMIN_SERVER_NAME',
-    description: 'server_name do admin no proxy (deve ser um host separado)',
+    description: 'admin server_name on the proxy (must be a separate host)',
     type: 'string',
     default: 'admin.localhost',
     example: 'admin.meusite.com',
@@ -475,54 +474,54 @@ export function validateField(field: EnvField, value: string): string | null {
   const trimmed = value.trim();
 
   if (trimmed === '') {
-    if (field.required) return `${field.key} é obrigatório`;
+    if (field.required) return `${field.key} is required`;
     return null;
   }
 
   switch (field.type) {
     case 'port': {
-      if (!PORT_RE.test(trimmed)) return 'precisa ser um número de porta';
+      if (!PORT_RE.test(trimmed)) return 'must be a port number';
       const port = Number(trimmed);
-      if (port < 1 || port > 65535) return 'fora da faixa 1..65535';
+      if (port < 1 || port > 65535) return 'out of range 1..65535';
       return null;
     }
     case 'number': {
-      if (!/^-?\d+$/.test(trimmed)) return 'precisa ser um inteiro';
+      if (!/^-?\d+$/.test(trimmed)) return 'must be an integer';
       return null;
     }
     case 'boolean': {
       if (!['true', 'false', '1', '0'].includes(trimmed.toLowerCase())) {
-        return 'use true ou false';
+        return 'use true or false';
       }
       return null;
     }
     case 'enum': {
       const options = field.options ?? [];
-      if (!options.includes(trimmed)) return `use uma de: ${options.join(' | ')}`;
+      if (!options.includes(trimmed)) return `use one of: ${options.join(' | ')}`;
       return null;
     }
     case 'duration': {
-      if (!DURATION_RE.test(trimmed)) return 'use um formato como 15m, 2h ou 7d';
+      if (!DURATION_RE.test(trimmed)) return 'use a format like 15m, 2h or 7d';
       return null;
     }
     case 'url': {
       try {
         const parsed = new URL(trimmed);
-        if (!['http:', 'https:'].includes(parsed.protocol)) return 'use http:// ou https://';
+        if (!['http:', 'https:'].includes(parsed.protocol)) return 'use http:// or https://';
         return null;
       } catch {
-        return 'URL inválida';
+        return 'invalid URL';
       }
     }
     case 'database-url': {
       if (!parseDatabaseUrl(trimmed)) {
-        return 'use postgres:// ou mysql:// com host e banco (ex.: postgres://user:senha@host:5432/okcms)';
+        return 'use postgres:// or mysql:// with host and database (e.g. postgres://user:pass@host:5432/okcms)';
       }
       return null;
     }
     case 'secret': {
       if (field.key === 'JWT_SECRET' && trimmed.length < 16) {
-        return 'JWT_SECRET precisa de pelo menos 16 caracteres';
+        return 'JWT_SECRET must be at least 16 characters';
       }
       return null;
     }

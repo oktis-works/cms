@@ -3,7 +3,8 @@
 # Deploy em Docker (blue/green)
 
 O OkCMS roda em produção atrás de um proxy nginx, com **duas cópias
-idênticas da aplicação** (lanes `blue` e `green`). Deploy é sempre:
+idênticas da aplicação** (lanes `blue` e `green`) — o target blue/green.
+Nele, o deploy é sempre:
 construir a lane parada, healthcheck, trocar o proxy, drenar o worker e só
 então derrubar a lane velha. Nenhum request é perdido na troca, e qualquer
 falha deixa a lane que já estava servindo **no ar**.
@@ -11,6 +12,19 @@ falha deixa a lane que já estava servindo **no ar**.
 Tudo isso é orquestrado pela CLI — que roda **no host**, sempre.
 
 > Guia do operador (CLI completa): [operator-guide.md](./operator-guide.pt-BR.md)
+
+## Targets de deploy
+
+Três targets, escolhidos no menu de setas de `okcms deploy`,
+`okcms update --mode deploy` e `okcms redeploy` (↑/↓ + Enter, última escolha
+já pré-selecionada), pulados com `--target blue-green|simple|pm2` e guardados
+em `.deploy/state.json`: **blue/green** mantém as duas lanes atrás do proxy
+nginx com a troca sem downtime; **simple** roda um stack sem lanes a partir do
+`docker-compose.app.yml` (projeto `okcms-app`, containers
+`okcms-api`/`okcms-web`/`okcms-admin`/`okcms-worker`, mesmas portas) com o
+proxy apontando para ele e um restart breve em vez da troca; **pm2** roda os
+processos no host (`pm2 startOrReload ecosystem.config.js --update-env`) e não
+precisa de Docker nenhum. Tudo abaixo descreve o blue/green.
 
 ## O que o `okcms init` escreve
 
@@ -24,9 +38,10 @@ nada à mão:
 | `.dockerignore` | Build context: preserva `dist/`, `plugins/`, `themes/`; deixa `deploy/` e `.env` de fora |
 | `docker-compose.infra.yml` | Projeto `okcms`: rede `okcms-net`, postgres, redis, proxy |
 | `docker-compose.deploy.yml` | Projeto das lanes: 8 services (api, web, admin, worker) × blue, green |
+| `docker-compose.app.yml` | Stack simples: projeto `okcms-app`, uma cópia de cada service (sem lanes) |
 | `deploy/nginx/templates/default.conf.template` | Roteamento do proxy (envsubst no start) |
 | `deploy/nginx/conf.d/00-upstreams.conf` | Upstreams da lane ativa — reescrito pela CLI no swap |
-| `.deploy/state.json` | Lane ativa, lane anterior e histórico (gitignored) |
+| `.deploy/state.json` | Lane ativa, lane anterior, target de deploy e histórico (gitignored) |
 
 Os dois primeiros grupos são **gerados** a partir de
 `packages/cli/src/assets.ts`. Se você mudar `infrastructure/**` no monorepo,
@@ -59,13 +74,14 @@ O `.dockerignore` é deliberado:
 - ignora `.env`, `node_modules/`, `deploy/` (montado em runtime) e
   `docker-compose*.yml`.
 
-## Três composes, três projetos
+## Composes e projetos
 
 | Arquivo | Projeto Docker | Conteúdo |
 |---|---|---|
 | `docker-compose.yml` | (padrão) | Só a infra de **dev**: postgres + redis |
 | `docker-compose.infra.yml` | `okcms` | Rede `okcms-net`, postgres, redis, **proxy** |
-| `docker-compose.deploy.yml` | `okcms-blue` / `okcms-green` | As 8 services da aplicação |
+| `docker-compose.deploy.yml` | `okcms-blue` / `okcms-green` | As 8 services da aplicação (target blue/green) |
+| `docker-compose.app.yml` | `okcms-app` | As mesmas 4 services, sem lanes (target simple) |
 
 As lanes usam a rede `okcms-net` como **externa**: só assim o nginx da lane
 `blue` alcança o postgres do projeto `okcms`.
@@ -168,9 +184,11 @@ O que ele faz antes do deploy normal:
    `V###__owner__nome.sql` **nunca** é copiado.
 2. **build de estilo** — compila cada tema que tiver entrada de estilo e
    grava `themes/<n>/dist/theme.css`.
-3. **deploy blue/green** — a mesma sequência da tabela acima, mas com
+3. **deploy do target escolhido** — para o blue/green, a mesma sequência da
+   tabela acima, mas com
    `packages: []`: nada de `bun add`, porque o que mudou é conteúdo de
-   extensão, não versão de pacote.
+   extensão, não versão de pacote (simple e PM2 têm uma ordem própria, mais
+   curta).
 
 Falha nos passos 1 ou 2 aborta **antes** de tocar no Docker. Um `.sql` já
 existente em `migrations/` fora do padrão também é detectado antes — ele

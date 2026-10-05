@@ -33,11 +33,11 @@ afterEach(() => {
 });
 
 describe('parseEnv / round-trip', () => {
-  it('não toca em nada quando nenhuma chave é alterada', () => {
+  it('touches nothing when no key changes', () => {
     expect(parseEnv(SAMPLE).toString()).toBe(SAMPLE);
   });
 
-  it('reconhece só as chaves reais (comentários viram linha raw)', () => {
+  it('recognizes only real keys (comments become raw lines)', () => {
     const env = parseEnv(SAMPLE);
     expect(env.keys()).toEqual([
       'NODE_ENV',
@@ -50,20 +50,20 @@ describe('parseEnv / round-trip', () => {
     expect(env.has('COMENTARIO')).toBe(false);
   });
 
-  it('lê comentário final sem engolir a chave', () => {
+  it('reads a trailing comment without swallowing the key', () => {
     const env = parseEnv(SAMPLE);
     expect(env.get('PORT')).toBe('3000');
   });
 
-  it('entende `export KEY=`', () => {
+  it('understands `export KEY=`', () => {
     expect(parseEnv('export TOKEN=abc\n').get('TOKEN')).toBe('abc');
   });
 
-  it('remove aspas externas ao ler', () => {
+  it('strips outer quotes when reading', () => {
     expect(parseEnv(SAMPLE).get('JWT_SECRET')).toBe('change-me-in-production');
   });
 
-  it('não corta fragmento `#` de URL nem `#` dentro de aspas', () => {
+  it('keeps URL `#` fragments and `#` inside quotes', () => {
     const env = parseEnv('URL=http://x/#a\nA="v # w"\n');
     expect(env.get('URL')).toBe('http://x/#a');
     expect(env.get('A')).toBe('v # w');
@@ -71,7 +71,7 @@ describe('parseEnv / round-trip', () => {
 });
 
 describe('EnvFile.set', () => {
-  it('substitui no lugar preservando indentação e comentário final', () => {
+  it('replaces in place, keeping indentation and the trailing comment', () => {
     const env = parseEnv(SAMPLE);
     expect(env.set('PORT', '8080')).toBe(true);
 
@@ -83,19 +83,19 @@ describe('EnvFile.set', () => {
     expect(text.indexOf('PORT=8080')).toBeLessThan(text.indexOf('# Database'));
   });
 
-  it('retorna false quando o valor já é o mesmo (sem gravação inútil)', () => {
+  it('returns false when the value is already the same (no useless write)', () => {
     const env = parseEnv(SAMPLE);
     expect(env.set('PORT', '3000')).toBe(false);
   });
 
-  it('apende chave inédita no fim', () => {
+  it('appends a brand-new key at the end', () => {
     const env = parseEnv(SAMPLE);
     env.set('REDIS_HOST', 'redis');
     expect(env.toString().trimEnd().endsWith('REDIS_HOST=redis')).toBe(true);
     expect(env.get('REDIS_HOST')).toBe('redis');
   });
 
-  it('insere na seção certa quando existe cabeçalho de seção', () => {
+  it('inserts in the right section when a section header exists', () => {
     const env = parseEnv(SAMPLE);
     env.setInSection('CACHE_TTL', '3600', 'Application');
 
@@ -104,13 +104,13 @@ describe('EnvFile.set', () => {
     expect(text.indexOf('CACHE_TTL=3600')).toBeLessThan(text.indexOf('# Database'));
   });
 
-  it('preserva o prefixo `export ` ao substituir', () => {
+  it('keeps the `export ` prefix when replacing', () => {
     const env = parseEnv('export A=1\n');
     env.set('A', '2');
     expect(env.toString()).toBe('export A=2\n');
   });
 
-  it('remove a linha sem apagar comentários vizinhos', () => {
+  it('removes the line without erasing neighbor comments', () => {
     const env = parseEnv('# Auth\nJWT_SECRET=x\n# fim\n');
     expect(env.delete('JWT_SECRET')).toBe(true);
     expect(env.toString()).toBe('# Auth\n# fim\n');
@@ -119,19 +119,19 @@ describe('EnvFile.set', () => {
 });
 
 describe('serializeEnvValue', () => {
-  it('mantém cru o valor simples', () => {
+  it('keeps a simple value raw', () => {
     expect(serializeEnvValue('localhost')).toBe('localhost');
     expect(serializeEnvValue('3000')).toBe('3000');
     expect(serializeEnvValue('')).toBe('');
   });
 
-  it('aspas o valor ambíguo', () => {
+  it('quotes an ambiguous value', () => {
     expect(serializeEnvValue('a b')).toBe('"a b"');
     expect(serializeEnvValue('a#b')).toBe('"a#b"');
     expect(serializeEnvValue('a"b')).toBe('"a\\"b"');
   });
 
-  it('round-trip de valor com aspas', () => {
+  it('round-trips a quoted value', () => {
     const env = parseEnv('A="x y"\n');
     expect(env.get('A')).toBe('x y');
     env.set('A', 'p q');
@@ -140,13 +140,13 @@ describe('serializeEnvValue', () => {
 });
 
 describe('loadEnvFile / save', () => {
-  it('devolve arquivo vazio (sem lançar) quando o arquivo não existe', () => {
+  it('returns an empty file (no throw) when the file does not exist', () => {
     const env = loadEnvFile(join(dir, '.env'));
     expect(env.toString()).toBe('');
     expect(env.get('PORT')).toBeUndefined();
   });
 
-  it('persiste com permissão 600 (dono só) — .env tem senha e JWT', () => {
+  it('persists with permission 600 (owner only) — .env holds secrets and JWT', () => {
     const path = join(dir, '.env');
     writeFileSync(path, 'PORT=3000\n');
 
@@ -158,7 +158,7 @@ describe('loadEnvFile / save', () => {
     expect(statSync(path).mode & 0o777).toBe(0o600);
   });
 
-  it('round-trip completo preserva o arquivo byte a byte', () => {
+  it('full round-trip preserves the file byte for byte', () => {
     const path = join(dir, '.env');
     writeFileSync(path, SAMPLE);
     const env = loadEnvFile(path);
@@ -167,7 +167,7 @@ describe('loadEnvFile / save', () => {
     expect(existsSync(path)).toBe(true);
   });
 
-  it('EnvFile construído sem path exige caminho no save', () => {
-    expect(() => parseEnv('A=1').save()).toThrow(/sem caminho/);
+  it('EnvFile built without a path requires one on save', () => {
+    expect(() => parseEnv('A=1').save()).toThrow(/no path/);
   });
 });

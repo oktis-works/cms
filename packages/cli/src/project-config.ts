@@ -59,6 +59,6 @@ export function loadProjectConfig(cwd = process.cwd()): ProjectConfig {
       ports: { ...base.ports, ...(raw.ports ?? {}) },
     };
   } catch (error) {
-    throw new Error(`Config inválida em ${configPath}: ${error instanceof Error ? error.message : error}`);
+    throw new Error(`Invalid config at ${configPath}: ${error instanceof Error ? error.message : error}`);
   }
 }

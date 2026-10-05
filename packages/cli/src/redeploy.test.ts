@@ -308,9 +308,9 @@ describe('renderPlan', () => {
     const text = renderPlan(planRedeploy({ cwd: dir })).join('\n');
 
     expect(text).toContain('plugins: seo');
-    expect(text).toContain('+ seo: V001__plugin_seo__t.sql → migrations/ (novo)');
+    expect(text).toContain('+ seo: V001__plugin_seo__t.sql → migrations/ (new)');
     expect(text).toContain('✓ arde — css → dist/theme.css');
-    expect(text).toContain('stage no host → build da imagem → migrations');
+    expect(text).toContain('stage on host → build image → migrations');
   });
 
   it('reflete as flags de pular', () => {
@@ -324,8 +324,8 @@ describe('renderPlan', () => {
       skipThemeBuild: true,
     }).join('\n');
 
-    expect(text).toContain('puladas (--skip-migrations)');
-    expect(text).toContain('pulado (--skip-theme-build)');
+    expect(text).toContain('skipped (--skip-migrations)');
+    expect(text).toContain('skipped (--skip-theme-build)');
   });
 });
 
@@ -350,7 +350,7 @@ describe('buildThemeStylesOnDisk', () => {
 
   it('manifesto ausente lança em vez de sair com exit', async () => {
     await expect(buildThemeStylesOnDisk(join(dir, 'themes'), 'fantasma')).rejects.toThrow(
-      /manifesto do tema não encontrado/
+      /Theme manifest not found/
     );
   });
 
@@ -362,7 +362,7 @@ describe('buildThemeStylesOnDisk', () => {
     );
 
     await expect(buildThemeStylesOnDisk(join(dir, 'themes'), 'evil')).rejects.toThrow(
-      /stylesConfig.output inválido/
+      /Invalid stylesConfig.output/
     );
     expect(existsSync(join(dir, 'fora.css'))).toBe(false);
   });
@@ -390,7 +390,7 @@ describe('runRedeploy', () => {
     expect(result.code).toBe(0);
     expect(result.calls).toEqual([]);
     expect(result.printed).toContain('OkCMS redeploy');
-    expect(result.printed).toContain('dry-run: nada foi executado');
+    expect(result.printed).toContain('dry-run: nothing was executed');
     expect(existsSync(join(dir, 'migrations', 'V001__plugin_seo__t.sql'))).toBe(false);
   });
 
@@ -402,7 +402,7 @@ describe('runRedeploy', () => {
 
     expect(result.code).toBe(1);
     expect(result.calls).toEqual([]);
-    expect(result.printed).toContain('o db:migrate falharia');
+    expect(result.printed).toContain('db:migrate would fail');
   });
 
   it('--plugin/--theme com nome inexistente sai com 1', async () => {
@@ -436,7 +436,7 @@ describe('runRedeploy', () => {
     expect(result.calls.some((call) => call.startsWith('bun add'))).toBe(false);
     expect(result.calls.some((call) => call.startsWith('npm install'))).toBe(false);
     expect(result.logs.join('')).toContain('+ migrations: seo: V001__plugin_seo__t.sql');
-    expect(result.printed).toContain('redeploy concluído');
+    expect(result.printed).toContain('redeploy done on lane');
   });
 
   it('sem node_modules roda `bun install` antes (o db:migrate precisa das deps)', async () => {
@@ -462,12 +462,13 @@ describe('runRedeploy', () => {
     expect(existsSync(join(dir, 'migrations', 'V001__plugin_seo__t.sql'))).toBe(false);
     expect(existsSync(join(dir, 'themes', 'arde', 'dist', 'theme.css'))).toBe(false);
     expect(result.calls.some((call) => call.includes('deploy.yml build'))).toBe(true);
-    expect(result.printed).toContain('não copiadas (--skip-migrations)');
-    expect(result.printed).toContain('sem build de estilo (--skip-theme-build)');
+    expect(result.printed).toContain('not copied (--skip-migrations)');
+    expect(result.printed).toContain('without a style build (--skip-theme-build)');
   });
 
   it('confirmação recusada no TTY não executa nada', async () => {
-    const prompt = ttyPrompt(['', '', 'n']);
+    // 1) alvo  2) cache  3) órfãos  4) confirmação final = "n"
+    const prompt = ttyPrompt(['', '', '', 'n']);
     const runner = makeRunner();
 
     const code = await runRedeploy({
@@ -481,8 +482,8 @@ describe('runRedeploy', () => {
 
     expect(code).toBe(0);
     expect(runner.calls).toEqual([]);
-    expect(prompt.printed()).toContain('cancelado — nada foi executado');
-    expect(prompt.printed()).toContain('Iniciar redeploy?');
+    expect(prompt.printed()).toContain('cancelled — nothing was executed');
+    expect(prompt.printed()).toContain('Start the redeploy?');
   });
 
   it('falha no build do tema aborta antes de tocar no Docker', async () => {
@@ -500,6 +501,6 @@ describe('runRedeploy', () => {
 
     expect(result.code).toBe(1);
     expect(result.calls).toEqual([]);
-    expect(result.printed).toContain('nada foi buildado nem trocado');
+    expect(result.printed).toContain('nothing was built or switched');
   });
 });

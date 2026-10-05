@@ -16,7 +16,7 @@ async function fetchJson<T>(url: string, timeoutMs = 10_000): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new Error(`npm registry respondeu ${response.status} para ${url}`);
+    throw new Error(`npm registry responded with ${response.status} for ${url}`);
   }
 
   return (await response.json()) as T;

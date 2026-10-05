@@ -9,7 +9,7 @@ Hybrid, modular, API-first, extensible CMS with Astro+SolidJS frontend, Node.js/
 | Audience | Guide |
 |---|---|
 | **Operator** (hosts an installation) | [Operator Guide](./docs/operator-guide.md) — prerequisites, full CLI, config, update, backup |
-| **Operator** (Docker deployment) | [Docker Deploy](./docs/docker-deploy.md) — single image, blue/green lanes, rollback, security |
+| **Operator** (Docker deployment) | [Docker Deploy](./docs/docker-deploy.md) — deploy targets, single image, blue/green lanes, rollback, security |
 | Maintainer (contributes code) | [Maintainer Guide](./docs/maintainer-guide.md) — local dev, quality, npm/Docker publishing |
 | Extension developer | [Plugin Development](./docs/plugin-development.md) · [Theme Development](./docs/theme-development.md) |
 
@@ -79,17 +79,19 @@ npx okcms config --section deploy -n      # programmatic, no TTY
 
 | Command | Options | What it does |
 |---|---|---|
-| `okcms update` | — | Wizard: choose between **download packages only** or **blue/green Docker deployment** |
+| `okcms deploy` | `-t, --target blue-green\|simple\|pm2` | **First deploy**: arrow-key menu (↑/↓ + Enter) picks the target; `--target` skips the menu |
+| `okcms update` | — | Menu: choose between **download packages only** or **deployment** — the target is asked again on every run |
 | `okcms update -i` | `-i, --install` | Classic download mode: scans `node_modules/@oktis-works/*` and installs whatever is behind |
-| `okcms update --mode deploy` | `-m, --mode download\|deploy` | Full blue/green deployment (see below) |
-| `okcms redeploy` | `-p, --plugin <n>` · `-t, --theme <n>` · `-M, --skip-migrations` · `-B, --skip-theme-build` · `-n, --dry-run` | Applies a newly installed plugin/theme: plugin SQL → `migrations/`, theme `dist/theme.css` and blue/green deployment (see below) |
-| (deploy flags) | `-c, --no-cache` · `-r, --remove-orphans` · `-k, --keep-orphans` · `-y, --yes` · `-F, --force` | Deployment choices, for use without TTY |
+| `okcms update --mode deploy` | `-m, --mode download\|deploy` · `-t, --target blue-green\|simple\|pm2` | Full deployment for the chosen target (see below) |
+| `okcms redeploy` | `-p, --plugin <n>` · `-t, --theme <n>` · `-M, --skip-migrations` · `-B, --skip-theme-build` · `-n, --dry-run` · `-T, --target blue-green\|simple\|pm2` | Applies a newly installed plugin/theme: plugin SQL → `migrations/`, theme `dist/theme.css` and deployment (see below) |
+| (deploy flags) | `-c, --no-cache` · `-r, --remove-orphans` · `-k, --keep-orphans` · `-y, --yes` · `-F, --force` | `-c`/`-r`/`-k` belong to `redeploy` and `update --mode deploy` only — the first `deploy` does not expose them, and the orphan options only affect blue/green; `-y` and `-F` are for use without TTY |
 
 ```bash
-npx okcms update                     # with TTY: two-option menu
+npx okcms deploy --target simple      # first deploy: menu, or --target to skip it
+npx okcms update                     # with TTY: menu (download or deploy)
 npx okcms update -i                  # non-TTY: packages only (original behavior)
-npx okcms update --mode deploy       # blue/green deployment
-npx okcms update --mode deploy --yes # CI: no prompts, defaults
+npx okcms update --mode deploy       # deployment: target from menu, --target or saved
+npx okcms update --mode deploy --target pm2 --yes # CI: no prompts, defaults
 
 npx okcms plugin:install -n ./meu-plugin   # or theme:install
 npx okcms redeploy                  # stage + build + deploy (what to do after installing)
@@ -98,6 +100,8 @@ npx okcms redeploy --dry-run        # only shows the plan
 
 > **Non-TTY never deploys by accident.** Without `--mode`, the default in
 > scripts is `download` — a `-i` in cron keeps doing exactly what it always did.
+> Without `--target`, a script reuses the target saved in `.deploy/state.json`
+> (blue/green on a project that never deployed) instead of prompting.
 
 **Database**
 
@@ -146,9 +150,22 @@ npx okcms redeploy --dry-run        # only shows the plan
 
 ---
 
-## Docker deployment (blue/green)
+## Docker deployment
 
-`okcms init` already writes everything deployment needs:
+`okcms init` supports **three deploy targets**. Every run of `okcms deploy`,
+`okcms update --mode deploy` and `okcms redeploy` asks which one with an
+arrow-key menu (navigate with ↑/↓, confirm with Enter, last choice
+pre-selected), and `--target blue-green|simple|pm2` skips the menu — the
+choice is remembered in `.deploy/state.json`:
+
+- **blue/green** — blue/green lanes behind the nginx proxy, zero-downtime swap;
+- **simple** — one lane-less stack in `docker-compose.app.yml` (Docker project
+  `okcms-app`, containers `okcms-api`/`okcms-web`/`okcms-admin`/`okcms-worker`)
+  with nginx pointing at it, a brief restart instead of zero downtime;
+- **pm2** — processes on the host via `pm2 startOrReload ecosystem.config.js --update-env`.
+
+The sequence below is the blue/green target — `okcms init` already writes
+everything deployment needs:
 
 ```
 meu-site/
@@ -156,16 +173,18 @@ meu-site/
 ├── docker/entrypoint.sh           # routes api | admin | web | worker
 ├── docker-compose.infra.yml       # `okcms` project: network, postgres, redis, proxy
 ├── docker-compose.deploy.yml      # lanes project: 8 blue/green services
+├── docker-compose.app.yml         # simple stack: project `okcms-app` (no lanes)
 ├── deploy/nginx/templates/…       # proxy template (envsubst)
 ├── deploy/nginx/conf.d/00-upstreams.conf   # rewritten by the CLI on swap
-└── .deploy/state.json             # active lane + history (gitignored)
+└── .deploy/state.json             # active lane + target + history (gitignored)
 ```
 
 ```bash
-npx okcms update --mode deploy
+npx okcms deploy --target blue-green     # first deploy
+npx okcms update --mode deploy           # the same, from every update
 ```
 
-What happens, in this order:
+What happens, in this order (blue/green):
 
 1. preflight (docker + compose v2) and the `okcms-net` network;
 2. infrastructure up (postgres, redis, proxy) and healthcheck;
@@ -200,10 +219,11 @@ npx okcms redeploy
    `db:migrate`);
 2. compiles the style of each theme that has an entry, writing
    `themes/<n>/dist/theme.css`;
-3. runs the same blue/green as `okcms update --mode deploy`, except **without**
+3. runs the deploy of the chosen target — same as `okcms update --mode deploy`,
+   except **without**
    `bun add` — what changed is extension content, not a package version.
 
-Failure in preparation (1 or 2) aborts before touching Docker; a deployment
+Failure in preparation (1 or 2) aborts before touching the deploy; a deployment
 failure rolls back, as always. Useful options:
 
 | Flag | Effect |
@@ -269,7 +289,7 @@ bun scripts/sync-infrastructure.ts
 
 - Node.js 20+
 - Bun 1.3+
-- Docker & Docker Compose v2 (only for blue/green deployment)
+- Docker & Docker Compose v2 (for the `blue-green` and `simple` targets — `pm2` needs none)
 - PostgreSQL 16+
 
 ### Development

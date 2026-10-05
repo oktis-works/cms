@@ -133,15 +133,16 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('ensureDeployFiles', () => {
-  it('cria os 7 arquivos quando não existem', () => {
+  it('cria os 8 arquivos quando não existem', () => {
     const created = ensureDeployFiles(dir, undefined, makeRunner());
 
-    expect(created).toHaveLength(7);
+    expect(created).toHaveLength(8);
     expect(existsSync(join(dir, '.dockerignore'))).toBe(true);
     expect(existsSync(join(dir, 'docker/Dockerfile'))).toBe(true);
     expect(existsSync(join(dir, 'docker/entrypoint.sh'))).toBe(true);
     expect(existsSync(join(dir, 'docker-compose.infra.yml'))).toBe(true);
     expect(existsSync(join(dir, 'docker-compose.deploy.yml'))).toBe(true);
+    expect(existsSync(join(dir, 'docker-compose.app.yml'))).toBe(true);
     expect(existsSync(join(dir, 'deploy/nginx/templates/default.conf.template'))).toBe(true);
     expect(existsSync(join(dir, 'deploy/nginx/conf.d/00-upstreams.conf'))).toBe(true);
   });
@@ -197,7 +198,7 @@ describe('preflight', () => {
 
     const result = preflight(runner);
     expect(result.ok).toBe(false);
-    expect(result.message).toContain('Docker não está acessível');
+    expect(result.message).toContain('Docker is not available');
     expect(result.message).toContain('--mode download');
   });
 
@@ -378,7 +379,7 @@ describe('falhas não derrubam o que está no ar', () => {
 
     expect(result.ok).toBe(false);
     expect(result.lane).toBe('blue');
-    expect(result.message).toContain('não ficou saudável');
+    expect(result.message).toContain('never became healthy');
 
     const calls = runner.calls;
     // nunca houve swap
@@ -397,8 +398,8 @@ describe('falhas não derrubam o que está no ar', () => {
     const result = await deploy(runner);
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain('Migrations falharam');
-    expect(result.message).toContain('continua servindo');
+    expect(result.message).toContain('Migrations failed');
+    expect(result.message).toContain('keeps serving');
 
     const calls = runner.calls;
     expect(at(calls, 'deploy.yml build')).toBeGreaterThanOrEqual(0);
@@ -414,7 +415,7 @@ describe('falhas não derrubam o que está no ar', () => {
     const result = await deploy(runner);
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain('Proxy não recarregou');
+    expect(result.message).toContain('Proxy did not reload');
     expect(upstreamsText()).toContain('okcms-api-blue');
     expect(upstreamsText()).not.toContain('okcms-api-green');
     expect(droppedGreenLane(runner.calls)).toBe(true);
@@ -428,7 +429,7 @@ describe('falhas não derrubam o que está no ar', () => {
     const result = await deploy(runner);
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain('Infraestrutura não subiu');
+    expect(result.message).toContain('Infrastructure did not start');
     expect(at(runner.calls, 'deploy.yml build')).toBe(-1);
     expect(at(runner.calls, 'db:migrate')).toBe(-1);
   });

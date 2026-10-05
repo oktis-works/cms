@@ -1,31 +1,36 @@
 // @oktis-works/cms - `okcms redeploy` (F4)
 //
-// Instalar plugin/tema no host ainda não muda o que está no ar:
+// Installing a plugin/theme on the host still does not change what is running:
 //
-//   plugins e temas entram na imagem pelo `COPY . .` do Dockerfile (o
-//   `.dockerignore` os preserva de propósito) — sem rebuild, o container segue
-//   servindo a cópia antiga;
+//   plugins and themes enter the image through the Dockerfile `COPY . .` (the
+//   `.dockerignore` keeps them on purpose) — without a rebuild the container
+//   keeps serving the old copy;
 //
-//   `themes/<n>/dist/theme.css` só existe se o build de estilo rodou no host:
-//   o web linka esse arquivo pronto, ele não é compilado dentro do container;
+//   `themes/<n>/dist/theme.css` only exists if the style build ran on the
+//   host: the web app links that ready file, it is not compiled inside the
+//   container;
 //
-//   um plugin que mexe no banco traz SQL em `plugins/<n>/migrations/`, que
-//   precisa chegar em `migrations/` para o `db:migrate` aplicá-lo — o runner
-//   só lê UM diretório e classifica como PLUGIN todo owner que não é `core`
-//   (`V###__owner__nome.sql`, rastreado por `owner:version`).
+//   a plugin that touches the database ships SQL in `plugins/<n>/migrations/`,
+//   which must reach `migrations/` for `db:migrate` to apply it — the runner
+//   reads ONE directory and classifies as PLUGIN every owner that is not
+//   `core` (`V###__owner__name.sql`, tracked as `owner:version`).
 //
-// Redeploy = preparar no host (stage do SQL + build dos temas) e então
-// delegar a troca ao mesmo blue/green do `okcms update --mode deploy`, só que
-// sem `bun add`: o que mudou é conteúdo de extensão, não versão de pacote.
+// Redeploy = prepare on the host (SQL staging + theme build) and then hand the
+// switch to the chosen target — blue/green lanes, the simple stack or PM2 —
+// always without `bun add`: what changed is extension content, not a package
+// version.
 //
-// Ordem e garantias são as do deploy normal: falha no preparo = nada foi
-// buildado nem trocado; falha no deploy = rollback e a lane que estava
-// servindo continua servindo.
+// Order and guarantees are the normal deploy's: a preparation failure = no
+// build and no switch; a deploy failure = rollback, and the lane that was
+// serving keeps serving.
 
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 import { deployBlueGreen, type DeployChoices } from './bluegreen.js';
+import { deploySimple } from './simple.js';
+import { deployPm2 } from './pm2.js';
+import { resolveTarget, saveTarget, type DeployTarget } from './deploy-target.js';
 import type { Runner } from './docker.js';
 import { assertHostOnly, type ContainerProbe } from './guards.js';
 import { loadProjectConfig } from './project-config.js';
@@ -183,7 +188,7 @@ export function planRedeploy(opts: RedeployPlanOptions = {}): RedeployPlan {
         output: 'dist/theme.css',
         entry: null,
         status: 'invalid-manifest',
-        problems: ['manifesto não é um JSON válido'],
+        problems: ['manifest is not valid JSON'],
       });
       continue;
     }
@@ -195,7 +200,7 @@ export function planRedeploy(opts: RedeployPlanOptions = {}): RedeployPlan {
       typeof resolved.manifest['name'] !== 'string' ||
       typeof resolved.manifest['version'] !== 'string'
     ) {
-      problems.push('manifesto sem "name" e/ou "version"');
+      problems.push('manifest without "name" and/or "version"');
     }
     problems.push(...resolved.report.errors);
 
@@ -265,57 +270,70 @@ export function stagePluginMigrations(plan: RedeployPlan): StageResult {
 export interface RenderPlanOptions {
   skipMigrations?: boolean;
   skipThemeBuild?: boolean;
+  /** Deploy target — only the last line (the order) depends on it. */
+  target?: DeployTarget;
 }
 
-/** Linhas do resumo do redeploy — puras, para `--dry-run` e para os testes. */
+/** Redeploy summary lines — pure, for `--dry-run` and for the tests. */
 export function renderPlan(plan: RedeployPlan, opts: RenderPlanOptions = {}): string[] {
   const lines: string[] = [];
 
-  lines.push(`plugins: ${plan.plugins.length > 0 ? plan.plugins.join(', ') : 'nenhum'}`);
-  lines.push(`temas: ${plan.themes.length > 0 ? plan.themes.join(', ') : 'nenhum'}`);
+  lines.push(`plugins: ${plan.plugins.length > 0 ? plan.plugins.join(', ') : 'none'}`);
+  lines.push(`themes: ${plan.themes.length > 0 ? plan.themes.join(', ') : 'none'}`);
 
   if (opts.skipMigrations) {
-    lines.push('migrations de plugin: puladas (--skip-migrations)');
+    lines.push('plugin migrations: skipped (--skip-migrations)');
   } else if (plan.migrations.length === 0) {
-    lines.push('migrations de plugin: nenhuma');
+    lines.push('plugin migrations: none');
   } else {
-    lines.push('migrations de plugin (plugins/*/migrations → migrations/):');
+    lines.push('plugin migrations (plugins/*/migrations → migrations/):');
     for (const entry of plan.migrations) {
       const who = `${entry.plugin}: ${entry.file}`;
-      if (entry.status === 'new') lines.push(`  + ${who} → migrations/ (novo)`);
-      else if (entry.status === 'staged') lines.push(`  = ${who} (já em migrations/)`);
+      if (entry.status === 'new') lines.push(`  + ${who} → migrations/ (new)`);
+      else if (entry.status === 'staged') lines.push(`  = ${who} (already in migrations/)`);
       else if (entry.status === 'conflict')
-        lines.push(`  ! ${who} difere do que já está em migrations/ — mantido o do projeto`);
-      else lines.push(`  ! ${who} fora do padrão V###__owner__nome.sql — não copiado`);
+        lines.push(`  ! ${who} differs from migrations/ — project copy kept`);
+      else lines.push(`  ! ${who} does not match V###__owner__name.sql — not copied`);
     }
   }
 
   if (opts.skipThemeBuild) {
-    lines.push('build de tema: pulado (--skip-theme-build)');
+    lines.push('theme build: skipped (--skip-theme-build)');
   } else if (plan.themeBuilds.length === 0) {
-    lines.push('build de tema: nenhum tema instalado');
+    lines.push('theme build: no theme installed');
   } else {
-    lines.push('build de tema:');
+    lines.push('theme build:');
     for (const entry of plan.themeBuilds) {
       if (entry.status === 'build') {
         lines.push(`  ✓ ${entry.theme} — ${entry.engine} → ${entry.output}`);
       } else if (entry.status === 'no-entry') {
-        lines.push(`  - ${entry.theme} — sem entrada de estilo (${entry.engine})`);
+        lines.push(`  - ${entry.theme} — no style entry (${entry.engine})`);
       } else if (entry.status === 'missing-manifest') {
-        lines.push(`  ! ${entry.theme} — sem theme.json`);
+        lines.push(`  ! ${entry.theme} — no theme.json`);
       } else {
-        lines.push(`  ! ${entry.theme} — manifest recusado: ${entry.problems.join('; ')}`);
+        lines.push(`  ! ${entry.theme} — manifest rejected: ${entry.problems.join('; ')}`);
       }
     }
   }
 
   for (const file of plan.invalidExisting) {
-    lines.push(`  ! migrations/${file} fora do padrão V###__owner__nome.sql — quebra todo db:migrate`);
+    lines.push(`  ! migrations/${file} does not match V###__owner__name.sql — breaks every db:migrate`);
   }
 
-  lines.push('ordem: stage no host → build da imagem → migrations → health → swap → worker → down');
+  lines.push(orderLine(opts.target ?? 'blue-green'));
 
   return lines;
+}
+
+/** The deploy order for the chosen target (the plan's last line). */
+function orderLine(target: DeployTarget): string {
+  if (target === 'pm2') {
+    return 'order: stage on host → migrations → pm2 startOrReload';
+  }
+  if (target === 'simple') {
+    return 'order: stage on host → build image → migrations → up -d → proxy → health';
+  }
+  return 'order: stage on host → build image → migrations → health → swap → worker → down';
 }
 
 // ---------------------------------------------------------------------------
@@ -336,6 +354,8 @@ export interface RedeployOptions {
   skipThemeBuild?: boolean;
   /** `--dry-run`: mostra o plano e sai sem tocar em nada. */
   dryRun?: boolean;
+  /** `--target blue-green|simple|pm2` (pula o menu). */
+  target?: string;
   /** `--no-cache`: build limpo da imagem. */
   noCache?: boolean;
   /** `--remove-orphans` / `--keep-orphans`. */
@@ -365,7 +385,7 @@ export async function runRedeploy(opts: RedeployOptions = {}): Promise<number> {
   }
 
   const onInterrupt = (): void => {
-    prompt.write(`\n  interrompido — nenhuma troca de lane em andamento foi registrada.\n`);
+    prompt.write(`\n  interrupted — no lane switch in progress was recorded.\n`);
     process.exit(130);
   };
   process.once('SIGINT', onInterrupt);
@@ -376,75 +396,90 @@ export async function runRedeploy(opts: RedeployOptions = {}): Promise<number> {
     const themesDir = join(cwd, config.themesDir);
 
     if (opts.plugin && !plan.plugins.includes(opts.plugin)) {
-      prompt.error(`plugin não encontrado: ${opts.plugin}`);
-      prompt.info(`instalados: ${plan.plugins.join(', ') || 'nenhum'}`);
+      prompt.error(`plugin not found: ${opts.plugin}`);
+      prompt.info(`installed: ${plan.plugins.join(', ') || 'none'}`);
       return 1;
     }
     if (opts.theme && !plan.themes.includes(opts.theme)) {
-      prompt.error(`tema não encontrado: ${opts.theme}`);
-      prompt.info(`instalados: ${plan.themes.join(', ') || 'nenhum'}`);
+      prompt.error(`theme not found: ${opts.theme}`);
+      prompt.info(`installed: ${plan.themes.join(', ') || 'none'}`);
+      return 1;
+    }
+
+    // ---- deploy target (arrow menu, last choice remembered) ---------------
+    let target: DeployTarget;
+    try {
+      target = await resolveTarget({ cwd, target: opts.target, yes: opts.yes }, prompt);
+    } catch (error) {
+      prompt.error(error instanceof Error ? error.message : String(error));
       return 1;
     }
 
     prompt.heading('OkCMS redeploy');
-    for (const line of renderPlan(plan, opts)) write(`${line}\n`);
+    for (const line of renderPlan(plan, { ...opts, target })) write(`${line}\n`);
 
-    // `.sql` inválido em migrations/ derruba o `db:migrate` do passo 5 do
-    // deploy. Falhar aqui é melhor que falhar no meio do blue/green.
+    // A stray `.sql` in migrations/ breaks step 5 of the deploy (`db:migrate`).
+    // Failing here beats failing in the middle of a blue/green switch.
     if (plan.invalidExisting.length > 0) {
       prompt.error(
-        `${plan.invalidExisting.length} arquivo(s) em migrations/ fora do padrão ` +
-          `V###__owner__nome.sql — o db:migrate falharia. Renomeie ou remova.`
+        `${plan.invalidExisting.length} file(s) in migrations/ do not match ` +
+          `V###__owner__name.sql — db:migrate would fail. Rename or remove them.`
       );
       return 1;
     }
 
     if (opts.dryRun) {
-      prompt.info('dry-run: nada foi executado.');
+      prompt.info('dry-run: nothing was executed.');
       return 0;
     }
 
-    const choices: DeployChoices = await resolveDeployChoices(opts, prompt);
+    const choices: DeployChoices = await resolveDeployChoices(opts, prompt, target);
     const interactive = prompt.interactive && opts.yes !== true;
 
     if (interactive) {
-      prompt.heading('Resumo do redeploy');
+      prompt.heading(`Redeploy summary — ${target}`);
       prompt.info(
-        `stage: ${plan.migrations.filter((m) => m.status === 'new').length} migration(s) de plugin`
+        `stage: ${plan.migrations.filter((m) => m.status === 'new').length} plugin migration(s)`
       );
       prompt.info(
-        `build de estilo: ${plan.themeBuilds.filter((t) => t.status === 'build').length} tema(s)`
+        `style build: ${plan.themeBuilds.filter((t) => t.status === 'build').length} theme(s)`
       );
-      prompt.info(`imagem: ${choices.noCache ? 'sem cache' : 'com cache de camadas'}`);
-      prompt.info(`órfãos da lane antiga: ${choices.removeOrphans ? 'remover' : 'manter'}`);
-      const confirmed = await prompt.confirm('Iniciar redeploy?', { defaultValue: true });
+      if (target === 'pm2') {
+        prompt.info('host: PM2 startOrReload (no docker build)');
+      } else {
+        prompt.info(`image: ${choices.noCache ? 'no cache' : 'layer cache'}`);
+        if (target === 'blue-green') {
+          prompt.info(`old lane orphans: ${choices.removeOrphans ? 'remove' : 'keep'}`);
+        }
+      }
+      const confirmed = await prompt.confirm('Start the redeploy?', { defaultValue: true });
       if (!confirmed) {
-        prompt.warn('cancelado — nada foi executado.');
+        prompt.warn('cancelled — nothing was executed.');
         return 0;
       }
     }
 
-    // ---- stage de migrations ----------------------------------------------
+    // ---- plugin migrations staging ----------------------------------------
     if (opts.skipMigrations) {
       const pending = plan.migrations.filter((m) => m.status === 'new').length;
       if (pending > 0) {
-        prompt.warn(`${pending} migration(s) de plugin não copiadas (--skip-migrations).`);
+        prompt.warn(`${pending} plugin migration(s) not copied (--skip-migrations).`);
       }
     } else {
       const staged = stagePluginMigrations(plan);
       for (const item of staged.copied) write(`  + migrations: ${item}\n`);
       if (staged.copied.length > 0) {
-        prompt.success(`${staged.copied.length} migration(s) de plugin em migrations/`);
+        prompt.success(`${staged.copied.length} plugin migration(s) staged in migrations/`);
       }
-      for (const item of staged.conflicts) prompt.warn(`conflito (mantido o do projeto): ${item}`);
-      for (const item of staged.invalid) prompt.warn(`fora do padrão, não copiada: ${item}`);
+      for (const item of staged.conflicts) prompt.warn(`conflict (project copy kept): ${item}`);
+      for (const item of staged.invalid) prompt.warn(`off-pattern, not copied: ${item}`);
     }
 
-    // ---- build de estilo ---------------------------------------------------
+    // ---- theme style build -------------------------------------------------
     const toBuild = plan.themeBuilds.filter((entry) => entry.status === 'build');
     if (opts.skipThemeBuild) {
       if (toBuild.length > 0) {
-        prompt.warn(`${toBuild.length} tema(s) sem build de estilo (--skip-theme-build).`);
+        prompt.warn(`${toBuild.length} theme(s) without a style build (--skip-theme-build).`);
       }
     } else {
       for (const entry of toBuild) {
@@ -452,46 +487,79 @@ export async function runRedeploy(opts: RedeployOptions = {}): Promise<number> {
           const outcome = await buildThemeStylesOnDisk(themesDir, entry.theme);
           for (const warning of outcome.warnings) prompt.warn(`${entry.theme}: ${warning}`);
           write(
-            `  ✓ tema ${outcome.theme}: ${outcome.engine} → ${outcome.output} ` +
+            `  ✓ theme ${outcome.theme}: ${outcome.engine} → ${outcome.output} ` +
               `(${outcome.bytes} bytes, isolated=${outcome.isolated})\n`
           );
         } catch (error) {
           prompt.error(
-            `build do tema ${entry.theme} falhou: ${
+            `theme build failed for ${entry.theme}: ${
               error instanceof Error ? error.message : String(error)
             }`
           );
-          prompt.warn('nada foi buildado nem trocado — a lane atual segue no ar.');
+          prompt.warn('nothing was built or switched — the current stack keeps serving.');
           return 1;
         }
       }
       for (const entry of plan.themeBuilds) {
         if (entry.status === 'missing-manifest') {
-          prompt.warn(`${entry.theme}: sem theme.json — ignorado.`);
+          prompt.warn(`${entry.theme}: no theme.json — skipped.`);
         } else if (entry.status === 'invalid-manifest') {
-          prompt.warn(`${entry.theme}: manifest recusado — ${entry.problems.join('; ')}`);
+          prompt.warn(`${entry.theme}: manifest rejected — ${entry.problems.join('; ')}`);
         }
       }
     }
 
-    // ---- deploy blue/green -------------------------------------------------
+    // ---- deploy ------------------------------------------------------------
+    const installAll = !existsSync(join(cwd, 'node_modules', '@oktis-works'));
+
+    if (target === 'pm2') {
+      // No image is built here, so the staged SQL is applied by the same
+      // `db:migrate` PM2 always runs before reloading.
+      const code = await deployPm2({
+        cwd,
+        prompt,
+        runner: opts.runner,
+        install: false,
+        yes: opts.yes === true,
+      });
+      if (code === 0) saveTarget(cwd, 'pm2');
+      return code;
+    }
+
+    if (target === 'simple') {
+      const result = await deploySimple({
+        cwd,
+        runner: opts.runner,
+        noCache: opts.noCache === true,
+        packages: [],
+        installAll,
+        log: write,
+        warn: write,
+      });
+      if (!result.ok) return 1;
+      saveTarget(cwd, 'simple');
+      prompt.success('redeploy done on the simple stack');
+      return 0;
+    }
+
     const result = await deployBlueGreen({
       cwd,
       runner: opts.runner,
       choices,
-      // Sem `bun add`: o que mudou é conteúdo de extensão, não versão de
-      // pacote. Só instala tudo quando o host nem tem node_modules — sem ele
-      // o `db:migrate` do passo 5 não tem como rodar.
+      // No `bun add`: what changed is extension content, not a package version.
+      // Everything is installed only when the host has no node_modules —
+      // without it step 5 (`db:migrate`) has nothing to run.
       packages: [],
-      installAll: !existsSync(join(cwd, 'node_modules', '@oktis-works')),
+      installAll,
       log: write,
       warn: write,
     });
 
     if (result.ok) {
+      saveTarget(cwd, 'blue-green');
       prompt.success(
-        `redeploy concluído na lane ${result.lane}` +
-          (result.previousLane ? ` (lane anterior: ${result.previousLane})` : '')
+        `redeploy done on lane ${result.lane}` +
+          (result.previousLane ? ` (previous lane: ${result.previousLane})` : '')
       );
     }
     return result.ok ? 0 : 1;

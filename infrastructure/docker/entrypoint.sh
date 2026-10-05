@@ -1,9 +1,9 @@
 #!/bin/sh
-# @oktis-works - Entrada única da imagem okcms/app
+# @oktis-works - Single entrypoint of the okcms/app image
 #
-# O compose escolhe o papel com `command: api|web|admin|worker`. Qualquer
-# outro valor é repassado literalmente (`docker run okcms/app sh`), o que
-# mantem o container inspecionável sem reescrever a imagem.
+# Compose picks the role with `command: api|web|admin|worker`. Any other
+# value is passed through literally (`docker run okcms/app sh`), which keeps
+# the container inspectable without rewriting the image.
 set -eu
 
 api_entry="node_modules/@oktis-works/api/dist/index.js"

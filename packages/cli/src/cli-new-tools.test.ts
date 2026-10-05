@@ -140,7 +140,7 @@ describe('runDoctorChecks', () => {
 
     const byName = Object.fromEntries(results.map((r) => [r.name, r])) as Record<string, CheckResult>;
     expect(byName['database']!.ok).toBe(false);
-    expect(byName['database']!.detail).toContain('inválida');
+    expect(byName['database']!.detail).toContain('Invalid DATABASE_URL');
     expect(results.some((r) => r.required && !r.ok)).toBe(true);
   });
 
@@ -163,7 +163,7 @@ describe('runDoctorChecks', () => {
     expect(byName['docker']!.ok).toBe(false);
     expect(byName['docker']!.required).toBe(false);
     expect(byName['compose']!.ok).toBe(false);
-    expect(byName['lane']!.detail).toContain('docker indisponível');
+    expect(byName['lane']!.detail).toContain('docker unavailable');
     // required:false — `okcms start` local continua funcionando
     expect(results.every((r) => !(r.required && !r.ok))).toBe(true);
   });
@@ -191,9 +191,9 @@ describe('runDoctorChecks', () => {
     });
 
     const byName = Object.fromEntries(results.map((r) => [r.name, r])) as Record<string, CheckResult>;
-    expect(byName['lane']!.detail).toContain('nenhuma lane');
+    expect(byName['lane']!.detail).toContain('no lane');
     expect(byName['proxy']!.ok).toBe(true);
-    expect(byName['proxy']!.detail).toContain('ainda não implantado');
+    expect(byName['proxy']!.detail).toContain('not deployed');
   });
 
   it('lane ativa com proxy morto é problema de verdade (mesmo opcional)', async () => {
@@ -211,10 +211,10 @@ describe('runDoctorChecks', () => {
     });
 
     const byName = Object.fromEntries(results.map((r) => [r.name, r])) as Record<string, CheckResult>;
-    expect(byName['lane']!.detail).toContain('lane green ativa');
+    expect(byName['lane']!.detail).toContain('lane green active');
     expect(byName['lane']!.detail).toContain('rollback: blue');
     expect(byName['proxy']!.ok).toBe(false);
-    expect(byName['proxy']!.detail).toContain('proxy parado');
+    expect(byName['proxy']!.detail).toContain('okcms-proxy stopped');
     expect(byName['proxy']!.required).toBe(false);
   });
 
@@ -234,7 +234,7 @@ describe('runDoctorChecks', () => {
 
     const byName = Object.fromEntries(results.map((r) => [r.name, r])) as Record<string, CheckResult>;
     expect(byName['proxy']!.ok).toBe(true);
-    expect(byName['proxy']!.detail).toContain('okcms-proxy no ar');
+    expect(byName['proxy']!.detail).toContain('okcms-proxy running');
     expect(results.every((r) => r.ok)).toBe(true);
   });
 });
@@ -253,7 +253,7 @@ describe('scaffoldPlugin / scaffoldTheme', () => {
     expect(entry).toContain('register');
 
     // self-check: recriar no mesmo diretório falha
-    expect(() => scaffoldPlugin('meu-plugin', join(dir, 'plugins'))).toThrow('já existe');
+    expect(() => scaffoldPlugin('meu-plugin', join(dir, 'plugins'))).toThrow('already exists');
   });
 
   it('theme: theme.json + templates essenciais', () => {
@@ -265,8 +265,8 @@ describe('scaffoldPlugin / scaffoldTheme', () => {
   });
 
   it('nome inválido ou traversal é rejeitado', () => {
-    expect(() => scaffoldPlugin('../escape')).toThrow('Nome inválido');
-    expect(() => scaffoldTheme('nome com espaço')).toThrow('Nome inválido');
+    expect(() => scaffoldPlugin('../escape')).toThrow('Invalid name');
+    expect(() => scaffoldTheme('nome com espaço')).toThrow('Invalid name');
   });
 });
 

@@ -1,5 +1,14 @@
 # @oktis-works/validation
 
+## 0.3.0
+
+### Minor Changes
+
+- Release 0.3.0: `CMS_VERSION` is now `0.3.0` — the version `checkExtensionCompatibility`
+  uses by default and that the plugin/theme scaffold writes to `compatibility.okcms`.
+  Without republishing this package, a 0.3.0 CLI would keep validating extensions
+  against 0.2.1.
+
 ## 0.2.0
 
 ### Minor Changes

@@ -46,7 +46,7 @@ export function parseDocsLang(value: string | undefined | null): DocsLang | null
 
 /** Rótulo legível da língua (mensagens da CLI). */
 export function docsLangLabel(lang: DocsLang): string {
-  return lang === 'pt' ? 'português' : 'inglês';
+  return lang === 'pt' ? 'Portuguese' : 'English';
 }
 
 /**
@@ -154,11 +154,17 @@ portas do Postgres (5432) e do Redis (6379). Os apps em si rodam via
 \`okcms start\` — o compose é só a infraestrutura.
 
 Para subir a aplicação **inteira em Docker** (api, admin, web e worker em
-containers, atrás de um nginx), use o deploy blue/green:
+containers, atrás de um nginx), use o \`okcms deploy\`:
 
 \`\`\`bash
-npx okcms update --mode deploy
+npx okcms deploy                       # abre o menu do destino (setas ↑/↓ + Enter)
+npx okcms deploy --target simple      # ou fixa o destino sem menu
 \`\`\`
+
+São três destinos: **blue/green** (duas lanes, sem downtime), **simple** (um
+stack só em \`docker-compose.app.yml\`, reinício rápido) e **pm2** (processos no
+host, sem Docker). A escolha fica guardada em \`.deploy/state.json\` e vale para
+\`deploy\`, \`update\` e \`redeploy\`.
 
 Esse é o caminho de produção — ver o guia completo em
 [docs/docker-deploy.md](https://github.com/oktis-works/cms/blob/main/docs/docker-deploy.md).
@@ -201,18 +207,20 @@ pm2 unmonitor okcms-api && pm2 delete okcms-api   # remover
 - Como cada app é um executável independente, o \`okcms start\` não é
   necessário em produção — o pm2 supervisoria cada um diretamente.
 
-### Caminho 2: Docker blue/green (recomendado)
+### Caminho 2: Docker — blue/green ou simple (recomendado)
 
 O projeto já nasce com tudo que o deploy precisa (o \`okcms init\` escreve
-\`docker/\`, os dois composes e o \`deploy/\` do proxy). Um deploy é um único
+\`docker/\`, os três composes e o \`deploy/\` do proxy). Um deploy é um único
 comando a partir do host:
 
 \`\`\`bash
-npx okcms update --mode deploy     # sem TTY; com TTY abre o wizard
+npx okcms deploy                   # primeiro deploy (menu do destino)
+npx okcms update --mode deploy     # depois disso: wizard com o destino salvo
+npx okcms deploy --target simple   # stack único, sem lanes
 \`\`\`
 
-A aplicação roda em **duas lanes** (\`okcms-blue\` e \`okcms-green\`) atrás de
-um nginx público. Cada deploy:
+No destino **blue/green** a aplicação roda em **duas lanes** (\`okcms-blue\` e
+\`okcms-green\`) atrás de um nginx público. Cada deploy:
 
 1. builda a imagem nova numa lane que **não recebe tráfego**;
 2. roda \`okcms db:migrate\` **no host** (falhou = nada mudou);
@@ -221,6 +229,10 @@ um nginx público. Cada deploy:
    (conexões existentes vivas);
 5. **drena** o worker antigo (SIGTERM + \`stop_grace_period\`), sobe o novo;
 6. derruba a lane antiga — **sem \`-v\`**: o volume de mídia é compartilhado.
+
+No destino **simple** o caminho é mais curto: build → migrations → \`up -d\` →
+healthcheck → \`nginx -s reload\` — sem segunda lane e com reinício rápido; o
+zero downtime fica por conta do blue/green.
 
 **Rollback** = rodar o mesmo comando de novo, ou apontar o upstream de volta
 para a outra lane. Detalhes, portas e segurança em
@@ -424,11 +436,17 @@ the Postgres (5432) and Redis (6379) ports. The apps themselves run via
 \`okcms start\` — the compose is only the infrastructure.
 
 To run the **whole application in Docker** (api, admin, web and worker in
-containers behind an nginx), use the blue/green deploy:
+containers behind an nginx), use \`okcms deploy\`:
 
 \`\`\`bash
-npx okcms update --mode deploy
+npx okcms deploy                       # opens the target menu (↑/↓ + Enter)
+npx okcms deploy --target simple      # or fixes the target without the menu
 \`\`\`
+
+There are three targets: **blue/green** (two lanes, no downtime), **simple**
+(one stack in \`docker-compose.app.yml\`, fast restart) and **pm2** (host
+processes, no Docker). The choice is stored in \`.deploy/state.json\` and shared
+by \`deploy\`, \`update\` and \`redeploy\`.
 
 That is the production path — see the complete guide at
 [docs/docker-deploy.md](https://github.com/oktis-works/cms/blob/main/docs/docker-deploy.md).
@@ -471,18 +489,20 @@ pm2 unmonitor okcms-api && pm2 delete okcms-api   # remove
 - Since each app is an independent executable, \`okcms start\` is not
   needed in production — pm2 supervises each one directly.
 
-### Path 2: Docker blue/green (recommended)
+### Path 2: Docker — blue/green or simple (recommended)
 
 The project ships with everything a deploy needs ( \`okcms init\` writes
-\`docker/\`, both compose files and the proxy's \`deploy/\`). A deploy is a single
-command from the host:
+\`docker/\`, all three compose files and the proxy's \`deploy/\`). A deploy is a
+single command from the host:
 
 \`\`\`bash
-npx okcms update --mode deploy     # no TTY; with a TTY it opens the wizard
+npx okcms deploy                   # first deploy (target menu)
+npx okcms update --mode deploy     # after that: wizard with the saved target
+npx okcms deploy --target simple   # single stack, no lanes
 \`\`\`
 
-The application runs in **two lanes** (\`okcms-blue\` and \`okcms-green\`) behind a
-public nginx. Each deploy:
+With the **blue/green** target the application runs in **two lanes**
+(\`okcms-blue\` and \`okcms-green\`) behind a public nginx. Each deploy:
 
 1. builds the new image in a lane that **receives no traffic**;
 2. runs \`okcms db:migrate\` **on the host** (if it fails, nothing changed);
@@ -491,6 +511,10 @@ public nginx. Each deploy:
    (existing connections stay alive);
 5. **drains** the old worker (SIGTERM + \`stop_grace_period\`) and starts the new one;
 6. tears down the old lane — **without \`-v\`**: the media volume is shared.
+
+With the **simple** target the path is shorter: build → migrations → \`up -d\` →
+healthcheck → \`nginx -s reload\` — no second lane and a fast restart; zero
+downtime is what blue/green is for.
 
 **Rollback** = run the same command again, or point the upstream back to the
 other lane. Details, ports and security in
@@ -540,10 +564,11 @@ the 6 steps above to do by hand. Prefer the CLI command.
 | \`okcms theme:create -n <name> --style css\\|scss\\|tailwind\` | Theme scaffold — guide in [THEME.md](./THEME.md) |
 | \`okcms theme:install\` · \`theme:list\` · \`theme:search\` · \`theme:manage\` | Theme management (\`--set-active\` sets the active one) |
 | \`okcms theme:build -n <name>\` | Compiles SCSS/Tailwind → isolated \`dist/theme.css\` |
-| \`okcms update\` | Wizard: **download packages only** or **Docker blue/green deploy** (\`--mode download\\|deploy\`) |
+| \`okcms deploy\` | First deploy — target menu: blue/green, simple or pm2 (\`--target\`, \`--yes\`) |
+| \`okcms update\` | Wizard: **download packages only** or **deploy** (\`--mode download\\|deploy\`) |
 | \`okcms update -i\` | Only downloads/applies the \`@oktis-works/*\` packages (classic non-TTY behaviour) |
-| \`okcms update --mode deploy\` | Full blue/green deploy: build → migrations → healthcheck → swap → worker |
-| \`okcms redeploy\` | After installing a plugin/theme: plugin SQL → \`migrations/\`, theme \`dist/theme.css\` and blue/green deploy (\`--dry-run\` only shows the plan) |
+| \`okcms update --mode deploy\` | Full deploy: build → migrations → healthcheck → swap (target: \`--target blue-green\\|simple\\|pm2\`) |
+| \`okcms redeploy\` | After installing a plugin/theme: plugin SQL → \`migrations/\`, theme \`dist/theme.css\` and deploy (\`--dry-run\` only shows the plan, \`--target\` picks the target) |
 | \`okcms seed\` | Seeds initial data (roles + settings) — idempotent |
 | \`okcms user:create\` | Creates a user and assigns a role inside the tenant |
 | \`okcms system:status\` | System status (environment + database health) |

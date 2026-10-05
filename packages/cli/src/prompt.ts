@@ -1,15 +1,16 @@
-// @oktis-works/cms - Primitivas de prompt interativo (wizard TTY, zero deps)
+// @oktis-works/cms - Interactive prompt primitives (TTY wizard, zero deps)
 //
-// O parser da CLI não tem dependência de TUI nenhuma e não vamos adicionar:
-// um `readline` próprio resolve select/confirm/input/mask com três garantias
-// que biblioteca de terceiros não daria de graça aqui:
-//   1. fallback determinístico em modo não-interativo (CI/pipes) → flags;
-//   2. máscara de segredo SEM eco (raw mode só quando o stdin é TTY);
-//   3. IO injetável → testável sem terminal real.
+// The CLI parser has no TUI dependency and we are not adding one: a small
+// `readline` of our own resolves select/confirm/input/mask with three
+// guarantees a third-party library would not give for free here:
+//   1. deterministic non-interactive fallback (CI/pipes) → flags;
+//   2. secret mask with NO echo (raw mode only when stdin is a real TTY);
+//   3. injectable IO → testable without a real terminal.
 //
-// Menu = numeração (1/2/3) e não setas: funciona em TTY, SSH, container e pipe
-// com o MESMO código — setas exigiriam raw mode também na leitura normal e
-// quebrariam qualquer entrada pipada.
+// Menus are ARROW-KEY driven (↑/↓ + Enter) whenever the terminal supports raw
+// mode. Terminals that cannot do raw mode (SSH without TTY, pipes, tests) get
+// the numbered menu (1/2/3) — same code path, same semantics — and CI always
+// falls back to the flag/default instead of guessing.
 
 import type { Readable, Writable } from 'node:stream';
 
@@ -58,7 +59,7 @@ export const style = {
   gray: wrap(90, 39),
 };
 
-/** Símbolos canônicos — mesmos glifos já usados pelos comandos da CLI. */
+/** Canonical glyphs — the same ones every command prints. */
 export const symbol = {
   ask: '?',
   ok: '✓',
@@ -66,14 +67,89 @@ export const symbol = {
   arrow: '→',
   bullet: '•',
   warn: '⚠',
+  cursor: '❯',
 } as const;
 
 // ---------------------------------------------------------------------------
-// Input bufferizado: linhas + modo raw (máscara), sem depender de readline
+// Buffered input: line mode + raw mode (arrow keys / secret mask)
 // ---------------------------------------------------------------------------
 
 type LineWaiter = (line: string | null) => void;
 type SecretWaiter = (value: string) => void;
+type KeyWaiter = (key: string) => void;
+
+/** Named keys the menus understand. Printable characters are their own token. */
+export type KeyToken = string;
+
+/** ASCII codes used in raw mode — kept numeric to stay readable in source. */
+const CODE_ESC = 27;
+const CODE_ETX = 3;
+const CODE_EOT = 4;
+const CODE_DEL = 127;
+const CODE_BS = 8;
+
+/** ESC as a string (redraw sequences, built without escape literals). */
+const ESC = String.fromCharCode(CODE_ESC);
+
+/**
+ * Turns one terminal chunk into key tokens.
+ *
+ * Arrow keys arrive as a single chunk (`ESC [ A`), so the CSI introducer is
+ * matched first and the rest of the sequence swallowed; a lone ESC becomes
+ * `escape`. Everything else is the character itself.
+ */
+export function decodeKeys(chunk: string): KeyToken[] {
+  const keys: KeyToken[] = [];
+  const named: Record<string, string> = { A: 'up', B: 'down', C: 'right', D: 'left', H: 'home', F: 'end' };
+
+  for (let i = 0; i < chunk.length; i++) {
+    const ch = chunk[i]!;
+    const code = chunk.charCodeAt(i);
+
+    if (code === CODE_ESC) {
+      const next = chunk[i + 1];
+      if (next === '[' || next === 'O') {
+        const final = chunk[i + 2];
+        if (final && named[final]) {
+          keys.push(named[final]!);
+          i += 2;
+          continue;
+        }
+        // other CSI/SS3 sequences (function keys, mouse…): swallow to the end
+        let j = i + 2;
+        while (j < chunk.length) {
+          const c = chunk.charCodeAt(j);
+          if (c >= 0x40 && c <= 0x7e) break;
+          j++;
+        }
+        i = j;
+        continue;
+      }
+      keys.push('escape');
+      continue;
+    }
+
+    if (ch === '\r' || ch === '\n') {
+      keys.push('enter');
+      continue;
+    }
+    if (code === CODE_ETX) {
+      keys.push('ctrl-c');
+      continue;
+    }
+    if (code === CODE_EOT) {
+      keys.push('ctrl-d');
+      continue;
+    }
+    if (code === CODE_DEL || code === CODE_BS) {
+      keys.push('backspace');
+      continue;
+    }
+    keys.push(ch);
+  }
+
+  return keys;
+}
 
 /** Ctrl+C — cancela a leitura de um segredo sem derrubar o processo. */
 const ETX = '\u0003';
@@ -88,10 +164,13 @@ class BufferedInput {
   private waiters: LineWaiter[] = [];
   private ended = false;
 
-  // estado do modo raw (máscara de segredo)
+  // raw mode state — secret mask (existing) and key reading (new)
   private raw = false;
   private rawValue = '';
   private rawWaiter: SecretWaiter | null = null;
+  private keyMode = false;
+  private keyQueue: KeyToken[] = [];
+  private keyWaiters: KeyWaiter[] = [];
 
   constructor(stream: RawStream, echo: (text: string) => void) {
     this.stream = stream;
@@ -105,7 +184,8 @@ class BufferedInput {
     stream.on('error', end);
   }
 
-  get canMask(): boolean {
+  /** true when the terminal can switch to raw mode (arrow keys + secret mask). */
+  get canRaw(): boolean {
     return Boolean(this.stream.isTTY && this.stream.setRawMode);
   }
 
@@ -120,11 +200,17 @@ class BufferedInput {
       this.raw = false;
       waiter('');
     }
+    const keyWaiters = this.keyWaiters.splice(0);
+    for (const waiter of keyWaiters) waiter('eof');
   }
 
   private onData(chunk: string): void {
     if (this.raw) {
       this.onRawData(chunk);
+      return;
+    }
+    if (this.keyMode) {
+      this.dispatchKeys(chunk);
       return;
     }
     this.buffer += chunk;
@@ -206,15 +292,15 @@ class BufferedInput {
   }
 
   /**
-   * Lê um segredo. Sem eco quando o stdin é TTY (raw mode + `*`); sem TTY a
-   * entrada É o pipe — `echo senha | okcms config` funciona de propósito, e o
-   * default cobre o caso de stdin fechado em CI.
+   * Reads a secret. No echo on a TTY (raw mode + `*`); without a TTY the input
+   * IS the pipe — `echo password | okcms config` is a real flow — and the
+   * default covers a closed stdin in CI.
    */
   async readSecret(): Promise<string> {
     const queued = this.queue.shift();
     if (queued !== undefined) return queued;
     if (this.ended) return '';
-    if (!this.canMask) return (await this.readLine()) ?? '';
+    if (!this.canRaw) return (await this.readLine()) ?? '';
 
     return new Promise((resolve) => {
       this.rawValue = '';
@@ -222,6 +308,41 @@ class BufferedInput {
       this.rawWaiter = resolve;
       this.setRawMode(true);
     });
+  }
+
+  /**
+   * Reads one key token (`up`, `down`, `enter`, a printable character…).
+   * Returns `eof` when the terminal cannot do raw mode or stdin closed — the
+   * caller falls back to the numbered menu instead of hanging.
+   */
+  readKey(): Promise<KeyToken> {
+    const queued = this.keyQueue.shift();
+    if (queued !== undefined) return Promise.resolve(queued);
+    if (this.ended || !this.canRaw) return Promise.resolve('eof');
+
+    return new Promise((resolve) => {
+      this.keyMode = true;
+      this.keyWaiters.push(resolve);
+      this.setRawMode(true);
+    });
+  }
+
+  /** Queues decoded keys to whoever is waiting (or buffers them for later). */
+  private dispatchKeys(chunk: string): void {
+    for (const key of decodeKeys(chunk)) {
+      const waiter = this.keyWaiters.shift();
+      if (waiter) waiter(key);
+      else this.keyQueue.push(key);
+    }
+  }
+
+  /** Leaves key mode: raw mode off, pending waiters released with `eof`. */
+  releaseKeys(): void {
+    if (!this.keyMode) return;
+    this.keyMode = false;
+    this.setRawMode(false);
+    const waiters = this.keyWaiters.splice(0);
+    for (const waiter of waiters) waiter('eof');
   }
 }
 
@@ -293,8 +414,9 @@ export class Prompt {
   }
 
   /**
-   * Menu numerado. Em modo não-interativo devolve `defaultValue`; sem default
-   * lança erro — assim um CI nunca aciona um deploy por acidente.
+   * Arrow-key menu (↑/↓ + Enter). Falls back to a numbered menu when the
+   * terminal cannot do raw mode, and to `defaultValue` when there is no TTY at
+   * all — so a CI never triggers a deploy by accident.
    */
   async select<T>(
     title: string,
@@ -302,7 +424,7 @@ export class Prompt {
     opts: SelectOptions<T> = {}
   ): Promise<T> {
     if (choices.length === 0) {
-      throw new Error(`select "${title}" sem opções`);
+      throw new Error(`select "${title}" has no options`);
     }
 
     const defaultIndex =
@@ -317,10 +439,15 @@ export class Prompt {
       if (opts.defaultValue !== undefined) return opts.defaultValue;
       throw new Error(
         opts.nonInteractiveError ??
-          `non-interactive: a opção "${title}" exige TTY ou a flag equivalente`
+          `non-interactive: "${title}" needs a TTY or the equivalent flag`
       );
     }
 
+    if (this.input.canRaw) {
+      return await this.navigate<T>(title, choices, defaultIndex < 0 ? 0 : defaultIndex, {});
+    }
+
+    // No raw mode (pipe, odd SSH session, test harness): numbered menu.
     this.write(`\n  ${symbol.ask} ${style.bold(title)}\n`);
     choices.forEach((choice, index) => {
       const marker = index === defaultIndex ? style.cyan('>') : ' ';
@@ -334,7 +461,7 @@ export class Prompt {
       const raw = await this.askLine(`${symbol.ask} ${suffix}`);
       if (raw === null) {
         if (opts.defaultValue !== undefined) return opts.defaultValue;
-        throw new Error(`entrada encerrada antes de responder "${title}"`);
+        throw new Error(`input closed before "${title}" was answered`);
       }
 
       const answer = raw.trim();
@@ -348,15 +475,32 @@ export class Prompt {
       const byValue = choices.find((choice) => String(choice.value) === answer);
       if (byValue) return byValue.value;
 
-      this.write(`  ${style.red(symbol.fail)} opção inválida: digite 1..${choices.length}\n`);
+      this.write(`  ${style.red(symbol.fail)} invalid option — type 1..${choices.length}\n`);
     }
   }
 
-  /** Confirmação Y/n. Não-interativo → `defaultValue`. */
+  /**
+   * Yes/No confirmation. Arrow keys + Enter on a TTY, `y`/`n` shortcuts too;
+   * without a TTY it returns `defaultValue`.
+   */
   async confirm(title: string, opts: { defaultValue?: boolean } = {}): Promise<boolean> {
     const fallback = opts.defaultValue ?? false;
 
     if (!this.io.isTTY) return fallback;
+
+    if (this.input.canRaw) {
+      const badge =
+        opts.defaultValue === undefined ? '' : opts.defaultValue ? style.dim(' [Y/n]') : style.dim(' [y/N]');
+      return await this.navigate<boolean>(
+        `${title}${badge}`,
+        [
+          { value: true, label: 'Yes' },
+          { value: false, label: 'No' },
+        ],
+        opts.defaultValue === false ? 1 : 0,
+        { inline: true, aliases: { y: 0, n: 1 } }
+      );
+    }
 
     const hint = opts.defaultValue === undefined ? '[y/n]' : opts.defaultValue ? '[Y/n]' : '[y/N]';
     for (;;) {
@@ -368,10 +512,117 @@ export class Prompt {
         if (opts.defaultValue !== undefined) return opts.defaultValue;
         continue;
       }
-      if (['y', 'yes', 's', 'sim'].includes(answer)) return true;
-      if (['n', 'no', 'nao', 'não'].includes(answer)) return false;
+      if (['y', 'yes'].includes(answer)) return true;
+      if (['n', 'no'].includes(answer)) return false;
 
-      this.write(`  ${style.red(symbol.fail)} responda y ou n\n`);
+      this.write(`  ${style.red(symbol.fail)} answer y or n\n`);
+    }
+  }
+
+  /**
+   * Shared raw-mode navigator behind `select` and `confirm`.
+   *
+   * Every repaint clears the previous block (`ESC[<n>A` + `ESC[0J`), so the
+   * menu never leaves scrollback debris. `inline` lays the options on one line
+   * (confirm), `aliases` maps single keys straight to an option.
+   */
+  private async navigate<T>(
+    title: string,
+    choices: Array<SelectChoice<T>>,
+    startIndex: number,
+    opts: { inline?: boolean; aliases?: Record<string, number> }
+  ): Promise<T> {
+    const total = choices.length;
+    let index = Math.min(Math.max(startIndex, 0), total - 1);
+    let painted = 0;
+
+    const paint = (final: boolean): void => {
+      if (painted > 0) this.write(`${ESC}[${painted}A${ESC}[0J`);
+
+      const lines: string[] = [`  ${symbol.ask} ${style.bold(title)}`];
+      if (opts.inline) {
+        lines.push(
+          `    ${choices
+            .map((choice, i) =>
+              i === index
+                ? style.cyan(`${symbol.cursor} ${choice.label}`)
+                : `  ${choice.label}`
+            )
+            .join('   ')}`
+        );
+      } else {
+        const width = Math.max(...choices.map((choice) => choice.label.length));
+        choices.forEach((choice, i) => {
+          const on = i === index;
+          const hint = choice.hint ? `  ${style.dim(choice.hint)}` : '';
+          const label = on ? style.bold(choice.label) : choice.label.padEnd(width);
+          lines.push(`    ${on ? style.cyan(symbol.cursor) : ' '} ${label}${hint}`);
+        });
+      }
+      if (!final) {
+        lines.push(
+          `    ${style.dim(opts.inline ? '←→ move · enter confirm' : '↑↓ move · enter confirm')}`
+        );
+      }
+
+      this.write(`${lines.join('\n')}\n`);
+      painted = lines.length;
+    };
+
+    const settle = (value: T): T => {
+      paint(true);
+      this.input.releaseKeys();
+      return value;
+    };
+
+    paint(false);
+
+    for (;;) {
+      const key = await this.input.readKey();
+
+      // raw mode gone or stdin closed: keep the highlighted option
+      if (key === 'eof') {
+        this.input.releaseKeys();
+        return choices[index]!.value;
+      }
+
+      if (key === 'ctrl-c' || key === 'escape' || key === 'ctrl-d') {
+        this.write(`\n  ${style.dim('Cancelled.')}\n`);
+        this.input.releaseKeys();
+        this.close();
+        process.exit(130);
+      }
+
+      const token = key.length === 1 ? key.toLowerCase() : key;
+      const alias = opts.aliases?.[token];
+      if (alias !== undefined && alias < total) return settle(choices[alias]!.value);
+
+      if (key === 'enter') return settle(choices[index]!.value);
+
+      let next: number | null = null;
+      let wrap = false;
+      if (key === 'up' || key === 'k') {
+        next = index - 1;
+        wrap = true;
+      } else if (key === 'down' || key === 'j') {
+        next = index + 1;
+        wrap = true;
+      } else if (key === 'left' && opts.inline) {
+        next = index - 1;
+        wrap = true;
+      } else if (key === 'right' && opts.inline) {
+        next = index + 1;
+        wrap = true;
+      } else if (key === 'home') next = 0;
+      else if (key === 'end') next = total - 1;
+      else if (!opts.inline && total <= 9 && key >= '1' && key <= '9') next = Number(key) - 1;
+
+      if (next === null) continue;
+      // arrows wrap around the list; home/end/digits land on the exact item
+      next = wrap ? ((next % total) + total) % total : next;
+      if (next < 0 || next >= total) continue;
+      index = next;
+      paint(false);
     }
   }
 
@@ -381,7 +632,7 @@ export class Prompt {
 
     if (!this.io.isTTY) {
       if (opts.default !== undefined) return opts.default;
-      throw new Error(`non-interactive: o valor "${title}" exige TTY ou --set`);
+      throw new Error(`non-interactive: "${title}" needs a TTY or --set`);
     }
 
     const current = opts.placeholder ?? opts.default;
@@ -421,7 +672,7 @@ export class Prompt {
     const shown = current ? style.dim(` (${current})`) : '';
 
     for (;;) {
-      const suffix = opts.default !== undefined ? style.dim('[enter = manter]') : '';
+      const suffix = opts.default !== undefined ? style.dim('[enter = keep]') : '';
       this.write(`  ${symbol.ask} ${title}${shown}${suffix} `);
       const value = await this.input.readSecret();
       this.write('\n');

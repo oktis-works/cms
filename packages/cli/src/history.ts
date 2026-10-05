@@ -137,7 +137,7 @@ export function formatHistoryEntry(entry: HistoryEntry): string {
   }
 
   if (entry.lane) {
-    lines.push(`     lane: ${entry.lane}${entry.previousLane ? ` (era ${entry.previousLane})` : ''}`);
+    lines.push(`     lane: ${entry.lane}${entry.previousLane ? ` (was ${entry.previousLane})` : ''}`);
   }
 
   return lines.join('\n');

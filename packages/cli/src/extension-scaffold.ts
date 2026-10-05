@@ -11,7 +11,7 @@ export interface ScaffoldExtensionResult {
 
 function assertSafeName(name: string): void {
   if (!/^[a-z0-9][a-z0-9-_]*$/i.test(name) || name.includes('..')) {
-    throw new Error(`Nome inválido: "${name}" (use [a-z0-9-_])`);
+    throw new Error(`Invalid name: "${name}" (use [a-z0-9-_])`);
   }
 }
 
@@ -25,7 +25,7 @@ export function scaffoldPlugin(name: string, baseDir?: string): ScaffoldExtensio
   const manifest = {
     name,
     version: '0.1.0',
-    description: `Plugin ${name} para OkCMS`,
+    description: `Plugin ${name} for OkCMS`,
     type: 'plugin',
     main: 'index.js',
     scope: 'tenant',
@@ -37,7 +37,7 @@ export function scaffoldPlugin(name: string, baseDir?: string): ScaffoldExtensio
   assertCompatible('plugin', selfCheck, CMS_VERSION);
 
   const dir = resolve(baseDir ?? join(process.cwd(), 'plugins'), name);
-  if (existsSync(dir)) throw new Error(`Diretório já existe: ${dir}`);
+  if (existsSync(dir)) throw new Error(`Directory already exists: ${dir}`);
 
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, 'manifest.json'), JSON.stringify(manifest, null, 2));
@@ -80,7 +80,7 @@ export function scaffoldTheme(name: string, baseDir?: string, style: ScaffoldThe
   const manifest: Record<string, unknown> = {
     name,
     version: '0.1.0',
-    description: `Tema ${name} para OkCMS`,
+    description: `Theme ${name} for OkCMS`,
     type: 'theme',
     compatibility: { okcms: `^${CMS_VERSION}` },
     ...(styleConfig ? { stylesConfig: styleConfig } : {}),
@@ -90,7 +90,7 @@ export function scaffoldTheme(name: string, baseDir?: string, style: ScaffoldThe
   assertCompatible('theme', selfCheck, CMS_VERSION);
 
   const dir = resolve(baseDir ?? join(process.cwd(), 'themes'), name);
-  if (existsSync(dir)) throw new Error(`Diretório já existe: ${dir}`);
+  if (existsSync(dir)) throw new Error(`Directory already exists: ${dir}`);
 
   mkdirSync(join(dir, 'templates'), { recursive: true });
   writeFileSync(join(dir, 'theme.json'), JSON.stringify(manifest, null, 2));

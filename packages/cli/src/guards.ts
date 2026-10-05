@@ -94,10 +94,10 @@ export function assertHostOnly(
   return {
     ok: false,
     message:
-      `${command} recusou rodar dentro de um container.\n` +
-      `  A CLI de deploy/config só executa no HOST — dentro do container ela viraria\n` +
-      `  um executor de \`bun add\` na rede do banco com o .env exposto.\n` +
-      `  Rode no host: \`docker exec -it <container-do-host> ${command}\` ou use --force.`,
+      `${command} refused to run inside a container.\n` +
+      `  The deploy/config CLI only runs on the HOST — inside a container it would become\n` +
+      `  a \`bun add\` executor on the database network with the .env exposed.\n` +
+      `  Run it on the host: \`docker exec -it <host-container> ${command}\` or use --force.`,
   };
 }
 
@@ -124,7 +124,7 @@ export function assertUrlAllowed(
   if (isUrlAllowed(url, allowlist)) return { ok: true, message: '' };
   return {
     ok: false,
-    message: `URL fora da allowlist da CLI: ${redact(url)}\n  Permitido: ${allowlist.join(', ')}`,
+    message: `URL outside the CLI allowlist: ${redact(url)}\n  Allowed: ${allowlist.join(', ')}`,
   };
 }
 
@@ -144,9 +144,9 @@ export function assertNoDockerSocket(composeText: string): GuardResult {
   return {
     ok: false,
     message:
-      'O compose monta /var/run/docker.sock num container de aplicação.\n' +
-      '  Isso é escalação direta para root do host: qualquer RCE na app vira root.\n' +
-      '  Remova o bind mount; se um serviço precisa do daemon, use um proxy dedicado.',
+      'The compose file mounts /var/run/docker.sock in an application container.\n' +
+      '  That is direct escalation to host root: any RCE in the app becomes root.\n' +
+      '  Remove the bind mount; if a service needs the daemon, use a dedicated proxy.',
   };
 }
 

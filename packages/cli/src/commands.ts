@@ -46,17 +46,17 @@ async function prepareDb(options: Record<string, string>): Promise<string> {
   const { ensureCoreSchema, resolveTenantId, seedCoreData } = await import('@oktis-works/database');
   const applied = await ensureCoreSchema();
   if (applied) {
-    console.log('✓ schema core aplicado (banco inicializado)');
+    console.log('✓ core schema applied (database initialized)');
   }
   // Seed idempotente (roles da política + settings gerais): roda em qualquer
   // banco — sem ele, o primeiro usuário registra e cai em 403 em tudo.
   try {
     const seeded = await seedCoreData();
     if (seeded.roles > 0 || seeded.settings > 0) {
-      console.log(`✓ seed: ${seeded.roles} roles, ${seeded.settings} settings criados`);
+      console.log(`✓ seed: ${seeded.roles} roles, ${seeded.settings} settings created`);
     }
   } catch (error) {
-    console.warn('⚠ seed de dados padrão falhou:', error instanceof Error ? error.message : error);
+    console.warn('⚠ default data seed failed:', error instanceof Error ? error.message : error);
   }
   return resolveTenantId(getTenantId(options));
 }
@@ -77,10 +77,13 @@ export const commands: Command[] = [
     handler: async (args, options) => {
       const { scaffoldProject, installProjectDeps } = await import('./scaffold.js');
       const { DEFAULT_DOCS_LANG, parseDocsLang } = await import('./scaffold-docs.js');
+      const { Prompt } = await import('./prompt.js');
 
-      // Idioma da documentação gerada (.md apenas — o código nunca muda de
-      // língua). `--lang en|pt` decide sem TTY (CI/script); sem a flag, com
-      // TTY, um menu pergunta; sem TTY e sem flag, o default é inglês.
+      const prompt = new Prompt();
+
+      // Language of the generated docs (.md only — the code never changes
+      // language). `--lang en|pt` decides without a TTY (CI/script); with a TTY
+      // and no flag, an arrow menu asks; without either, English is the default.
       const rawLang = options['lang'];
       let lang: DocsLang;
       if (rawLang !== undefined && rawLang !== 'true') {
@@ -91,36 +94,50 @@ export const commands: Command[] = [
         lang = parsed;
       } else if (rawLang === 'true') {
         throw new Error('--lang requires a value: en or pt');
-      } else {
-        const { select } = await import('./prompt.js');
-        lang = await select<DocsLang>(
-          'Idioma da documentação (README.md, PLUGIN.md, THEME.md)',
+      } else if (prompt.interactive) {
+        lang = await prompt.select<DocsLang>(
+          'Docs language (README.md, PLUGIN.md, THEME.md)',
           [
             { value: 'en', label: 'English', hint: 'default' },
             { value: 'pt', label: 'Português (Brasil)' },
           ],
           { defaultValue: DEFAULT_DOCS_LANG }
         );
-      }
-
-      // O arg posicional tem prioridade sobre -d: `init cms-teste` deve criar
-      // o diretório cms-teste (o default '.' injetado pelo parser engolia args[0]).
-      const target = args[0] ?? options['dir'] ?? '.';
-      const name = args[1] ?? basename(resolve(target));
-      const root = await scaffoldProject(target, name, lang);
-
-      // Zero config: instala as dependências já no init (bun, ou npm sem bun).
-      console.log('Instalando dependências do projeto...');
-      const install = installProjectDeps(root);
-      if (install.ok) {
-        console.log(`✓ dependências instaladas via ${install.tool}`);
       } else {
-        console.warn(`⚠ instalação automática falhou via ${install.tool}. Rode manualmente em ${root}:`);
-        console.warn('  bun install   (ou: npm install)');
-        if (install.output) {
-          console.warn(install.output.split('\n').slice(-5).join('\n'));
-        }
+        lang = DEFAULT_DOCS_LANG;
       }
+
+      // The positional arg wins over -d: `init my-site` must create my-site
+      // (the parser's default '.' would swallow args[0]). Without either, an
+      // interactive run asks where to put the project.
+      let target = args[0] ?? options['dir'];
+      if (target === undefined && prompt.interactive) {
+        target = await prompt.ask('Project directory', { default: '.' });
+      }
+      target ??= '.';
+
+      const name = args[1] ?? basename(resolve(target));
+      const root = resolve(target);
+
+      // Zero config: dependencies are installed right in `init` (bun, or npm
+      // when bun is missing) — and BEFORE the summary, so the next steps are
+      // the last thing on screen.
+      await scaffoldProject(target, name, lang, async () => {
+        console.log('Installing project dependencies...');
+        const install = installProjectDeps(root);
+        if (install.ok) {
+          console.log(`✓ dependencies installed with ${install.tool}`);
+        } else {
+          console.warn(
+            `⚠ automatic install failed with ${install.tool}. Run it manually in ${root}:`
+          );
+          console.warn('  bun install   (or: npm install)');
+          if (install.output) {
+            console.warn(install.output.split('\n').slice(-5).join('\n'));
+          }
+        }
+      });
+      prompt.close();
     },
   },
   {
@@ -140,7 +157,7 @@ export const commands: Command[] = [
   },
   {
     name: 'stop',
-    description: 'Stop apps started by `start` (via pidfile ou detecção de processos)',
+    description: 'Stop apps started by `start` (via pidfile or process detection)',
     options: [],
     handler: async () => {
       const { stopAll, findRunningApps, clearPids } = await import('./runtime-state.js');
@@ -151,13 +168,13 @@ export const commands: Command[] = [
         for (const proc of fallback) {
           try {
             process.kill(proc.pid, 'SIGTERM');
-            console.log(`[stop] ${proc.label} (pid ${proc.pid}) finalizado`);
+            console.log(`[stop] ${proc.label} (pid ${proc.pid}) finished`);
           } catch {
-            console.error(`[stop] falha ao finalizar ${proc.label} (pid ${proc.pid})`);
+            console.error(`[stop] failed to stop ${proc.label} (pid ${proc.pid})`);
           }
         }
         if (fallback.length === 0) {
-          console.log('Nenhum app rodando.');
+          console.log('No apps running.');
         }
         clearPids();
         return;
@@ -165,9 +182,9 @@ export const commands: Command[] = [
 
       for (const result of results) {
         if (result.stopped) {
-          console.log(`[stop] ${result.label} (pid ${result.pid}) finalizado`);
+          console.log(`[stop] ${result.label} (pid ${result.pid}) finished`);
         } else {
-          console.log(`[stop] ${result.label} (pid ${result.pid}) não estava mais ativo`);
+          console.log(`[stop] ${result.label} (pid ${result.pid}) was no longer running`);
         }
       }
       clearPids();
@@ -175,7 +192,7 @@ export const commands: Command[] = [
   },
   {
     name: 'status',
-    description: 'Show status of apps started by `start` + resumo do projeto',
+    description: 'Show status of apps started by `start` + project summary',
     options: [],
     handler: async () => {
       const { statusAll } = await import('./runtime-state.js');
@@ -183,22 +200,22 @@ export const commands: Command[] = [
       const config = loadProjectConfig();
       const processes = statusAll();
 
-      console.log(`Projeto "${config.name}" — ports api:${config.ports.api} admin:${config.ports.admin} web:${config.ports.web}`);
-      console.log(`Tema ativo: ${config.activeTheme || '(não definido)'}`);
+      console.log(`Project "${config.name}" — ports api:${config.ports.api} admin:${config.ports.admin} web:${config.ports.web}`);
+      console.log(`Active theme: ${config.activeTheme || '(not set)'}`);
 
       if (processes.length === 0) {
-        console.log('Nenhum pidfile encontrado (use `okcms start`).');
+        console.log('No pidfile found (use `okcms start`).');
         return;
       }
 
       for (const proc of processes) {
-        console.log(`  ${proc.alive ? '●' : '○'} ${proc.label.padEnd(6)} pid=${proc.pid} iniciado=${proc.startedAt}`);
+        console.log(`  ${proc.alive ? '●' : '○'} ${proc.label.padEnd(6)} pid=${proc.pid} started=${proc.startedAt}`);
       }
     },
   },
   {
     name: 'doctor',
-    description: 'Diagnóstico do ambiente: node, .env, database, config, docker/compose/lane/proxy',
+    description: 'Environment diagnostics: node, .env, database, config, docker/compose/lane/proxy',
     options: [],
     handler: async () => {
       const { runDoctorChecks } = await import('./doctor.js');
@@ -210,31 +227,31 @@ export const commands: Command[] = [
         if (!check.ok && check.required) failed++;
       }
       if (failed > 0) {
-        console.error(`doctor: ${failed} problema(s) obrigatório(s) encontrado(s)`);
+        console.error(`doctor: ${failed} required problem(s) found`);
         process.exitCode = 1;
       } else {
-        console.log('Ambiente OK.');
+        console.log('Environment OK.');
       }
     },
   },
   {
     name: 'plugin:create',
-    description: 'Scaffold de um plugin mínimo e compatível (--name)',
+    description: 'Scaffold a minimal compatible plugin (--name)',
     options: [
-      { name: 'name', alias: 'n', description: 'Nome do plugin', required: true },
-      { name: 'dir', alias: 'd', description: 'Diretório base (default: ./plugins)', required: false },
+      { name: 'name', alias: 'n', description: 'Plugin name', required: true },
+      { name: 'dir', alias: 'd', description: 'Base directory (default: ./plugins)', required: false },
     ],
     handler: async (_args, options) => {
       const { scaffoldPlugin } = await import('./extension-scaffold.js');
       const name = options['name'];
       if (!name) {
-        console.error('Nome do plugin é obrigatório (--name)');
+        console.error('Plugin name is required (--name)');
         process.exit(1);
       }
       try {
         const result = scaffoldPlugin(name, options['dir']);
-        console.log(`Plugin criado em ${result.dir}`);
-        console.log(`Compatibilidade validada contra CMS ${result.manifest['compatibility'] ? '' : ''}(manifest.json)`);
+        console.log(`Plugin created at ${result.dir}`);
+        console.log(`Compatibility validated against CMS ${result.manifest['compatibility'] ? '' : ''}(manifest.json)`);
       } catch (error) {
         console.error(error instanceof Error ? error.message : String(error));
         process.exit(1);
@@ -243,27 +260,27 @@ export const commands: Command[] = [
   },
   {
     name: 'theme:create',
-    description: 'Scaffold de um tema mínimo e compatível (--name --style css|scss|tailwind)',
+    description: 'Scaffold a minimal compatible theme (--name --style css|scss|tailwind)',
     options: [
-      { name: 'name', alias: 'n', description: 'Nome do tema', required: true },
-      { name: 'dir', alias: 'd', description: 'Diretório base (default: ./themes)', required: false },
-      { name: 'style', alias: 's', description: 'Engine de estilo: css|scss|tailwind', required: false },
+      { name: 'name', alias: 'n', description: 'Theme name', required: true },
+      { name: 'dir', alias: 'd', description: 'Base directory (default: ./themes)', required: false },
+      { name: 'style', alias: 's', description: 'Style engine: css|scss|tailwind', required: false },
     ],
     handler: async (_args, options) => {
       const { scaffoldTheme } = await import('./extension-scaffold.js');
       const name = options['name'];
       const style = (options['style'] ?? 'css') as 'css' | 'scss' | 'tailwind';
       if (!name) {
-        console.error('Nome do tema é obrigatório (--name)');
+        console.error('Theme name is required (--name)');
         process.exit(1);
       }
       if (!['css', 'scss', 'tailwind'].includes(style)) {
-        console.error('--style deve ser css|scss|tailwind');
+        console.error('--style must be css|scss|tailwind');
         process.exit(1);
       }
       try {
         const result = scaffoldTheme(name, options['dir'], style);
-        console.log(`Tema criado em ${result.dir} (engine: ${style})`);
+        console.log(`Theme created at ${result.dir} (engine: ${style})`);
       } catch (error) {
         console.error(error instanceof Error ? error.message : String(error));
         process.exit(1);
@@ -272,23 +289,23 @@ export const commands: Command[] = [
   },
   {
     name: 'theme:build',
-    description: 'Compila estilos do tema (SCSS/Tailwind -> dist/theme.css com isolamento [data-theme])',
+    description: 'Compile theme styles (SCSS/Tailwind -> dist/theme.css with [data-theme] isolation)',
     options: [
-      { name: 'name', alias: 'n', description: 'Nome do tema', required: true },
-      { name: 'themes-dir', alias: 'd', description: 'Diretório de temas (default: ./themes)', required: false },
+      { name: 'name', alias: 'n', description: 'Theme name', required: true },
+      { name: 'themes-dir', alias: 'd', description: 'Themes directory (default: ./themes)', required: false },
     ],
     handler: async (_args, options) => {
       const { join } = await import('node:path');
       const name = options['name'];
       if (!name) {
-        console.error('--name obrigatório');
+        console.error('--name required');
         process.exit(1);
       }
       const themesDir = options['themes-dir'] ?? join(process.cwd(), 'themes');
       try {
         const { buildThemeStylesOnDisk } = await import('./theme-build.js');
         const outcome = await buildThemeStylesOnDisk(themesDir, name);
-        if (!outcome.entry) console.log(`[${name}] sem entrada de estilo (${outcome.engine})`);
+        if (!outcome.entry) console.log(`[${name}] no style entry (${outcome.engine})`);
         for (const warning of outcome.warnings) console.warn(`warn: ${warning}`);
         console.log(
           `[${name}] ${outcome.engine} -> ${outcome.output} (${outcome.bytes} bytes) isolated=${outcome.isolated}`
@@ -301,9 +318,9 @@ export const commands: Command[] = [
   },
   {
     name: 'build',
-    description: 'Build dos apps do projeto via bun filters (--apps api,admin,web)',
+    description: 'Build project apps via bun filters (--apps api,admin,web)',
     options: [
-      { name: 'apps', alias: 'a', description: 'Apps a buildar (default: api,admin,web)', required: false },
+      { name: 'apps', alias: 'a', description: 'Apps to build (default: api,admin,web)', required: false },
     ],
     handler: async (_args, options) => {
       const { runProjectBuild, isWorkspaceProject } = await import('./build.js');
@@ -311,8 +328,8 @@ export const commands: Command[] = [
       // OkCMS vêm pré-compilados do npm — o `bun run --filter` falharia com
       // "No packages matched the filter".
       if (!isWorkspaceProject(process.cwd())) {
-        console.log('Apps do OkCMS vêm pré-compilados do npm — nada a buildar neste projeto.');
-        console.log('Para compilar estilos de um tema use: okcms theme:build --name <tema>');
+        console.log('OkCMS apps come pre-built from npm — nothing to build in this project.');
+        console.log('To compile theme styles use: okcms theme:build --name <theme>');
         return;
       }
       const appsArg = options['apps'];
@@ -328,21 +345,21 @@ export const commands: Command[] = [
           console.error(step.output.split('\n').slice(-10).join('\n'));
         }
       }
-      console.log(ok ? `Build concluído em ${Date.now() - started}ms.` : 'Build falhou.');
+      console.log(ok ? `Build completed in ${Date.now() - started}ms.` : 'Build failed.');
       process.exitCode = ok ? 0 : 1;
     },
   },
   {
     name: 'prerender',
-    description: 'Prerender estático das páginas publicadas para o tema ativo (best-effort)',
+    description: 'Statically prerender published pages for the active theme (best-effort)',
     options: [
-      { name: 'out', alias: 'o', description: 'Diretório de saída (default: ./.prerender)', required: false },
+      { name: 'out', alias: 'o', description: 'Output directory (default: ./.prerender)', required: false },
     ],
     handler: async (_args, options) => {
       const { join } = await import('node:path');
 
       if (!process.env['DATABASE_URL']) {
-        console.log('[prerender] DATABASE_URL não configurado — pulando (best-effort).');
+        console.log('[prerender] DATABASE_URL not set — skipping (best-effort).');
         return;
       }
 
@@ -366,27 +383,27 @@ export const commands: Command[] = [
           outDir
         );
 
-        console.log(`[prerender] ${result.pages} página(s) geradas em ${outDir}`);
+        console.log(`[prerender] ${result.pages} page(s) generated at ${outDir}`);
         if (result.failed.length > 0) {
           const failedPaths = result.failed.map((failed) => failed.path).join(', ');
-          console.warn(`[prerender] ${result.failed.length} falha(s): ${failedPaths}`);
+          console.warn(`[prerender] ${result.failed.length} failure(s): ${failedPaths}`);
         }
       } catch (error) {
-        console.warn(`[prerender] indisponível (${error instanceof Error ? error.message : String(error)}) — pulando.`);
+        console.warn(`[prerender] unavailable (${error instanceof Error ? error.message : String(error)}) — skipping.`);
       }
     },
   },
   {
     name: 'config',
     description:
-      'Wizard das variáveis de ambiente (.env) — interativo, ou --list / --set CHAVE=valor',
+      'Environment variables wizard (.env) — interactive, or --list / --set KEY=value',
     options: [
-      { name: 'set', alias: 's', description: 'Define uma chave (repita para várias): --set PORT=3000', required: false, repeatable: true },
-      { name: 'list', alias: 'l', description: 'Lista as chaves do .env (segredos mascarados)', required: false },
-      { name: 'show-secrets', alias: 'S', description: 'Com --list, mostra segredos sem mascarar', required: false },
-      { name: 'non-interactive', alias: 'n', description: 'Não espera TTY (CI) — saída de --list', required: false },
-      { name: 'section', alias: 'x', description: 'Abre direto numa seção (app|database|redis|auth|storage|worker|cache|ports|theme|deploy)', required: false },
-      { name: 'force', alias: 'F', description: 'Permite rodar dentro de container (não recomendado)', required: false },
+      { name: 'set', alias: 's', description: 'Set a key (repeat for more): --set PORT=3000', required: false, repeatable: true },
+      { name: 'list', alias: 'l', description: 'List .env keys (secrets masked)', required: false },
+      { name: 'show-secrets', alias: 'S', description: 'With --list, show secrets unmasked', required: false },
+      { name: 'non-interactive', alias: 'n', description: 'No TTY wait (CI) — output of --list', required: false },
+      { name: 'section', alias: 'x', description: 'Open directly on a section (app|database|redis|auth|storage|worker|cache|ports|theme|deploy)', required: false },
+      { name: 'force', alias: 'F', description: 'Allow running inside a container (not recommended)', required: false },
     ],
     handler: async (_args, options) => {
       const { runConfigWizard } = await import('./config-wizard.js');
@@ -403,21 +420,58 @@ export const commands: Command[] = [
   },
   {
     name: 'update',
-    description: 'Wizard de atualização: baixar pacotes ou deploy Docker blue/green completo',
+    description: 'Update packages, then optionally deploy (blue/green, simple or PM2)',
     options: [
-      { name: 'install', alias: 'i', description: 'Modo download: aplica as atualizações no node_modules', required: false },
-      { name: 'mode', alias: 'm', description: 'Pula o menu: download (só pacotes) ou deploy (blue/green)', required: false },
-      { name: 'no-cache', alias: 'c', description: 'Deploy: build --no-cache (rebuild limpo, mais lento)', required: false },
-      { name: 'remove-orphans', alias: 'r', description: 'Deploy: down --remove-orphans na lane antiga (default)', required: false },
-      { name: 'keep-orphans', alias: 'k', description: 'Deploy: mantém contêineres órfãos da lane antiga', required: false },
-      { name: 'yes', alias: 'y', description: 'Sem prompts: segue os defaults de cada escolha', required: false },
-      { name: 'force', alias: 'F', description: 'Permite rodar dentro de container (não recomendado)', required: false },
+      {
+        name: 'install',
+        alias: 'i',
+        description: 'Download mode: apply the updates to node_modules',
+        required: false,
+      },
+      {
+        name: 'mode',
+        alias: 'm',
+        description: 'Skip the menu: download (packages only) or deploy',
+        required: false,
+      },
+      {
+        name: 'target',
+        alias: 't',
+        description: 'Skip the target menu: blue-green | simple | pm2',
+        required: false,
+      },
+      {
+        name: 'no-cache',
+        alias: 'c',
+        description: 'Deploy: build --no-cache (clean rebuild, slower)',
+        required: false,
+      },
+      {
+        name: 'remove-orphans',
+        alias: 'r',
+        description: 'Deploy (blue/green): down --remove-orphans on the old lane (default)',
+        required: false,
+      },
+      {
+        name: 'keep-orphans',
+        alias: 'k',
+        description: 'Deploy (blue/green): keep the orphan containers of the old lane',
+        required: false,
+      },
+      { name: 'yes', alias: 'y', description: 'No prompts: take every default', required: false },
+      {
+        name: 'force',
+        alias: 'F',
+        description: 'Allow running inside a container (not recommended)',
+        required: false,
+      },
     ],
     handler: async (_args, options) => {
       const { runUpdate } = await import('./update.js');
       const code = await runUpdate({
         install: options['install'] !== undefined,
         mode: options['mode'],
+        target: options['target'],
         noCache: options['no-cache'] !== undefined,
         removeOrphans: options['remove-orphans'] !== undefined,
         keepOrphans: options['keep-orphans'] !== undefined,
@@ -429,18 +483,54 @@ export const commands: Command[] = [
   },
   {
     name: 'redeploy',
-    description: 'Aplica plugin/tema recém-instalado: migrations de plugin + build de tema + deploy blue/green',
+    description: 'Apply a freshly installed plugin/theme: migrations + theme build + deploy',
     options: [
-      { name: 'plugin', alias: 'p', description: 'Só prepara as migrations deste plugin', required: false },
-      { name: 'theme', alias: 't', description: 'Só compila este tema', required: false },
-      { name: 'skip-migrations', alias: 'M', description: 'Não copia SQL de plugin para migrations/', required: false },
-      { name: 'skip-theme-build', alias: 'B', description: 'Não compila estilos dos temas', required: false },
-      { name: 'dry-run', alias: 'n', description: 'Mostra o plano e sai sem executar nada', required: false },
-      { name: 'no-cache', alias: 'c', description: 'Deploy: build --no-cache (rebuild limpo, mais lento)', required: false },
-      { name: 'remove-orphans', alias: 'r', description: 'Deploy: down --remove-orphans na lane antiga (default)', required: false },
-      { name: 'keep-orphans', alias: 'k', description: 'Deploy: mantém contêineres órfãos da lane antiga', required: false },
-      { name: 'yes', alias: 'y', description: 'Sem prompts: segue os defaults de cada escolha', required: false },
-      { name: 'force', alias: 'F', description: 'Permite rodar dentro de container (não recomendado)', required: false },
+      { name: 'plugin', alias: 'p', description: 'Only prepare the migrations of this plugin', required: false },
+      { name: 'theme', alias: 't', description: 'Only build this theme', required: false },
+      {
+        name: 'skip-migrations',
+        alias: 'M',
+        description: 'Do not copy plugin SQL into migrations/',
+        required: false,
+      },
+      {
+        name: 'skip-theme-build',
+        alias: 'B',
+        description: 'Do not compile theme styles',
+        required: false,
+      },
+      { name: 'dry-run', alias: 'n', description: 'Show the plan and exit without running', required: false },
+      {
+        name: 'target',
+        alias: 'T',
+        description: 'Skip the target menu: blue-green | simple | pm2',
+        required: false,
+      },
+      {
+        name: 'no-cache',
+        alias: 'c',
+        description: 'Deploy: build --no-cache (clean rebuild, slower)',
+        required: false,
+      },
+      {
+        name: 'remove-orphans',
+        alias: 'r',
+        description: 'Deploy (blue/green): down --remove-orphans on the old lane (default)',
+        required: false,
+      },
+      {
+        name: 'keep-orphans',
+        alias: 'k',
+        description: 'Deploy (blue/green): keep the orphan containers of the old lane',
+        required: false,
+      },
+      { name: 'yes', alias: 'y', description: 'No prompts: take every default', required: false },
+      {
+        name: 'force',
+        alias: 'F',
+        description: 'Allow running inside a container (not recommended)',
+        required: false,
+      },
     ],
     handler: async (_args, options) => {
       const { runRedeploy } = await import('./redeploy.js');
@@ -450,6 +540,7 @@ export const commands: Command[] = [
         skipMigrations: options['skip-migrations'] !== undefined,
         skipThemeBuild: options['skip-theme-build'] !== undefined,
         dryRun: options['dry-run'] !== undefined,
+        target: options['target'],
         noCache: options['no-cache'] !== undefined,
         removeOrphans: options['remove-orphans'] !== undefined,
         keepOrphans: options['keep-orphans'] !== undefined,
@@ -570,7 +661,7 @@ export const commands: Command[] = [
     handler: async (_args, options) => {
       const name = options['name'];
       if (!name) {
-        console.error('Nome ou caminho do plugin é obrigatório (--name)');
+        console.error('Plugin name or path is required (--name)');
         process.exit(1);
       }
       const { installExtension } = await import('./installer.js');
@@ -602,7 +693,7 @@ export const commands: Command[] = [
       try {
         const results = await searchExtensions('plugin', options['query'] ?? '');
         if (results.length === 0) {
-          console.log('Nenhum plugin encontrado.');
+          console.log('No plugins found.');
           return;
         }
         for (const result of results) {
@@ -622,7 +713,7 @@ export const commands: Command[] = [
       { name: 'info', alias: 'i', description: 'Show manifest info', required: false },
       { name: 'enable', alias: 'e', description: 'Enable the plugin', required: false },
       { name: 'disable', alias: 'd', description: 'Disable the plugin', required: false },
-      { name: 'uninstall', alias: 'u', description: 'Uninstall (remove files + registro)', required: false },
+      { name: 'uninstall', alias: 'u', description: 'Uninstall (remove files + registry)', required: false },
     ],
     handler: async (_args, options) => {
       const { readFileSync } = await import('node:fs');
@@ -632,25 +723,25 @@ export const commands: Command[] = [
 
       const name = options['name'];
       if (!name) {
-        console.error('Nome do plugin é obrigatório (--name)');
+        console.error('Plugin name is required (--name)');
         process.exit(1);
       }
 
       if (options['uninstall'] !== undefined) {
         const result = uninstallExtension('plugin', name);
         if (!result.removed) {
-          console.log(`Plugin "${name}" não estava instalado.`);
+          console.log(`Plugin "${name}" was not installed.`);
           process.exitCode = 1;
           return;
         }
-        console.log(`Plugin "${name}" desinstalado (${result.targetDir}).`);
+        console.log(`Plugin "${name}" uninstalled (${result.targetDir}).`);
         return;
       }
 
       if (options['enable'] !== undefined || options['disable'] !== undefined) {
         const enabled = options['enable'] !== undefined;
         const ok = setEnabled('plugin', name, enabled);
-        console.log(ok ? `Plugin "${name}" ${enabled ? 'habilitado' : 'desabilitado'}.` : `Plugin "${name}" não está registrado.`);
+        console.log(ok ? `Plugin "${name}" ${enabled ? 'enabled' : 'disabled'}.` : `Plugin "${name}" is not registered.`);
         process.exitCode = ok ? 0 : 1;
         return;
       }
@@ -661,14 +752,14 @@ export const commands: Command[] = [
       try {
         const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8')) as Record<string, unknown>;
         const state = loadExtensionsState().plugins[name];
-        console.log(`Nome:       ${manifest['name'] ?? name}`);
-        console.log(`Versão:     ${manifest['version'] ?? '?'}`);
-        console.log(`Descrição:  ${manifest['description'] ?? '-'}`);
-        console.log(`Entry:      ${manifest['main'] ?? '?'}`);
-        console.log(`Permissões: ${(manifest['permissions'] as string[] | undefined)?.join(', ') ?? '-'}`);
-        console.log(`Estado:     ${state?.enabled === false ? 'desabilitado' : 'habilitado'}`);
+        console.log(`Name:        ${manifest['name'] ?? name}`);
+        console.log(`Version:     ${manifest['version'] ?? '?'}`);
+        console.log(`Description: ${manifest['description'] ?? '-'}`);
+        console.log(`Entry:       ${manifest['main'] ?? '?'}`);
+        console.log(`Permissions: ${(manifest['permissions'] as string[] | undefined)?.join(', ') ?? '-'}`);
+        console.log(`State:       ${state?.enabled === false ? 'disabled' : 'enabled'}`);
       } catch {
-        console.error(`Manifesto não encontrado em ${manifestPath}`);
+        console.error(`Manifest not found at ${manifestPath}`);
         process.exit(1);
       }
     },
@@ -682,7 +773,7 @@ export const commands: Command[] = [
     handler: async (_args, options) => {
       const name = options['name'];
       if (!name) {
-        console.error('Nome ou caminho do tema é obrigatório (--name)');
+        console.error('Theme name or path is required (--name)');
         process.exit(1);
       }
       const { installExtension } = await import('./installer.js');
@@ -714,7 +805,7 @@ export const commands: Command[] = [
       try {
         const results = await searchExtensions('theme', options['query'] ?? '');
         if (results.length === 0) {
-          console.log('Nenhum tema encontrado.');
+          console.log('No themes found.');
           return;
         }
         for (const result of results) {
@@ -734,7 +825,7 @@ export const commands: Command[] = [
       { name: 'info', alias: 'i', description: 'Show theme.json info', required: false },
       { name: 'enable', alias: 'e', description: 'Enable the theme', required: false },
       { name: 'disable', alias: 'd', description: 'Disable the theme', required: false },
-      { name: 'uninstall', alias: 'u', description: 'Uninstall (remove files + registro)', required: false },
+      { name: 'uninstall', alias: 'u', description: 'Uninstall (remove files + registry)', required: false },
       { name: 'set-active', alias: 's', description: 'Set as active theme', required: false },
     ],
     handler: async (_args, options) => {
@@ -745,7 +836,7 @@ export const commands: Command[] = [
 
       const name = options['name'];
       if (!name) {
-        console.error('Nome do tema é obrigatório (--name)');
+        console.error('Theme name is required (--name)');
         process.exit(1);
       }
 
@@ -753,11 +844,11 @@ export const commands: Command[] = [
         const { uninstallExtension } = await import('./extensions-state.js');
         const result = uninstallExtension('theme', name);
         if (!result.removed) {
-          console.log(`Theme "${name}" não estava instalado.`);
+          console.log(`Theme "${name}" was not installed.`);
           process.exitCode = 1;
           return;
         }
-        console.log(`Theme "${name}" desinstalado (${result.targetDir}).`);
+        console.log(`Theme "${name}" uninstalled (${result.targetDir}).`);
         return;
       }
 
@@ -765,21 +856,21 @@ export const commands: Command[] = [
         const configPath = join(process.cwd(), DEFAULT_CONFIG_FILENAME);
 
         if (!existsSync(configPath)) {
-          console.error(`${DEFAULT_CONFIG_FILENAME} não encontrado; rode \`okcms init\` primeiro.`);
+          console.error(`${DEFAULT_CONFIG_FILENAME} not found; run \`okcms init\` first.`);
           process.exit(1);
         }
 
         const raw = JSON.parse(readFileSync(configPath, 'utf-8')) as Record<string, unknown>;
         raw['activeTheme'] = name;
         writeFileSync(configPath, JSON.stringify(raw, null, 2));
-        console.log(`Tema ativo definido como "${name}".`);
+        console.log(`Active theme set to "${name}".`);
         return;
       }
 
       if (options['enable'] !== undefined || options['disable'] !== undefined) {
         const enabled = options['enable'] !== undefined;
         const ok = setEnabled('theme', name, enabled);
-        console.log(ok ? `Tema "${name}" ${enabled ? 'habilitado' : 'desabilitado'}.` : `Tema "${name}" não está registrado.`);
+        console.log(ok ? `Theme "${name}" ${enabled ? 'enabled' : 'disabled'}.` : `Theme "${name}" is not registered.`);
         process.exitCode = ok ? 0 : 1;
         return;
       }
@@ -790,15 +881,15 @@ export const commands: Command[] = [
         const manifest = JSON.parse(readFileSync(themeJsonPath, 'utf-8')) as Record<string, unknown>;
         const provides = (manifest['provides'] ?? {}) as Record<string, unknown>;
         const state = loadExtensionsState().themes[name];
-        console.log(`Nome:       ${manifest['name'] ?? name}`);
-        console.log(`Versão:     ${manifest['version'] ?? '?'}`);
-        console.log(`Autor:      ${manifest['author'] ?? '-'}`);
+        console.log(`Name:       ${manifest['name'] ?? name}`);
+        console.log(`Version:    ${manifest['version'] ?? '?'}`);
+        console.log(`Author:     ${manifest['author'] ?? '-'}`);
         console.log(`Parent:     ${manifest['parent'] ?? '-'}`);
         console.log(`Layouts:    ${(provides['layouts'] as string[] | undefined)?.join(', ') ?? '-'}`);
-        console.log(`Ativo:      ${config.activeTheme === name ? 'sim' : 'não'} (${config.activeTheme || 'nenhum'})`);
-        console.log(`Estado:     ${state?.enabled === false ? 'desabilitado' : 'habilitado'}`);
+        console.log(`Active:     ${config.activeTheme === name ? 'yes' : 'no'} (${config.activeTheme || 'none'})`);
+        console.log(`State:      ${state?.enabled === false ? 'disabled' : 'enabled'}`);
       } catch {
-        console.error(`theme.json não encontrado em ${themeJsonPath}`);
+        console.error(`theme.json not found at ${themeJsonPath}`);
         process.exit(1);
       }
     },
@@ -813,7 +904,7 @@ export const commands: Command[] = [
     handler: async (_args, options) => {
       const from = options['from'] ?? 'local';
       const to = options['to'] ?? 's3';
-      console.log(`Migrando mídia de "${from}" para "${to}"...`);
+      console.log(`Migrating media from "${from}" to "${to}"...`);
 
       const { initDb } = await import('./db-init.js');
       await initDb();
@@ -822,7 +913,7 @@ export const commands: Command[] = [
       const migrator = createMigrator(from, to);
       const result = await migrator.migrateAll();
 
-      console.log(`Migrados: ${result.migrated}, Falhas: ${result.failed}`);
+      console.log(`Migrated: ${result.migrated}, Failed: ${result.failed}`);
       for (const err of result.errors) {
         console.error(`  ! ${err.filename}: ${err.error}`);
       }
@@ -842,7 +933,7 @@ export const commands: Command[] = [
       // A política RBAC usa slugs em maiúsculas: `--role editor` → EDITOR.
       const roleSlug = String(options['role'] ?? 'EDITOR').toUpperCase();
       if (!(VALID_ROLES as readonly string[]).includes(roleSlug)) {
-        console.error(`Role inválida: ${options['role']} — use uma de: ${VALID_ROLES.join(', ')}`);
+        console.error(`Invalid role: ${options['role']} — use one of: ${VALID_ROLES.join(', ')}`);
         process.exitCode = 1;
         return;
       }
@@ -859,7 +950,7 @@ export const commands: Command[] = [
       const email = String(options['email']);
       const existing = await sql.unsafe('SELECT id FROM users WHERE email = $1', [email]);
       if (existing.length > 0) {
-        console.error(`Usuário já existe: ${email}`);
+        console.error(`User already exists: ${email}`);
         process.exitCode = 1;
         return;
       }
@@ -881,7 +972,7 @@ export const commands: Command[] = [
         [roleSlug, tenantId]
       );
       if (roles.length === 0) {
-        console.error(`Role "${roleSlug}" não encontrada após o seed.`);
+        console.error(`Role "${roleSlug}" not found after seeding.`);
         process.exitCode = 1;
         return;
       }
@@ -894,7 +985,7 @@ export const commands: Command[] = [
         [tenantId, userId, roles[0]!['id'] as string]
       );
 
-      console.log(`✓ usuário criado: ${email} (papel ${roleSlug})`);
+      console.log(`✓ user created: ${email} (role ${roleSlug})`);
     },
   },
   {
@@ -906,10 +997,10 @@ export const commands: Command[] = [
       const { ensureCoreSchema, seedCoreData } = await import('@oktis-works/database');
       const applied = await ensureCoreSchema();
       if (applied) {
-        console.log('✓ schema core aplicado (banco inicializado)');
+        console.log('✓ core schema applied (database initialized)');
       }
       const { roles, settings } = await seedCoreData();
-      console.log(`✓ seed concluído: ${roles} roles, ${settings} settings criados`);
+      console.log(`✓ seed completed: ${roles} roles, ${settings} settings created`);
     },
   },
   {
@@ -929,11 +1020,11 @@ export const commands: Command[] = [
   },
   {
     name: 'rollback',
-    description: 'Rollback para estado anterior (lista histórico e permite escolher)',
+    description: 'Rollback to a previous state (lists history and lets you choose)',
     options: [
-      { name: 'id', alias: 'i', description: 'ID do histórico para rollback direto (sem menu)', required: false },
-      { name: 'yes', alias: 'y', description: 'Confirma sem prompt', required: false },
-      { name: 'force', alias: 'F', description: 'Permite rodar dentro de container (não recomendado)', required: false },
+      { name: 'id', alias: 'i', description: 'History ID for direct rollback (no menu)', required: false },
+      { name: 'yes', alias: 'y', description: 'Confirm without prompt', required: false },
+      { name: 'force', alias: 'F', description: 'Allow running inside a container (not recommended)', required: false },
     ],
     handler: async (_args, options) => {
       const { runRollback } = await import('./rollback.js');
@@ -947,13 +1038,22 @@ export const commands: Command[] = [
   },
   {
     name: 'deploy',
-    description: 'Deploy unificado: escolhe entre Docker blue/green ou PM2 (host)',
+    description: 'First deploy — pick a target: blue/green lanes, simple containers or PM2',
     options: [
-      { name: 'target', alias: 't', description: 'Pula o menu: docker (blue/green) ou pm2 (host)', required: false },
-      { name: 'yes', alias: 'y', description: 'Sem prompts: usa defaults de cada modo', required: false },
-      { name: 'force', alias: 'F', description: 'Permite rodar dentro de container (não recomendado)', required: false },
-      { name: 'no-cache', alias: 'c', description: 'Docker: build --no-cache', required: false },
-      { name: 'install', alias: 'i', description: 'PM2: atualiza pacotes antes do deploy', required: false },
+      {
+        name: 'target',
+        alias: 't',
+        description: 'Skip the menu: blue-green | simple | pm2',
+        required: false,
+      },
+      { name: 'yes', alias: 'y', description: 'No prompts: take every default', required: false },
+      {
+        name: 'force',
+        alias: 'F',
+        description: 'Allow running inside a container (not recommended)',
+        required: false,
+      },
+      { name: 'install', alias: 'i', description: 'PM2: update packages before deploying', required: false },
     ],
     handler: async (_args, options) => {
       const { runDeploy } = await import('./deploy.js');
@@ -961,7 +1061,6 @@ export const commands: Command[] = [
         target: options['target'],
         yes: options['yes'] !== undefined,
         force: options['force'] !== undefined,
-        noCache: options['no-cache'] !== undefined,
         install: options['install'] !== undefined,
       });
       if (code !== 0) process.exitCode = code;

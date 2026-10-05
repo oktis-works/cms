@@ -3,7 +3,8 @@
 # Docker deploy (blue/green)
 
 OkCMS runs in production behind an nginx proxy, with **two identical
-copies of the application** (lanes `blue` and `green`). Deploy is always:
+copies of the application** (lanes `blue` and `green`) — the blue/green
+target. There, deploy is always:
 build the stopped lane, healthcheck, swap the proxy, drain the worker and only
 then take down the old lane. No request is lost in the swap, and any
 failure leaves the lane that was already serving **up**.
@@ -11,6 +12,19 @@ failure leaves the lane that was already serving **up**.
 All of this is orchestrated by the CLI — which runs **on the host**, always.
 
 > Operator guide (full CLI): [operator-guide.md](./operator-guide.md)
+
+## Deploy targets
+
+Three targets, chosen in the arrow-key menu of `okcms deploy`,
+`okcms update --mode deploy` and `okcms redeploy` (↑/↓ + Enter, last choice
+pre-selected), skipped with `--target blue-green|simple|pm2` and remembered in
+`.deploy/state.json`: **blue/green** keeps the two lanes behind the nginx proxy
+with the zero-downtime swap; **simple** runs one lane-less stack from
+`docker-compose.app.yml` (project `okcms-app`, containers
+`okcms-api`/`okcms-web`/`okcms-admin`/`okcms-worker`, same ports) with the proxy
+pointing at it and a brief restart instead of a swap; **pm2** runs the processes
+on the host (`pm2 startOrReload ecosystem.config.js --update-env`) and needs no
+Docker at all. Everything below describes blue/green.
 
 ## What `okcms init` writes
 
@@ -24,9 +38,10 @@ by hand:
 | `.dockerignore` | Build context: keeps `dist/`, `plugins/`, `themes/`; leaves `deploy/` and `.env` out |
 | `docker-compose.infra.yml` | Project `okcms`: network `okcms-net`, postgres, redis, proxy |
 | `docker-compose.deploy.yml` | Lanes project: 8 services (api, web, admin, worker) × blue, green |
+| `docker-compose.app.yml` | Simple stack: project `okcms-app`, one copy of each service (no lanes) |
 | `deploy/nginx/templates/default.conf.template` | Proxy routing (envsubst at start) |
 | `deploy/nginx/conf.d/00-upstreams.conf` | Upstreams of the active lane — rewritten by the CLI on swap |
-| `.deploy/state.json` | Active lane, previous lane and history (gitignored) |
+| `.deploy/state.json` | Active lane, previous lane, deploy target and history (gitignored) |
 
 The first two groups are **generated** from
 `packages/cli/src/assets.ts`. If you change `infrastructure/**` in the monorepo,
@@ -60,13 +75,14 @@ The `.dockerignore` is deliberate:
 - ignores `.env`, `node_modules/`, `deploy/` (mounted at runtime) and
   `docker-compose*.yml`.
 
-## Three composes, three projects
+## Composes and projects
 
 | File | Docker project | Contents |
 |---|---|---|
 | `docker-compose.yml` | (default) | Only the **dev** infra: postgres + redis |
 | `docker-compose.infra.yml` | `okcms` | Network `okcms-net`, postgres, redis, **proxy** |
-| `docker-compose.deploy.yml` | `okcms-blue` / `okcms-green` | The 8 application services |
+| `docker-compose.deploy.yml` | `okcms-blue` / `okcms-green` | The 8 application services (blue/green target) |
+| `docker-compose.app.yml` | `okcms-app` | The same 4 services, no lanes (simple target) |
 
 The lanes use the `okcms-net` network as **external**: only that way does the lane
 `blue` nginx reach the postgres of the `okcms` project.
@@ -169,9 +185,11 @@ What it does before the normal deploy:
    `V###__owner__nome.sql` is **never** copied.
 2. **style build** — compiles every theme that has a style entry and
    writes `themes/<n>/dist/theme.css`.
-3. **blue/green deploy** — the same sequence as the table above, but with
+3. **deploy of the chosen target** — for blue/green, the same sequence as the
+   table above, but with
    `packages: []`: no `bun add`, because what changed is extension
-   content, not a package version.
+   content, not a package version (simple and PM2 have their own, shorter
+   order).
 
 A failure in steps 1 or 2 aborts **before** touching Docker. A `.sql` already
 existing in `migrations/` outside the pattern is also detected beforehand — it would

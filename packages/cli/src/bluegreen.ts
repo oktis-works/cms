@@ -25,6 +25,8 @@ import { dirname, join } from 'node:path';
 import { deployAssets, portsFromEnv, type Lane } from './assets.js';
 import {
   COMPOSE_DEPLOY_FILE,
+  SIMPLE_WORKER_CONTAINER,
+  appCompose,
   classifyServices,
   composeAvailable,
   defaultRunner,
@@ -41,6 +43,7 @@ import {
   readUpstreamsLane,
   reloadProxy,
   restartProxy,
+  simpleStackRunning,
   waitStopped,
   waitForContainer,
   writeLaneState,
@@ -230,9 +233,9 @@ export function preflight(runner: Runner = defaultRunner): PreflightResult {
     return {
       ok: false,
       message:
-        'Docker não está acessível.\n' +
-        '  Instale o Docker Desktop/Engine e confira `docker version`.\n' +
-        '  Sem ele, use `okcms update --mode download` para só baixar os pacotes.',
+        'Docker is not available.\n' +
+        '  Install Docker Desktop/Engine and check `docker version`.\n' +
+        '  Without it, use `okcms update --mode download` to only fetch packages.',
     };
   }
 
@@ -241,9 +244,9 @@ export function preflight(runner: Runner = defaultRunner): PreflightResult {
     return {
       ok: false,
       message:
-        'Docker Compose v2 não está disponível (`docker compose version` falhou).\n' +
-        '  O deploy usa o plugin Compose v2 — o `docker-compose` legado (v1, Python)\n' +
-        '  não entende healthcheck nem extensões `x-` dos arquivos gerados.',
+        'Docker Compose v2 is not available (`docker compose version` failed).\n' +
+        '  The deploy uses the Compose v2 plugin — legacy `docker-compose` (v1, Python)\n' +
+        '  does not understand healthchecks nor the `x-` extensions we generate.',
     };
   }
 
@@ -331,19 +334,23 @@ export async function deployBlueGreen(opts: DeployOptions): Promise<DeployResult
   const target: Lane = previous ? otherLane(previous) : (readUpstreamsLane(cwd) ?? 'blue');
 
   const willDrain = previous !== null;
+  // The simple stack may be what is serving now (it carries no lane labels, so
+  // detectActiveLane cannot see it). It is retired only after the proxy swap.
+  const simpleStack = simpleStackRunning(runner);
   const plan: string[] = [
     'Preflight: docker + compose v2',
-    'Rede okcms-net e infraestrutura (postgres, redis, proxy)',
-    'Baixar pacotes no host',
-    'Build da imagem (lane nova, sem tráfego)',
-    'Migrations no host',
-    `Subir edge da lane ${target}`,
-    `Healthcheck da lane ${target}`,
-    'Swap do proxy (nginx -s reload)',
-    ...(willDrain ? [`Drenar worker da lane ${previous}`] : []),
-    `Subir worker da lane ${target}`,
-    ...(willDrain ? [`Derrubar lane ${previous}`] : []),
-    'Registrar estado do deploy',
+    'Network okcms-net and infra (postgres, redis, proxy)',
+    'Fetch packages on the host',
+    `Build image (lane ${target}, no traffic yet)`,
+    'Migrations on the host',
+    `Start edge containers of lane ${target}`,
+    `Healthcheck of lane ${target}`,
+    'Proxy swap (nginx -s reload)',
+    ...(willDrain ? [`Drain worker of lane ${previous}`] : []),
+    `Start worker of lane ${target}`,
+    ...(willDrain ? [`Bring down lane ${previous}`] : []),
+    ...(simpleStack ? ['Retire the simple stack'] : []),
+    'Record deploy state',
   ];
 
   const next = (index: number): void => {
@@ -372,24 +379,24 @@ export async function deployBlueGreen(opts: DeployOptions): Promise<DeployResult
       true
     );
     if (!result.ok) {
-      warn(`  Não foi possível derrubar a lane ${target}: ${result.stderr.trim() || 'falhou'}`);
+      warn(`  Could not bring down lane ${target}: ${result.stderr.trim() || 'failed'}`);
     }
   };
 
   // ---- 1. preflight -------------------------------------------------------
   next(1);
   const ready = preflight(runner);
-  if (!ready.ok) return fail(ready.message ?? 'Preflight falhou.');
+  if (!ready.ok) return fail(ready.message ?? 'Preflight failed.');
 
   // ---- 2. rede + infra ----------------------------------------------------
   next(2);
   const network = ensureNetwork(cwd, runner);
-  if (!network.ok) return fail(`Não foi possível criar a rede okcms-net: ${network.stderr.trim()}`);
+  if (!network.ok) return fail(`Could not create network okcms-net: ${network.stderr.trim()}`);
 
   const infra = infraCompose(cwd, ['up', '-d'], runner, true);
   if (!infra.ok) {
     return fail(
-      `Infraestrutura não subiu (docker compose -p okcms up -d):\n${infra.stderr.trim()}`
+      `Infrastructure did not start (docker compose -p okcms up -d):\n${infra.stderr.trim()}`
     );
   }
 
@@ -399,27 +406,27 @@ export async function deployBlueGreen(opts: DeployOptions): Promise<DeployResult
       intervalMs: timeout.intervalMs,
     });
     if (!healthy) {
-      return fail(`${dataContainer} não ficou saudável em 3min — veja \`docker logs ${dataContainer}\`.`);
+      return fail(`${dataContainer} never became healthy in 3min — see \`docker logs ${dataContainer}\`.`);
     }
   }
-  log(`  ✓ infra pronta (postgres, redis, proxy)`);
+  log(`  ✓ infra ready (postgres, redis, proxy)`);
 
   // ---- 3. pacotes no host -------------------------------------------------
   next(3);
   if (opts.installAll) {
     const installed = runner('bun', ['install'], { cwd, inherit: true, timeoutMs: 600_000 });
     if (!installed.ok) {
-      return fail(`bun install falhou:\n${installed.stderr.trim()}`);
+      return fail(`bun install failed:\n${installed.stderr.trim()}`);
     }
-    log('  ✓ dependências instaladas no host');
+    log('  ✓ dependencies installed on the host');
   } else if (packages.length > 0) {
     const installed = installPackages(cwd, packages, runner);
     if (!installed.ok) {
-      return fail(`Falha ao instalar pacotes no host (${installed.command}):\n${installed.stderr.trim()}`);
+      return fail(`Could not install packages on the host (${installed.command}):\n${installed.stderr.trim()}`);
     }
-    log(`  ✓ ${packages.length} pacote(s) atualizado(s) no host`);
+    log(`  ✓ ${packages.length} package(s) updated on the host`);
   } else {
-    log('  ✓ nada para instalar (pacotes em dia)');
+    log('  ✓ nothing to install (packages up to date)');
   }
 
   // ---- 4. build -----------------------------------------------------------
@@ -427,9 +434,9 @@ export async function deployBlueGreen(opts: DeployOptions): Promise<DeployResult
   const buildArgs = ['build', ...(choices.noCache ? ['--no-cache'] : [])];
   const build = laneCompose(cwd, target, buildArgs, runner, true);
   if (!build.ok) {
-    return fail(`Build da lane ${target} falhou:\n${build.stderr.trim()}`);
+    return fail(`Build of lane ${target} failed:\n${build.stderr.trim()}`);
   }
-  log(`  ✓ imagem okcms/app construída${choices.noCache ? ' (sem cache)' : ''}`);
+  log(`  ✓ image okcms/app built${choices.noCache ? ' (no cache)' : ''}`);
 
   // ---- 5. migrations ------------------------------------------------------
   // No HOST, entre o build e qualquer tráfego: falhou aqui = a lane velha
@@ -439,7 +446,7 @@ export async function deployBlueGreen(opts: DeployOptions): Promise<DeployResult
   const migrated = runner(migrate.command, migrate.args, { cwd, inherit: true, timeoutMs: 600_000 });
   if (!migrated.ok) {
     return fail(
-      `Migrations falharam — nada foi trocado, a lane ${previous ?? '(nenhuma)'} continua servindo.\n` +
+      `Migrations failed — nothing was switched, lane ${previous ?? '(none)'} keeps serving.\n` +
         `${migrated.stderr.trim()}`
     );
   }
@@ -450,7 +457,7 @@ export async function deployBlueGreen(opts: DeployOptions): Promise<DeployResult
   const up = laneCompose(cwd, target, ['up', '-d', ...services.edge], runner, true);
   if (!up.ok) {
     dropTargetLane();
-    return fail(`Lane ${target} não subiu:\n${up.stderr.trim()}`);
+    return fail(`Lane ${target} did not start:\n${up.stderr.trim()}`);
   }
 
   // ---- 7. healthcheck -----------------------------------------------------
@@ -464,12 +471,12 @@ export async function deployBlueGreen(opts: DeployOptions): Promise<DeployResult
     if (!healthy) {
       dropTargetLane();
       return fail(
-        `${name} não ficou saudável — tráfego NÃO foi movido, ` +
-          `a lane ${previous ?? '(nenhuma)'} continua servindo.`
+        `${name} never became healthy — traffic NOT moved, ` +
+          `lane ${previous ?? '(none)'} keeps serving.`
       );
     }
   }
-  log(`  ✓ ${containers.edge.length} contêiner(es) de edge saudável(is)`);
+  log(`  ✓ ${containers.edge.length} edge container(s) healthy`);
 
   // ---- 8. swap ------------------------------------------------------------
   next(8);
@@ -481,13 +488,13 @@ export async function deployBlueGreen(opts: DeployOptions): Promise<DeployResult
       restoreUpstreams();
       dropTargetLane();
       return fail(
-        `Proxy não recarregou (${reloaded.stderr.trim() || reloaded.command}) — ` +
-          `upstreams restaurados na lane ${previous ?? '(nenhuma)'}.`
+        `Proxy did not reload (${reloaded.stderr.trim() || reloaded.command}) — ` +
+          `upstreams restored to lane ${previous ?? '(none)'}.`
       );
     }
-    warn('  nginx -s reload falhou; caiu para docker restart (conexões zeradas).');
+    warn('  nginx -s reload failed; fell back to docker restart (connections dropped).');
   }
-  log(`  ✓ tráfego agora na lane ${target}`);
+  log(`  ✓ traffic now on lane ${target}`);
 
   // ---- 9. dreno do worker antigo -----------------------------------------
   if (willDrain) {
@@ -504,7 +511,7 @@ export async function deployBlueGreen(opts: DeployOptions): Promise<DeployResult
           intervalMs: Math.min(1_000, timeout.intervalMs),
         });
       }
-      log(`  ✓ worker da lane ${previous} drenado`);
+      log(`  ✓ worker of lane ${previous} drained`);
     }
   }
 
@@ -514,10 +521,10 @@ export async function deployBlueGreen(opts: DeployOptions): Promise<DeployResult
   if (workerService) {
     const upWorker = laneCompose(cwd, target, ['up', '-d', workerService], runner, true);
     if (!upWorker.ok) {
-      warn(`  Worker da lane ${target} não subiu: ${upWorker.stderr.trim()}`);
-      warn('  A fila fica sem consumidor até o próximo deploy — edge segue no ar.');
+      warn(`  Worker of lane ${target} did not start: ${upWorker.stderr.trim()}`);
+      warn('  The queue has no consumer until the next deploy — edge keeps serving.');
     } else {
-      log(`  ✓ worker da lane ${target} no ar`);
+      log(`  ✓ worker of lane ${target} up`);
     }
   }
 
@@ -529,14 +536,33 @@ export async function deployBlueGreen(opts: DeployOptions): Promise<DeployResult
     const downArgs = ['down', ...(choices.removeOrphans ? ['--remove-orphans'] : [])];
     const down = laneCompose(cwd, previous!, downArgs, runner, true);
     if (!down.ok) {
-      warn(`  Lane ${previous} não derrubou completamente: ${down.stderr.trim()}`);
-      warn('  Rode manualmente: docker compose -p okcms-' + previous + ' down');
+      warn(`  Lane ${previous} did not come down completely: ${down.stderr.trim()}`);
+      warn('  Run it manually: docker compose -p okcms-' + previous + ' down');
     } else {
-      log(`  ✓ lane ${previous} derrubada${choices.removeOrphans ? ' (órfãos removidos)' : ''}`);
+      log(`  ✓ lane ${previous} brought down${choices.removeOrphans ? ' (orphans removed)' : ''}`);
     }
   }
 
-  // ---- 12. estado ---------------------------------------------------------
+  // ---- 12. retire the simple stack ---------------------------------------
+  if (simpleStack) {
+    next(plan.length - 1);
+    // SIGTERM + stop_grace_period (30s): the queue finishes the job in hand
+    // before it dies. A plain `kill` would abandon a job in progress.
+    appCompose(cwd, ['stop', 'worker'], runner, true);
+    await waitStopped(runner, SIMPLE_WORKER_CONTAINER, {
+      timeoutMs: timeout.stopMs,
+      intervalMs: Math.min(1_000, timeout.intervalMs),
+    });
+    const downSimple = appCompose(cwd, ['down'], runner, true);
+    if (!downSimple.ok) {
+      warn(`  The simple stack did not come down cleanly: ${downSimple.stderr.trim()}`);
+      warn('  Run it manually: docker compose -p okcms-app down');
+    } else {
+      log('  ✓ simple stack retired (containers removed, volumes kept)');
+    }
+  }
+
+  // ---- 13. estado ---------------------------------------------------------
   next(plan.length);
   const state = pushLaneState(readLaneState(cwd), target, record['OKCMS_VERSION'] ?? 'latest');
   writeLaneState(cwd, state);
@@ -544,14 +570,14 @@ export async function deployBlueGreen(opts: DeployOptions): Promise<DeployResult
   const healthy = await probe(FINAL_HEALTH_URL);
   if (!healthy) {
     warn(
-      `  Aviso: ${FINAL_HEALTH_URL} não respondeu pelo proxy após o swap.\n` +
-        '  Os contêineres estão saudáveis (checagem interna); confira o Host/SERVER_NAME.'
+      `  Note: ${FINAL_HEALTH_URL} did not answer through the proxy after the swap.\n` +
+        '  Containers are healthy (internal check); check Host/SERVER_NAME.'
     );
   }
 
-  log(`\n  Deploy concluído: lane ${target} no ar${previous ? ` (rollback: ${previous})` : ''}.`);
+  log(`\n  Deploy done: lane ${target} is live${previous ? ` (rollback: ${previous})` : ''}.`);
   if (created.length > 0) {
-    log(`  Arquivos de deploy criados: ${created.join(', ')}`);
+    log(`  Deploy files created: ${created.join(', ')}`);
   }
   log('  Proxy: http://<host>/  ·  Admin: http://<host>:8080/');
 

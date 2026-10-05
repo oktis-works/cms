@@ -64,7 +64,8 @@ meu-site/
 ├── migrations/           # SQL applied by `okcms db:migrate`
 ├── plugins/  themes/     # project extensions
 ├── docker-compose.yml    # dev infra: postgres + redis
-└── docker/ deploy/ …     # blue/green deploy files
+└── docker/ deploy/ docker-compose.app.yml …
+                         # deploy files: blue/green lanes + simple stack (no lanes) + proxy
 ```
 
 ## `.env` configuration
@@ -162,14 +163,15 @@ additionally apply its own SQL.
 
 ```bash
 npx okcms redeploy --dry-run   # only shows the plan
-npx okcms redeploy             # stage + build + deploy blue/green
+npx okcms redeploy             # stage + build + deploy (asks the target each run)
 ```
 
 1. copies `plugins/<n>/migrations/*.sql` into `migrations/` — idempotent;
    a name outside `V###__owner__nome.sql` is never copied, and an existing
-   file outside the pattern **stops the command before Docker**;
+   file outside the pattern **stops the command before the deploy**;
 2. compiles each theme's style entry, writing `dist/theme.css`;
-3. runs the blue/green deploy **without `bun add`** (what changed is an extension,
+3. runs the deploy of the chosen target (blue/green · simple · PM2) **without
+   `bun add`** (what changed is an extension,
    not a package version).
 
 | Flag | Effect |
@@ -179,7 +181,8 @@ npx okcms redeploy             # stage + build + deploy blue/green
 | `-M, --skip-migrations` | Does not copy plugin SQL |
 | `-B, --skip-theme-build` | Does not compile styles |
 | `-y, --yes` | No prompts (CI) |
-| deploy flags | `-c/--no-cache` · `-r/--remove-orphans` · `-k/--keep-orphans` · `-F/--force` |
+| `-T, --target blue-green\|simple\|pm2` | Skips the target menu (arrow keys + Enter; last choice pre-selected) |
+| deploy flags | `-c/--no-cache` · `-r/--remove-orphans` · `-k/--keep-orphans` · `-F/--force` — **only** on `redeploy` and `update --mode deploy`: the first `okcms deploy` does not expose them, and the orphan options affect blue/green only |
 
 If the project does not run in Docker (dev on the host), the cycle is just:
 
@@ -192,14 +195,22 @@ npx okcms stop && npx okcms start
 ## Updating
 
 ```bash
-npx okcms update                     # with TTY: menu
+npx okcms update                     # with TTY: menu (download or deploy)
 npx okcms update -i                  # only downloads/applies the packages (classic behavior)
-npx okcms update --mode deploy       # full blue/green Docker deploy
-npx okcms update --mode deploy --yes # CI: no prompts
+npx okcms update --mode deploy       # full Docker deploy — asks the target every run
+npx okcms update --mode deploy --target pm2 --yes # CI: no prompts, no menu
 ```
+
+Every run asks the **deploy target** in an arrow-key menu (navigate with ↑/↓,
+confirm with Enter, last choice pre-selected): `blue-green` (lanes, zero
+downtime) · `simple` (`docker-compose.app.yml`, brief restart) · `pm2`
+(processes on the host). `-t, --target` skips the menu, and the choice is
+remembered in `.deploy/state.json`.
 
 > **Non-TTY never deploys by accident.** Without `--mode`, the default in a script
 > is `download` — an `-i` in cron keeps doing exactly what it always did.
+> Without `--target`, a script reuses the saved target (blue/green on a project
+> that never deployed) instead of prompting.
 
 ## Backup and recovery
 
@@ -221,8 +232,9 @@ deploy, but an off-server backup is the only one that survives losing the machin
 | `okcms start` / `stop` / `status` | Starts / stops / shows the host processes |
 | `okcms doctor` | Full diagnostics (node, `.env`, database, config, docker, compose, lane, proxy) |
 | `okcms config` | `.env` wizard (`--list`, `--set`, `--section`, `--show-secrets`) |
-| `okcms update` | Packages only **or** blue/green deploy |
-| `okcms redeploy` | Applies a new plugin/theme: plugin migrations + theme build + deploy |
+| `okcms deploy` | First deploy: target menu — `--target blue-green\|simple\|pm2` (`-t`) skips it |
+| `okcms update` | Packages only **or** deploy (blue/green · simple · PM2 — target asked every run) |
+| `okcms redeploy` | Applies a new plugin/theme: plugin migrations + theme build + deploy (`-T, --target`) |
 | `okcms db:migrate` · `db:rollback` · `db:status` | Migrations from `migrations/` (`--tenant` optional) |
 | `okcms db:backup` · `db:restore -f <arquivo>` | Postgres backup/restore |
 | `okcms plugin:create` · `plugin:install` · `plugin:list` · `plugin:search` · `plugin:manage` | Plugin lifecycle |

@@ -1,6 +1,6 @@
 // API Client for Admin Dashboard (HttpOnly cookies + CSRF + auto-refresh)
 
-const API_BASE = (import.meta.env as Record<string, string>)['PUBLIC_API_URL'] ?? 'http://localhost:3000';
+const API_BASE = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:3000';
 
 export interface ApiResponse<T> {
   data?: T;

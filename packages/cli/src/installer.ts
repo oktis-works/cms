@@ -37,7 +37,7 @@ export async function installExtension(
   const manifest = readManifest(sourceManifest);
 
   if (!manifest) {
-    throw new Error(`Manifesto não encontrado ou inválido: ${sourceManifest} (esperado ${manifestFile})`);
+    throw new Error(`Manifest not found or invalid: ${sourceManifest} (expected ${manifestFile})`);
   }
 
   let name = basename(source);
@@ -52,7 +52,7 @@ export async function installExtension(
     name.includes('\\') ||
     /[\0\r\n]/.test(name)
   ) {
-    throw new Error(`Nome de extensão inválido: "${name}"`);
+    throw new Error(`Invalid extension name: "${name}"`);
   }
 
   // BUSI-022 / RULE-semver-compatibility: manifest completo e compatível é pré-requisito
@@ -61,17 +61,17 @@ export async function installExtension(
   const baseDir = resolve(cwd, kind === 'plugin' ? config.pluginsDir : config.themesDir);
   const targetDir = resolve(baseDir, name);
   if (!targetDir.startsWith(baseDir + '/') || targetDir === baseDir) {
-    throw new Error(`Caminho de instalação escapa do diretório de ${kind}s: ${name}`);
+    throw new Error(`Install path escapes the ${kind}s directory: ${name}`);
   }
 
   if (existsSync(targetDir)) {
-    throw new Error(`${kind === 'plugin' ? 'Plugin' : 'Theme'} "${name}" já existe em ${targetDir}`);
+    throw new Error(`${kind === 'plugin' ? 'Plugin' : 'Theme'} "${name}" already exists at ${targetDir}`);
   }
 
   cpSync(source, targetDir, { recursive: true });
   markInstalled(kind, name, cwd);
 
-  console.log(`${kind === 'plugin' ? 'Plugin' : 'Theme'} "${name}" instalado em ${targetDir}`);
+  console.log(`${kind === 'plugin' ? 'Plugin' : 'Theme'} "${name}" installed at ${targetDir}`);
 
   return { name, targetDir };
 }
@@ -82,24 +82,24 @@ export function listExtensions(kind: 'plugin' | 'theme', options: InstallerOptio
   const dir = join(cwd, kind === 'plugin' ? config.pluginsDir : config.themesDir);
 
   if (!existsSync(dir)) {
-    console.log(`Nenhum diretório de ${kind}s: ${dir}`);
+    console.log(`No ${kind}s directory: ${dir}`);
     return;
   }
 
   const entries = readdirSync(dir, { withFileTypes: true }).filter((entry) => entry.isDirectory());
 
   if (entries.length === 0) {
-    console.log(`Nenhum ${kind} instalado.`);
+    console.log(`No ${kind} installed.`);
     return;
   }
 
   const state = loadExtensionsState(cwd);
   const bucket = kind === 'plugin' ? state.plugins : state.themes;
 
-  console.log(`${kind === 'plugin' ? 'Plugins' : 'Themes'} instalados:`);
+  console.log(`${kind === 'plugin' ? 'Installed plugins' : 'Installed themes'}:`);
   for (const entry of entries) {
     const stateEntry = bucket[entry.name];
     const enabled = stateEntry?.enabled ?? true;
-    console.log(`  - ${entry.name} [${enabled ? 'habilitado' : 'desabilitado'}]`);
+    console.log(`  - ${entry.name} [${enabled ? 'enabled' : 'disabled'}]`);
   }
 }

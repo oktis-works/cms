@@ -1,19 +1,20 @@
-# @oktis-works - build context da imagem okcms/app
-# .env NUNCA entra na imagem: ele carrega senha de banco e JWT_SECRET e a
-# imagem é distribuída/copiada. Em runtime ele vem do host via env_file.
+# @oktis-works - build context of the okcms/app image
+# .env NEVER enters the image: it carries the database password and
+# JWT_SECRET, and the image is distributed/copied. At runtime it comes
+# from the host via env_file.
 
 .env
 .env.*
 !.env.example
 
-# dependências do host (a imagem instala as suas)
+# host dependencies (the image installs its own)
 node_modules
 **/node_modules
 .tsbuildinfo
 **/*.tsbuildinfo
-# NB: NÃO ignorar dist/ — plugins instalados em plugins/*/dist são runtime.
+# NB: do NOT ignore dist/ — plugins installed in plugins/*/dist are runtime.
 
-# dados e estado local
+# local data and state
 .data
 **/.data
 logs
@@ -22,10 +23,10 @@ logs
 coverage
 **/coverage
 
-# montado em runtime, não copiado
+# mounted at runtime, not copied
 deploy/
 
-# VCS e tooling — não é código de runtime
+# VCS and tooling — not runtime code
 .git
 .github
 .gitignore
@@ -36,6 +37,6 @@ deploy/
 *.md
 !README.md
 
-# infraestrutura montada em runtime, não copiada para dentro
+# infrastructure mounted at runtime, not copied inside
 docker-compose*.yml
 deploy/nginx/certs

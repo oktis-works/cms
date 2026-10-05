@@ -172,7 +172,7 @@ describe('scanOutdated', () => {
     expect(result.outdated).toEqual([
       { name: 'api', pkg: '@oktis-works/api', current: '0.1.0', latest: '0.9.9' },
     ]);
-    expect(out.join('\n')).toContain('@oktis-works/core 0.9.9 (em dia)');
+    expect(out.join('\n')).toContain('@oktis-works/core 0.9.9 (up to date)');
   });
 });
 
@@ -213,8 +213,8 @@ describe('modo download (comportamento histórico)', () => {
 
     expect(code).toBe(0);
     expect(runner.calls).toEqual([]);
-    expect(prompt.printed()).toContain('O que o update deve fazer?');
-    expect(prompt.printed()).toContain('Deploy Docker blue/green completo');
+    expect(prompt.printed()).toContain('What should the update do?');
+    expect(prompt.printed()).toContain('Download packages only');
     prompt.close();
   });
 
@@ -224,7 +224,9 @@ describe('modo download (comportamento histórico)', () => {
       const result = await run();
       expect(result.code).toBe(1);
       expect(result.calls).toEqual([]);
-      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Nenhum pacote @oktis-works'));
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('No @oktis-works/* package installed')
+      );
       expect(vi.mocked(getLatestVersion)).not.toHaveBeenCalled();
     } finally {
       errorSpy.mockRestore();
@@ -274,7 +276,7 @@ describe('modo deploy', () => {
     const result = await run({ mode: 'producao' });
     expect(result.code).toBe(1);
     expect(result.calls).toEqual([]);
-    expect(result.printed).toContain('--mode inválido');
+    expect(result.printed).toContain('invalid --mode');
   });
 
   it('--yes pula resumo e confirmação mesmo com TTY', async () => {
@@ -292,14 +294,14 @@ describe('modo deploy', () => {
     });
 
     expect(code).toBe(0);
-    expect(prompt.printed()).not.toContain('Iniciar deploy?');
+    expect(prompt.printed()).not.toContain('Start the update?');
     expect(runner.calls.some((call) => call.includes('nginx -s reload'))).toBe(true);
     prompt.close();
   });
 
   it('confirmação recusada no TTY não executa nada', async () => {
-    // 1) menu → deploy  2) cache  3) órfãos  4) confirmação final = "n"
-    const prompt = ttyPrompt(['2', '', '', 'n']);
+    // 1) modo → deploy  2) alvo  3) cache  4) órfãos  5) confirmação = "n"
+    const prompt = ttyPrompt(['2', '', '', '', 'n']);
     const runner = makeRunner();
 
     const code = await runUpdate({
@@ -312,7 +314,7 @@ describe('modo deploy', () => {
 
     expect(code).toBe(0);
     expect(runner.calls).toEqual([]);
-    expect(prompt.printed()).toContain('cancelado — nada foi executado');
+    expect(prompt.printed()).toContain('cancelled — nothing was executed');
     prompt.close();
   });
 });

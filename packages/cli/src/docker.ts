@@ -186,6 +186,13 @@ export const otherLane = (lane: Lane): Lane => (lane === 'blue' ? 'green' : 'blu
 
 export const COMPOSE_INFRA_FILE = 'docker-compose.infra.yml';
 export const COMPOSE_DEPLOY_FILE = 'docker-compose.deploy.yml';
+/** Simple (lane-less) stack — `okcms deploy --target simple`. */
+export const COMPOSE_APP_FILE = 'docker-compose.app.yml';
+
+export const APP_PROJECT = 'okcms-app';
+/** Container names of the simple stack (no lane suffix). */
+export const SIMPLE_CONTAINERS = ['okcms-api', 'okcms-web', 'okcms-admin'] as const;
+export const SIMPLE_WORKER_CONTAINER = 'okcms-worker';
 
 export interface ComposeCall {
   project?: string;
@@ -227,6 +234,14 @@ export const laneCompose = (
   inherit?: boolean
 ): RunResult =>
   runCompose(cwd, { project: laneProject(lane), file: COMPOSE_DEPLOY_FILE, args, inherit }, runner);
+
+/** `docker compose -p okcms-app -f docker-compose.app.yml ...` (simple mode). */
+export const appCompose = (
+  cwd: string,
+  args: string[],
+  runner?: Runner,
+  inherit?: boolean
+): RunResult => runCompose(cwd, { project: APP_PROJECT, file: COMPOSE_APP_FILE, args, inherit }, runner);
 
 /**
  * `okcms-net` é declarada como `external: true` no compose das lanes — se ela
@@ -328,6 +343,30 @@ export function detectActiveLane(cwd: string, runner: Runner = defaultRunner): L
   if (edgeContainers(runner, 'blue').length > 0) return 'blue';
   if (edgeContainers(runner, 'green').length > 0) return 'green';
   return null;
+}
+
+/**
+ * Is the lane-less simple stack running?
+ *
+ * Its containers carry `okcms.service` but no `okcms.lane`, so the name is
+ * matched exactly — `docker ps --filter name=okcms-api` would also match
+ * `okcms-api-blue` and retire the wrong thing.
+ */
+export function simpleStackRunning(runner: Runner): boolean {
+  const result = runner(
+    'docker',
+    ['ps', '--filter', 'label=okcms.service', '--format', '{{.Names}}'],
+    { timeoutMs: 15_000 }
+  );
+  if (!result.ok) return false;
+  const names = result.stdout
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  return names.some(
+    (name) =>
+      (SIMPLE_CONTAINERS as readonly string[]).includes(name) || name === SIMPLE_WORKER_CONTAINER
+  );
 }
 
 // ---------------------------------------------------------------------------

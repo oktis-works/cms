@@ -102,7 +102,7 @@ export async function runDoctorChecks(
   let dbDetail: string;
   if (dbUrl && !parsedUrl) {
     dbOk = false;
-    dbDetail = 'DATABASE_URL inválida (esperado postgres://user:pass@host:5432/banco)';
+    dbDetail = 'Invalid DATABASE_URL (expected postgres://user:pass@host:5432/db)';
   } else if (parsedUrl) {
     dbOk = true;
     dbDetail = `via DATABASE_URL — ${parsedUrl.host}:${parsedUrl.port}/${parsedUrl.database}`;
@@ -111,7 +111,7 @@ export async function runDoctorChecks(
     dbDetail = `via DB_* — ${dbVarHost}:${dbVarPort}/${dbName}`;
   } else {
     dbOk = false;
-    dbDetail = 'não configurado — use DATABASE_URL ou DB_HOST/DB_PORT/DB_NAME/DB_USER';
+    dbDetail = 'not configured — use DATABASE_URL or DB_HOST/DB_PORT/DB_NAME/DB_USER';
   }
   results.push({ name: 'database', ok: dbOk, detail: dbDetail, required: true });
 
@@ -123,7 +123,7 @@ export async function runDoctorChecks(
     results.push({
       name: 'db-tcp',
       ok: reachable,
-      detail: reachable ? `${host}:${port} acessível` : `${host}:${port} inacessível`,
+      detail: reachable ? `${host}:${port} reachable` : `${host}:${port} unreachable`,
       required: false,
     });
   }
@@ -153,8 +153,8 @@ export async function runDoctorChecks(
     name: 'docker',
     ok: dockerOk,
     detail: dockerOk
-      ? 'daemon acessível'
-      : 'ausente ou parado — só afeta `okcms update --mode deploy`',
+      ? 'daemon reachable'
+      : 'missing or stopped — only affects `okcms update --mode deploy`',
     required: false,
   });
 
@@ -164,7 +164,7 @@ export async function runDoctorChecks(
     ok: compose.ok,
     detail: compose.ok
       ? `plugin v2 (${compose.version || 'ok'})`
-      : 'plugin v2 ausente — `docker compose version` falhou (legado v1 não serve)',
+      : 'plugin v2 missing — `docker compose version` failed (legacy v1 not supported)',
     required: false,
   });
 
@@ -174,10 +174,10 @@ export async function runDoctorChecks(
     name: 'lane',
     ok: dockerOk,
     detail: !dockerOk
-      ? 'docker indisponível'
+      ? 'docker unavailable'
       : lane
-        ? `lane ${lane} ativa (rollback: ${docker.otherLane(lane)})`
-        : 'nenhuma lane no ar — primeiro deploy',
+        ? `lane ${lane} active (rollback: ${docker.otherLane(lane)})`
+        : 'no lane running — first deploy',
     required: false,
   });
 
@@ -186,10 +186,10 @@ export async function runDoctorChecks(
     name: 'proxy',
     ok: proxy || lane === null,
     detail: proxy
-      ? 'okcms-proxy no ar'
+      ? 'okcms-proxy running'
       : lane === null
-        ? 'ainda não implantado em Docker (uso local não precisa)'
-        : 'okcms-proxy parado com lane ativa — site inacessível',
+        ? 'not deployed to Docker yet (local use does not need it)'
+        : 'okcms-proxy stopped with an active lane — site unreachable',
     required: false,
   });
 

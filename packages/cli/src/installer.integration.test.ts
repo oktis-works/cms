@@ -67,7 +67,7 @@ describe('NPM flow integration: installer', () => {
   it('rejeita plugin sem manifest com erro claro', async () => {
     rmSync(join(pluginSource, 'manifest.json'));
 
-    await expect(installExtension('plugin', pluginSource, { cwd: projectDir })).rejects.toThrow(/Manifesto/);
+    await expect(installExtension('plugin', pluginSource, { cwd: projectDir })).rejects.toThrow(/Manifest/);
     expect(existsSync(join(projectDir, 'plugins'))).toBe(false);
   });
 
@@ -94,6 +94,6 @@ describe('NPM flow integration: installer', () => {
       console.log = originalLog;
     }
 
-    expect(logs.some((line) => line.includes('plugin-integração') && line.includes('habilitado'))).toBe(true);
+    expect(logs.some((line) => line.includes('plugin-integração') && line.includes('enabled'))).toBe(true);
   });
 });

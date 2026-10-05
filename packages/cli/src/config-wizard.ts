@@ -41,14 +41,14 @@ export interface ConfigWizardOptions {
 
 /** `••••` — nunca o valor real na tela. */
 export function maskValue(value: string): string {
-  if (!value) return '(não definido)';
+  if (!value) return '(not set)';
   const width = Math.min(Math.max(value.length, 4), 12);
   return '•'.repeat(width);
 }
 
 /** Valor "apresentável": segredo mascarado, o resto cru. */
 export function displayValue(field: EnvField | undefined, value: string): string {
-  if (!value) return '(vazio)';
+  if (!value) return '(empty)';
   if (field?.type === 'secret') return maskValue(value);
   return value;
 }
@@ -86,15 +86,15 @@ export function planSet(pairs: string[]): { plan: SetPlan[]; errors: string[] } 
     const value = pair.slice(index + 1);
 
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
-      errors.push(`chave inválida: "${key}"`);
+      errors.push(`invalid key: "${key}"`);
       continue;
     }
 
     const field = fieldByKey(key);
     if (!field) {
       errors.push(
-        `chave desconhecida: ${key} — não consta do catálogo do OkCMS. ` +
-          `Use \`okcms config --list\` para ver as suportadas.`
+        `unknown key: ${key} — not in the OkCMS catalog. ` +
+          `Run \`okcms config --list\` to see the supported ones.`
       );
       continue;
     }
@@ -169,12 +169,12 @@ export async function runConfigWizard(opts: ConfigWizardOptions = {}): Promise<n
     }
 
     if (changed.length === 0) {
-      console.log('✓ nada a alterar — os valores já estavam assim.');
+      console.log('✓ nothing to change — values already match.');
       return 0;
     }
 
     env.save(path);
-    console.log(`✓ ${changed.length} chave(s) gravada(s) em ${relPath} (permissão 600):`);
+    console.log(`✓ ${changed.length} key(s) saved to ${relPath} (permission 600):`);
     for (const key of changed) {
       const field = fieldByKey(key);
       const now = env.get(key) ?? '';
@@ -196,10 +196,10 @@ export async function runConfigWizard(opts: ConfigWizardOptions = {}): Promise<n
   const prompt = opts.prompt ?? new Prompt(opts.io);
   if (!opts.prompt && !prompt.interactive && !opts.nonInteractive) {
     prompt.close();
-    console.error('okcms config: sem terminal — use uma das opções:');
-    console.error('  okcms config --list              lista as chaves (segredos mascarados)');
-    console.error('  okcms config --set CHAVE=valor    altera e valida uma chave');
-    console.error('  okcms config --non-interactive    mesma saída de --list (CI)');
+    console.error('okcms config: no terminal — use one of these options:');
+    console.error('  okcms config --list              list keys (secrets masked)');
+    console.error('  okcms config --set KEY=value     set and validate a key');
+    console.error('  okcms config --non-interactive   same output as --list (CI)');
     return 1;
   }
 
@@ -223,18 +223,18 @@ async function runInteractive(
 
   const onInterrupt = (): void => {
     cancelled = true;
-    prompt.write(`\n  ${style.yellow(symbol.warn)} cancelado — nada foi gravado.\n`);
+    prompt.write(`\n  ${style.yellow(symbol.warn)} cancelled — nothing was saved.\n`);
     process.exit(130);
   };
   process.once('SIGINT', onInterrupt);
 
   try {
     prompt.heading(`OkCMS config — ${ctx.relPath}`);
-    prompt.info(`${env.keys().length} chave(s) no arquivo`);
+    prompt.info(`${env.keys().length} key(s) in file`);
     if (ctx.seeded) {
-      prompt.warn('.env não existia — wizard parte do .env.example; nada gravado ainda');
+      prompt.warn('.env did not exist — wizard starts from .env.example; nothing saved yet');
     }
-    prompt.info('Enter mantém o valor atual · Ctrl+C descarta tudo');
+    prompt.info('Enter keeps the current value · Ctrl+C discards everything');
 
     const record = (): Record<string, string> => {
       const out = env.toRecord();
@@ -247,7 +247,7 @@ async function runInteractive(
 
     // --section pula o menu principal (scriptável mesmo com TTY)
     if (target && !sectionIds.includes(target)) {
-      prompt.error(`seção desconhecida: ${target} — use uma de: ${sectionIds.join(', ')}`);
+      prompt.error(`unknown section: ${target} — use one of: ${sectionIds.join(', ')}`);
       prompt.close();
       return 1;
     }
@@ -259,16 +259,16 @@ async function runInteractive(
         const choices = ENV_SECTIONS.map((section) => ({
           value: section.id,
           label: section.title,
-          hint: `${section.hint} · ${fieldsForSection(section.id, record()).length} campos`,
+          hint: `${section.hint} · ${fieldsForSection(section.id, record()).length} fields`,
         }));
         choices.push({
           value: '__show',
-          label: 'Resumo das alterações',
-          hint: changed.size > 0 ? `${changed.size} pendente(s)` : 'nenhuma',
+          label: 'Change summary',
+          hint: changed.size > 0 ? `${changed.size} pending` : 'none',
         });
-        choices.push({ value: '__quit', label: 'Sair', hint: 'confirma gravação' });
+        choices.push({ value: '__quit', label: 'Quit', hint: 'confirm & save' });
 
-        const picked = await prompt.select('Seção', choices);
+        const picked = await prompt.select('Section', choices);
         if (picked === '__show') {
           printSummary(prompt, env, changed);
           continue;
@@ -280,27 +280,27 @@ async function runInteractive(
       await runSection(prompt, env, target, record, changed);
       target = undefined;
 
-      const more = await prompt.confirm('Editar outra seção?', { defaultValue: false });
+      const more = await prompt.confirm('Edit another section?', { defaultValue: false });
       if (!more) break;
     }
 
     if (changed.size === 0) {
-      prompt.info('nenhuma alteração — arquivo intacto.');
+      prompt.info('no changes — file untouched.');
       return 0;
     }
 
     const ok = await prompt.confirm(
-      `Gravar ${changed.size} alteração(ões) em ${ctx.relPath}?`,
+      `Save ${changed.size} change(s) to ${ctx.relPath}?`,
       { defaultValue: true }
     );
     if (!ok) {
-      prompt.warn('descartado — nada foi gravado.');
+      prompt.warn('discarded — nothing was saved.');
       return 0;
     }
 
     env.save(ctx.path);
-    prompt.success(`${changed.size} chave(s) gravada(s) — permissão 600`);
-    prompt.info('reinicie os apps para as mudanças valerem (okcms start / restart dos containers)');
+    prompt.success(`${changed.size} key(s) saved — permission 600`);
+    prompt.info('restart the apps for changes to take effect (okcms start / restart containers)');
     return 0;
   } finally {
     process.removeListener('SIGINT', onInterrupt);
@@ -309,9 +309,9 @@ async function runInteractive(
 }
 
 function printSummary(prompt: Prompt, env: EnvFile, changed: Set<string>): void {
-  prompt.heading('Resumo');
+  prompt.heading('Summary');
   if (changed.size === 0) {
-    prompt.info('nenhuma alteração pendente');
+    prompt.info('no pending changes');
     return;
   }
   for (const key of changed) {
@@ -336,7 +336,7 @@ async function runSection(
   prompt.heading(`${section.title} — ${section.hint}`);
 
   if (fields.length === 0) {
-    prompt.info('nenhum campo aplicável no momento');
+    prompt.info('no applicable fields right now');
     return;
   }
 
@@ -345,14 +345,15 @@ async function runSection(
 
     // JWT_SECRET fraco/ausente: oferece um gerado em vez de deixar escolha ruim
     if (field.key === 'JWT_SECRET' && !looksLikeSecret(current)) {
-      const generate = await prompt.confirm('JWT_SECRET ausente/placeholder — gerar um forte?', {
-        defaultValue: true,
-      });
+      const generate = await prompt.confirm(
+        'JWT_SECRET missing/placeholder — generate a strong one?',
+        { defaultValue: true }
+      );
       if (generate) {
         const secret = generateSecret(32);
         env.set(field.key, secret);
         changed.add(field.key);
-        prompt.success('JWT_SECRET gerado (48 hex, 32 bytes)');
+        prompt.success('JWT_SECRET generated (48 hex, 32 bytes)');
         continue;
       }
     }
@@ -363,7 +364,7 @@ async function runSection(
     if (field.type === 'secret') {
       value = await prompt.secret(field.label, {
         default: current,
-        placeholder: current ? maskValue(current) : '(não definido)',
+        placeholder: current ? maskValue(current) : '(not set)',
         validate: (candidate) => validateField(field, candidate),
       });
     } else {
@@ -381,7 +382,7 @@ async function runSection(
       // .env de ruído. Só persiste mudança explícita.
       const acceptedDefault = current === '' && value === (field.default ?? '');
       if (acceptedDefault) {
-        prompt.info(`${field.key} não definida — vale o default ${value}`);
+        prompt.info(`${field.key} not set — default ${value} applies`);
         continue;
       }
 

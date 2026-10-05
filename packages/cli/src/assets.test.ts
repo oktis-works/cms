@@ -277,7 +277,7 @@ describe('docker-compose.deploy.yml', () => {
     expect(COMPOSE_DEPLOY).toContain('name: okcms-storage');
     expect(COMPOSE_DEPLOY).toContain('/app/.data/storage');
     // documentado: o down de lane NUNCA pode passar -v
-    expect(COMPOSE_DEPLOY).toContain('nunca passa');
+    expect(COMPOSE_DEPLOY).toContain('never passes -v');
   });
 
   it('admin sobrescreve PORT (astro standalone lê PORT, não ADMIN_PORT)', () => {

@@ -80,7 +80,7 @@ describe('Prompt.select', () => {
     prompt.close();
 
     expect(value).toBe('x');
-    expect(io.out()).toContain('opção inválida');
+    expect(io.out()).toContain('invalid option');
   });
 
   it('modo não-interativo devolve o default (CI nunca escolhe sozinho)', async () => {
@@ -111,13 +111,78 @@ describe('Prompt.select', () => {
   });
 });
 
+describe('Prompt.select (arrow keys em TTY)', () => {
+  // Sequências montadas sem literais de escape: ESC = charCode 27.
+  const ESC = String.fromCharCode(27);
+  const UP = `${ESC}[A`;
+  const DOWN = `${ESC}[B`;
+  const RIGHT = `${ESC}[C`;
+  const ENTER = '\r';
+
+  const MODES = [
+    { value: 'download', label: 'Download' },
+    { value: 'deploy', label: 'Deploy' },
+    { value: 'exit', label: 'Exit' },
+  ];
+
+  it('setas cima/baixo movem o cursor e Enter confirma', async () => {
+    const io = ttyIO([DOWN, DOWN, ENTER]);
+    const prompt = new Prompt(io);
+    const value = await prompt.select('Mode', MODES);
+    prompt.close();
+
+    expect(value).toBe('exit');
+    expect(io.out()).toContain('↑↓ move · enter confirm');
+    expect(io.out()).toContain(symbol.cursor);
+  });
+
+  it('seta cima a partir do primeiro item volta para o último', async () => {
+    const io = ttyIO([UP, ENTER]);
+    const prompt = new Prompt(io);
+    const value = await prompt.select('Mode', MODES, { defaultValue: 'download' });
+    prompt.close();
+
+    expect(value).toBe('exit');
+  });
+
+  it('o default já nasce selecionado — Enter sozinho aceita', async () => {
+    const io = ttyIO([ENTER]);
+    const prompt = new Prompt(io);
+    const value = await prompt.select('Mode', MODES, { defaultValue: 'deploy' });
+    prompt.close();
+    expect(value).toBe('deploy');
+  });
+
+  it('confirm usa setas esquerda/direita e aceita y/n', async () => {
+    const right = new Prompt(ttyIO([RIGHT, ENTER]));
+    expect(await right.confirm('Deploy?', { defaultValue: true })).toBe(false);
+    right.close();
+
+    const shortcut = new Prompt(ttyIO(['y']));
+    expect(await shortcut.confirm('Deploy?')).toBe(true);
+    shortcut.close();
+
+    const no = new Prompt(ttyIO(['n']));
+    expect(await no.confirm('Deploy?', { defaultValue: true })).toBe(false);
+    no.close();
+  });
+
+  it('sai do raw mode ao terminar (o próximo prompt lê linha normal)', async () => {
+    const io = ttyIO([ENTER]);
+    const prompt = new Prompt(io);
+    await prompt.select('Mode', MODES, { defaultValue: 'deploy' });
+    prompt.close();
+    expect(io.stream.raw).toBe(false);
+  });
+});
+
 describe('Prompt.confirm', () => {
-  it('aceita y/yes/s/não', async () => {
+  it('accepts y/yes and n/no', async () => {
     const yes = new Prompt(fakeIO(['y'], true));
     expect(await yes.confirm('Backup?')).toBe(true);
     yes.close();
 
-    const no = new Prompt(fakeIO(['não'], true));
+    const no = new Prompt(fakeIO(['no'], true));
     expect(await no.confirm('Backup?')).toBe(false);
     no.close();
   });

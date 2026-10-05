@@ -1,27 +1,29 @@
 // @oktis-works/cms - `okcms update` (F3)
 //
-// Dois caminhos, um só comando:
+// Two paths, one command:
 //
-//   download  baixa/atualiza os pacotes @oktis-works no host. É o
-//             comportamento histórico (`okcms update -i`) e continua sendo o
-//             default em não-TTY — script nenhum passa a fazer deploy por
-//             acidente só porque a CLI ganhou um menu.
+//   download  fetches/updates the @oktis-works packages on the host. This is
+//             the historical behaviour (`okcms update -i`) and stays the
+//             default outside a TTY — no script starts deploying by accident
+//             just because the CLI grew a menu.
 //
-//   deploy    sobe a aplicação em Docker com troca blue/green: pacotes no
-//             host → build → migrations → edge da lane nova → healthcheck →
-//             swap do nginx → dreno do worker → derruba a lane antiga.
-//             A CLI roda no HOST, sempre (ver assertHostOnly).
+//   deploy    runs the application for the chosen target: blue/green lanes,
+//             the simple container stack, or PM2 on the host. The CLI always
+//             runs on the HOST (see assertHostOnly).
 //
-// A escolha entre os dois é o menu de TTY; fora de TTY vale `--mode` ou o
-// default histórico.
+// The path comes from the TTY menu; outside a TTY `--mode` (and `--target`)
+// or the historical default decide.
 //
-// Histórico e rollback: cada operação (download/deploy) grava em
-// `.deploy/update-history.json` — `okcms rollback` lista e permite voltar.
+// History and rollback: every operation writes to `.deploy/update-history.json`
+// — `okcms rollback` lists it and can go back.
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { deployBlueGreen, type DeployChoices } from './bluegreen.js';
+import { deploySimple } from './simple.js';
+import { deployPm2 } from './pm2.js';
+import { resolveTarget, saveTarget, type DeployTarget } from './deploy-target.js';
 import { defaultRunner, type Runner } from './docker.js';
 import { assertHostOnly, type ContainerProbe } from './guards.js';
 import { getLatestVersion } from './npm-registry.js';
@@ -32,36 +34,38 @@ import { updateProjectDocs } from './docs-updater.js';
 export type UpdateMode = 'download' | 'deploy';
 
 export interface OutdatedEntry {
-  /** nome curto do pacote (`api`), como aparece em node_modules. */
+  /** short name (`api`), as it appears in node_modules. */
   name: string;
-  /** nome publicado (`@oktis-works/api`). */
+  /** published name (`@oktis-works/api`). */
   pkg: string;
   current: string;
   latest: string;
 }
 
 export interface ScanResult {
-  /** false = não existe `node_modules/@oktis-works` (projeto nunca instalou). */
+  /** false = no `node_modules/@oktis-works` (project never installed). */
   installed: boolean;
   outdated: OutdatedEntry[];
 }
 
 export interface UpdateOptions {
   cwd?: string;
-  /** `--install`: aplica as atualizações no modo download. */
+  /** `--install`: applies the updates in download mode. */
   install?: boolean;
-  /** `--mode download|deploy` (aliases abaixo); ausente = menu/default. */
+  /** `--mode download|deploy`; absent = menu/default. */
   mode?: string;
-  /** `--no-cache`: build limpo. */
+  /** `--target blue-green|simple|pm2` (deploy mode only). */
+  target?: string;
+  /** `--no-cache`: clean build. */
   noCache?: boolean;
   /** `--remove-orphans` / `--keep-orphans`. */
   removeOrphans?: boolean;
   keepOrphans?: boolean;
-  /** `--yes`: nenhum prompt, tudo em default. */
+  /** `--yes`: no prompts, everything at its default. */
   yes?: boolean;
-  /** `--force`: permite rodar dentro de container (não recomendado). */
+  /** `--force`: allows running inside a container (not recommended). */
   force?: boolean;
-  /** Sonda do `assertHostOnly` (testes); em produção usa a detecção real. */
+  /** `assertHostOnly` probe (tests); production uses the real detection. */
   probe?: ContainerProbe;
   runner?: Runner;
   prompt?: Prompt;
@@ -80,15 +84,15 @@ const MODE_ALIASES: Record<string, UpdateMode> = {
   'blue_green': 'deploy',
 };
 
-/** `null` = valor inválido (diferente de "não informado"). */
+/** `null` = invalid value (different from "not provided"). */
 export function parseMode(value: string): UpdateMode | null {
   return MODE_ALIASES[value.trim().toLowerCase()] ?? null;
 }
 
 /**
- * Varre `node_modules/@oktis-works/*` e compara cada versão instalada com a
- * do registry. Falha de rede num pacote não derruba a varredura: ele fica de
- * fora e o operador vê `?` na próxima rodada.
+ * Scans `node_modules/@oktis-works/*` and compares each installed version with
+ * the registry. A network failure on one package never breaks the scan — it is
+ * skipped and the operator sees `?` on the next run.
  */
 export async function scanOutdated(
   cwd: string,
@@ -111,58 +115,63 @@ export async function scanOutdated(
       };
       current = pkgJson.version ?? '?';
     } catch {
-      // sem package.json legível — tratado como desconhecido abaixo
+      // no readable package.json — treated as unknown below
     }
 
     const latest = await getLatestVersion(`@oktis-works/${name}`);
 
     if (!latest || latest === current) {
-      log(`  ✓ @oktis-works/${name} ${current} (em dia)`);
+      log(`  ✓ @oktis-works/${name} ${current} (up to date)`);
       continue;
     }
 
-    log(`  ↑ @oktis-works/${name} ${current} → ${latest} disponível`);
+    log(`  ↑ @oktis-works/${name} ${current} → ${latest} available`);
     outdated.push({ name, pkg: `@oktis-works/${name}`, current, latest });
   }
 
   return { installed: true, outdated };
 }
 
-/** Flags > prompt. Fora de TTY, defaults conservadores e determinísticos. */
+/**
+ * Flags > prompt. Outside a TTY the defaults are conservative and
+ * deterministic. `removeOrphans` only matters for blue/green — the simple
+ * stack and PM2 have no lane to clean up.
+ */
 export async function resolveDeployChoices(
   opts: Pick<UpdateOptions, 'noCache' | 'removeOrphans' | 'keepOrphans' | 'yes'>,
-  prompt: Prompt
+  prompt: Prompt,
+  target: DeployTarget = 'blue-green'
 ): Promise<DeployChoices> {
   const interactive = prompt.interactive && opts.yes !== true;
+  const wantsCache = target !== 'pm2';
 
   const noCache =
     opts.noCache === true
       ? true
-      : interactive
-        ? !(await prompt.confirm('Build com cache de camadas? (não = rebuild limpo, mais lento)', {
+      : interactive && wantsCache
+        ? !(await prompt.confirm('Build with layer cache? (no = clean rebuild, slower)', {
             defaultValue: true,
           }))
         : false;
 
   const removeOrphans =
-    opts.keepOrphans === true
-      ? false
-      : opts.removeOrphans === true
-        ? true
-        : interactive
-          ? await prompt.confirm('Remover contêineres órfãos da lane antiga?', {
-              defaultValue: true,
-            })
-          : true;
+    target !== 'blue-green'
+      ? true
+      : opts.keepOrphans === true
+        ? false
+        : opts.removeOrphans === true
+          ? true
+          : interactive
+            ? await prompt.confirm('Remove orphan containers from the previous lane?', {
+                defaultValue: true,
+              })
+            : true;
 
   return { noCache, removeOrphans };
 }
 
-/** Grava entrada no histórico de update + atualiza docs do projeto. */
-async function recordUpdateAndDocs(
-  cwd: string,
-  scan: ScanResult
-): Promise<string[]> {
+/** Writes the download history entry + refreshes the generated project docs. */
+async function recordUpdateAndDocs(cwd: string, scan: ScanResult): Promise<string[]> {
   const pkg = await import('../package.json', { with: { type: 'json' } });
   const cliVer = pkg.default.version;
 
@@ -172,24 +181,34 @@ async function recordUpdateAndDocs(
     to: entry.latest,
   }));
 
-  addHistoryEntry(cwd, {
-    mode: 'download',
-    at: new Date().toISOString(),
-    cliVersion: cliVer,
-    packages,
-    message: `Atualizados ${packages.length} pacote(s) via download`,
-  }, cliVer);
+  addHistoryEntry(
+    cwd,
+    {
+      mode: 'download',
+      at: new Date().toISOString(),
+      cliVersion: cliVer,
+      packages,
+      message: `${packages.length} package(s) updated via download`,
+    },
+    cliVer
+  );
 
-  // Atualiza docs do projeto (README/PLUGIN/THEME) — só reescreve se mudou
-  const updatedDocs = updateProjectDocs(cwd);
-  return updatedDocs;
+  // refresh project docs (README/PLUGIN/THEME) — only rewritten when changed
+  return updateProjectDocs(cwd);
 }
 
+interface DeployRecord {
+  mode: 'deploy' | 'pm2';
+  lane?: 'blue' | 'green';
+  previousLane?: 'blue' | 'green' | null;
+  message: string;
+}
+
+/** Writes the deploy history entry + refreshes the generated project docs. */
 async function recordDeployAndDocs(
   cwd: string,
   scan: ScanResult,
-  lane: 'blue' | 'green',
-  previousLane: 'blue' | 'green' | null
+  record: DeployRecord
 ): Promise<string[]> {
   const pkg = await import('../package.json', { with: { type: 'json' } });
   const cliVer = pkg.default.version;
@@ -200,18 +219,21 @@ async function recordDeployAndDocs(
     to: entry.latest,
   }));
 
-  addHistoryEntry(cwd, {
-    mode: 'deploy',
-    at: new Date().toISOString(),
-    cliVersion: cliVer,
-    packages,
-    lane,
-    previousLane,
-    message: `Deploy blue/green → lane ${lane} (era ${previousLane ?? 'n/a'})`,
-  }, cliVer);
+  addHistoryEntry(
+    cwd,
+    {
+      mode: record.mode,
+      at: new Date().toISOString(),
+      cliVersion: cliVer,
+      packages,
+      lane: record.lane,
+      previousLane: record.previousLane,
+      message: record.message,
+    },
+    cliVer
+  );
 
-  const updatedDocs = updateProjectDocs(cwd);
-  return updatedDocs;
+  return updateProjectDocs(cwd);
 }
 
 export async function runDownload(
@@ -223,23 +245,23 @@ export async function runDownload(
   const runner = opts.runner ?? defaultRunner;
 
   if (!scan.installed) {
-    console.error('Nenhum pacote @oktis-works/* instalado em node_modules.');
-    console.error('Rode `bun install` (ou `okcms init`) antes de atualizar.');
+    console.error('No @oktis-works/* package installed in node_modules.');
+    console.error('Run `bun install` (or `okcms init`) before updating.');
     return 1;
   }
 
   if (scan.outdated.length === 0) {
-    prompt.success('Todos os pacotes estão em dia.');
+    prompt.success('All packages are up to date.');
     return 0;
   }
 
   if (opts.install !== true) {
-    prompt.info('Use --install para atualizar automaticamente.');
-    prompt.info('Ou --mode deploy para um deploy Docker blue/green completo.');
+    prompt.info('Use --install to apply the updates now.');
+    prompt.info('Or --mode deploy for a full Docker deploy.');
     return 0;
   }
 
-  prompt.write('\nAtualizando...\n');
+  prompt.write('\nUpdating...\n');
   const specs = scan.outdated.map((entry) => `${entry.pkg}@latest`);
   const result = runner('bun', ['add', ...specs], {
     cwd,
@@ -249,12 +271,12 @@ export async function runDownload(
   if (result.ok) {
     const updatedDocs = await recordUpdateAndDocs(cwd, scan);
     if (updatedDocs.length > 0) {
-      prompt.success(`Documentação do projeto atualizada: ${updatedDocs.join(', ')}`);
+      prompt.success(`Project docs updated: ${updatedDocs.join(', ')}`);
     }
     return 0;
   }
 
-  // host sem bun: o npm faz o mesmo trabalho, só mais devagar
+  // host without bun: npm does the same job, only slower
   const npm = runner('npm', ['install', ...specs], {
     cwd,
     inherit: true,
@@ -263,7 +285,7 @@ export async function runDownload(
   if (npm.ok) {
     const updatedDocs = await recordUpdateAndDocs(cwd, scan);
     if (updatedDocs.length > 0) {
-      prompt.success(`Documentação do projeto atualizada: ${updatedDocs.join(', ')}`);
+      prompt.success(`Project docs updated: ${updatedDocs.join(', ')}`);
     }
     return 0;
   }
@@ -273,9 +295,10 @@ export async function runDownload(
 export async function runUpdate(opts: UpdateOptions = {}): Promise<number> {
   const prompt = opts.prompt ?? new Prompt();
   const ownsPrompt = opts.prompt === undefined;
+  const cwd = opts.cwd ?? process.cwd();
 
-  // A CLI de deploy/config só existe no host: dentro de um container ela
-  // viraria um instalador de pacotes na rede do banco, com .env exposto.
+  // The deploy/config CLI only exists on the host: inside a container it would
+  // become a package installer on the database network, with .env exposed.
   const guard = assertHostOnly('okcms update', { force: opts.force, probe: opts.probe });
   if (!guard.ok) {
     console.error(guard.message);
@@ -284,67 +307,139 @@ export async function runUpdate(opts: UpdateOptions = {}): Promise<number> {
   }
 
   const onInterrupt = (): void => {
-    prompt.write(`\n  ${style.yellow(symbol.warn)} interrompido — nenhum passo de deploy em andamento foi registrado.\n`);
+    prompt.write(
+      `\n  ${style.yellow(symbol.warn)} interrupted — no deploy step in progress was recorded.\n`
+    );
     process.exit(130);
   };
   process.once('SIGINT', onInterrupt);
 
   try {
-    // ---- 1. modo ----------------------------------------------------------
+    // ---- 1. mode ----------------------------------------------------------
     let mode: UpdateMode;
     if (opts.mode !== undefined) {
       const parsed = parseMode(opts.mode);
       if (parsed === null) {
-        prompt.error(`--mode inválido: ${opts.mode} — use "download" ou "deploy"`);
+        prompt.error(`invalid --mode: ${opts.mode} — use "download" or "deploy"`);
         return 1;
       }
       mode = parsed;
     } else if (prompt.interactive && opts.yes !== true) {
-      mode = await prompt.select<UpdateMode>('O que o update deve fazer?', [
-        {
-          value: 'download',
-          label: 'Só baixar pacotes',
-          hint: 'node_modules atualizado · nada sobe no Docker',
-        },
-        {
-          value: 'deploy',
-          label: 'Deploy Docker blue/green completo',
-          hint: 'build · migrations · swap de lane · worker drenado',
-        },
-      ], { defaultValue: 'download' });
+      mode = await prompt.select<UpdateMode>(
+        'What should the update do?',
+        [
+          {
+            value: 'download',
+            label: 'Download packages only',
+            hint: 'node_modules updated · nothing starts in Docker',
+          },
+          {
+            value: 'deploy',
+            label: 'Deploy',
+            hint: 'packages · build · migrations · proxy swap',
+          },
+        ],
+        { defaultValue: 'download' }
+      );
     } else {
-      // não-TTY sem --mode = comportamento histórico, inalterado
+      // non-TTY without --mode = historical behaviour, unchanged
       mode = 'download';
     }
 
-    // ---- 2. varredura -----------------------------------------------------
-    prompt.heading(`OkCMS update — modo ${mode}`);
-    const scan = await scanOutdated(opts.cwd ?? process.cwd(), (message) =>
-      prompt.write(`${message}\n`)
-    );
+    // ---- 2. deploy target (validated before the scan prints anything) -----
+    prompt.heading(`OkCMS update — mode ${mode}`);
+
+    let resolved: DeployTarget | undefined;
+    if (mode === 'deploy') {
+      try {
+        resolved = await resolveTarget({ cwd, target: opts.target, yes: opts.yes }, prompt);
+      } catch (error) {
+        prompt.error(error instanceof Error ? error.message : String(error));
+        return 1;
+      }
+    }
+
+    // ---- 3. scan ----------------------------------------------------------
+    const scan = await scanOutdated(cwd, (message) => prompt.write(`${message}\n`));
 
     if (mode === 'download') return await runDownload(scan, opts, prompt);
 
-    // ---- 3. escolhas do deploy -------------------------------------------
-    const choices = await resolveDeployChoices(opts, prompt);
+    const target = resolved as DeployTarget;
+
+    // ---- 4. choices + summary --------------------------------------------
+    const choices = await resolveDeployChoices(opts, prompt, target);
     const interactive = prompt.interactive && opts.yes !== true;
 
     if (interactive) {
-      prompt.heading('Resumo do deploy blue/green');
-      prompt.info(`pacotes: ${scan.outdated.length} atualização(ões)`);
-      prompt.info(`build: ${choices.noCache ? 'sem cache (rebuild limpo)' : 'com cache de camadas'}`);
-      prompt.info(`órfãos da lane antiga: ${choices.removeOrphans ? 'remover' : 'manter'}`);
-      prompt.info('ordem: build → migrations no host → edge → health → swap → worker → down');
-      const confirmed = await prompt.confirm('Iniciar deploy?', { defaultValue: true });
+      prompt.heading(`Deploy summary — ${target}`);
+      prompt.info(`target: ${target === 'blue-green' ? 'blue/green lanes' : target === 'simple' ? 'simple containers' : 'PM2 on the host'}`);
+      prompt.info(`packages: ${scan.outdated.length} update(s)`);
+      if (target === 'blue-green') {
+        prompt.info(`build: ${choices.noCache ? 'no cache (clean rebuild)' : 'layer cache'}`);
+        prompt.info(`old lane orphans: ${choices.removeOrphans ? 'remove' : 'keep'}`);
+        prompt.info('order: build → host migrations → edge → health → swap → worker → down');
+      } else if (target === 'simple') {
+        prompt.info('order: build → host migrations → up -d → proxy → healthcheck');
+        prompt.info('one stack, brief restart (no second lane)');
+      } else {
+        prompt.info(`packages on host: ${opts.install === true ? 'update them' : 'leave as they are (--install to update)'}`);
+        prompt.info('order: pm2 ecosystem → migrations → startOrReload');
+      }
+      const confirmed = await prompt.confirm('Start the update?', { defaultValue: true });
       if (!confirmed) {
-        prompt.warn('cancelado — nada foi executado.');
+        prompt.warn('cancelled — nothing was executed.');
         return 0;
       }
     }
 
-    // ---- 4. deploy --------------------------------------------------------
+    // ---- 5. run -----------------------------------------------------------
+    if (target === 'pm2') {
+      const code = await deployPm2({
+        cwd,
+        prompt,
+        runner: opts.runner,
+        outdated: scan.outdated,
+        // an update exists to apply updates; `--install` is implied here
+        install: true,
+        yes: opts.yes === true,
+      });
+      if (code === 0) {
+        saveTarget(cwd, 'pm2');
+        const updatedDocs = await recordDeployAndDocs(cwd, scan, {
+          mode: 'pm2',
+          message: `PM2 deploy — ${scan.outdated.length} package(s) updated`,
+        });
+        if (updatedDocs.length > 0) {
+          prompt.success(`Project docs updated: ${updatedDocs.join(', ')}`);
+        }
+      }
+      return code;
+    }
+
+    if (target === 'simple') {
+      const result = await deploySimple({
+        cwd,
+        runner: opts.runner,
+        noCache: choices.noCache,
+        packages: scan.outdated.map((entry) => `${entry.pkg}@latest`),
+        installAll: !scan.installed,
+        log: (message) => prompt.write(`${message}\n`),
+        warn: (message) => prompt.write(`${message}\n`),
+      });
+      if (!result.ok) return 1;
+      saveTarget(cwd, 'simple');
+      const updatedDocs = await recordDeployAndDocs(cwd, scan, {
+        mode: 'deploy',
+        message: `Simple container deploy — ${scan.outdated.length} package(s) updated`,
+      });
+      if (updatedDocs.length > 0) {
+        prompt.success(`Project docs updated: ${updatedDocs.join(', ')}`);
+      }
+      return 0;
+    }
+
     const result = await deployBlueGreen({
-      cwd: opts.cwd,
+      cwd,
       runner: opts.runner,
       choices,
       packages: scan.outdated.map((entry) => `${entry.pkg}@latest`),
@@ -354,14 +449,15 @@ export async function runUpdate(opts: UpdateOptions = {}): Promise<number> {
     });
 
     if (result.ok) {
-      const updatedDocs = await recordDeployAndDocs(
-        opts.cwd ?? process.cwd(),
-        scan,
-        result.lane,
-        result.previousLane
-      );
+      saveTarget(cwd, 'blue-green');
+      const updatedDocs = await recordDeployAndDocs(cwd, scan, {
+        mode: 'deploy',
+        lane: result.lane,
+        previousLane: result.previousLane,
+        message: `Blue/green deploy → lane ${result.lane} (was ${result.previousLane ?? 'n/a'})`,
+      });
       if (updatedDocs.length > 0) {
-        prompt.success(`Documentação do projeto atualizada: ${updatedDocs.join(', ')}`);
+        prompt.success(`Project docs updated: ${updatedDocs.join(', ')}`);
       }
     }
 

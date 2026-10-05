@@ -67,11 +67,13 @@ async function mergeGitignore(root: string, entries: string[]): Promise<void> {
 export async function scaffoldProject(
   targetDir: string,
   name: string,
-  lang: DocsLang = DEFAULT_DOCS_LANG
+  lang: DocsLang = DEFAULT_DOCS_LANG,
+  /** Runs after the files are written and BEFORE the "Next steps" summary. */
+  beforeSummary?: () => Promise<void>
 ): Promise<string> {
   const root = resolve(process.cwd(), targetDir);
 
-  console.log(`Criando projeto "${name}" em ${root}...`);
+  console.log(`Creating project "${name}" at ${root}...`);
 
   await mkdir(join(root, 'themes'), { recursive: true });
   await mkdir(join(root, 'plugins'), { recursive: true });
@@ -124,17 +126,17 @@ export async function scaffoldProject(
   }
 
   const envExample = `# OkCMS
-# Conexão com o banco — escolha UM formato:
-# (a) variáveis separadas (default, usadas abaixo):
+# Database connection — pick ONE format:
+# (a) separate variables (default, used below):
 DB_HOST=${process.env['DB_HOST'] ?? 'localhost'}
 DB_PORT=${process.env['DB_PORT'] ?? '5432'}
 DB_NAME=${process.env['DB_NAME'] ?? 'okcms'}
 DB_USER=${process.env['DB_USER'] ?? 'postgres'}
 DB_PASSWORD=
-# (b) URL única — tem precedência sobre as DB_* acima:
-# DATABASE_URL=postgresql://postgres:senha@localhost:5432/okcms
+# (b) single URL — takes precedence over the DB_* above:
+# DATABASE_URL=postgresql://postgres:password@localhost:5432/okcms
 
-# Redis (cache + filas do worker)
+# Redis (cache + worker queues)
 REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_PASSWORD=
@@ -229,28 +231,37 @@ volumes:
     }
   }
   if (docsWritten > 0) {
-    console.log(`Documentação gerada em ${docsLangLabel(lang)}: ${docsWritten} arquivo(s)`);
+    console.log(`Docs (${docsLangLabel(lang)}): ${docsWritten} file(s)`);
   }
 
   const relTarget = targetDir === '.' ? null : targetDir;
   const cfgName = DEFAULT_CONFIG_FILENAME;
 
-  console.log(`Projeto "${name}" criado em ${root}`);
+  // Dependency install comes before the summary: printing "Next steps" and
+  // then blocking for a minute on `bun install` makes the user type into a
+  // shell that is not ready yet.
+  if (beforeSummary) await beforeSummary();
+
+  console.log('');
+  console.log(`  ✓ Project "${name}" created at ${root}`);
   if (deployCreated.length > 0) {
-    console.log(`Arquivos de deploy Docker criados: ${deployCreated.join(', ')}`);
+    console.log(`  ✓ Docker deploy files: ${deployCreated.join(', ')}`);
   }
-  console.log('Próximos passos:');
+  console.log('');
+  console.log('Next steps:');
   let step = 1;
   if (relTarget !== null) {
     console.log(`  ${step++}. cd ${relTarget}`);
   }
   console.log(`  ${step++}. docker compose up -d`);
-  console.log(`  ${step++}. edite o .env (criado já — ajuste DB_PASSWORD/JWT_SECRET)`);
-  console.log(`  ${step++}. npx okcms db:migrate   (ou: bun run migrate)`);
-  console.log(`  ${step++}. npx okcms start        (sobe api, admin, web e worker — ou: bun run start)`);
+  console.log(`  ${step++}. edit .env  (set DB_PASSWORD and JWT_SECRET)`);
+  console.log(`  ${step++}. npx okcms db:migrate   (or: bun run migrate)`);
+  console.log(
+    `  ${step++}. npx okcms start        (api, admin, web, worker — or: bun run start)`
+  );
   console.log('');
-  console.log(`Config do projeto: ${cfgName} | para ajuda: npx okcms --help`);
-  console.log(`Documentação: README.md (uso local/Docker) · PLUGIN.md e THEME.md (extensões)`);
+  console.log(`  config: ${cfgName} · help: npx okcms --help`);
+  console.log('  docs: README.md (local/Docker) · PLUGIN.md, THEME.md (extensions)');
   return root;
 }
 

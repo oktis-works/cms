@@ -17,7 +17,7 @@ function spawnApp(label: string, command: string, args: string[], env: Record<st
   recordPid(label, child.pid ?? -1);
 
   child.on('error', (error) => {
-    console.error(`[start] ${label} falhou:`, error.message);
+    console.error(`[start] ${label} failed:`, error.message);
   });
 
   children.push(child);

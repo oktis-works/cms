@@ -190,7 +190,7 @@ export class EnvFile {
   }
 
   save(path = this.path, mode = 0o600): void {
-    if (!path) throw new Error('EnvFile.save: sem caminho');
+    if (!path) throw new Error('EnvFile.save: no path');
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, `${this.toString()}\n`, 'utf-8');
     // .env carrega senha de banco e JWT_SECRET: dono só é o padrão aceitável

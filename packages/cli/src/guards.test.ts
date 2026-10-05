@@ -76,7 +76,7 @@ describe('assertHostOnly', () => {
     });
 
     expect(result.ok).toBe(false);
-    expect(result.message).toContain('recusou rodar dentro de um container');
+    expect(result.message).toContain('refused to run inside a container');
     expect(result.message).toContain('bun add');
     expect(result.message).toContain('--force');
   });

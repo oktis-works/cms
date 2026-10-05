@@ -80,19 +80,19 @@ export async function buildThemeStylesOnDisk(
   const manifestPath = themeManifestPath(themesDir, themeName);
   if (!manifestPath) {
     throw new Error(
-      `manifesto do tema não encontrado em ${join(themesDir, themeName)} (theme.json)`
+      `Theme manifest not found in ${join(themesDir, themeName)} (theme.json)`
     );
   }
   const manifest = readThemeManifest(manifestPath);
   if (!manifest) {
-    throw new Error(`manifesto inválido (JSON): ${manifestPath}`);
+    throw new Error(`Invalid theme manifest (JSON): ${manifestPath}`);
   }
 
   const { css, report } = await buildThemeStyles({ themesRoot: themesDir, themeName, manifest });
 
   // `output` vem do manifesto: nunca escrever fora do diretório do tema.
   if (report.output.includes('..') || isAbsolute(report.output)) {
-    throw new Error(`stylesConfig.output inválido em ${manifestPath}: ${report.output}`);
+    throw new Error(`Invalid stylesConfig.output in ${manifestPath}: ${report.output}`);
   }
 
   const target = join(themesDir, themeName, report.output);
