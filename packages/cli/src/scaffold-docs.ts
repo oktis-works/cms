@@ -128,13 +128,21 @@ docker compose up -d
 # Sem Docker: aponte DB_* para um Postgres seu. Sem Redis, use:
 #   REDIS_HOST=disabled   (cache em memória; filas do worker exigem Redis)
 
-# 3. Migrações
+# 3. Migrações (aplica schema + seed de roles/settings)
 npx okcms db:migrate
 
-# 4. Sobe tudo: api + admin + web + worker
+# 4. **Crie seu primeiro usuário (OBRIGATÓRIO — sem isso não há login)**
+npx okcms user:create \
+  --email seu@email.com \
+  --name "Admin" \
+  --password "SenhaForte123" \
+  --role SUPER_ADMIN \
+  --tenant default
+
+# 5. Sobe tudo: api + admin + web + worker
 npx okcms start
 
-# 5. Se algo falhar
+# 6. Se algo falhar
 npx okcms doctor
 \`\`\`
 
@@ -410,13 +418,21 @@ docker compose up -d
 # Without Docker: point DB_* to your own Postgres. Without Redis, use:
 #   REDIS_HOST=disabled   (in-memory cache; the worker queues require Redis)
 
-# 3. Migrations
+# 3. Migrations (applies schema + seeds roles/settings)
 npx okcms db:migrate
 
-# 4. Start everything: api + admin + web + worker
+# 4. **Create your first user (REQUIRED — no login exists without it)**
+npx okcms user:create \
+  --email your@email.com \
+  --name "Admin" \
+  --password "StrongPass123" \
+  --role SUPER_ADMIN \
+  --tenant default
+
+# 5. Start everything: api + admin + web + worker
 npx okcms start
 
-# 5. If something fails
+# 6. If something fails
 npx okcms doctor
 \`\`\`
 
