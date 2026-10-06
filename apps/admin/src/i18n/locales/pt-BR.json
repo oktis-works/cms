@@ -160,7 +160,9 @@
     "subtitle": "Entre na sua conta",
     "email": "Email",
     "password": "Senha",
-    "submit": "Entrar"
+    "submit": "Entrar",
+    "failed": "Email ou senha inválidos",
+    "failed": "Email ou senha inválidos"
   },
   "common": {
     "save": "Salvar",

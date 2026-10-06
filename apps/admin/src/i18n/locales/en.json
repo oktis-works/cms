@@ -160,7 +160,9 @@
     "subtitle": "Sign in to your account",
     "email": "Email",
     "password": "Password",
-    "submit": "Sign In"
+    "submit": "Sign In",
+    "failed": "Invalid email or password",
+    "failed": "Invalid email or password"
   },
   "common": {
     "save": "Save",
