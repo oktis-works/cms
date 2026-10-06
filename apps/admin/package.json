@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/admin",
-  "version": "0.3.5",
+  "version": "0.4.0",
   "type": "module",
   "bin": {
     "okcms-admin": "./bin/admin.js"
@@ -18,9 +18,9 @@
     "clean": "rm -rf dist .astro tsconfig.tsbuildinfo"
   },
   "dependencies": {
-    "@oktis-works/types": "^0.3.5",
-    "@oktis-works/validation": "^0.3.5",
-    "@oktis-works/plugin-sdk": "^0.3.5",
+    "@oktis-works/types": "^0.4.0",
+    "@oktis-works/validation": "^0.4.0",
+    "@oktis-works/plugin-sdk": "^0.4.0",
     "@oktis-works/ui": "^0.3.3",
     "@astrojs/solid-js": "7.0.2",
     "@astrojs/node": "11.1.6",

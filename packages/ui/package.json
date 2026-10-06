@@ -19,7 +19,7 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo"
   },
   "dependencies": {
-    "@oktis-works/validation": "^0.3.5",
+    "@oktis-works/validation": "^0.4.0",
     "solid-js": "1.9.15"
   },
   "devDependencies": {

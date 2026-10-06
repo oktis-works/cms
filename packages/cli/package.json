@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/cms",
-  "version": "0.3.8",
+  "version": "0.4.0",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -19,12 +19,12 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo"
   },
   "dependencies": {
-    "@oktis-works/auth": "^0.3.5",
-    "@oktis-works/config": "^0.3.5",
-    "@oktis-works/core": "^0.3.5",
-    "@oktis-works/database": "^0.3.5",
-    "@oktis-works/validation": "^0.3.5",
-    "@oktis-works/theme-runtime": "^0.3.5"
+    "@oktis-works/auth": "^0.4.0",
+    "@oktis-works/config": "^0.4.0",
+    "@oktis-works/core": "^0.4.0",
+    "@oktis-works/database": "^0.4.0",
+    "@oktis-works/validation": "^0.4.0",
+    "@oktis-works/theme-runtime": "^0.4.0"
   },
   "devDependencies": {
     "typescript": "5.7.3"
