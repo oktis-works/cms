@@ -635,3 +635,240 @@ input, textarea, select {
   font-weight: 700;
   color: var(--color-primary);
 }
+
+/* ============================================================
+   RTL (Right-to-Left) Support
+   ============================================================ */
+
+/* Base RTL adjustments */
+[dir="rtl"] {
+  /* Ensure flexbox and grid work correctly in RTL */
+  direction: rtl;
+}
+
+/* Layout RTL adjustments */
+[dir="rtl"] .layout {
+  grid-template-columns: 1fr 250px;
+}
+
+[dir="rtl"] .sidebar {
+  border-right: none;
+  border-left: 1px solid var(--color-border);
+}
+
+[dir="rtl"] .nav-item {
+  text-align: right;
+}
+
+/* Table RTL adjustments */
+[dir="rtl"] .table th,
+[dir="rtl"] .table td {
+  text-align: right;
+}
+
+[dir="rtl"] .users-table th,
+[dir="rtl"] .users-table td {
+  text-align: right;
+}
+
+/* Toolbar and flex containers */
+[dir="rtl"] .toolbar {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .toolbar .input {
+  text-align: right;
+}
+
+/* Form grid RTL */
+[dir="rtl"] .form-grid {
+  direction: rtl;
+}
+
+[dir="rtl"] .form-grid label {
+  direction: rtl;
+}
+
+/* Card header RTL */
+[dir="rtl"] .card-header {
+  flex-direction: row-reverse;
+}
+
+/* Modal RTL */
+[dir="rtl"] .modal-header {
+  flex-direction: row-reverse;
+}
+
+/* Badge RTL */
+[dir="rtl"] .badge {
+  direction: rtl;
+}
+
+/* Toast RTL */
+[dir="rtl"] .toast {
+  right: auto;
+  left: 1rem;
+}
+
+/* Media library RTL */
+[dir="rtl"] .media-grid {
+  direction: rtl;
+}
+
+[dir="rtl"] .media-card__meta {
+  text-align: right;
+}
+
+[dir="rtl"] .media-details__list {
+  direction: rtl;
+}
+
+[dir="rtl"] .media-details__url {
+  flex-direction: row-reverse;
+}
+
+/* User details RTL */
+[dir="rtl"] .user-details .form-grid {
+  direction: rtl;
+}
+
+[dir="rtl"] .user-details .media-details__actions {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .users-table__actions {
+  justify-content: flex-start;
+}
+
+/* Dashboard RTL */
+[dir="rtl"] .stats-grid {
+  direction: rtl;
+}
+
+[dir="rtl"] .dashboard-home {
+  direction: rtl;
+}
+
+/* Login page RTL */
+[dir="rtl"] .login-form {
+  direction: rtl;
+}
+
+[dir="rtl"] .login-form .form-group {
+  text-align: right;
+}
+
+[dir="rtl"] .login-header {
+  text-align: right;
+}
+
+/* Pagination RTL */
+[dir="rtl"] .pagination {
+  flex-direction: row-reverse;
+}
+
+/* Select/Input RTL text alignment */
+[dir="rtl"] input,
+[dir="rtl"] textarea,
+[dir="rtl"] select {
+  text-align: right;
+}
+
+/* Fix for placeholder in RTL */
+[dir="rtl"] input::placeholder,
+[dir="rtl"] textarea::placeholder {
+  text-align: right;
+}
+
+/* Chevron/icon RTL flip */
+[dir="rtl"] .chevron {
+  transform: scaleX(-1);
+}
+
+[dir="rtl"] .language-trigger[aria-expanded="true"] .chevron {
+  transform: scaleX(-1) rotate(180deg);
+}
+
+/* Sidebar RTL */
+[dir="rtl"] .nav-submenu {
+  border-left: none;
+  border-right: 1px solid var(--color-border);
+  margin-left: 0;
+  margin-right: 1.75rem;
+  padding-left: 0;
+  padding-right: 0.6rem;
+}
+
+/* Fix action buttons in RTL */
+[dir="rtl"] .users-table__actions {
+  justify-content: flex-start;
+}
+
+[dir="rtl"] .media-details__actions {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .media-details__preview {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+/* Login form RTL */
+[dir="rtl"] .login-card {
+  direction: rtl;
+}
+
+[dir="rtl"] .login-form .form-group label {
+  text-align: right;
+}
+
+/* Status dot RTL */
+[dir="rtl"] .status-dot {
+  margin-right: 0;
+  margin-left: 0.4rem;
+}
+
+/* Notification/toast positions */
+[dir="rtl"] .notice {
+  direction: rtl;
+}
+
+/* Pagination RTL */
+[dir="rtl"] .pagination {
+  flex-direction: row-reverse;
+}
+
+/* Settings cards RTL */
+[dir="rtl"] .settings-cards {
+  direction: rtl;
+}
+
+[dir="rtl"] .settings-card {
+  text-align: right;
+}
+
+/* Action cards RTL */
+[dir="rtl"] .action-card {
+  direction: rtl;
+}
+
+/* Fix for media card name truncation in RTL */
+[dir="rtl"] .media-card__name {
+  direction: rtl;
+}
+
+/* Login card RTL */
+[dir="rtl"] .login-card {
+  direction: rtl;
+}
+
+/* Input with icon RTL */
+[dir="rtl"] .input {
+  padding-right: 2.5rem;
+  padding-left: 0.75rem;
+}
+
+/* Scrollbar RTL */
+[dir="rtl"] ::-webkit-scrollbar {
+  /* Scrollbar stays on the left in RTL */
+}

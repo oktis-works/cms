@@ -1,0 +1,192 @@
+{
+  "layout": {
+    "appName": "OkCMS",
+    "admin": "الإدارة",
+    "nav": {
+      "dashboard": "لوحة التحكم",
+      "content": "المحتوى",
+      "media": "الوسائط",
+      "users": "المستخدمون",
+      "settings": "الإعدادات"
+    },
+    "actions": {
+      "logout": "تسجيل الخروج",
+      "newPost": "منشور جديد",
+      "uploadMedia": "رفع وسائط",
+      "addUser": "إضافة مستخدم",
+      "openSettings": "الإعدادات"
+    }
+  },
+  "dashboard": {
+    "title": "لوحة التحكم",
+    "stats": {
+      "totalContent": "إجمالي المحتوى",
+      "published": "منشور",
+      "drafts": "مسودات",
+      "mediaFiles": "ملفات الوسائط",
+      "users": "المستخدمون"
+    },
+    "recent": {
+      "title": "المحتوى الأخير",
+      "viewAll": "عرض الكل",
+      "empty": "لا يوجد محتوى بعد — أنشئ أول محتوى!",
+      "columns": { "title": "العنوان", "type": "النوع", "status": "الحالة", "updated": "تم التحديث" }
+    }
+  },
+  "content": {
+    "list": {
+      "title": "المحتوى",
+      "description": "ابحث، وصّف، وعدّل وانشر محتواك.",
+      "columns": { "title": "العنوان", "type": "النوع", "status": "الحالة", "updated": "تم التحديث" },
+      "actions": { "edit": "تعديل", "publish": "نشر", "unpublish": "إلغاء النشر", "delete": "حذف" },
+      "filters": { "search": "البحث في المحتوى…", "allTypes": "جميع الأنواع", "allStatus": "جميع الحالات" },
+      "buttons": { "new": "+ محتوى جديد", "search": "بحث" },
+      "empty": "لم يتم العثور على محتوى.",
+      "statuses": { "draft": "مسودة", "published": "منشور", "archived": "مؤرشف" },
+      "confirmDelete": "حذف \"{title}\"؟",
+      "toasts": { "published": "تم النشر ✓", "unpublished": "تم إلغاء النشر ✓" }
+    },
+    "editor": {
+      "type": "النوع",
+      "title": "العنوان",
+      "slug": "المعرّف",
+      "excerpt": "المقتطف",
+      "featuredImage": "الصورة الرئيسية (معرف الوسائط)",
+      "status": "الحالة",
+      "statusOptions": { "draft": "مسودة", "published": "منشور", "archived": "مؤرشف" },
+      "layout": "التخطيط",
+      "layoutAuto": "تلقائي (تسلسل المظهر)",
+      "customFields": "الحقول المخصصة",
+      "inspectTypes": "فحص الأنواع المتاحة",
+      "save": "حفظ",
+      "saved": "تم حفظ المحتوى بنجاح."
+    }
+  },
+  "media": {
+    "title": "مكتبة الوسائط",
+    "description": "ارفع الصور والفيديوهات والوثائق. الملفات في `uploads/` وتخدم علناً.",
+    "upload": {
+      "dropzone": "اسحب الملفات إلى هنا أو",
+      "select": "اختر الملفات",
+      "uploading": "جاري الرفع…",
+      "hint": "الصور، الفيديو، الصوت والوثائق · حتى 25MB للملف"
+    },
+    "toolbar": { "search": "البحث بالاسم أو النص البديل…", "allTypes": "كل الأنواع", "searchBtn": "بحث" },
+    "mimeTypes": { "png": "PNG", "jpeg": "JPEG", "gif": "GIF", "webp": "WebP", "svg": "SVG", "pdf": "PDF", "mp4": "MP4", "mp3": "MP3" },
+    "empty": "لا توجد ملفات بعد. ارفع أول ملف!",
+    "details": {
+      "title": "التفاصيل",
+      "file": "الملف",
+      "type": "النوع",
+      "size": "الحجم",
+      "url": "الرابط",
+      "copy": "نسخ",
+      "alt": "النص البديل",
+      "caption": "التعليق",
+      "save": "حفظ التفاصيل",
+      "delete": "حذف",
+      "close": "إغلاق",
+      "confirmDelete": "حذف \"{filename}\"؟ سيتم حذف الملف من القرص.",
+      "saved": "تم حفظ التفاصيل ✓",
+      "copied": "تم نسخ الرابط ✓",
+      "copyError": "فشل نسخ الرابط"
+    },
+    "toasts": { "uploaded": "تم رفع {count} ملف(ات) ✓" }
+  },
+  "users": {
+    "title": "المستخدمون",
+    "description": "إدارة الحسابات والأدوار والوصول للمشروع.",
+    "new": "مستخدم جديد",
+    "toolbar": { "search": "بحث بالاسم أو البريد…", "allStatus": "كل الحالات", "active": "نشط", "inactive": "غير نشط", "newBtn": "+ مستخدم جديد", "searchBtn": "بحث" },
+    "table": { "name": "الاسم", "email": "البريد", "role": "الدور", "status": "الحالة", "lastAccess": "آخر دخول", "actions": { "manage": "إدارة", "delete": "حذف" } },
+    "empty": "لم يتم العثور على مستخدمين.",
+    "detail": {
+      "title": "إدارة المستخدم",
+      "fields": { "name": "الاسم", "email": "البريد", "status": "الحالة", "role": "الدور" },
+      "statusOptions": { "active": "نشط", "inactive": "غير نشط" },
+      "rolePlaceholder": "— لا دور —",
+      "meta": "أنشئ في {created} · آخر دخول {lastAccess}",
+      "actions": { "save": "حفظ", "resetPassword": "إعادة تعيين كلمة المرور", "close": "إغلاق" },
+      "passwordPrompt": "كلمة مرور جديدة لـ {email} (8 أحرف على الأقل):",
+      "passwordError": "كلمة المرور يجب أن تكون 8 أحرف على الأقل",
+      "toasts": { "roleUpdated": "تم تحديث دور {name} ✓", "passwordChanged": "تم تغيير كلمة مرور {name} ✓", "saved": "تم حفظ المستخدم {name} ✓", "deleted": "تم حذف المستخدم {name} ✓" },
+      "confirmDelete": "حذف المستخدم {email}؟"
+    }
+  },
+  "settings": {
+    "general": {
+      "title": "عام",
+      "description": "معلومات أساسية تظهر على الموقع.",
+      "back": "← كل الإعدادات",
+      "fields": { "siteTitle": "عنوان الموقع", "siteTitlePlaceholder": "موقعي", "siteDescription": "الوصف", "siteDescriptionPlaceholder": "موقع جديد بـ OkCMS", "language": "اللغة", "timezone": "المنطقة الزمنية", "timezonePlaceholder": "Asia/Riyadh" },
+      "saved": "تم حفظ الإعدادات ✓",
+      "loading": "جاري التحميل…",
+      "save": "حفظ"
+    },
+    "postTypes": {
+      "title": "أنواع المحتوى",
+      "description": "أنشئ أنواع محتوى مخصصة (CPT) بالإضافة للمقالات والصفحات.",
+      "form": {
+        "title": "إنشاء نوع محتوى",
+        "slug": "المعرّف (مفرد، مثال: portfolio)",
+        "slugHint": "حروف صغيرة وأرقام وشرطة سفلية فقط",
+        "singular": "الاسم المفرد",
+        "plural": "الاسم الجمع",
+        "supports": "يدعم",
+        "supportsOptions": { "title": "العنوان", "editor": "المحرر", "thumbnail": "الصورة البارزة", "excerpt": "المقتطف", "revisions": "التنقيحات" },
+        "hasArchive": "له أرشيف عام (/slug)",
+        "create": "إنشاء"
+      },
+      "table": { "slug": "المعرّف", "singular": "مفرد", "plural": "جمع", "source": "المصدر", "supports": "يدعم", "archive": "أرشيف", "actions": { "remove": "إزالة" } },
+      "sources": { "admin": "الإدارة", "core": "النواة" }
+    },
+    "taxonomies": {
+      "title": "التصنيفات",
+      "description": "أنشئ تصنيفات مخصصة واربطها بأنواع المحتوى.",
+      "form": {
+        "title": "إنشاء تصنيف",
+        "name": "الاسم (مثال: النوع)",
+        "slug": "المعرّف (اختياري، يُولّد من الاسم)",
+        "slugHint": "حروف صغيرة وأرقام وشرطة سفلية فقط",
+        "hierarchical": "هرمي (يسمح بمصطلحات أب/ابن)",
+        "attachTo": "اربط بأنواع المحتوى",
+        "create": "إنشاء"
+      },
+      "table": { "taxonomy": "التصنيف", "hierarchical": "هرمي", "attachedTypes": "أنواع المحتوى المرتبطة", "actions": { "remove": "إزالة" } }
+    }
+  },
+  "login": {
+    "title": "تسجيل الدخول",
+    "subtitle": "سجّل دخولك إلى حسابك",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "submit": "دخول"
+  },
+  "common": {
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "close": "إغلاق",
+    "confirm": "تأكيد",
+    "loading": "جاري التحميل…",
+    "yes": "نعم",
+    "no": "لا",
+    "search": "بحث",
+    "filter": "تصفية",
+    "create": "إنشاء",
+    "update": "تحديث",
+    "remove": "إزالة",
+    "viewAll": "عرض الكل",
+    "back": "رجوع",
+    "next": "التالي",
+    "previous": "السابق",
+    "page": "صفحة",
+    "of": "من",
+    "items": "عناصر",
+    "item": "عنصر",
+    "empty": "لم يتم العثور على {items}.",
+    "toast": { "success": "✓", "error": "خطأ: {message}" },
+    "status": { "active": "نشط", "inactive": "غير نشط", "draft": "مسودة", "published": "منشور", "archived": "مؤرشف" }
+  }
+}

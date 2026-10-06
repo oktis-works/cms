@@ -1,0 +1,192 @@
+{
+  "layout": {
+    "appName": "OkCMS",
+    "admin": "Admin",
+    "nav": {
+      "dashboard": "לוח בקרה",
+      "content": "תוכן",
+      "media": "מדיה",
+      "users": "משתמשים",
+      "settings": "הגדרות"
+    },
+    "actions": {
+      "logout": "התנתקות",
+      "newPost": "פוסט חדש",
+      "uploadMedia": "העלאת מדיה",
+      "addUser": "הוסף משתמש",
+      "openSettings": "הגדרות"
+    }
+  },
+  "dashboard": {
+    "title": "לוח בקרה",
+    "stats": {
+      "totalContent": "סה״כ תוכן",
+      "published": "פורסם",
+      "drafts": "טיוטות",
+      "mediaFiles": "קבצי מדיה",
+      "users": "משתמשים"
+    },
+    "recent": {
+      "title": "תוכן אחרון",
+      "viewAll": "הצג הכל",
+      "empty": "אין עדיין תוכן — צור את הראשון!",
+      "columns": { "title": "כותרת", "type": "סוג", "status": "סטטוס", "updated": "עודכן" }
+    }
+  },
+  "content": {
+    "list": {
+      "title": "תוכן",
+      "description": "חפש, סנן, ערוך ופרסם את התוכן שלך.",
+      "columns": { "title": "כותרת", "type": "סוג", "status": "סטטוס", "updated": "עודכן" },
+      "actions": { "edit": "ערוך", "publish": "פרסם", "unpublish": "בטל פרסום", "delete": "מחק" },
+      "filters": { "search": "חפש תוכן…", "allTypes": "כל הסוגים", "allStatus": "כל הסטטוסים" },
+      "buttons": { "new": "+ תוכן חדש", "search": "חפש" },
+      "empty": "לא נמצא תוכן.",
+      "statuses": { "draft": "טיוטה", "published": "פורסם", "archived": "ארכיון" },
+      "confirmDelete": "למחוק \"{title}\"?",
+      "toasts": { "published": "התוכן פורסם ✓", "unpublished": "הפרסום בוטל ✓" }
+    },
+    "editor": {
+      "type": "סוג",
+      "title": "כותרת",
+      "slug": "Slug",
+      "excerpt": "תקציר",
+      "featuredImage": "תמונה ראשית (מזהה מדיה)",
+      "status": "סטטוס",
+      "statusOptions": { "draft": "טיוטה", "published": "פורסם", "archived": "ארכיון" },
+      "layout": "פריסה",
+      "layoutAuto": "אוטומטי (היררכיית ערכת נושא)",
+      "customFields": "שדות מותאמים",
+      "inspectTypes": "בדוק סוגים זמינים",
+      "save": "שמור",
+      "saved": "התוכן נשמר בהצלחה."
+    }
+  },
+  "media": {
+    "title": "ספריית מדיה",
+    "description": "העלה ונהל תמונות, סרטונים ומסמכים. קבצים נשמרים ב-`uploads/` ומוגשים לציבור.",
+    "upload": {
+      "dropzone": "גרור קבצים לכאן או",
+      "select": "בחר קבצים",
+      "uploading": "מעלה…",
+      "hint": "תמונות, סרטונים, שמע ומסמכים · עד 25MB לקובץ"
+    },
+    "toolbar": { "search": "חפש לפי שם או alt…", "allTypes": "כל הסוגים", "searchBtn": "חפש" },
+    "mimeTypes": { "png": "PNG", "jpeg": "JPEG", "gif": "GIF", "webp": "WebP", "svg": "SVG", "pdf": "PDF", "mp4": "MP4", "mp3": "MP3" },
+    "empty": "אין עדיין קבצים. העלה את הראשון!",
+    "details": {
+      "title": "פרטים",
+      "file": "קובץ",
+      "type": "סוג",
+      "size": "גודל",
+      "url": "כתובת",
+      "copy": "העתק",
+      "alt": "טקסט חלופי",
+      "caption": "כיתוב",
+      "save": "שמור פרטים",
+      "delete": "מחק",
+      "close": "סגור",
+      "confirmDelete": "למחוק \"{filename}\"? הקובץ יימחק מהדיסק.",
+      "saved": "הפרטים נשמרו ✓",
+      "copied": "הכתובת הועתקה ✓",
+      "copyError": "לא ניתן להעתיק את הכתובת"
+    },
+    "toasts": { "uploaded": "{count} קובץ(ים) הועלו ✓" }
+  },
+  "users": {
+    "title": "משתמשים",
+    "description": "נהל חשבונות, תפקידים וגישות לפרויקט.",
+    "new": "משתמש חדש",
+    "toolbar": { "search": "חפש לפי שם או אימייל…", "allStatus": "כל הסטטוסים", "active": "פעילים", "inactive": "לא פעילים", "newBtn": "+ משתמש חדש", "searchBtn": "חפש" },
+    "table": { "name": "שם", "email": "אימייל", "role": "תפקיד", "status": "סטטוס", "lastAccess": "גישה אחרונה", "actions": { "manage": "נהל", "delete": "מחק" } },
+    "empty": "לא נמצאו משתמשים.",
+    "detail": {
+      "title": "ניהול משתמש",
+      "fields": { "name": "שם", "email": "אימייל", "status": "סטטוס", "role": "תפקיד" },
+      "statusOptions": { "active": "פעיל", "inactive": "לא פעיל" },
+      "rolePlaceholder": "— ללא תפקיד —",
+      "meta": "נוצר ב-{created} · גישה אחרונה {lastAccess}",
+      "actions": { "save": "שמור", "resetPassword": "אפס סיסמה", "close": "סגור" },
+      "passwordPrompt": "סיסמה חדשה עבור {email} (מינימום 8 תווים):",
+      "passwordError": "הסיסמה חייבת להיות באורך 8 תווים לפחות",
+      "toasts": { "roleUpdated": "התפקיד של {name} עודכן ✓", "passwordChanged": "הסיסמה של {name} שונתה ✓", "saved": "המשתמש {name} נשמר ✓", "deleted": "המשתמש {name} נמחק ✓" },
+      "confirmDelete": "למחוק את המשתמש {email}?"
+    }
+  },
+  "settings": {
+    "general": {
+      "title": "כללי",
+      "description": "מידע בסיסי המוצג באתר.",
+      "back": "← כל ההגדרות",
+      "fields": { "siteTitle": "כותרת האתר", "siteTitlePlaceholder": "האתר שלי", "siteDescription": "תיאור", "siteDescriptionPlaceholder": "אתר חדש עם OkCMS", "language": "שפה", "timezone": "אזור זמן", "timezonePlaceholder": "Asia/Jerusalem" },
+      "saved": "ההגדרות נשמרו ✓",
+      "loading": "טוען…",
+      "save": "שמור"
+    },
+    "postTypes": {
+      "title": "סוגי תוכן",
+      "description": "צור סוגי תוכן מותאמים (CPT) מעבר לפוסטים ועמודים.",
+      "form": {
+        "title": "צור סוג תוכן",
+        "slug": "Slug (יחיד, למשל: portfolio)",
+        "slugHint": "רק אותיות קטנות, מספרים וקו תחתון",
+        "singular": "שם ביחיד",
+        "plural": "שם ברבים",
+        "supports": "תומך",
+        "supportsOptions": { "title": "כותרת", "editor": "עורך", "thumbnail": "תמונה ראשית", "excerpt": "קטע", "revisions": "גרסאות" },
+        "hasArchive": "יש דף ארכיון ציבורי (/slug)",
+        "create": "צור"
+      },
+      "table": { "slug": "Slug", "singular": "יחיד", "plural": "רבים", "source": "מקור", "supports": "תומך", "archive": "ארכיון", "actions": { "remove": "הסר" } },
+      "sources": { "admin": "Admin", "core": "Core" }
+    },
+    "taxonomies": {
+      "title": "טקסונומיות",
+      "description": "צור טקסונומיות מותאמות וקשר אותן לסוגי תוכן.",
+      "form": {
+        "title": "צור טקסונומיה",
+        "name": "שם (למשל: ז'אנר)",
+        "slug": "Slug (אופציונלי, נוצר מהשם)",
+        "slugHint": "רק אותיות קטנות, מספרים וקו תחתון",
+        "hierarchical": "היררכית (מאפשרת מונחי אב/בן)",
+        "attachTo": "קשר לסוגי תוכן",
+        "create": "צור"
+      },
+      "table": { "taxonomy": "טקסונומיה", "hierarchical": "היררכית", "attachedTypes": "סוגי תוכן מקושרים", "actions": { "remove": "הסר" } }
+    }
+  },
+  "login": {
+    "title": "התחברות",
+    "subtitle": "התחבר לחשבונך",
+    "email": "אימייל",
+    "password": "סיסמה",
+    "submit": "התחבר"
+  },
+  "common": {
+    "save": "שמור",
+    "cancel": "ביטול",
+    "delete": "מחק",
+    "edit": "ערוך",
+    "close": "סגור",
+    "confirm": "אשר",
+    "loading": "טוען…",
+    "yes": "כן",
+    "no": "לא",
+    "search": "חפש",
+    "filter": "סנן",
+    "create": "צור",
+    "update": "עדכן",
+    "remove": "הסר",
+    "viewAll": "הצג הכל",
+    "back": "חזור",
+    "next": "הבא",
+    "previous": "הקודם",
+    "page": "עמוד",
+    "of": "מתוך",
+    "items": "פריטים",
+    "item": "פריט",
+    "empty": "לא נמצאו {items}.",
+    "toast": { "success": "✓", "error": "שגיאה: {message}" },
+    "status": { "active": "פעיל", "inactive": "לא פעיל", "draft": "טיוטה", "published": "פורסם", "archived": "ארכיון" }
+  }
+}

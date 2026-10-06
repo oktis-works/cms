@@ -1,0 +1,192 @@
+{
+  "layout": {
+    "appName": "OkCMS",
+    "admin": "Admin",
+    "nav": {
+      "dashboard": "Панель управления",
+      "content": "Контент",
+      "media": "Медиа",
+      "users": "Пользователи",
+      "settings": "Настройки"
+    },
+    "actions": {
+      "logout": "Выйти",
+      "newPost": "Новый пост",
+      "uploadMedia": "Загрузить медиа",
+      "addUser": "Добавить пользователя",
+      "openSettings": "Настройки"
+    }
+  },
+  "dashboard": {
+    "title": "Панель управления",
+    "stats": {
+      "totalContent": "Всего контента",
+      "published": "Опубликовано",
+      "drafts": "Черновики",
+      "mediaFiles": "Медиа файлы",
+      "users": "Пользователи"
+    },
+    "recent": {
+      "title": "Недавний контент",
+      "viewAll": "Посмотреть все",
+      "empty": "Контента пока нет — создайте первый!",
+      "columns": { "title": "Заголовок", "type": "Тип", "status": "Статус", "updated": "Обновлено" }
+    }
+  },
+  "content": {
+    "list": {
+      "title": "Контент",
+      "description": "Поиск, фильтрация, редактирование и публикация контента.",
+      "columns": { "title": "Заголовок", "type": "Тип", "status": "Статус", "updated": "Обновлено" },
+      "actions": { "edit": "Редактировать", "publish": "Опубликовать", "unpublish": "Снять с публикации", "delete": "Удалить" },
+      "filters": { "search": "Поиск контента…", "allTypes": "Все типы", "allStatus": "Все статусы" },
+      "buttons": { "new": "+ Новый контент", "search": "Поиск" },
+      "empty": "Контент не найден.",
+      "statuses": { "draft": "Черновик", "published": "Опубликовано", "archived": "В архиве" },
+      "confirmDelete": "Удалить \"{title}\"?",
+      "toasts": { "published": "Контент опубликован ✓", "unpublished": "Контент снят с публикации ✓" }
+    },
+    "editor": {
+      "type": "Тип",
+      "title": "Заголовок",
+      "slug": "Слаг",
+      "excerpt": "Отрывок",
+      "featuredImage": "Изображение (ID медиа)",
+      "status": "Статус",
+      "statusOptions": { "draft": "Черновик", "published": "Опубликовано", "archived": "В архиве" },
+      "layout": "Макет",
+      "layoutAuto": "Авто (иерархия темы)",
+      "customFields": "Пользовательские поля",
+      "inspectTypes": "Инспектировать доступные типы",
+      "save": "Сохранить",
+      "saved": "Контент успешно сохранен."
+    }
+  },
+  "media": {
+    "title": "Медиатека",
+    "description": "Загрузка и управление изображениями, видео и документами. Файлы хранятся в `uploads/` и доступны публично.",
+    "upload": {
+      "dropzone": "Перетащите файлы сюда или",
+      "select": "Выбрать файлы",
+      "uploading": "Загрузка…",
+      "hint": "Изображения, видео, аудио и документы · до 25МБ на файл"
+    },
+    "toolbar": { "search": "Поиск по имени или alt…", "allTypes": "Все типы", "searchBtn": "Поиск" },
+    "mimeTypes": { "png": "PNG", "jpeg": "JPEG", "gif": "GIF", "webp": "WebP", "svg": "SVG", "pdf": "PDF", "mp4": "MP4", "mp3": "MP3" },
+    "empty": "Файлов пока нет. Загрузите первый!",
+    "details": {
+      "title": "Детали",
+      "file": "Файл",
+      "type": "Тип",
+      "size": "Размер",
+      "url": "URL",
+      "copy": "Копировать",
+      "alt": "Alt текст",
+      "caption": "Подпись",
+      "save": "Сохранить детали",
+      "delete": "Удалить",
+      "close": "Закрыть",
+      "confirmDelete": "Удалить \"{filename}\"? Файл будет удален с диска.",
+      "saved": "Детали сохранены ✓",
+      "copied": "URL скопирован ✓",
+      "copyError": "Не удалось скопировать URL"
+    },
+    "toasts": { "uploaded": "{count} файл(ов) загружено ✓" }
+  },
+  "users": {
+    "title": "Пользователи",
+    "description": "Управление аккаунтами, ролями и доступом проекта.",
+    "new": "Новый пользователь",
+    "toolbar": { "search": "Поиск по имени или email…", "allStatus": "Все статусы", "active": "Активные", "inactive": "Неактивные", "newBtn": "+ Новый пользователь", "searchBtn": "Поиск" },
+    "table": { "name": "Имя", "email": "Email", "role": "Роль", "status": "Статус", "lastAccess": "Последний вход", "actions": { "manage": "Управлять", "delete": "Удалить" } },
+    "empty": "Пользователи не найдены.",
+    "detail": {
+      "title": "Управление пользователем",
+      "fields": { "name": "Имя", "email": "Email", "status": "Статус", "role": "Роль" },
+      "statusOptions": { "active": "Активен", "inactive": "Неактивен" },
+      "rolePlaceholder": "— без роли —",
+      "meta": "Создан {created} · последний вход {lastAccess}",
+      "actions": { "save": "Сохранить", "resetPassword": "Сбросить пароль", "close": "Закрыть" },
+      "passwordPrompt": "Новый пароль для {email} (минимум 8 символов):",
+      "passwordError": "Пароль должен содержать минимум 8 символов",
+      "toasts": { "roleUpdated": "Роль {name} обновлена ✓", "passwordChanged": "Пароль {name} изменен ✓", "saved": "Пользователь {name} сохранен ✓", "deleted": "Пользователь {name} удален ✓" },
+      "confirmDelete": "Удалить пользователя {email}?"
+    }
+  },
+  "settings": {
+    "general": {
+      "title": "Общие",
+      "description": "Основная информация, отображаемая на сайте.",
+      "back": "← Все настройки",
+      "fields": { "siteTitle": "Название сайта", "siteTitlePlaceholder": "Мой сайт", "siteDescription": "Описание", "siteDescriptionPlaceholder": "Новый сайт на OkCMS", "language": "Язык", "timezone": "Часовой пояс", "timezonePlaceholder": "Europe/Moscow" },
+      "saved": "Настройки сохранены ✓",
+      "loading": "Загрузка…",
+      "save": "Сохранить"
+    },
+    "postTypes": {
+      "title": "Типы контента",
+      "description": "Создавайте пользовательские типы контента (CPT) помимо Постов и Страниц.",
+      "form": {
+        "title": "Создать тип контента",
+        "slug": "Слаг (в единственном числе, напр.: portfolio)",
+        "slugHint": "Только строчные буквы, цифры и подчеркивание",
+        "singular": "Название в единственном числе",
+        "plural": "Название во множественном числе",
+        "supports": "Поддерживает",
+        "supportsOptions": { "title": "Заголовок", "editor": "Редактор", "thumbnail": "Миниатюра", "excerpt": "Отрывок", "revisions": "Ревизии" },
+        "hasArchive": "Имеет публичный архив (/slug)",
+        "create": "Создать"
+      },
+      "table": { "slug": "Слаг", "singular": "Един. число", "plural": "Мн. число", "source": "Источник", "supports": "Поддерживает", "archive": "Архив", "actions": { "remove": "Удалить" } },
+      "sources": { "admin": "Admin", "core": "Core" }
+    },
+    "taxonomies": {
+      "title": "Таксономии",
+      "description": "Создавайте пользовательские таксономии и связывайте их с типами контента.",
+      "form": {
+        "title": "Создать таксономию",
+        "name": "Название (напр.: Жанр)",
+        "slug": "Слаг (опционально, генерируется из названия)",
+        "slugHint": "Только строчные буквы, цифры и подчеркивание",
+        "hierarchical": "Иерархическая (разрешает родительские/дочерние термины)",
+        "attachTo": "Связать с типами контента",
+        "create": "Создать"
+      },
+      "table": { "taxonomy": "Таксономия", "hierarchical": "Иерархическая", "attachedTypes": "Связанные типы контента", "actions": { "remove": "Удалить" } }
+    }
+  },
+  "login": {
+    "title": "Вход",
+    "subtitle": "Войдите в свой аккаунт",
+    "email": "Email",
+    "password": "Пароль",
+    "submit": "Войти"
+  },
+  "common": {
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "delete": "Удалить",
+    "edit": "Редактировать",
+    "close": "Закрыть",
+    "confirm": "Подтвердить",
+    "loading": "Загрузка…",
+    "yes": "Да",
+    "no": "Нет",
+    "search": "Поиск",
+    "filter": "Фильтр",
+    "create": "Создать",
+    "update": "Обновить",
+    "remove": "Удалить",
+    "viewAll": "Посмотреть все",
+    "back": "Назад",
+    "next": "Далее",
+    "previous": "Назад",
+    "page": "Страница",
+    "of": "из",
+    "items": "элементов",
+    "item": "элемент",
+    "empty": "Не найдено {items}.",
+    "toast": { "success": "✓", "error": "Ошибка: {message}" },
+    "status": { "active": "Активен", "inactive": "Неактивен", "draft": "Черновик", "published": "Опубликовано", "archived": "В архиве" }
+  }
+}

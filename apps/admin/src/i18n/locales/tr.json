@@ -1,0 +1,192 @@
+{
+  "layout": {
+    "appName": "OkCMS",
+    "admin": "Admin",
+    "nav": {
+      "dashboard": "Kontrol Paneli",
+      "content": "İçerik",
+      "media": "Medya",
+      "users": "Kullanıcılar",
+      "settings": "Ayarlar"
+    },
+    "actions": {
+      "logout": "Çıkış",
+      "newPost": "Yeni Yazı",
+      "uploadMedia": "Medya Yükle",
+      "addUser": "Kullanıcı Ekle",
+      "openSettings": "Ayarlar"
+    }
+  },
+  "dashboard": {
+    "title": "Kontrol Paneli",
+    "stats": {
+      "totalContent": "Toplam İçerik",
+      "published": "Yayınlandı",
+      "drafts": "Taslaklar",
+      "mediaFiles": "Medya Dosyaları",
+      "users": "Kullanıcılar"
+    },
+    "recent": {
+      "title": "Son İçerikler",
+      "viewAll": "Tümünü Gör",
+      "empty": "Henüz içerik yok — ilkini oluşturun!",
+      "columns": { "title": "Başlık", "type": "Tür", "status": "Durum", "updated": "Güncellendi" }
+    }
+  },
+  "content": {
+    "list": {
+      "title": "İçerik",
+      "description": "İçerik arayın, filtreleyin, düzenleyin ve yayınlayın.",
+      "columns": { "title": "Başlık", "type": "Tür", "status": "Durum", "updated": "Güncellendi" },
+      "actions": { "edit": "Düzenle", "publish": "Yayınla", "unpublish": "Yayını Kaldır", "delete": "Sil" },
+      "filters": { "search": "İçerik ara…", "allTypes": "Tüm türler", "allStatus": "Tüm durumlar" },
+      "buttons": { "new": "+ Yeni içerik", "search": "Ara" },
+      "empty": "İçerik bulunamadı.",
+      "statuses": { "draft": "Taslak", "published": "Yayınlandı", "archived": "Arşivlendi" },
+      "confirmDelete": "\"{title}\" silinsin mi?",
+      "toasts": { "published": "İçerik yayınlandı ✓", "unpublished": "Yayın kaldırıldı ✓" }
+    },
+    "editor": {
+      "type": "Tür",
+      "title": "Başlık",
+      "slug": "Slug",
+      "excerpt": "Özet",
+      "featuredImage": "Öne Çıkan Görsel (medya ID)",
+      "status": "Durum",
+      "statusOptions": { "draft": "Taslak", "published": "Yayınlandı", "archived": "Arşivlendi" },
+      "layout": "Düzen",
+      "layoutAuto": "Otomatik (tema hiyerarşisi)",
+      "customFields": "Özel Alanlar",
+      "inspectTypes": "Mevcut türleri incele",
+      "save": "Kaydet",
+      "saved": "İçerik başarıyla kaydedildi."
+    }
+  },
+  "media": {
+    "title": "Medya Kütüphanesi",
+    "description": "Görseller, videolar ve belgeleri yükleyin ve yönetin. Dosyalar `uploads/` klasöründe saklanır ve genel olarak sunulur.",
+    "upload": {
+      "dropzone": "Dosyaları buraya sürükleyin veya",
+      "select": "Dosya seç",
+      "uploading": "Yükleniyor…",
+      "hint": "Görseller, videolar, sesler ve belgeler · dosya başına 25MB'a kadar"
+    },
+    "toolbar": { "search": "İsim veya alt metinle ara…", "allTypes": "Tüm türler", "searchBtn": "Ara" },
+    "mimeTypes": { "png": "PNG", "jpeg": "JPEG", "gif": "GIF", "webp": "WebP", "svg": "SVG", "pdf": "PDF", "mp4": "MP4", "mp3": "MP3" },
+    "empty": "Henüz dosya yok. İlk dosyayı yükleyin!",
+    "details": {
+      "title": "Detaylar",
+      "file": "Dosya",
+      "type": "Tür",
+      "size": "Boyut",
+      "url": "URL",
+      "copy": "Kopyala",
+      "alt": "Alt metni",
+      "caption": "Açıklama",
+      "save": "Detayları kaydet",
+      "delete": "Sil",
+      "close": "Kapat",
+      "confirmDelete": "\"{filename}\" silinsin mi? Dosya diskten silinecek.",
+      "saved": "Detaylar kaydedildi ✓",
+      "copied": "URL kopyalandı ✓",
+      "copyError": "URL kopyalanamadı"
+    },
+    "toasts": { "uploaded": "{count} dosya yüklendi ✓" }
+  },
+  "users": {
+    "title": "Kullanıcılar",
+    "description": "Hesapları, rolleri ve proje erişimini yönetin.",
+    "new": "Yeni Kullanıcı",
+    "toolbar": { "search": "İsim veya email ile ara…", "allStatus": "Tüm durumlar", "active": "Aktif", "inactive": "Pasif", "newBtn": "+ Yeni kullanıcı", "searchBtn": "Ara" },
+    "table": { "name": "İsim", "email": "Email", "role": "Rol", "status": "Durum", "lastAccess": "Son erişim", "actions": { "manage": "Yönet", "delete": "Sil" } },
+    "empty": "Kullanıcı bulunamadı.",
+    "detail": {
+      "title": "Kullanıcıyı yönet",
+      "fields": { "name": "İsim", "email": "Email", "status": "Durum", "role": "Rol" },
+      "statusOptions": { "active": "Aktif", "inactive": "Pasif" },
+      "rolePlaceholder": "— rol yok —",
+      "meta": "Oluşturulma {created} · son erişim {lastAccess}",
+      "actions": { "save": "Kaydet", "resetPassword": "Parolayı sıfırla", "close": "Kapat" },
+      "passwordPrompt": "{email} için yeni parola (en az 8 karakter):",
+      "passwordError": "Parola en az 8 karakter olmalıdır",
+      "toasts": { "roleUpdated": "{name} rolü güncellendi ✓", "passwordChanged": "{name} parolası değiştirildi ✓", "saved": "Kullanıcı {name} kaydedildi ✓", "deleted": "Kullanıcı {name} silindi ✓" },
+      "confirmDelete": "{email} kullanıcısını sil?"
+    }
+  },
+  "settings": {
+    "general": {
+      "title": "Genel",
+      "description": "Sitede görüntülenen temel bilgiler.",
+      "back": "← Tüm ayarlar",
+      "fields": { "siteTitle": "Site başlığı", "siteTitlePlaceholder": "Benim Sitem", "siteDescription": "Açıklama", "siteDescriptionPlaceholder": "OkCMS ile yeni bir site", "language": "Dil", "timezone": "Zaman dilimi", "timezonePlaceholder": "Europe/Istanbul" },
+      "saved": "Ayarlar kaydedildi ✓",
+      "loading": "Yükleniyor…",
+      "save": "Kaydet"
+    },
+    "postTypes": {
+      "title": "İçerik Türleri",
+      "description": "Yazılar ve Sayfalar dışında özel içerik türleri (CPT) oluşturun.",
+      "form": {
+        "title": "İçerik türü oluştur",
+        "slug": "Slug (tekil, örn.: portfolio)",
+        "slugHint": "Sadece küçük harfler, rakamlar ve alt çizgi",
+        "singular": "Tekil isim",
+        "plural": "Çoğul isim",
+        "supports": "Destekler",
+        "supportsOptions": { "title": "Başlık", "editor": "Editör", "thumbnail": "Öne çıkan görsel", "excerpt": "Özet", "revisions": "Revizyonlar" },
+        "hasArchive": "Genel arşiv sayfası var (/slug)",
+        "create": "Oluştur"
+      },
+      "table": { "slug": "Slug", "singular": "Tekil", "plural": "Çoğul", "source": "Kaynak", "supports": "Destekler", "archive": "Arşiv", "actions": { "remove": "Sil" } },
+      "sources": { "admin": "Admin", "core": "Core" }
+    },
+    "taxonomies": {
+      "title": "Taksonomiler",
+      "description": "Özel taksonomiler oluşturun ve içerik türleriyle ilişkilendirin.",
+      "form": {
+        "title": "Taksonomi oluştur",
+        "name": "İsim (örn.: Tür)",
+        "slug": "Slug (isteğe bağlı, isimden oluşturulur)",
+        "slugHint": "Sadece küçük harfler, rakamlar ve alt çizgi",
+        "hierarchical": "Hiyerarşik (ebeveyn/çocuk terimlerine izin verir)",
+        "attachTo": "İçerik türlerine bağla",
+        "create": "Oluştur"
+      },
+      "table": { "taxonomy": "Taksonomi", "hierarchical": "Hiyerarşik", "attachedTypes": "Bağlı içerik türleri", "actions": { "remove": "Sil" } }
+    }
+  },
+  "login": {
+    "title": "Giriş",
+    "subtitle": "Hesabınıza giriş yapın",
+    "email": "Email",
+    "password": "Parola",
+    "submit": "Giriş"
+  },
+  "common": {
+    "save": "Kaydet",
+    "cancel": "İptal",
+    "delete": "Sil",
+    "edit": "Düzenle",
+    "close": "Kapat",
+    "confirm": "Onayla",
+    "loading": "Yükleniyor…",
+    "yes": "Evet",
+    "no": "Hayır",
+    "search": "Ara",
+    "filter": "Filtre",
+    "create": "Oluştur",
+    "update": "Güncelle",
+    "remove": "Kaldır",
+    "viewAll": "Tümünü gör",
+    "back": "Geri",
+    "next": "İleri",
+    "previous": "Geri",
+    "page": "Sayfa",
+    "of": "/",
+    "items": "öğe",
+    "item": "öğe",
+    "empty": "{items} bulunamadı.",
+    "toast": { "success": "✓", "error": "Hata: {message}" },
+    "status": { "active": "Aktif", "inactive": "Pasif", "draft": "Taslak", "published": "Yayınlandı", "archived": "Arşivlendi" }
+  }
+}

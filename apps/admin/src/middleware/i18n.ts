@@ -1,6 +1,6 @@
 // @ts-ignore - Astro middleware module not available in TS environment
 import { defineMiddleware } from 'astro:middleware';
-import { SUPPORTED_LOCALES, DEFAULT_LOCALE } from '../i18n/config';
+import { SUPPORTED_LOCALES, DEFAULT_LOCALE, isRTLLocale } from '../i18n/config';
 import { getTranslationsForLocale, createSyncTFunction } from '../i18n';
 
 // Type definitions for Astro middleware (not available in TS environment)
@@ -13,6 +13,7 @@ interface AstroContext {
     runtime?: { env?: Record<string, string> };
     t?: (key: string, params?: Record<string, string | number>) => string;
     locale?: string;
+    isRTL?: boolean;
   };
   request: Request;
 }
@@ -75,6 +76,7 @@ export const i18nMiddleware = defineMiddleware(async (context: AstroContext, nex
   
   context.locals.t = createTFunctionFromMap(translations, fallback);
   context.locals.locale = validLocale;
+  context.locals.isRTL = isRTLLocale(validLocale as any);
   
   // Definir cookie se não existir
   if (!cookieLocale) {

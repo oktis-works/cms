@@ -1,0 +1,192 @@
+{
+  "layout": {
+    "appName": "OkCMS",
+    "admin": "Admin",
+    "nav": {
+      "dashboard": "Dáìbó",
+      "content": "Ọrọ̀",
+      "media": "Mídia",
+      "users": "Onítójú",
+      "settings": "Ẹ̀tọ́"
+    },
+    "actions": {
+      "logout": "Jadé",
+      "newPost": "Post Tuntun",
+      "uploadMedia": "Kó Mídia Soke",
+      "addUser": "Kun Onítójú",
+      "openSettings": "Ẹ̀tọ́"
+    }
+  },
+  "dashboard": {
+    "title": "Dáìbó",
+    "stats": {
+      "totalContent": "Gbogbo Ọrọ̀",
+      "published": "Tí a Gbé Dè",
+      "drafts": "Àkọ́lé Àpẹrẹ",
+      "mediaFiles": "Fáìlì Mídia",
+      "users": "Onítójú"
+    },
+    "recent": {
+      "title": "Ọrọ̀ Tuntun",
+      "viewAll": "Wò Gbogbo",
+      "empty": "Kò sí ọrọ̀ fúnra wá — dá kíni!",
+      "columns": { "title": "Orí", "type": "Eya", "status": "Ìwà", "updated": "Tí a Ṣàtúnṣe" }
+    }
+  },
+  "content": {
+    "list": {
+      "title": "Ọrọ̀",
+      "description": "Wá, tọ́ka, kó, àti gbé ọrọ̀ rẹ́ dè.",
+      "columns": { "title": "Orí", "type": "Eya", "status": "Ìwà", "updated": "Tí a Ṣàtúnṣe" },
+      "actions": { "edit": "Kó", "publish": "Gbé Dè", "unpublish": "Dágbà Gbé Dè", "delete": "Pa" },
+      "filters": { "search": "Wá ọrọ̀…", "allTypes": "Gbogbo Eya", "allStatus": "Gbogbo Ìwà" },
+      "buttons": { "new": "+ Ọrọ̀ Tuntun", "search": "Wá" },
+      "empty": "Kò sí ọrọ̀ tí a rí.",
+      "statuses": { "draft": "Àkọ́lé Àpẹrẹ", "published": "Tí a Gbé Dè", "archived": "Tí a Fìpamọ́" },
+      "confirmDelete": "Pa \"{title}\"?",
+      "toasts": { "published": "Ọrọ̀ tí a gbé dè ✓", "unpublished": "Gbé dè ti dagbà ✓" }
+    },
+    "editor": {
+      "type": "Eya",
+      "title": "Orí",
+      "slug": "Slug",
+      "excerpt": "Aponbepore",
+      "featuredImage": "Àwọn Àwòrán (ID Media)",
+      "status": "Ìwà",
+      "statusOptions": { "draft": "Àkọ́lé Àpẹrẹ", "published": "Tí a Gbé Dè", "archived": "Tí a Fìpamọ́" },
+      "layout": "Àkọ́nìṣọ́rọ̀",
+      "layoutAuto": "Tóka Rara (ìbí ipa àwọn àwòrán)",
+      "customFields": "Àkóso Àwọn Àpẹrẹ",
+      "inspectTypes": "Wó Àwọn Eya Tí WòŃpàtí",
+      "save": "Fifipamọ́",
+      "saved": "Ọrọ̀ ti fifipamọ́ lóríire."
+    }
+  },
+  "media": {
+    "title": "Ìwé Mídia",
+    "description": "Kó àwòrán, vídíò àti àkọ́lé soke. Fáìlì wà ní `uploads/` àti a dá wá lórí àgbáyé.",
+    "upload": {
+      "dropzone": "Tẹ́ fáilì síbẹ́ tẹ́ bá",
+      "select": "Yan Fáìlì",
+      "uploading": "Ń Kó Sókè…",
+      "hint": "Àwòrán, vídíò, ohun tí a gbọ́ àti àkọ́lé · tẹ́lẹ́ 25MB fún fáìlì"
+    },
+    "toolbar": { "search": "Wá síi orúkọ tàbí alt…", "allTypes": "Gbogbo Eya", "searchBtn": "Wá" },
+    "mimeTypes": { "png": "PNG", "jpeg": "JPEG", "gif": "GIF", "webp": "WebP", "svg": "SVG", "pdf": "PDF", "mp4": "MP4", "mp3": "MP3" },
+    "empty": "Kò sí fáìlì níbí. Kó kíni soke!",
+    "details": {
+      "title": "Àlàyé",
+      "file": "Fáìlì",
+      "type": "Eya",
+      "size": "Ìgbésí",
+      "url": "URL",
+      "copy": "Kópi",
+      "alt": "Ọrọ̀ Tìyàtọ́",
+      "caption": "Àkọ́lẹ́ Ọ̀fíìsì",
+      "save": "Fífipamọ́ Àlàyé",
+      "delete": "Pa",
+      "close": "Dáná",
+      "confirmDelete": "Pa \"{filename}\"? Fáìlì yóò pa láti dísìkì.",
+      "saved": "Àlàyé ti fifipamọ́ ✓",
+      "copied": "URL ti kópi ✓",
+      "copyError": "Kò le kópi URL"
+    },
+    "toasts": { "uploaded": "Fáìlì {count} ti kó soke ✓" }
+  },
+  "users": {
+    "title": "Onítójú",
+    "description": "Dábò akàùntí, àpẹrẹ àti ifibara sí àwọn àpẹrẹ.",
+    "new": "Onítójú Tuntun",
+    "toolbar": { "search": "Wá síi orúkọ tàbí ìmẹ́èlì…", "allStatus": "Gbogbo Ìwà", "active": "Tí a Ṣe", "inactive": "Tí a Kò Ṣe", "newBtn": "+ Onítójú Tuntun", "searchBtn": "Wá" },
+    "table": { "name": "Orúkọ", "email": "Ìmẹ́èlì", "role": "Àpẹrẹ", "status": "Ìwà", "lastAccess": "Fífi Sísọ̀rọ̀ Kẹrinlá", "actions": { "manage": "Dábò", "delete": "Pa" } },
+    "empty": "Kò sí onítójú tí a rí.",
+    "detail": {
+      "title": "Dábò Onítójú",
+      "fields": { "name": "Orúkọ", "email": "Ìmẹ́èlì", "status": "Ìwà", "role": "Àpẹrẹ" },
+      "statusOptions": { "active": "Tí a Ṣe", "inactive": "Tí a Kò Ṣe" },
+      "rolePlaceholder": "— kò sí àpẹrẹ —",
+      "meta": "Dá ní {created} · fífi sísọ̀rọ̀ kẹrinlá {lastAccess}",
+      "actions": { "save": "Fifipamọ́", "resetPassword": "Tún Ìbànújẹ Sori", "close": "Dáná" },
+      "passwordPrompt": "Ìbànújẹ tuntun fún {email} (kí tókan 8 ọ̀rọ̀):",
+      "passwordError": "Ìbànújẹ gbọ́dọ̀ ní tókàn 8 ọ̀rọ̀",
+      "toasts": { "roleUpdated": "Àpẹrẹ {name} ti ṣàtúnṣe ✓", "passwordChanged": "Ìbànújẹ {name} ti yípadà ✓", "saved": "Onítójú {name} ti fífipamọ́ ✓", "deleted": "Onítójú {name} ti pa ✓" },
+      "confirmDelete": "Pa onítójú {email}?"
+    }
+  },
+  "settings": {
+    "general": {
+      "title": "Pátápátá",
+      "description": "Àlàyé tó wàlàí tó wá lórí wẹ́bùsàìtì.",
+      "back": "← Gbogbo Ẹ̀tọ́",
+      "fields": { "siteTitle": "Orí Ìwé", "siteTitlePlaceholder": "Ìwé Mi", "siteDescription": "Àpẹrẹ", "siteDescriptionPlaceholder": "Ìwé tuntun nípa OkCMS", "language": "Èdè", "timezone": "Àpẹrẹ Àkókó", "timezonePlaceholder": "Africa/Lagos" },
+      "saved": "Ẹ̀tọ́ ti fifipamọ́ ✓",
+      "loading": "Ń Ṣàtúnṣe…",
+      "save": "Fifipamọ́"
+    },
+    "postTypes": {
+      "title": "Eya Ọrọ̀",
+      "description": "Dá eya ọrọ̀ ti ọ̀rànìpẹ́ (CPT) mìì Post àti Kurasa.",
+      "form": {
+        "title": "Dá Eya Ọrọ̀",
+        "slug": "Slug (kan, àpilẹ̀kọ́: portfolio)",
+        "slugHint": "Àwọn àlifábẹẹtì kekere, nọ́mbà àti underscore nikan",
+        "singular": "Orúkọ Kan",
+        "plural": "Orúkọ Pupọ̀",
+        "supports": "Yóò Sì",
+        "supportsOptions": { "title": "Orí", "editor": "Edítà", "thumbnail": "Àwòrán Pàtàkì", "excerpt": "Apẹrẹ", "revisions": "Ìtàn" },
+        "hasArchive": "Ní Àkíwìrì Ìjoba (/slug)",
+        "create": "Dá"
+      },
+      "table": { "slug": "Slug", "singular": "Kan", "plural": "Pupọ̀", "source": "Oríṣìírí", "supports": "Yóò Sì", "archive": "Àkíwìrì", "actions": { "remove": "Fagbọ" } },
+      "sources": { "admin": "Admin", "core": "Core" }
+    },
+    "taxonomies": {
+      "title": "Takusonọ́mi",
+      "description": "Dá takusonọ́mi tuntun àti fi hàn síi eya ọrọ̀.",
+      "form": {
+        "title": "Dá Takusonọ́mi",
+        "name": "Orúkọ (àpilẹ̀kọ́: Ẹ̀yà)",
+        "slug": "Slug (ìyánjẹ́, dá láti orúkọ)",
+        "slugHint": "Àwọn àlifábẹẹtì kekere, nọ́mbà àti underscores nikan",
+        "hierarchical": "Ìbí tó wà lórí kí tóka (yóò fi nǹkan baba/ọmọ)",
+        "attachTo": "Kún eya ọrọ̀",
+        "create": "Dá"
+      },
+      "table": { "taxonomy": "Takusonọ́mi", "hierarchical": "Tó wà lórí kí tóka", "attachedTypes": "Eya ọrọ̀ tí a hàn", "actions": { "remove": "Fagbọ" } }
+    }
+  },
+  "login": {
+    "title": "Wá",
+    "subtitle": "Wá sí àkàùntí rẹ",
+    "email": "Ìmẹ́èlì",
+    "password": "Ìbànújẹ",
+    "submit": "Wá"
+  },
+  "common": {
+    "save": "Fifipamọ́",
+    "cancel": "Fagbọ",
+    "delete": "Pa",
+    "edit": "Kó",
+    "close": "Dáná",
+    "confirm": "Yanṣe",
+    "loading": "Ń Lò…",
+    "yes": "Bẹ́ẹ́ni",
+    "no": "Bẹ́ẹ́kọ́",
+    "search": "Wá",
+    "filter": "Yí Padà",
+    "create": "Dá",
+    "update": "Túnṣe",
+    "remove": "Fagbọ",
+    "viewAll": "Wò Gbogbo",
+    "back": "Padà",
+    "next": "Ọjọ́ Ọla",
+    "previous": "Ìbí Tí a Ti",
+    "page": "Ìwé",
+    "of": "tí",
+    "items": "àwọn ohun-ìnì",
+    "item": "ohun-ìnì",
+    "empty": "Kò sí {items} tí a rí.",
+    "toast": { "success": "✓", "error": "Àkúnya: {message}" },
+    "status": { "active": "Tí a Ṣe", "inactive": "Tí a Kò Ṣe", "draft": "Àkọ́lé Àpẹrẹ", "published": "Tí a Gbé Dè", "archived": "Tí a Fìpamọ́" }
+  }
+}

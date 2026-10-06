@@ -1,0 +1,192 @@
+{
+  "layout": {
+    "appName": "OkCMS",
+    "admin": "Admin",
+    "nav": {
+      "dashboard": "Dashboard",
+      "content": "Contenuti",
+      "media": "Media",
+      "users": "Utenti",
+      "settings": "Impostazioni"
+    },
+    "actions": {
+      "logout": "Esci",
+      "newPost": "Nuovo Post",
+      "uploadMedia": "Carica Media",
+      "addUser": "Aggiungi Utente",
+      "openSettings": "Impostazioni"
+    }
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "stats": {
+      "totalContent": "Contenuti Totali",
+      "published": "Pubblicati",
+      "drafts": "Bozze",
+      "mediaFiles": "File Media",
+      "users": "Utenti"
+    },
+    "recent": {
+      "title": "Contenuti Recenti",
+      "viewAll": "Visualizza Tutti",
+      "empty": "Nessun contenuto ancora — crea il primo!",
+      "columns": { "title": "Titolo", "type": "Tipo", "status": "Stato", "updated": "Aggiornato" }
+    }
+  },
+  "content": {
+    "list": {
+      "title": "Contenuti",
+      "description": "Cerca, filtra, modifica e pubblica i tuoi contenuti.",
+      "columns": { "title": "Titolo", "type": "Tipo", "status": "Stato", "updated": "Aggiornato" },
+      "actions": { "edit": "Modifica", "publish": "Pubblica", "unpublish": "Annulla Pubblicazione", "delete": "Elimina" },
+      "filters": { "search": "Cerca contenuti…", "allTypes": "Tutti i tipi", "allStatus": "Tutti gli stati" },
+      "buttons": { "new": "+ Nuovo contenuto", "search": "Cerca" },
+      "empty": "Nessun contenuto trovato.",
+      "statuses": { "draft": "Bozza", "published": "Pubblicato", "archived": "Archiviato" },
+      "confirmDelete": "Eliminare \"{title}\"?",
+      "toasts": { "published": "Contenuto pubblicato ✓", "unpublished": "Pubblicazione annullata ✓" }
+    },
+    "editor": {
+      "type": "Tipo",
+      "title": "Titolo",
+      "slug": "Slug",
+      "excerpt": "Estratto",
+      "featuredImage": "Immagine in Evidenza (ID media)",
+      "status": "Stato",
+      "statusOptions": { "draft": "Bozza", "published": "Pubblicato", "archived": "Archiviato" },
+      "layout": "Layout",
+      "layoutAuto": "Automatico (gerarchia tema)",
+      "customFields": "Campi Personalizzati",
+      "inspectTypes": "Ispeziona tipi disponibili",
+      "save": "Salva",
+      "saved": "Contenuto salvato con successo."
+    }
+  },
+  "media": {
+    "title": "Libreria Media",
+    "description": "Carica e gestisci immagini, video e documenti. I file sono in `uploads/` e serviti pubblicamente.",
+    "upload": {
+      "dropzone": "Trascina i file qui o",
+      "select": "Seleziona file",
+      "uploading": "Caricamento…",
+      "hint": "Immagini, video, audio e documenti · fino a 25MB per file"
+    },
+    "toolbar": { "search": "Cerca per nome o alt…", "allTypes": "Tutti i tipi", "searchBtn": "Cerca" },
+    "mimeTypes": { "png": "PNG", "jpeg": "JPEG", "gif": "GIF", "webp": "WebP", "svg": "SVG", "pdf": "PDF", "mp4": "MP4", "mp3": "MP3" },
+    "empty": "Nessun file ancora. Carica il primo!",
+    "details": {
+      "title": "Dettagli",
+      "file": "File",
+      "type": "Tipo",
+      "size": "Dimensione",
+      "url": "URL",
+      "copy": "Copia",
+      "alt": "Testo Alternativo",
+      "caption": "Didascalia",
+      "save": "Salva Dettagli",
+      "delete": "Elimina",
+      "close": "Chiudi",
+      "confirmDelete": "Eliminare \"{filename}\"? Il file verrà rimosso dal disco.",
+      "saved": "Dettagli salvati ✓",
+      "copied": "URL copiato ✓",
+      "copyError": "Impossibile copiare l'URL"
+    },
+    "toasts": { "uploaded": "{count} file caricati ✓" }
+  },
+  "users": {
+    "title": "Utenti",
+    "description": "Gestisci account, ruoli e accessi del progetto.",
+    "new": "Nuovo Utente",
+    "toolbar": { "search": "Cerca per nome o email…", "allStatus": "Tutti gli stati", "active": "Attivi", "inactive": "Inattivi", "newBtn": "+ Nuovo utente", "searchBtn": "Cerca" },
+    "table": { "name": "Nome", "email": "Email", "role": "Ruolo", "status": "Stato", "lastAccess": "Ultimo Accesso", "actions": { "manage": "Gestisci", "delete": "Elimina" } },
+    "empty": "Nessun utente trovato.",
+    "detail": {
+      "title": "Gestisci Utente",
+      "fields": { "name": "Nome", "email": "Email", "status": "Stato", "role": "Ruolo" },
+      "statusOptions": { "active": "Attivo", "inactive": "Inattivo" },
+      "rolePlaceholder": "— nessun ruolo —",
+      "meta": "Creato il {created} · ultimo accesso {lastAccess}",
+      "actions": { "save": "Salva", "resetPassword": "Reimposta Password", "close": "Chiudi" },
+      "passwordPrompt": "Nuova password per {email} (minimo 8 caratteri):",
+      "passwordError": "La password deve essere di almeno 8 caratteri",
+      "toasts": { "roleUpdated": "Ruolo di {name} aggiornato ✓", "passwordChanged": "Password di {name} cambiata ✓", "saved": "Utente {name} salvato ✓", "deleted": "Utente {name} eliminato ✓" },
+      "confirmDelete": "Eliminare l'utente {email}?"
+    }
+  },
+  "settings": {
+    "general": {
+      "title": "Generali",
+      "description": "Informazioni base visualizzate sul sito.",
+      "back": "← Tutte le impostazioni",
+      "fields": { "siteTitle": "Titolo del Sito", "siteTitlePlaceholder": "Il Mio Sito", "siteDescription": "Descrizione", "siteDescriptionPlaceholder": "Un nuovo sito con OkCMS", "language": "Lingua", "timezone": "Fuso Orario", "timezonePlaceholder": "Europe/Rome" },
+      "saved": "Impostazioni salvate ✓",
+      "loading": "Caricamento…",
+      "save": "Salva"
+    },
+    "postTypes": {
+      "title": "Tipi di Contenuto",
+      "description": "Crea tipi di contenuto personalizzati (CPT) oltre a Post e Pagine.",
+      "form": {
+        "title": "Crea Tipo di Contenuto",
+        "slug": "Slug (singolare, es.: portfolio)",
+        "slugHint": "Solo lettere minuscole, numeri e underscore",
+        "singular": "Nome Singolare",
+        "plural": "Nome Plurale",
+        "supports": "Supporta",
+        "supportsOptions": { "title": "Titolo", "editor": "Editor", "thumbnail": "Immagine in Evidenza", "excerpt": "Estratto", "revisions": "Revisioni" },
+        "hasArchive": "Ha Archivio Pubblico (/slug)",
+        "create": "Crea"
+      },
+      "table": { "slug": "Slug", "singular": "Singolare", "plural": "Plurale", "source": "Origine", "supports": "Supporta", "archive": "Archivio", "actions": { "remove": "Rimuovi" } },
+      "sources": { "admin": "Admin", "core": "Core" }
+    },
+    "taxonomies": {
+      "title": "Tassonomie",
+      "description": "Crea tassonomie personalizzale e collegale ai tipi di contenuto.",
+      "form": {
+        "title": "Crea Tassonomia",
+        "name": "Nome (es.: Genere)",
+        "slug": "Slug (opzionale, generato dal nome)",
+        "slugHint": "Solo lettere minuscole, numeri e underscore",
+        "hierarchical": "Gerarchica (permette termini padre/figlio)",
+        "attachTo": "Collega ai tipi di contenuto",
+        "create": "Crea"
+      },
+      "table": { "taxonomy": "Tassonomia", "hierarchical": "Gerarchica", "attachedTypes": "Tipi di contenuto collegati", "actions": { "remove": "Rimuovi" } }
+    }
+  },
+  "login": {
+    "title": "Accesso",
+    "subtitle": "Accedi al tuo account",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Accedi"
+  },
+  "common": {
+    "save": "Salva",
+    "cancel": "Annulla",
+    "delete": "Elimina",
+    "edit": "Modifica",
+    "close": "Chiudi",
+    "confirm": "Conferma",
+    "loading": "Caricamento…",
+    "yes": "Sì",
+    "no": "No",
+    "search": "Cerca",
+    "filter": "Filtro",
+    "create": "Crea",
+    "update": "Aggiorna",
+    "remove": "Rimuovi",
+    "viewAll": "Visualizza Tutti",
+    "back": "Indietro",
+    "next": "Avanti",
+    "previous": "Precedente",
+    "page": "Pagina",
+    "of": "di",
+    "items": "elementi",
+    "item": "elemento",
+    "empty": "Nessun {items} trovato.",
+    "toast": { "success": "✓", "error": "Errore: {message}" },
+    "status": { "active": "Attivo", "inactive": "Inattivo", "draft": "Bozza", "published": "Pubblicato", "archived": "Archiviato" }
+  }
+}

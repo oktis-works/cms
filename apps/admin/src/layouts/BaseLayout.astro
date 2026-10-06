@@ -5,10 +5,13 @@ interface Props {
 }
 
 const { title, description } = Astro.props;
+const { locale, isRTL } = Astro.locals;
+const htmlLang = locale ?? 'en';
+const dir = isRTL ? 'rtl' : 'ltr';
 ---
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang={htmlLang} dir={dir}>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
