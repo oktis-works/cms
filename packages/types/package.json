@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/types",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
