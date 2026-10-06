@@ -10,7 +10,6 @@ interface AstroContext {
     set: (name: string, value: string, options: { path: string; maxAge: number; sameSite: string }) => void;
   };
   locals: {
-    runtime?: { env?: Record<string, string> };
     t?: (key: string, params?: Record<string, string | number>) => string;
     locale?: string;
     isRTL?: boolean;
@@ -48,7 +47,8 @@ export const i18nMiddleware = defineMiddleware(async (context: AstroContext, nex
   // 2. Tentar obter do usuário logado (via API)
   let userLocale: string | null = null;
   try {
-    const apiUrl = context.locals.runtime?.env?.['PUBLIC_API_URL'] ?? 'http://localhost:3000';
+    // Em Astro, env vars estão disponíveis via import.meta.env
+    const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:3000';
     const res = await fetch(`${apiUrl}/api/v1/users/me/locale`, {
       credentials: 'include',
       headers: { Cookie: context.request.headers.get('Cookie') ?? '' }
