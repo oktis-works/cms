@@ -4,6 +4,7 @@
 import { For, Show, createSignal, onMount } from '@oktis-works/ui';
 import { Button, Input, Select, Pagination, Badge } from '@oktis-works/ui';
 import { apiClient, type AdminUser, type Role } from '../../../lib/api';
+import { useTranslation } from '../../../i18n';
 
 function formatDate(value?: string | null): string {
   if (!value) return '—';
@@ -12,6 +13,7 @@ function formatDate(value?: string | null): string {
 }
 
 export function UsersManager() {
+  const { t } = useTranslation();
   const [users, setUsers] = createSignal<AdminUser[]>([]);
   const [roles, setRoles] = createSignal<Role[]>([]);
   const [total, setTotal] = createSignal(0);
@@ -61,7 +63,7 @@ export function UsersManager() {
     try {
       const result = await apiClient.assignRole(user.id, roleId);
       setSelected({ ...user, roles: result.roles });
-      setInfo(`Papel de ${user.name} atualizado ✓`);
+      setInfo(t('users.detail.toasts.roleUpdated', { name: user.name }));
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -71,17 +73,17 @@ export function UsersManager() {
   };
 
   const resetPassword = async (user: AdminUser): Promise<void> => {
-    const password = prompt(`Nova senha para ${user.email} (mínimo 8 caracteres):`);
+    const password = prompt(t('users.detail.passwordPrompt', { email: user.email }));
     if (!password) return;
     if (password.length < 8) {
-      setError('A senha precisa de pelo menos 8 caracteres');
+      setError(t('users.detail.passwordError'));
       return;
     }
     setBusy(true);
     setError('');
     try {
       await apiClient.setUserPassword(user.id, password);
-      setInfo(`Senha de ${user.name} alterada ✓`);
+      setInfo(t('users.detail.toasts.passwordChanged', { name: user.name }));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -98,7 +100,7 @@ export function UsersManager() {
         email: user.email,
         status: user.status,
       });
-      setInfo(`Usuário ${user.name} salvo ✓`);
+      setInfo(t('users.detail.toasts.saved', { name: user.name }));
       setSelected(null);
       await load();
     } catch (err) {
@@ -109,13 +111,13 @@ export function UsersManager() {
   };
 
   const removeUser = async (user: AdminUser): Promise<void> => {
-    if (!confirm(`Excluir o usuário ${user.email}?`)) return;
+    if (!confirm(t('users.detail.confirmDelete', { email: user.email }))) return;
     setBusy(true);
     setError('');
     try {
       await apiClient.deleteUser(user.id);
       if (selected()?.id === user.id) setSelected(null);
-      setInfo(`Usuário ${user.name} excluído ✓`);
+      setInfo(t('users.detail.toasts.deleted', { name: user.name }));
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -139,7 +141,7 @@ export function UsersManager() {
       <div class="toolbar">
         <Input
           name="user-search"
-          placeholder="Buscar por nome ou email…"
+          placeholder={t('users.toolbar.search')}
           value={search()}
           onInput={(value) => {
             setSearch(value);
@@ -148,32 +150,32 @@ export function UsersManager() {
         />
         <Select
           name="user-status"
-          placeholder="Todos os status"
+          placeholder={t('users.toolbar.allStatus')}
           value={status()}
           options={[
-            { value: 'ACTIVE', label: 'Ativos' },
-            { value: 'INACTIVE', label: 'Inativos' },
+            { value: 'ACTIVE', label: t('users.toolbar.active') },
+            { value: 'INACTIVE', label: t('users.toolbar.inactive') },
           ]}
           onChange={(value) => {
             setStatus(value);
             void searchNow();
           }}
         />
-        <a class="btn btn-primary" href="/users/new">+ Novo usuário</a>
+        <a class="btn btn-primary" href="/users/new">{t('users.toolbar.newBtn')}</a>
         <Button variant="secondary" onClick={() => void searchNow()}>
-          Buscar
+          {t('users.toolbar.searchBtn')}
         </Button>
       </div>
 
-      <Show when={users().length > 0} fallback={<p class="muted">Nenhum usuário encontrado.</p>}>
+      <Show when={users().length > 0} fallback={<p class="muted">{t('users.empty')}</p>}>
         <table class="users-table">
           <thead>
             <tr>
-              <th>Nome</th>
-              <th>Email</th>
-              <th>Papel</th>
-              <th>Status</th>
-              <th>Último acesso</th>
+              <th>{t('users.table.name')}</th>
+              <th>{t('users.table.email')}</th>
+              <th>{t('users.table.role')}</th>
+              <th>{t('users.table.status')}</th>
+              <th>{t('users.table.lastAccess')}</th>
               <th></th>
             </tr>
           </thead>
@@ -184,21 +186,21 @@ export function UsersManager() {
                   <td>{user.name}</td>
                   <td class="muted">{user.email}</td>
                   <td>
-                    <Show when={user.roles.length > 0} fallback={<span class="muted">sem papel</span>}>
+                    <Show when={user.roles.length > 0} fallback={<span class="muted">{t('common.status.inactive')}</span>}>
                       <Badge>{user.roles.join(', ')}</Badge>
                     </Show>
                   </td>
                   <td>
                     <span classList={{ 'status-dot': true, 'status-dot--active': user.status === 'ACTIVE' }}></span>
-                    {user.status}
+                    {t('common.status.' + user.status.toLowerCase())}
                   </td>
                   <td class="muted">{formatDate(user.last_login_at)}</td>
                   <td class="users-table__actions">
                     <Button variant="secondary" size="sm" onClick={() => setSelected(user)}>
-                      Gerenciar
+                      {t('users.table.actions.manage')}
                     </Button>
                     <Button variant="danger" size="sm" onClick={() => void removeUser(user)}>
-                      Excluir
+                      {t('users.table.actions.delete')}
                     </Button>
                   </td>
                 </tr>
@@ -221,11 +223,11 @@ export function UsersManager() {
       <Show when={selected()}>
         {(user) => (
           <div class="card user-details">
-            <h3>Gerenciar usuário</h3>
+            <h3>{t('users.detail.title')}</h3>
 
             <div class="form-grid">
               <label>
-                Nome
+                {t('users.detail.fields.name')}
                 <input
                   class="input"
                   value={user().name}
@@ -233,7 +235,7 @@ export function UsersManager() {
                 />
               </label>
               <label>
-                Email
+                {t('users.detail.fields.email')}
                 <input
                   class="input"
                   type="email"
@@ -242,41 +244,41 @@ export function UsersManager() {
                 />
               </label>
               <label>
-                Status
+                {t('users.detail.fields.status')}
                 <select
                   class="input"
                   value={user().status}
                   onChange={(e) => setSelected({ ...user(), status: e.currentTarget.value })}
                 >
-                  <option value="ACTIVE">Ativo</option>
-                  <option value="INACTIVE">Inativo</option>
+                  <option value="ACTIVE">{t('users.detail.statusOptions.active')}</option>
+                  <option value="INACTIVE">{t('users.detail.statusOptions.inactive')}</option>
                 </select>
               </label>
               <label>
-                Papel
+                {t('users.detail.fields.role')}
                 <select
                   class="input"
                   value={currentRole(user())?.id ?? ''}
                   onChange={(e) => void assignRole(user(), e.currentTarget.value)}
                   disabled={busy()}
                 >
-                  <option value="">— sem papel —</option>
+                  <option value="">{t('users.detail.rolePlaceholder')}</option>
                   <For each={roles()}>{(role) => <option value={role.id}>{role.name} ({role.slug})</option>}</For>
                 </select>
               </label>
             </div>
 
-            <p class="muted">Criado em {formatDate(user().created_at)} · último acesso {formatDate(user().last_login_at)}</p>
+            <p class="muted">{t('users.detail.meta', { created: formatDate(user().created_at), lastAccess: formatDate(user().last_login_at) })}</p>
 
             <div class="media-details__actions">
               <Button variant="primary" disabled={busy()} loading={busy()} onClick={() => void saveUser(user())}>
-                Salvar
+                {t('users.detail.actions.save')}
               </Button>
               <Button variant="secondary" disabled={busy()} onClick={() => void resetPassword(user())}>
-                Redefinir senha
+                {t('users.detail.actions.resetPassword')}
               </Button>
               <Button variant="secondary" onClick={() => setSelected(null)}>
-                Fechar
+                {t('users.detail.actions.close')}
               </Button>
             </div>
           </div>

@@ -1,0 +1,192 @@
+{
+  "layout": {
+    "appName": "OkCMS",
+    "admin": "Admin",
+    "nav": {
+      "dashboard": "Panel",
+      "content": "Contenido",
+      "media": "Medios",
+      "users": "Usuarios",
+      "settings": "Ajustes"
+    },
+    "actions": {
+      "logout": "Salir",
+      "newPost": "Nueva Entrada",
+      "uploadMedia": "Subir Medio",
+      "addUser": "Añadir Usuario",
+      "openSettings": "Ajustes"
+    }
+  },
+  "dashboard": {
+    "title": "Panel",
+    "stats": {
+      "totalContent": "Total de Contenido",
+      "published": "Publicados",
+      "drafts": "Borradores",
+      "mediaFiles": "Archivos de Medios",
+      "users": "Usuarios"
+    },
+    "recent": {
+      "title": "Contenido Reciente",
+      "viewAll": "Ver Todo",
+      "empty": "Aún no hay contenido — ¡crea el primero!",
+      "columns": { "title": "Título", "type": "Tipo", "status": "Estado", "updated": "Actualizado" }
+    }
+  },
+  "content": {
+    "list": {
+      "title": "Contenido",
+      "description": "Busca, filtra, edita y publica tu contenido.",
+      "columns": { "title": "Título", "type": "Tipo", "status": "Estado", "updated": "Actualizado" },
+      "actions": { "edit": "Editar", "publish": "Publicar", "unpublish": "Despublicar", "delete": "Eliminar" },
+      "filters": { "search": "Buscar contenido…", "allTypes": "Todos los tipos", "allStatus": "Todos los estados" },
+      "buttons": { "new": "+ Nuevo contenido", "search": "Buscar" },
+      "empty": "No se encontró contenido.",
+      "statuses": { "draft": "Borrador", "published": "Publicado", "archived": "Archivado" },
+      "confirmDelete": "¿Eliminar \"{title}\"?",
+      "toasts": { "published": "Contenido publicado ✓", "unpublished": "Contenido despublicado ✓" }
+    },
+    "editor": {
+      "type": "Tipo",
+      "title": "Título",
+      "slug": "Slug",
+      "excerpt": "Extracto",
+      "featuredImage": "Imagen Destacada (ID de medio)",
+      "status": "Estado",
+      "statusOptions": { "draft": "Borrador", "published": "Publicado", "archived": "Archivado" },
+      "layout": "Layout",
+      "layoutAuto": "Automático (jerarquía del tema)",
+      "customFields": "Campos Personalizados",
+      "inspectTypes": "Inspeccionar tipos disponibles",
+      "save": "Guardar",
+      "saved": "Contenido guardado correctamente."
+    }
+  },
+  "media": {
+    "title": "Biblioteca de Medios",
+    "description": "Sube y gestiona imágenes, videos y documentos. Los archivos se almacenan en `uploads/` y se sirven públicamente.",
+    "upload": {
+      "dropzone": "Arrastra archivos aquí o",
+      "select": "Seleccionar archivos",
+      "uploading": "Subiendo…",
+      "hint": "Imágenes, videos, audio y documentos · hasta 25MB por archivo"
+    },
+    "toolbar": { "search": "Buscar por nombre o alt…", "allTypes": "Todos los tipos", "searchBtn": "Buscar" },
+    "mimeTypes": { "png": "PNG", "jpeg": "JPEG", "gif": "GIF", "webp": "WebP", "svg": "SVG", "pdf": "PDF", "mp4": "MP4", "mp3": "MP3" },
+    "empty": "Aún no hay archivos. ¡Sube el primero!",
+    "details": {
+      "title": "Detalles",
+      "file": "Archivo",
+      "type": "Tipo",
+      "size": "Tamaño",
+      "url": "URL",
+      "copy": "Copiar",
+      "alt": "Texto alternativo (alt)",
+      "caption": "Leyenda",
+      "save": "Guardar detalles",
+      "delete": "Eliminar",
+      "close": "Cerrar",
+      "confirmDelete": "¿Eliminar \"{filename}\"? El archivo será eliminado del disco.",
+      "saved": "Detalles guardados ✓",
+      "copied": "URL copiada ✓",
+      "copyError": "No se pudo copiar la URL"
+    },
+    "toasts": { "uploaded": "{count} archivo(s) subido(s) ✓" }
+  },
+  "users": {
+    "title": "Usuarios",
+    "description": "Gestiona cuentas, roles y accesos del proyecto.",
+    "new": "Nuevo Usuario",
+    "toolbar": { "search": "Buscar por nombre o email…", "allStatus": "Todos los estados", "active": "Activos", "inactive": "Inactivos", "newBtn": "+ Nuevo usuario", "searchBtn": "Buscar" },
+    "table": { "name": "Nombre", "email": "Email", "role": "Rol", "status": "Estado", "lastAccess": "Último acceso", "actions": { "manage": "Gestionar", "delete": "Eliminar" } },
+    "empty": "No se encontraron usuarios.",
+    "detail": {
+      "title": "Gestionar usuario",
+      "fields": { "name": "Nombre", "email": "Email", "status": "Estado", "role": "Rol" },
+      "statusOptions": { "active": "Activo", "inactive": "Inactivo" },
+      "rolePlaceholder": "— sin rol —",
+      "meta": "Creado el {created} · último acceso {lastAccess}",
+      "actions": { "save": "Guardar", "resetPassword": "Restablecer contraseña", "close": "Cerrar" },
+      "passwordPrompt": "Nueva contraseña para {email} (mínimo 8 caracteres):",
+      "passwordError": "La contraseña debe tener al menos 8 caracteres",
+      "toasts": { "roleUpdated": "Rol de {name} actualizado ✓", "passwordChanged": "Contraseña de {name} cambiada ✓", "saved": "Usuario {name} guardado ✓", "deleted": "Usuario {name} eliminado ✓" },
+      "confirmDelete": "¿Eliminar usuario {email}?"
+    }
+  },
+  "settings": {
+    "general": {
+      "title": "General",
+      "description": "Información básica mostrada en el sitio.",
+      "back": "← Todos los ajustes",
+      "fields": { "siteTitle": "Título del sitio", "siteTitlePlaceholder": "Mi Sitio", "siteDescription": "Descripción", "siteDescriptionPlaceholder": "Un nuevo sitio hecho con OkCMS", "language": "Idioma", "timezone": "Zona horaria", "timezonePlaceholder": "America/Mexico_City" },
+      "saved": "Ajustes guardados ✓",
+      "loading": "Cargando…",
+      "save": "Guardar"
+    },
+    "postTypes": {
+      "title": "Tipos de Contenido",
+      "description": "Crea tipos de contenido personalizados (CPTs) más allá de Entradas y Páginas.",
+      "form": {
+        "title": "Crear Tipo de Contenido",
+        "slug": "Slug (singular, ej.: portfolio)",
+        "slugHint": "Solo letras minúsculas, números y guion bajo",
+        "singular": "Nombre en singular",
+        "plural": "Nombre en plural",
+        "supports": "Soporta",
+        "supportsOptions": { "title": "Título", "editor": "Editor", "thumbnail": "Imagen Destacada", "excerpt": "Extracto", "revisions": "Revisiones" },
+        "hasArchive": "Tiene archivo público (/slug)",
+        "create": "Crear"
+      },
+      "table": { "slug": "Slug", "singular": "Singular", "plural": "Plural", "source": "Origen", "supports": "Soporta", "archive": "Archivo", "actions": { "remove": "Eliminar" } },
+      "sources": { "admin": "Admin", "core": "Core" }
+    },
+    "taxonomies": {
+      "title": "Taxonomías",
+      "description": "Crea taxonomías personalizadas y vínculalas a los tipos de contenido.",
+      "form": {
+        "title": "Crear Taxonomía",
+        "name": "Nombre (ej.: Género)",
+        "slug": "Slug (opcional, generado del nombre)",
+        "slugHint": "Solo letras minúsculas, números y guion bajo",
+        "hierarchical": "Jerárquica (permite términos padre/hijo)",
+        "attachTo": "Vincular a tipos de contenido",
+        "create": "Crear"
+      },
+      "table": { "taxonomy": "Taxonomía", "hierarchical": "Jerárquica", "attachedTypes": "Tipos de contenido vinculados", "actions": { "remove": "Eliminar" } }
+    }
+  },
+  "login": {
+    "title": "Iniciar Sesión",
+    "subtitle": "Accede a tu cuenta",
+    "email": "Email",
+    "password": "Contraseña",
+    "submit": "Entrar"
+  },
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "close": "Cerrar",
+    "confirm": "Confirmar",
+    "loading": "Cargando…",
+    "yes": "Sí",
+    "no": "No",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "create": "Crear",
+    "update": "Actualizar",
+    "remove": "Eliminar",
+    "viewAll": "Ver Todo",
+    "back": "Volver",
+    "next": "Siguiente",
+    "previous": "Anterior",
+    "page": "Página",
+    "of": "de",
+    "items": "elementos",
+    "item": "elemento",
+    "empty": "No se encontraron {items}.",
+    "toast": { "success": "✓", "error": "Error: {message}" },
+    "status": { "active": "Activo", "inactive": "Inactivo", "draft": "Borrador", "published": "Publicado", "archived": "Archivado" }
+  }
+}

@@ -2,8 +2,10 @@
 
 import { For, Show, createSignal, onMount } from 'solid-js';
 import { apiClient, type ContentType, type Taxonomy } from '../../../lib/api';
+import { useTranslation } from '../../../i18n';
 
 export function TaxonomiesManager() {
+  const { t } = useTranslation();
   const [taxonomies, setTaxonomies] = createSignal<Taxonomy[]>([]);
   const [contentTypes, setContentTypes] = createSignal<ContentType[]>([]);
   const [error, setError] = createSignal('');
@@ -84,10 +86,10 @@ export function TaxonomiesManager() {
       </Show>
 
       <form class="card" onSubmit={submit}>
-        <h3>Criar Taxonomia</h3>
+        <h3>{t('settings.taxonomies.form.title')}</h3>
         <div class="form-grid">
           <label>
-            Nome (ex.: Gênero)
+            {t('settings.taxonomies.form.name')}
             <input
               class="input"
               required
@@ -96,11 +98,11 @@ export function TaxonomiesManager() {
             />
           </label>
           <label>
-            Slug (opcional, gerado do nome)
+            {t('settings.taxonomies.form.slug')}
             <input
               class="input"
               pattern="[a-z0-9_]*"
-              title="Apenas letras minúsculas, números e underscore"
+              title={t('settings.taxonomies.form.slugHint')}
               value={form().slug}
               onInput={(e) => setForm({ ...form(), slug: e.currentTarget.value })}
             />
@@ -112,12 +114,12 @@ export function TaxonomiesManager() {
               onChange={(e) => setForm({ ...form(), hierarchical: e.currentTarget.checked })}
             />
             {' '}
-            Hierárquica (permite termos pai/filho)
+            {t('settings.taxonomies.form.hierarchical')}
           </label>
         </div>
 
         <fieldset>
-          <legend>Vincular aos content types</legend>
+          <legend>{t('settings.taxonomies.form.attachTo')}</legend>
           <For each={contentTypes()}>
             {(type) => (
               <label>
@@ -141,16 +143,16 @@ export function TaxonomiesManager() {
         </fieldset>
 
         <button type="submit" class="btn btn-primary" disabled={saving()}>
-          Criar
+          {t('settings.taxonomies.form.create')}
         </button>
       </form>
 
       <table class="table">
         <thead>
           <tr>
-            <th>Taxonomia</th>
-            <th>Hierárquica</th>
-            <th>Content types vinculados</th>
+            <th>{t('settings.taxonomies.table.taxonomy')}</th>
+            <th>{t('settings.taxonomies.table.hierarchical')}</th>
+            <th>{t('settings.taxonomies.table.attachedTypes')}</th>
             <th />
           </tr>
         </thead>
@@ -159,7 +161,7 @@ export function TaxonomiesManager() {
             {(taxonomy) => (
               <tr>
                 <td>{taxonomy.name} ({taxonomy.slug})</td>
-                <td>{taxonomy.hierarchical ? 'Sim' : 'Não'}</td>
+                <td>{taxonomy.hierarchical ? t('common.yes') : t('common.no')}</td>
                 <td>
                   <For each={contentTypes()}>
                     {(type) => (
@@ -178,7 +180,7 @@ export function TaxonomiesManager() {
                 <td>
                   <Show when={taxonomy.source !== 'CORE'}>
                     <button type="button" class="btn btn-danger" onClick={() => remove(taxonomy.slug)}>
-                      Remover
+                      {t('settings.taxonomies.table.actions.remove')}
                     </button>
                   </Show>
                 </td>

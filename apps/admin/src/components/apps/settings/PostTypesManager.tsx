@@ -2,19 +2,21 @@
 
 import { For, Show, createSignal, onMount } from 'solid-js';
 import { apiClient, type ContentType } from '../../../lib/api';
-
-const SUPPORTS_OPTIONS = [
-  { value: 'title', label: 'Título' },
-  { value: 'editor', label: 'Editor' },
-  { value: 'thumbnail', label: 'Imagem destacada' },
-  { value: 'excerpt', label: 'Resumo' },
-  { value: 'revisions', label: 'Revisões' },
-] as const;
+import { useTranslation } from '../../../i18n';
 
 export function PostTypesManager() {
+  const { t } = useTranslation();
   const [types, setTypes] = createSignal<ContentType[]>([]);
   const [error, setError] = createSignal('');
   const [saving, setSaving] = createSignal(false);
+
+  const SUPPORTS_OPTIONS = [
+    { value: 'title', label: t('settings.postTypes.form.supportsOptions.title') },
+    { value: 'editor', label: t('settings.postTypes.form.supportsOptions.editor') },
+    { value: 'thumbnail', label: t('settings.postTypes.form.supportsOptions.thumbnail') },
+    { value: 'excerpt', label: t('settings.postTypes.form.supportsOptions.excerpt') },
+    { value: 'revisions', label: t('settings.postTypes.form.supportsOptions.revisions') },
+  ] as const;
 
   const [form, setForm] = createSignal({
     name: '',
@@ -74,21 +76,21 @@ export function PostTypesManager() {
       </Show>
 
       <form class="card" onSubmit={submit}>
-        <h3>Criar Content Type</h3>
+        <h3>{t('settings.postTypes.form.title')}</h3>
         <div class="form-grid">
           <label>
-            Slug (singular, ex.: portfolio)
+            {t('settings.postTypes.form.slug')}
             <input
               class="input"
               required
               pattern="[a-z0-9_]+"
-              title="Apenas letras minúsculas, números e underscore"
+              title={t('settings.postTypes.form.slugHint')}
               value={form().slug}
               onInput={(e) => setForm({ ...form(), slug: e.currentTarget.value })}
             />
           </label>
           <label>
-            Nome no singular
+            {t('settings.postTypes.form.singular')}
             <input
               class="input"
               required
@@ -97,7 +99,7 @@ export function PostTypesManager() {
             />
           </label>
           <label>
-            Nome no plural
+            {t('settings.postTypes.form.plural')}
             <input
               class="input"
               required
@@ -108,7 +110,7 @@ export function PostTypesManager() {
         </div>
 
         <fieldset class="supports">
-          <legend>Suporta</legend>
+          <legend>{t('settings.postTypes.form.supports')}</legend>
           <For each={[...SUPPORTS_OPTIONS]}>
             {(option) => (
               <label>
@@ -136,24 +138,24 @@ export function PostTypesManager() {
               onChange={(e) => setForm({ ...form(), hasArchive: e.currentTarget.checked })}
             />
             {' '}
-            Possui arquivo público (/slug)
+            {t('settings.postTypes.form.hasArchive')}
           </label>
         </fieldset>
 
         <button type="submit" class="btn btn-primary" disabled={saving()}>
-          Criar
+          {t('settings.postTypes.form.create')}
         </button>
       </form>
 
       <table class="table">
         <thead>
           <tr>
-            <th>Slug</th>
-            <th>Singular</th>
-            <th>Plural</th>
-            <th>Origem</th>
-            <th>Suporta</th>
-            <th>Arquivo</th>
+            <th>{t('settings.postTypes.table.slug')}</th>
+            <th>{t('settings.postTypes.table.singular')}</th>
+            <th>{t('settings.postTypes.table.plural')}</th>
+            <th>{t('settings.postTypes.table.source')}</th>
+            <th>{t('settings.postTypes.table.supports')}</th>
+            <th>{t('settings.postTypes.table.archive')}</th>
             <th />
           </tr>
         </thead>
@@ -164,13 +166,13 @@ export function PostTypesManager() {
                 <td>{type.slug}</td>
                 <td>{type.singularLabel}</td>
                 <td>{type.pluralLabel}</td>
-                <td>{type.source ?? 'ADMIN'}</td>
+                <td>{type.source ?? t('settings.postTypes.sources.admin')}</td>
                 <td>{(type.supports ?? []).join(', ')}</td>
-                <td>{type.hasArchive ? 'Sim' : 'Não'}</td>
+                <td>{type.hasArchive ? t('common.yes') : t('common.no')}</td>
                 <td>
                   <Show when={type.source !== 'CORE'}>
                     <button type="button" class="btn btn-danger" onClick={() => remove(type.slug)}>
-                      Remover
+                      {t('settings.postTypes.table.actions.remove')}
                     </button>
                   </Show>
                 </td>

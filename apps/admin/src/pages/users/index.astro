@@ -1,13 +1,15 @@
 ---
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
 import { UsersManager } from '../../components/apps/users/UsersManager';
+
+const { t } = Astro.locals;
 ---
 
-<DashboardLayout title="Users">
+<DashboardLayout title={t('users.title')}>
   <div class="users-page">
     <div class="page-header">
-      <h2>Usuários</h2>
-      <p>Gerencie contas, papéis (roles) e acessos do projeto.</p>
+      <h2>{t('users.title')}</h2>
+      <p>{t('users.description')}</p>
     </div>
     <UsersManager client:load />
   </div>

@@ -8,6 +8,7 @@ import { FieldRenderer } from './FieldRenderer';
 import { FieldTypePicker } from './FieldTypePicker';
 import type { FieldTypeInfo, FieldCategoryInfo } from '../../lib/api';
 import type { ResolvedFieldDefinition } from './types';
+import { useTranslation } from '../../i18n';
 
 interface Draft {
   id?: string;
@@ -21,6 +22,7 @@ interface Draft {
 }
 
 export function ContentEditor() {
+  const { t } = useTranslation();
   const [types, setTypes] = createSignal<ContentType[]>([]);
   const [fieldTypes, setFieldTypes] = createSignal<FieldTypeInfo[]>([]);
   const [categories, setCategories] = createSignal<FieldCategoryInfo[]>([]);
@@ -134,7 +136,7 @@ export function ContentEditor() {
         : await apiClient.createContent(payload);
 
       setDraft({ ...draft(), id: saved.id });
-      setMessage('Conteúdo salvo com sucesso.');
+      setMessage(t('content.editor.saved'));
     } catch (err) {
       setErrors([err instanceof Error ? err.message : String(err)]);
     } finally {
@@ -155,7 +157,7 @@ export function ContentEditor() {
 
       <div class="card">
         <label>
-          Tipo
+          {t('content.editor.type')}
           <select
             class="input"
             value={draft().type}
@@ -172,7 +174,7 @@ export function ContentEditor() {
 
         <Show when={hasSupport('title')}>
           <label>
-            Título
+            {t('content.editor.title')}
             <input
               class="input"
               required
@@ -183,7 +185,7 @@ export function ContentEditor() {
         </Show>
 
         <label>
-          Slug
+          {t('content.editor.slug')}
           <input
             class="input"
             value={draft().slug ?? ''}
@@ -193,7 +195,7 @@ export function ContentEditor() {
 
         <Show when={hasSupport('excerpt')}>
           <label>
-            Resumo
+            {t('content.editor.excerpt')}
             <textarea
               class="input"
               rows={3}
@@ -205,7 +207,7 @@ export function ContentEditor() {
 
         <Show when={hasSupport('thumbnail')}>
           <label>
-            Imagem destacada (media ID)
+            {t('content.editor.featuredImage')}
             <input
               class="input"
               value={draft().featuredImageId ?? ''}
@@ -215,27 +217,27 @@ export function ContentEditor() {
         </Show>
 
         <label>
-          Status
+          {t('content.editor.status')}
           <select
             class="input"
             value={draft().status}
             onChange={(e) => setDraft({ ...draft(), status: e.currentTarget.value })}
           >
-            <option value="DRAFT">Rascunho</option>
-            <option value="PUBLISHED">Publicado</option>
-            <option value="ARCHIVED">Arquivado</option>
+            <option value="DRAFT">{t('content.editor.statusOptions.draft')}</option>
+            <option value="PUBLISHED">{t('content.editor.statusOptions.published')}</option>
+            <option value="ARCHIVED">{t('content.editor.statusOptions.archived')}</option>
           </select>
         </label>
 
         <Show when={availableLayouts().length > 0}>
           <label>
-            Layout
+            {t('content.editor.layout')}
             <select
               class="input"
               value={draft().layout ?? ''}
               onChange={(e) => setDraft({ ...draft(), layout: e.currentTarget.value || null })}
             >
-              <option value="">Automático (hierarquia do tema)</option>
+              <option value="">{t('content.editor.layoutAuto')}</option>
               <For each={availableLayouts()}>
                 {(layout) => <option value={layout}>{layout}</option>}
               </For>
@@ -246,7 +248,7 @@ export function ContentEditor() {
 
       <Show when={groups().length > 0 || fieldTypes().length > 0}>
         <div class="card custom-fields">
-          <h3>Campos personalizados</h3>
+          <h3>{t('content.editor.customFields')}</h3>
           <For each={groups()}>
             {(field) => (
               <FieldRenderer
@@ -258,7 +260,7 @@ export function ContentEditor() {
           </For>
 
           <details>
-            <summary>Inspecionar tipos disponíveis</summary>
+            <summary>{t('content.editor.inspectTypes')}</summary>
             <FieldTypePicker
               categories={categories()}
               types={fieldTypes()}
@@ -270,7 +272,7 @@ export function ContentEditor() {
       </Show>
 
       <button type="submit" class="btn btn-primary" disabled={saving()}>
-        Salvar
+        {t('content.editor.save')}
       </button>
     </form>
   );

@@ -1,10 +1,11 @@
 // @oktis-works/admin - Lista de conteúdo (busca, filtros, paginação, publish, ações)
 // Migrada para o design-system @oktis-works/ui (Button/Input/Select/Table/Pagination/Badge).
 
-import { Show, createSignal, onMount } from '@oktis-works/ui';
+import { Show, createSignal, onMount } from 'solid-js';
 import { Button, Input, Select, Card, Table, Pagination, Badge } from '@oktis-works/ui';
 import type { TableColumn } from '@oktis-works/ui';
 import { apiClient, type Content, type ContentType } from '../../lib/api';
+import { useTranslation } from '../../i18n';
 
 function raw(row: Content): Record<string, unknown> {
   return row as unknown as Record<string, unknown>;
@@ -18,6 +19,7 @@ function formatDate(row: Content): string {
 }
 
 export function ContentList() {
+  const { t } = useTranslation();
   const [items, setItems] = createSignal<Content[]>([]);
   const [types, setTypes] = createSignal<ContentType[]>([]);
   const [total, setTotal] = createSignal(0);
@@ -68,7 +70,7 @@ export function ContentList() {
     setInfo('');
     try {
       await apiClient.publishToggle(row.id, isPublished);
-      setInfo(isPublished ? 'Conteúdo despublicado ✓' : 'Conteúdo publicado ✓');
+      setInfo(t(isPublished ? 'content.list.toasts.unpublished' : 'content.list.toasts.published'));
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -79,7 +81,7 @@ export function ContentList() {
 
   const remove = async (row: Content): Promise<void> => {
     const title = String(raw(row)['title'] ?? row.id);
-    if (!confirm(`Excluir "${title}"?`)) return;
+    if (!confirm(t('content.list.confirmDelete', { title }))) return;
     try {
       await apiClient.deleteContent(row.id);
       await load();
@@ -89,18 +91,18 @@ export function ContentList() {
   };
 
   const columns: TableColumn[] = [
-    { key: 'title', label: 'Título' },
-    { key: 'type', label: 'Tipo' },
+    { key: 'title', label: t('content.list.columns.title') },
+    { key: 'type', label: t('content.list.columns.type') },
     {
       key: 'status',
-      label: 'Status',
+      label: t('content.list.columns.status'),
       render: (_value, row) => {
         const statusValue = String((row as Record<string, unknown>)['status'] ?? '');
         const variant = statusValue === 'PUBLISHED' ? 'success' : statusValue === 'ARCHIVED' ? 'warning' : 'secondary';
         return <Badge variant={variant}>{statusValue}</Badge>;
       },
     },
-    { key: 'updated_at', label: 'Atualizado', render: (_value, row) => <span class="muted">{formatDate(row as Content)}</span> },
+    { key: 'updated_at', label: t('content.list.columns.updated'), render: (_value, row) => <span class="muted">{formatDate(row as Content)}</span> },
     {
       key: 'actions',
       label: '',
@@ -110,7 +112,7 @@ export function ContentList() {
         return (
           <div class="users-table__actions">
             <a class="btn btn-secondary btn-sm" href={`/content/edit?id=${encodeURIComponent(content.id)}`}>
-              Editar
+              {t('content.list.actions.edit')}
             </a>
             <Button
               variant={isPublished ? 'secondary' : 'primary'}
@@ -118,10 +120,10 @@ export function ContentList() {
               loading={busyId() === content.id}
               onClick={() => void togglePublish(content)}
             >
-              {isPublished ? 'Despublicar' : 'Publicar'}
+              {isPublished ? t('content.list.actions.unpublish') : t('content.list.actions.publish')}
             </Button>
             <Button variant="danger" size="sm" onClick={() => void remove(content)}>
-              Excluir
+              {t('content.list.actions.delete')}
             </Button>
           </div>
         );
@@ -141,7 +143,7 @@ export function ContentList() {
       <div class="toolbar">
         <Input
           name="search"
-          placeholder="Buscar conteúdo…"
+          placeholder={t('content.list.filters.search')}
           value={search()}
           onInput={(value) => {
             setSearch(value);
@@ -150,7 +152,7 @@ export function ContentList() {
         />
         <Select
           name="type"
-          placeholder="Todos os tipos"
+          placeholder={t('content.list.filters.allTypes')}
           value={type()}
           options={types().map((t) => ({ value: t.slug, label: t.pluralLabel || t.name }))}
           onChange={(value) => {
@@ -160,21 +162,21 @@ export function ContentList() {
         />
         <Select
           name="status"
-          placeholder="Todos os status"
+          placeholder={t('content.list.filters.allStatus')}
           value={status()}
           options={[
-            { value: 'DRAFT', label: 'Rascunho' },
-            { value: 'PUBLISHED', label: 'Publicado' },
-            { value: 'ARCHIVED', label: 'Arquivado' },
+            { value: 'DRAFT', label: t('content.list.statuses.draft') },
+            { value: 'PUBLISHED', label: t('content.list.statuses.published') },
+            { value: 'ARCHIVED', label: t('content.list.statuses.archived') },
           ]}
           onChange={(value) => {
             setStatus(value);
             void searchNow();
           }}
         />
-        <a class="btn btn-primary" href="/content/new">+ Novo conteúdo</a>
+        <a class="btn btn-primary" href="/content/new">{t('content.list.buttons.new')}</a>
         <Button variant="secondary" onClick={() => void searchNow()}>
-          Buscar
+          {t('content.list.buttons.search')}
         </Button>
       </div>
 
@@ -182,7 +184,7 @@ export function ContentList() {
         <Table
           columns={columns}
           data={items() as unknown[]}
-          emptyMessage="Nenhum conteúdo encontrado."
+          emptyMessage={t('content.list.empty')}
         />
         <Pagination
           page={page()}
@@ -197,4 +199,3 @@ export function ContentList() {
     </div>
   );
 }
-

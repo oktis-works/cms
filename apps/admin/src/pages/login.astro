@@ -1,30 +1,32 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+
+const { t } = Astro.locals;
 ---
 
-<BaseLayout title="Login">
+<BaseLayout title={t('login.title')}>
   <div class="login-page">
     <div class="login-card">
       <div class="login-header">
-        <h1>OkCMS</h1>
-        <p>Sign in to your account</p>
+        <h1>{t('layout.appName')}</h1>
+        <p>{t('login.subtitle')}</p>
       </div>
       
       <form id="login-form" class="login-form">
         <div class="form-group">
-          <label for="email">Email</label>
+          <label for="email">{t('login.email')}</label>
           <input type="email" id="email" name="email" class="input" required placeholder="admin@example.com">
         </div>
         
         <div class="form-group">
-          <label for="password">Password</label>
+          <label for="password">{t('login.password')}</label>
           <input type="password" id="password" name="password" class="input" required placeholder="••••••••">
         </div>
         
         <div id="error-message" class="error-message" style="display: none;"></div>
         
         <button type="submit" class="btn btn-primary btn-block">
-          <span id="submit-text">Sign In</span>
+          <span id="submit-text">{t('login.submit')}</span>
           <span id="submit-spinner" class="spinner" style="display: none;"></span>
         </button>
       </form>

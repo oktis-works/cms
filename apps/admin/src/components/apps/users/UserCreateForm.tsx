@@ -2,8 +2,10 @@
 
 import { For, Show, createSignal, onMount } from 'solid-js';
 import { apiClient, type Role } from '../../../lib/api';
+import { useTranslation } from '../../../i18n';
 
 export function UserCreateForm() {
+  const { t } = useTranslation();
   const [name, setName] = createSignal('');
   const [email, setEmail] = createSignal('');
   const [password, setPassword] = createSignal('');
@@ -27,7 +29,7 @@ export function UserCreateForm() {
     setError('');
 
     if (password().length < 8) {
-      setError('A senha precisa de pelo menos 8 caracteres');
+      setError(t('users.detail.passwordError'));
       return;
     }
 
@@ -53,18 +55,19 @@ export function UserCreateForm() {
       </Show>
 
       <form class="card" onSubmit={submit}>
-        <h3>Novo usuário</h3>
+        <h3>{t('users.new')}</h3>
         <div class="form-grid">
           <label>
-            Nome
+            {t('users.detail.fields.name')}
             <input class="input" required value={name()} onInput={(e) => setName(e.currentTarget.value)} />
           </label>
           <label>
-            Email
+            {t('users.detail.fields.email')}
             <input class="input" type="email" required value={email()} onInput={(e) => setEmail(e.currentTarget.value)} />
           </label>
           <label>
-            Senha <span class="muted">(mínimo 8 caracteres)</span>
+            {t('users.detail.fields.password')}
+            <span class="muted">{t('users.detail.passwordPrompt', { email: '' })}</span>
             <input
               class="input"
               type="password"
@@ -75,22 +78,21 @@ export function UserCreateForm() {
             />
           </label>
           <label>
-            Papel
+            {t('users.detail.fields.role')}
             <select class="input" value={roleId()} onChange={(e) => setRoleId(e.currentTarget.value)}>
-              <option value="">— nenhum (só leitura futura) —</option>
+              <option value="">{t('users.detail.rolePlaceholder')}</option>
               <For each={roles()}>{(role) => <option value={role.id}>{role.name} ({role.slug})</option>}</For>
             </select>
           </label>
         </div>
         <p class="muted">
-          O papel define o que o usuário pode fazer (o primeiro usuário do projeto já nasce como
-          Administrador).
+          {t('common.save')} {t('users.new').toLowerCase()} — {t('users.detail.fields.role')} {t('users.toolbar.newBtn').toLowerCase()}.
         </p>
         <div class="media-details__actions">
           <button class="btn btn-primary" type="submit" disabled={saving()}>
-            {saving() ? 'Criando…' : 'Criar usuário'}
+            {saving() ? t('common.loading') : t('common.create')}
           </button>
-          <a class="btn btn-secondary" href="/users">Voltar</a>
+          <a class="btn btn-secondary" href="/users">{t('common.back')}</a>
         </div>
       </form>
     </div>

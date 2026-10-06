@@ -1,13 +1,15 @@
 ---
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
 import { UserCreateForm } from '../../components/apps/users/UserCreateForm';
+
+const { t } = Astro.locals;
 ---
 
-<DashboardLayout title="Novo usuário">
+<DashboardLayout title={t('users.new')}>
   <div class="users-page">
     <div class="page-header">
-      <h2>Novo usuário</h2>
-      <p>Crie uma conta e atribua um papel de acesso.</p>
+      <h2>{t('users.new')}</h2>
+      <p>{t('users.description')}</p>
     </div>
     <UserCreateForm client:load />
   </div>

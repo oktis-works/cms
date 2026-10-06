@@ -4,6 +4,7 @@
 import { For, Show, createSignal, onMount } from '@oktis-works/ui';
 import { Button, Input, Select, Pagination } from '@oktis-works/ui';
 import { apiClient, type Media } from '../../lib/api';
+import { useTranslation } from '../../i18n';
 
 interface Props {
   /** /media/upload abre a página já com a zona de upload em destaque */
@@ -20,6 +21,7 @@ function formatSize(bytes: number): string {
 const isImage = (media: Media): boolean => media.mime_type.startsWith('image/');
 
 export function MediaLibrary(props: Props) {
+  const { t } = useTranslation();
   const [items, setItems] = createSignal<Media[]>([]);
   const [total, setTotal] = createSignal(0);
   const [page, setPage] = createSignal(1);
@@ -74,14 +76,14 @@ export function MediaLibrary(props: Props) {
 
     setUploading(false);
     if (ok > 0) {
-      setInfo(`${ok} arquivo${ok > 1 ? 's' : ''} enviado${ok > 1 ? 's' : ''} ✓`);
+      setInfo(t('media.toasts.uploaded', { count: ok }));
       setPage(1);
       await load();
     }
   };
 
   const remove = async (media: Media): Promise<void> => {
-    if (!confirm(`Excluir "${media.filename}"? O arquivo será removido do disco.`)) return;
+    if (!confirm(t('media.details.confirmDelete', { filename: media.filename }))) return;
     try {
       await apiClient.deleteMedia(media.id);
       if (selected()?.id === media.id) setSelected(null);
@@ -102,7 +104,7 @@ export function MediaLibrary(props: Props) {
         caption: media.caption ?? '',
       });
       setSelected({ ...media, ...updated });
-      setInfo('Detalhes salvos ✓');
+      setInfo(t('media.details.saved'));
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -114,9 +116,9 @@ export function MediaLibrary(props: Props) {
   const copyUrl = async (url: string): Promise<void> => {
     try {
       await navigator.clipboard.writeText(url);
-      setInfo('URL copiada ✓');
+      setInfo(t('media.details.copied'));
     } catch {
-      setError('Não foi possível copiar a URL');
+      setError(t('media.details.copyError'));
     }
   };
 
@@ -146,10 +148,10 @@ export function MediaLibrary(props: Props) {
         }}
       >
         <p>
-          <strong>Arraste arquivos aqui</strong> ou
+          <strong>{t('media.upload.dropzone')}</strong> ou
         </p>
         <label class="btn btn-primary" style={{ cursor: 'pointer' }}>
-          {uploading() ? 'Enviando…' : 'Selecionar arquivos'}
+          {uploading() ? t('media.upload.uploading') : t('media.upload.select')}
           <input
             type="file"
             multiple
@@ -161,13 +163,13 @@ export function MediaLibrary(props: Props) {
             }}
           />
         </label>
-        <p class="muted">Imagens, vídeos, áudios e documentos · até 25MB por arquivo</p>
+        <p class="muted">{t('media.upload.hint')}</p>
       </div>
 
       <div class="toolbar">
         <Input
           name="media-search"
-          placeholder="Buscar por nome ou alt…"
+          placeholder={t('media.toolbar.search')}
           value={search()}
           onInput={(value) => {
             setSearch(value);
@@ -176,17 +178,17 @@ export function MediaLibrary(props: Props) {
         />
         <Select
           name="media-mime"
-          placeholder="Todos os tipos"
+          placeholder={t('media.toolbar.allTypes')}
           value={mimeType()}
           options={[
-            { value: 'image/png', label: 'PNG' },
-            { value: 'image/jpeg', label: 'JPEG' },
-            { value: 'image/gif', label: 'GIF' },
-            { value: 'image/webp', label: 'WebP' },
-            { value: 'image/svg+xml', label: 'SVG' },
-            { value: 'application/pdf', label: 'PDF' },
-            { value: 'video/mp4', label: 'MP4' },
-            { value: 'audio/mpeg', label: 'MP3' },
+            { value: 'image/png', label: t('media.mimeTypes.png') },
+            { value: 'image/jpeg', label: t('media.mimeTypes.jpeg') },
+            { value: 'image/gif', label: t('media.mimeTypes.gif') },
+            { value: 'image/webp', label: t('media.mimeTypes.webp') },
+            { value: 'image/svg+xml', label: t('media.mimeTypes.svg') },
+            { value: 'application/pdf', label: t('media.mimeTypes.pdf') },
+            { value: 'video/mp4', label: t('media.mimeTypes.mp4') },
+            { value: 'audio/mpeg', label: t('media.mimeTypes.mp3') },
           ]}
           onChange={(value) => {
             setMimeType(value);
@@ -194,13 +196,13 @@ export function MediaLibrary(props: Props) {
           }}
         />
         <Button variant="secondary" onClick={() => void searchNow()}>
-          Buscar
+          {t('media.toolbar.searchBtn')}
         </Button>
       </div>
 
       <Show
         when={items().length > 0}
-        fallback={<p class="muted">Nenhum arquivo ainda. Envie o primeiro!</p>}
+        fallback={<p class="muted">{t('media.empty')}</p>}
       >
         <div class="media-grid">
           <For each={items()}>
@@ -241,43 +243,43 @@ export function MediaLibrary(props: Props) {
       <Show when={selected()}>
         {(media) => (
           <div class="card media-details">
-            <h3>Detalhes</h3>
+            <h3>{t('media.details.title')}</h3>
             <div class="media-details__preview">
               <Show when={isImage(media())} fallback={<p class="muted">{media().mime_type}</p>}>
                 <img src={media().url} alt={media().alt ?? ''} />
               </Show>
             </div>
             <dl class="media-details__list">
-              <dt>Arquivo</dt><dd>{media().filename}</dd>
-              <dt>Tipo</dt><dd>{media().mime_type}</dd>
-              <dt>Tamanho</dt><dd>{formatSize(media().size)}</dd>
-              <dt>URL</dt>
+              <dt>{t('media.details.file')}</dt><dd>{media().filename}</dd>
+              <dt>{t('media.details.type')}</dt><dd>{media().mime_type}</dd>
+              <dt>{t('media.details.size')}</dt><dd>{formatSize(media().size)}</dd>
+              <dt>{t('media.details.url')}</dt>
               <dd class="media-details__url">
                 <code>{media().url}</code>
-                <button class="btn btn-secondary btn-sm" type="button" onClick={() => void copyUrl(media().url)}>Copiar</button>
+                <button class="btn btn-secondary btn-sm" type="button" onClick={() => void copyUrl(media().url)}>{t('media.details.copy')}</button>
               </dd>
             </dl>
             <Input
               name="media-alt"
-              label="Texto alternativo (alt)"
+              label={t('media.details.alt')}
               value={media().alt ?? ''}
               onInput={(value) => setSelected({ ...media(), alt: value })}
             />
             <Input
               name="media-caption"
-              label="Legenda"
+              label={t('media.details.caption')}
               value={media().caption ?? ''}
               onInput={(value) => setSelected({ ...media(), caption: value })}
             />
             <div class="media-details__actions">
               <Button variant="primary" disabled={savingDetails()} loading={savingDetails()} onClick={() => void saveDetails()}>
-                Salvar detalhes
+                {t('media.details.save')}
               </Button>
               <Button variant="danger" onClick={() => void remove(media())}>
-                Excluir
+                {t('media.details.delete')}
               </Button>
               <Button variant="secondary" onClick={() => setSelected(null)}>
-                Fechar
+                {t('media.details.close')}
               </Button>
             </div>
           </div>

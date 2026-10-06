@@ -1,9 +1,11 @@
 ---
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
 import { ContentEditor } from '../../components/content/ContentEditor';
+
+const { t } = Astro.locals;
 ---
 
-<DashboardLayout title="Editor de Conteúdo">
+<DashboardLayout title={t('content.editor.save')}>
   <div class="editor-page">
     <ContentEditor client:load />
   </div>

@@ -14,6 +14,9 @@ export default defineConfig({
   integrations: [
     solid(),
   ],
+  middleware: [
+    './src/middleware/i18n.ts',
+  ],
   server: {
     port: 3011,
     host: true,

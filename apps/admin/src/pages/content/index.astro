@@ -1,13 +1,15 @@
 ---
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
 import { ContentList } from '../../components/content/ContentList';
+
+const { t } = Astro.locals;
 ---
 
-<DashboardLayout title="Content">
+<DashboardLayout title={t('content.list.title')}>
   <div class="content-page">
     <div class="page-header">
-      <h2>Conteúdo</h2>
-      <p>Busque, filtre, edite e publique seu conteúdo.</p>
+      <h2>{t('content.list.title')}</h2>
+      <p>{t('content.list.description')}</p>
     </div>
     <ContentList client:load />
   </div>

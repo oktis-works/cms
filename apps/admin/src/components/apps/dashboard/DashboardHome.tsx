@@ -2,6 +2,7 @@
 
 import { For, Show, createSignal, onMount } from 'solid-js';
 import { apiClient, type Content } from '../../../lib/api';
+import { useTranslation } from '../../../i18n';
 
 function raw(row: Content): Record<string, unknown> {
   return row as unknown as Record<string, unknown>;
@@ -15,6 +16,7 @@ function formatDate(row: Content): string {
 }
 
 export function DashboardHome() {
+  const { t } = useTranslation();
   const [stats, setStats] = createSignal({
     total: '—',
     published: '—',
@@ -63,44 +65,44 @@ export function DashboardHome() {
 
       <div class="stats-grid">
         <div class="card stat-card">
-          <h3 class="stat-label">Total Content</h3>
+          <h3 class="stat-label">{t('dashboard.stats.totalContent')}</h3>
           <p class="stat-value">{stats().total}</p>
         </div>
         <div class="card stat-card">
-          <h3 class="stat-label">Published</h3>
+          <h3 class="stat-label">{t('dashboard.stats.published')}</h3>
           <p class="stat-value">{stats().published}</p>
         </div>
         <div class="card stat-card">
-          <h3 class="stat-label">Drafts</h3>
+          <h3 class="stat-label">{t('dashboard.stats.drafts')}</h3>
           <p class="stat-value">{stats().drafts}</p>
         </div>
         <div class="card stat-card">
-          <h3 class="stat-label">Media Files</h3>
+          <h3 class="stat-label">{t('dashboard.stats.mediaFiles')}</h3>
           <p class="stat-value">{stats().media}</p>
         </div>
         <div class="card stat-card">
-          <h3 class="stat-label">Users</h3>
+          <h3 class="stat-label">{t('dashboard.stats.users')}</h3>
           <p class="stat-value">{stats().users}</p>
         </div>
       </div>
 
       <div class="card">
         <div class="card-header">
-          <h3>Recent Content</h3>
-          <a href="/content" class="btn btn-secondary btn-sm">View All</a>
+          <h3>{t('dashboard.recent.title')}</h3>
+          <a href="/content" class="btn btn-secondary btn-sm">{t('dashboard.recent.viewAll')}</a>
         </div>
 
         <Show
           when={recent().length > 0}
-          fallback={<p class="muted">Nenhum conteúdo ainda — crie o primeiro!</p>}
+          fallback={<p class="muted">{t('dashboard.recent.empty')}</p>}
         >
           <table class="table">
             <thead>
               <tr>
-                <th>Title</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Updated</th>
+                <th>{t('dashboard.recent.columns.title')}</th>
+                <th>{t('dashboard.recent.columns.type')}</th>
+                <th>{t('dashboard.recent.columns.status')}</th>
+                <th>{t('dashboard.recent.columns.updated')}</th>
               </tr>
             </thead>
             <tbody>

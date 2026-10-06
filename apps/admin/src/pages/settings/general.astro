@@ -1,14 +1,16 @@
 ---
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
 import { GeneralSettings } from '../../components/apps/settings/GeneralSettings';
+
+const { t } = Astro.locals;
 ---
 
-<DashboardLayout title="Settings · General">
+<DashboardLayout title={t('settings.general.title')}>
   <div class="settings-page">
     <div class="page-header">
-      <h2>Geral</h2>
-      <p>Informações básicas exibidas no site.</p>
-      <p><a href="/settings">← Todas as configurações</a></p>
+      <h2>{t('settings.general.title')}</h2>
+      <p>{t('settings.general.description')}</p>
+      <p><a href="/settings">{t('settings.general.back')}</a></p>
     </div>
     <GeneralSettings client:load />
   </div>

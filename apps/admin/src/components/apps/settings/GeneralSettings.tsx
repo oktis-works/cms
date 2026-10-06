@@ -4,20 +4,22 @@
 import { Show, createSignal, onMount } from '@oktis-works/ui';
 import { Card, Input, Select, Button } from '@oktis-works/ui';
 import { apiClient } from '../../../lib/api';
-
-const FIELDS = [
-  { key: 'siteTitle', label: 'Título do site', type: 'text', placeholder: 'Meu Site' },
-  { key: 'siteDescription', label: 'Descrição', type: 'text', placeholder: 'Um novo site feito com OkCMS' },
-  { key: 'language', label: 'Idioma', type: 'select', options: ['pt-BR', 'en-US', 'es-ES'] },
-  { key: 'timezone', label: 'Fuso horário', type: 'text', placeholder: 'America/Sao_Paulo' },
-] as const;
+import { useTranslation } from '../../../i18n';
 
 export function GeneralSettings() {
+  const { t } = useTranslation();
   const [values, setValues] = createSignal<Record<string, string>>({});
   const [loaded, setLoaded] = createSignal(false);
   const [error, setError] = createSignal('');
   const [info, setInfo] = createSignal('');
   const [saving, setSaving] = createSignal(false);
+
+  const FIELDS = [
+    { key: 'siteTitle', label: t('settings.general.fields.siteTitle'), type: 'text', placeholder: t('settings.general.fields.siteTitlePlaceholder') },
+    { key: 'siteDescription', label: t('settings.general.fields.siteDescription'), type: 'text', placeholder: t('settings.general.fields.siteDescriptionPlaceholder') },
+    { key: 'language', label: t('settings.general.fields.language'), type: 'select', options: ['pt-BR', 'en-US', 'es-ES'] },
+    { key: 'timezone', label: t('settings.general.fields.timezone'), type: 'text', placeholder: t('settings.general.fields.timezonePlaceholder') },
+  ] as const;
 
   onMount(async () => {
     try {
@@ -58,7 +60,7 @@ export function GeneralSettings() {
           };
         })
       );
-      setInfo('Configurações salvas ✓');
+      setInfo(t('settings.general.saved'));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -75,10 +77,10 @@ export function GeneralSettings() {
         <div class="notice">{info()}</div>
       </Show>
 
-      <Show when={loaded()} fallback={<p class="muted">Carregando…</p>}>
+      <Show when={loaded()} fallback={<p class="muted">{t('settings.general.loading')}</p>}>
         <Card>
           <form onSubmit={submit}>
-            <h3>Geral</h3>
+            <h3>{t('settings.general.title')}</h3>
             <div class="form-grid">
               {FIELDS.map((field) =>
                 field.type === 'select' ? (
@@ -102,7 +104,7 @@ export function GeneralSettings() {
             </div>
             <div class="media-details__actions">
               <Button variant="primary" type="submit" disabled={saving()} loading={saving()}>
-                Salvar
+                {t('settings.general.save')}
               </Button>
             </div>
           </form>

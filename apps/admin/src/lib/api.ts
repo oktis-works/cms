@@ -148,6 +148,25 @@ class ApiClient {
     }
   }
 
+  /** Obtém locale do usuário logado via /me/locale */
+  async getUserLocale(): Promise<string> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/v1/users/me/locale`, {
+        credentials: 'include',
+      });
+      if (!res.ok) return 'pt-BR';
+      const data = await res.json();
+      return data.locale ?? 'pt-BR';
+    } catch {
+      return 'pt-BR';
+    }
+  }
+
+  /** Salva locale do usuário via /me/locale */
+  async setUserLocale(locale: string): Promise<void> {
+    await this.request('PUT', '/api/v1/users/me/locale', { locale });
+  }
+
   /** Login — o backend seta cookies HttpOnly e CSRF; retorna user + tenantId */
   async login(input: LoginInput): Promise<LoginResponse> {
     const response = await this.request<LoginResponse>('POST', '/api/v1/auth/login', input);
