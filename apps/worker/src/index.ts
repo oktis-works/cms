@@ -50,7 +50,9 @@ async function main() {
   await queueManager.startWorker('webhooks');
   await queueManager.startWorker('system');
 
-  console.log('Worker started with queues:', queueManager.getStats().queues);
+  // `stats.queues` só tem as filas com Queue de PRODUÇÃO criada (o addJob do
+  // scheduler cria depois); os workers recém-iniciados ficam em `workers`.
+  console.log('Worker started with queues:', queueManager.getStats().workers);
 
   await scheduleRecurringJobs(queueManager);
 

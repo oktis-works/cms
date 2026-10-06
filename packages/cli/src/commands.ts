@@ -578,9 +578,19 @@ export const commands: Command[] = [
       { name: 'tenant', alias: 't', description: 'Tenant ID', required: false, default: 'default' },
     ],
     handler: async (args, options) => {
+      const dir = getMigrationsDir(options);
       const tenantId = await prepareDb(options);
       const { runMigrations } = await import('@oktis-works/database');
-      const result = await runMigrations(tenantId, getMigrationsDir(options));
+      const result = await runMigrations(tenantId, dir);
+      if (result.applied.length === 0 && result.skipped.length === 0) {
+        // migrations/ de projeto scaffoldado é VAZIO por design: o schema core
+        // (inclusive deltas de versão nova, ex.: users.locale) é aplicado acima
+        // pelo prepareDb via schema.sql — deixar isso explícito evita o "0, 0"
+        // parecer uma migração que não rodou.
+        console.log(`Applied: 0, Skipped: 0 — no .sql files in ${dir}`);
+        console.log('  (core schema is synced automatically by this command)');
+        return;
+      }
       console.log(`Applied: ${result.applied.length}, Skipped: ${result.skipped.length}`);
       for (const name of result.applied) {
         console.log(`  + ${name}`);

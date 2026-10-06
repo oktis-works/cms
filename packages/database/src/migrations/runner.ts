@@ -42,7 +42,18 @@ function parseMigrationName(filename: string): { version: string; name: string; 
 }
 
 export function loadMigrationsFromDir(dir: string): MigrationFile[] {
-  const files = readdirSync(dir).filter(f => f.endsWith('.sql')).sort();
+  let entries: string[];
+  try {
+    entries = readdirSync(dir);
+  } catch (error) {
+    // Projeto sem diretório `migrations/` (init cria vazio; quem montou na
+    // mão pode nem ter) = nenhum arquivo, não é erro — o schema core não vem
+    // daqui: ele sincroniza via schema.sql no prepareDb (ensureCoreSchema).
+    // Um --dir com typo também cai aqui e o aviso do db:migrate mostra o path.
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw error;
+  }
+  const files = entries.filter(f => f.endsWith('.sql')).sort();
   return files.map(file => {
     const filePath = join(dir, file);
     const sql = readFileSync(filePath, 'utf-8');

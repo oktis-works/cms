@@ -28,11 +28,17 @@ vi.mock('@oktis-works/core', async (importOriginal) => {
       update: vi.fn(),
       delete: vi.fn(),
     },
+    // NUNCA enfileirar no Redis de verdade: `enqueueJob` real é lazy e, com
+    // um Redis local no ar (docker compose do operador), o upload de teste
+    // gravava um job `media.process` com mediaId "m1" — o worker do projeto
+    // depois processava esse job e morria com `invalid input syntax for type
+    // uuid: "m1"`.
+    enqueueJob: vi.fn(async () => true),
   };
 });
 
 import mediaRouter from './index.js';
-import { mediaService } from '@oktis-works/core';
+import { mediaService, enqueueJob } from '@oktis-works/core';
 
 const svc = () => vi.mocked(mediaService);
 
@@ -87,6 +93,14 @@ describe('POST /media/upload (multipart)', () => {
         alt: 'Uma foto',
         path: body.path,
       })
+    );
+
+    // imagem (não-svg) enfileira processamento — com o producer mockado,
+    // sem tocar o Redis real
+    expect(enqueueJob).toHaveBeenCalledWith(
+      'media.process',
+      expect.objectContaining({ mediaId: 'm1' }),
+      expect.objectContaining({ tenantId: 'tenant-uuid-0000' })
     );
   });
 

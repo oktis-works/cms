@@ -64,13 +64,22 @@ describe('ensureCoreSchema', () => {
     expect(calls.some((c) => c.kind === 'tagged' && c.text === '__BEGIN__')).toBe(true);
   });
 
-  it('schema já existe → não reexecuta (CREATE POLICY do schema não é idempotente)', async () => {
+  it('schema já existe → reexecuta o schema.sql (idempotente) e retorna false', async () => {
+    // Upgrade de consumidor: migrations/ de projeto é vazio, então o ÚNICO
+    // canal de delta (ex.: users.locale no 0.4.0) é reexecutar o schema.sql.
     selectResults['to_regclass'] = [{ exists: 'tenants' }];
 
     const applied = await ensureCoreSchema();
 
     expect(applied).toBe(false);
-    expect(calls.filter((c) => c.kind === 'unsafe')).toHaveLength(0);
+    const unsafeCalls = calls.filter((c): c is UnsafeCall => c.kind === 'unsafe');
+    expect(unsafeCalls).toHaveLength(1);
+    expect(unsafeCalls[0]!.query).toContain('CREATE TABLE IF NOT EXISTS');
+    // advisory lock antes do DDL (concorrência api/worker/cli no boot)
+    const lock = calls.find(
+      (c): c is TaggedCall => c.kind === 'tagged' && c.text.includes('pg_advisory_xact_lock')
+    );
+    expect(lock).toBeDefined();
   });
 });
 

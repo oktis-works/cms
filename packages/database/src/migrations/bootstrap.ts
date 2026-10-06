@@ -4,10 +4,14 @@
 // existe — e tem FK para `tenants`), nem o tenant usado pelo CLI. Sem isto,
 // `okcms db:migrate` morria com `relation "migrations" does not exist`.
 //
-// - ensureCoreSchema aplica o schema.sql UMA única vez. A detecção é via
-//   to_regclass (não via registro em migrations): o schema tem CREATE POLICY,
-//   que não é idempotente, então reexecutar daria erro — e na primeira
-//   execução a tabela de controle ainda nem existe para registrar algo.
+// - ensureCoreSchema aplica o schema.sql idempotente SEMPRE (banco fresco
+//   cria tudo; banco existente recebe o delta da versão nova — ex.: a coluna
+//   users.locale do 0.4.0, que migrations/ de projeto não entrega: o projeto
+//   scaffoldado tem migrations/ VAZIO). O schema.sql é 100% idempotente
+//   (IF NOT EXISTS em tudo, policies guardadas por pg_policies, DROP TRIGGER
+//   antes do CREATE) — a detecção via to_regclass só serve para reportar se
+//   era banco fresco, e a aplicação roda sob advisory lock (api/worker/cli
+//   subindo juntos não disputam DDL).
 // - resolveTenantId traduz o `--tenant` (default: "default") para o UUID real
 //   de tenants.slug, criando o tenant default na primeira vez (bootstrap).
 
@@ -17,8 +21,10 @@ import { getSchema } from '../schema/index.js';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Aplica o schema core se o banco ainda não foi inicializado.
- * Retorna `true` quando aplicou (banco fresco), `false` se já existia.
+ * Sincroniza o schema core (schema.sql idempotente) e devolve `true` quando
+ * o banco era fresco (era a primeira execução), `false` quando já existia —
+ * nesse caso o schema é reexecutado mesmo assim para aplicar o delta da
+ * versão do pacote (upgrade de consumidor: migrations/ de projeto é vazio).
  */
 export async function ensureCoreSchema(): Promise<boolean> {
   const sql = getConnection();
@@ -26,18 +32,19 @@ export async function ensureCoreSchema(): Promise<boolean> {
   const probe = await sql<{ exists: string | null }[]>`
     SELECT to_regclass('public.tenants')::text AS exists
   `;
-  if (probe[0]?.exists) {
-    return false;
-  }
+  const fresh = !probe[0]?.exists;
 
   await sql.begin(async (tx) => {
+    // Serializa execuções concorrentes (api + worker + cli subindo juntos):
+    // CREATE TABLE IF NOT EXISTS simultâneo tem corrida de unique em pg_class.
+    await tx`SELECT pg_advisory_xact_lock(hashtext('okcms.core.schema'))`;
     // Só warnings/erros: o schema tem ALTER ... ADD COLUMN IF NOT EXISTS
     // redundantes (a coluna já vem no CREATE TABLE) e o Postgres responde
     // NOTICE 42701 "already exists, skipping" — ruído puro no output do init.
     await tx`SET client_min_messages = warning`;
     await tx.unsafe(getSchema());
   });
-  return true;
+  return fresh;
 }
 
 /**

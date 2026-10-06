@@ -94,6 +94,11 @@ describe('loadMigrationsFromDir', () => {
     expect(() => loadMigrationsFromDir(dir)).toThrow(/Invalid migration filename/);
     rmSync(dir, { recursive: true, force: true });
   });
+
+  it('diretório inexistente → lista vazia (projeto sem migrations/, não é erro)', () => {
+    const missing = join(tmpdir(), `bl-migrations-missing-${Date.now()}`);
+    expect(loadMigrationsFromDir(missing)).toEqual([]);
+  });
 });
 
 describe('applyMigration', () => {
