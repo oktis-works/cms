@@ -25,6 +25,23 @@ server {
   listen 80;
   server_name ${ADMIN_SERVER_NAME};
 
+  # API proxy for admin (cookies + CSRF need same-origin or explicit proxy)
+  location /api/ {
+    proxy_pass $upstream_api;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_read_timeout 120s;
+    # Cookies from API must be passed through to browser
+    proxy_hide_header Set-Cookie;
+    proxy_set_header Cookie $http_cookie;
+  }
+
   location / {
     proxy_pass $upstream_admin;
     proxy_http_version 1.1;
@@ -43,6 +60,23 @@ server {
 server {
   listen 8080 default_server;
   server_name _;
+
+  # API proxy for admin (cookies + CSRF need same-origin or explicit proxy)
+  location /api/ {
+    proxy_pass $upstream_api;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_read_timeout 120s;
+    # Cookies from API must be passed through to browser
+    proxy_hide_header Set-Cookie;
+    proxy_set_header Cookie $http_cookie;
+  }
 
   location / {
     proxy_pass $upstream_admin;

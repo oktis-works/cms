@@ -46,7 +46,8 @@ export async function startProject(options: Record<string, string> = {}): Promis
     spawnApp('api', 'bunx', ['@oktis-works/api'], { PORT: String(config.ports.api) });
 
     if (includeAdmin) {
-      spawnApp('admin', 'bunx', ['@oktis-works/admin'], { PORT: String(config.ports.admin), API_URL: `http://localhost:${config.ports.api}` });
+      const apiUrl = process.env['PUBLIC_API_URL'] ?? `http://localhost:${config.ports.api}`;
+      spawnApp('admin', 'bunx', ['@oktis-works/admin'], { PORT: String(config.ports.admin), PUBLIC_API_URL: apiUrl });
     }
 
     if (includeWeb) {

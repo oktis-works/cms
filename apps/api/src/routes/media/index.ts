@@ -61,13 +61,23 @@ async function handleUpload(c: Context): Promise<Response> {
       const body = await c.req.json();
       const userId = c.get('userId' as never) as string;
       const tenantId = await resolveTenantId(String(c.get('tenantId') ?? 'default'));
+      let url = body.url;
+      // Normaliza URL relativa se vier absoluta (evita host do admin em prod)
+      if (url && url.startsWith('http')) {
+        try {
+          const u = new URL(url);
+          url = u.pathname + u.search;
+        } catch {
+          // mantém original se falhar
+        }
+      }
       const result = await mediaService.create({
         tenantId,
         filename: body.filename,
         mimeType: body.mimeType,
         size: body.size,
         path: body.path,
-        url: body.url,
+        url,
         alt: body.alt,
         caption: body.caption,
         metadata: body.metadata,
@@ -100,7 +110,6 @@ async function handleUpload(c: Context): Promise<Response> {
 
     const data = new Uint8Array(await file.arrayBuffer());
     const stored = await saveUpload(tenantId, file.name, data);
-    const origin = new URL(c.req.url).origin;
 
     const result = await mediaService.create({
       tenantId,
@@ -108,7 +117,8 @@ async function handleUpload(c: Context): Promise<Response> {
       mimeType: file.type || mimeFor(file.name),
       size: stored.size,
       path: stored.path,
-      url: `${origin}/api/v1/media/file/${stored.path}`,
+      // URL relativa ao host público — funciona tanto no admin (via proxy /api/) quanto no site
+      url: `/api/v1/media/file/${stored.path}`,
       alt: typeof body['alt'] === 'string' ? body['alt'] : undefined,
       caption: typeof body['caption'] === 'string' ? body['caption'] : undefined,
       uploadedBy: userId,

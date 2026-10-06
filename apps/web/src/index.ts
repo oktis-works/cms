@@ -54,13 +54,25 @@ async function main() {
     return next();
   });
 
-  // Health check
+  // Health check — verifica conexão com o banco (o web lê direto do Postgres)
   app.get('/health', async (c) => {
-    return c.json({
-      status: 'healthy',
-      service: 'web',
-      timestamp: new Date().toISOString(),
-    });
+    try {
+      const sql = getConnection();
+      await sql`SELECT 1`;
+      return c.json({
+        status: 'healthy',
+        service: 'web',
+        timestamp: new Date().toISOString(),
+        database: 'connected',
+      });
+    } catch {
+      return c.json({
+        status: 'unhealthy',
+        service: 'web',
+        timestamp: new Date().toISOString(),
+        database: 'disconnected',
+      }, 503);
+    }
   });
 
   // B2 — assets do tema: GET /themes/<tema>/<path> → serveStatic do diretório

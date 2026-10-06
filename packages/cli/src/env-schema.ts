@@ -91,8 +91,16 @@ export const ENV_FIELDS: EnvField[] = [
     label: 'CORS_ORIGINS',
     description: 'Allowed origins (comma-separated)',
     type: 'string',
-    default: 'http://localhost:4321',
+    default: 'http://localhost:3011',
     example: 'https://meusite.com,https://admin.meusite.com',
+  },
+  {
+    key: 'PUBLIC_API_URL',
+    section: 'app',
+    label: 'PUBLIC_API_URL',
+    description: 'Public API URL for admin (browser) — e.g., https://api.meusite.com',
+    type: 'url',
+    example: 'https://api.meusite.com',
   },
   {
     key: 'RATE_LIMIT_WINDOW_MS',

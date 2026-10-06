@@ -7,6 +7,8 @@ import { cors } from 'hono/cors';
 import { prettyJSON } from 'hono/pretty-json';
 import { serve } from '@hono/node-server';
 import { bootstrap, getEventBus, registerEventAuditLog, establishTenantContext } from '@oktis-works/core';
+import { CMS_VERSION } from '@oktis-works/validation';
+import { loadConfig } from '@oktis-works/config';
 import { traceMiddleware } from './middleware/trace.js';
 import { rateLimitMiddleware } from './middleware/rate-limit.js';
 import { csrfMiddleware } from './middleware/csrf.js';
@@ -53,7 +55,8 @@ async function main() {
   app.use('*', cors({
     origin: (origin: string) => {
       // Allow admin origins with credentials (cookies HttpOnly)
-      const allowed = ['http://admin.lvh.me:3011', 'http://localhost:3011', 'http://127.0.0.1:3011'];
+      const config = loadConfig();
+      const allowed = config.app.corsOrigins.map((o: string) => o.trim()).filter(Boolean);
       return allowed.includes(origin) ? origin : '';
     },
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -114,7 +117,7 @@ async function main() {
   app.get('/api', (c) => {
     return c.json({
       name: 'OkCMS API',
-      version: '0.1.2',
+      version: CMS_VERSION,
       description: 'Hybrid, modular, API-first CMS',
       endpoints: {
         health: '/health',
