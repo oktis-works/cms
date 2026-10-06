@@ -30,10 +30,14 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash VARCHAR(511) NOT NULL,
   avatar VARCHAR(511),
   status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'INACTIVE', 'LOCKED')),
+  locale VARCHAR(10),
   last_login_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
+
+-- Idempotente para bancos criados antes do i18n do admin (V005).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS locale VARCHAR(10);
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_status ON users(status);

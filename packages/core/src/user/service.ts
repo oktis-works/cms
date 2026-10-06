@@ -53,6 +53,24 @@ export class UserService {
     return (result[0] as unknown as User) ?? null;
   }
 
+  /** Locale preferido do usuário (i18n do admin) — null quando ainda não escolheu. */
+  async getLocale(id: string): Promise<string | null> {
+    const sql = getConnection();
+    const result = await sql.unsafe('SELECT locale FROM users WHERE id = $1', [id]);
+    if (!result.length) return null;
+    const value = (result[0] as Record<string, unknown>)['locale'];
+    return typeof value === 'string' && value ? value : null;
+  }
+
+  /** Persiste o locale preferido do usuário (users.locale). */
+  async setLocale(id: string, locale: string | null): Promise<void> {
+    const sql = getConnection();
+    await sql.unsafe(
+      'UPDATE users SET locale = $1, updated_at = NOW() WHERE id = $2',
+      [locale, id]
+    );
+  }
+
   async create(input: {
     email: string;
     name: string;

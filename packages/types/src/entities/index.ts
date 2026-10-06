@@ -37,6 +37,8 @@ export interface User extends Timestamps {
   passwordHash?: string;
   avatar?: string;
   status: UserStatus;
+  /** Locale preferido do usuário (i18n do admin) — coluna users.locale */
+  locale?: string | null;
   lastLoginAt?: Date;
   /** Papéis no tenant atual (preenchido pelas rotas /users) */
   roles?: string[];

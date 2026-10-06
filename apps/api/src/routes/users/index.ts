@@ -79,6 +79,46 @@ router.post('/', requirePermission('create', 'user'), async (c) => {
   }
 });
 
+/**
+ * Locale preferido do usuário logado (i18n do admin).
+ * GET  → { locale: string | null } — middleware do admin cai no cookie/browser quando null.
+ * PUT  → persiste a escolha do seletor de idioma em users.locale.
+ * Registrado antes de /:id por clareza (o caminho tem 2 segmentos e não casa com /:id).
+ */
+router.get('/me/locale', async (c) => {
+  const userId = c.get('userId' as never) as string | undefined;
+  if (!userId) return c.json({ error: 'Not authenticated' }, 401);
+
+  const locale = await userService.getLocale(userId);
+  return c.json({ locale: locale ?? null });
+});
+
+const LOCALE_RE = /^[a-z]{2}(-[A-Za-z0-9]{2,4})?$/;
+
+router.put('/me/locale', async (c) => {
+  const userId = c.get('userId' as never) as string | undefined;
+  if (!userId) return c.json({ error: 'Not authenticated' }, 401);
+
+  const body = (await c.req.json().catch(() => null)) as { locale?: unknown } | null;
+  const locale = body?.locale;
+
+  // corpo inválido ou sem a chave `locale` → 400 (só `null` limpa a preferência)
+  if (locale === undefined) {
+    return c.json({ error: 'Invalid locale' }, 400);
+  }
+
+  if (
+    locale !== null &&
+    (typeof locale !== 'string' || locale.length > 10 || !LOCALE_RE.test(locale))
+  ) {
+    return c.json({ error: 'Invalid locale' }, 400);
+  }
+
+  const value = locale as string | null;
+  await userService.setLocale(userId, value);
+  return c.json({ locale: value });
+});
+
 router.get('/:id', requirePermission('read', 'user'), async (c) => {
   const id = c.req.param('id') as string;
   const result = await userService.getById(id);
