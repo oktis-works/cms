@@ -30,21 +30,77 @@
       "title": "最近のコンテンツ",
       "viewAll": "すべて見る",
       "empty": "コンテンツがありません — 最初の一つを作成しましょう！",
-      "columns": { "title": "タイトル", "type": "タイプ", "status": "ステータス", "updated": "更新日時" }
+      "columns": {
+        "title": "タイトル",
+        "type": "タイプ",
+        "status": "ステータス",
+        "updated": "更新日時"
+      }
+    },
+    "widgets": {
+      "atGlance": "一目瞭然",
+      "posts": "投稿",
+      "postsDesc": "公開済み / 下書き / ゴミ箱",
+      "pages": "ページ",
+      "pagesDesc": "公開済み / 下書き / ゴミ箱",
+      "media": "メディア",
+      "mediaDesc": "ライブラリ内のファイル",
+      "users": "ユーザー",
+      "usersDesc": "合計 / アクティブ / 非アクティブ",
+      "version": "バージョン",
+      "storage": "ストレージ",
+      "quickDraft": {
+        "title": "クイック下書き",
+        "heading": "タイトル",
+        "headingPlaceholder": "下書きにタイトルを付ける",
+        "content": "内容",
+        "contentPlaceholder": "今どんなことを考えていますか？",
+        "save": "下書きを保存",
+        "yourDrafts": "あなたの下書き",
+        "noDrafts": "まだ下書きはありません。"
+      },
+      "activity": {
+        "title": "アクティビティ",
+        "empty": "まだアクティビティはありません。"
+      }
     }
   },
   "content": {
     "list": {
       "title": "コンテンツ",
       "description": "コンテンツを検索、フィルター、編集、公開します。",
-      "columns": { "title": "タイトル", "type": "タイプ", "status": "ステータス", "updated": "更新日時" },
-      "actions": { "edit": "編集", "publish": "公開", "unpublish": "公開取り消し", "delete": "削除" },
-      "filters": { "search": "コンテンツを検索…", "allTypes": "すべてのタイプ", "allStatus": "すべてのステータス" },
-      "buttons": { "new": "+ 新規コンテンツ", "search": "検索" },
+      "columns": {
+        "title": "タイトル",
+        "type": "タイプ",
+        "status": "ステータス",
+        "updated": "更新日時"
+      },
+      "actions": {
+        "edit": "編集",
+        "publish": "公開",
+        "unpublish": "公開取り消し",
+        "delete": "削除"
+      },
+      "filters": {
+        "search": "コンテンツを検索…",
+        "allTypes": "すべてのタイプ",
+        "allStatus": "すべてのステータス"
+      },
+      "buttons": {
+        "new": "+ 新規コンテンツ",
+        "search": "検索"
+      },
       "empty": "コンテンツが見つかりません。",
-      "statuses": { "draft": "下書き", "published": "公開済み", "archived": "アーカイブ" },
+      "statuses": {
+        "draft": "下書き",
+        "published": "公開済み",
+        "archived": "アーカイブ"
+      },
       "confirmDelete": "\"{title}\" を削除しますか？",
-      "toasts": { "published": "コンテンツを公開しました ✓", "unpublished": "公開を取り消しました ✓" }
+      "toasts": {
+        "published": "コンテンツを公開しました ✓",
+        "unpublished": "公開を取り消しました ✓"
+      }
     },
     "editor": {
       "type": "タイプ",
@@ -53,7 +109,11 @@
       "excerpt": "抜粋",
       "featuredImage": "アイキャッチ画像 (メディアID)",
       "status": "ステータス",
-      "statusOptions": { "draft": "下書き", "published": "公開済み", "archived": "アーカイブ" },
+      "statusOptions": {
+        "draft": "下書き",
+        "published": "公開済み",
+        "archived": "アーカイブ"
+      },
       "layout": "レイアウト",
       "layoutAuto": "自動 (テーマの階層)",
       "customFields": "カスタムフィールド",
@@ -71,8 +131,21 @@
       "uploading": "アップロード中…",
       "hint": "画像、動画、音声、ドキュメント · 1ファイル最大 25MB"
     },
-    "toolbar": { "search": "名前や alt で検索…", "allTypes": "すべてのタイプ", "searchBtn": "検索" },
-    "mimeTypes": { "png": "PNG", "jpeg": "JPEG", "gif": "GIF", "webp": "WebP", "svg": "SVG", "pdf": "PDF", "mp4": "MP4", "mp3": "MP3" },
+    "toolbar": {
+      "search": "名前や alt で検索…",
+      "allTypes": "すべてのタイプ",
+      "searchBtn": "検索"
+    },
+    "mimeTypes": {
+      "png": "PNG",
+      "jpeg": "JPEG",
+      "gif": "GIF",
+      "webp": "WebP",
+      "svg": "SVG",
+      "pdf": "PDF",
+      "mp4": "MP4",
+      "mp3": "MP3"
+    },
     "empty": "まだファイルがありません。最初のファイルをアップロードしましょう！",
     "details": {
       "title": "詳細",
@@ -91,25 +164,63 @@
       "copied": "URLをコピーしました ✓",
       "copyError": "URLをコピーできませんでした"
     },
-    "toasts": { "uploaded": "{count} 件のファイルをアップロードしました ✓" }
+    "toasts": {
+      "uploaded": "{count} 件のファイルをアップロードしました ✓"
+    }
   },
   "users": {
     "title": "ユーザー",
     "description": "アカウント、役割、プロジェクトへのアクセスを管理します。",
     "new": "新規ユーザー",
-    "toolbar": { "search": "名前またはメールで検索…", "allStatus": "すべてのステータス", "active": "アクティブ", "inactive": "非アクティブ", "newBtn": "+ 新規ユーザー", "searchBtn": "検索" },
-    "table": { "name": "名前", "email": "メール", "role": "役割", "status": "ステータス", "lastAccess": "最終アクセス", "actions": { "manage": "管理", "delete": "削除" } },
+    "toolbar": {
+      "search": "名前またはメールで検索…",
+      "allStatus": "すべてのステータス",
+      "active": "アクティブ",
+      "inactive": "非アクティブ",
+      "newBtn": "+ 新規ユーザー",
+      "searchBtn": "検索"
+    },
+    "table": {
+      "name": "名前",
+      "email": "メール",
+      "role": "役割",
+      "status": "ステータス",
+      "lastAccess": "最終アクセス",
+      "actions": {
+        "manage": "管理",
+        "delete": "削除"
+      }
+    },
     "empty": "ユーザーが見つかりません。",
+    "noRole": "ロールなし",
     "detail": {
       "title": "ユーザー管理",
-      "fields": { "name": "名前", "email": "メール", "status": "ステータス", "role": "役割" },
-      "statusOptions": { "active": "アクティブ", "inactive": "非アクティブ" },
+      "fields": {
+        "name": "名前",
+        "email": "メール",
+        "status": "ステータス",
+        "role": "役割",
+        "password": "パスワード"
+      },
+      "statusOptions": {
+        "active": "アクティブ",
+        "inactive": "非アクティブ"
+      },
       "rolePlaceholder": "— 役割なし —",
       "meta": "作成日 {created} · 最終アクセス {lastAccess}",
-      "actions": { "save": "保存", "resetPassword": "パスワードリセット", "close": "閉じる" },
+      "actions": {
+        "save": "保存",
+        "resetPassword": "パスワードリセット",
+        "close": "閉じる"
+      },
       "passwordPrompt": "{email} の新しいパスワード (最小8文字):",
       "passwordError": "パスワードは8文字以上必要です",
-      "toasts": { "roleUpdated": "{name} の役割を更新しました ✓", "passwordChanged": "{name} のパスワードを変更しました ✓", "saved": "ユーザー {name} を保存しました ✓", "deleted": "ユーザー {name} を削除しました ✓" },
+      "toasts": {
+        "roleUpdated": "{name} の役割を更新しました ✓",
+        "passwordChanged": "{name} のパスワードを変更しました ✓",
+        "saved": "ユーザー {name} を保存しました ✓",
+        "deleted": "ユーザー {name} を削除しました ✓"
+      },
       "confirmDelete": "ユーザー {email} を削除しますか？"
     }
   },
@@ -118,7 +229,15 @@
       "title": "一般",
       "description": "サイトに表示される基本情報。",
       "back": "← すべての設定",
-      "fields": { "siteTitle": "サイトタイトル", "siteTitlePlaceholder": "マイサイト", "siteDescription": "説明", "siteDescriptionPlaceholder": "OkCMSで作った新しいサイト", "language": "言語", "timezone": "タイムゾーン", "timezonePlaceholder": "Asia/Tokyo" },
+      "fields": {
+        "siteTitle": "サイトタイトル",
+        "siteTitlePlaceholder": "マイサイト",
+        "siteDescription": "説明",
+        "siteDescriptionPlaceholder": "OkCMSで作った新しいサイト",
+        "language": "言語",
+        "timezone": "タイムゾーン",
+        "timezonePlaceholder": "Asia/Tokyo"
+      },
       "saved": "設定を保存しました ✓",
       "loading": "読み込み中…",
       "save": "保存"
@@ -133,12 +252,31 @@
         "singular": "単数形の名前",
         "plural": "複数形の名前",
         "supports": "サポート機能",
-        "supportsOptions": { "title": "タイトル", "editor": "エディター", "thumbnail": "アイキャッチ", "excerpt": "抜粋", "revisions": "リビジョン" },
+        "supportsOptions": {
+          "title": "タイトル",
+          "editor": "エディター",
+          "thumbnail": "アイキャッチ",
+          "excerpt": "抜粋",
+          "revisions": "リビジョン"
+        },
         "hasArchive": "公開アーカイブページあり (/slug)",
         "create": "作成"
       },
-      "table": { "slug": "スラッグ", "singular": "単数形", "plural": "複数形", "source": "ソース", "supports": "サポート", "archive": "アーカイブ", "actions": { "remove": "削除" } },
-      "sources": { "admin": "管理画面", "core": "コア" }
+      "table": {
+        "slug": "スラッグ",
+        "singular": "単数形",
+        "plural": "複数形",
+        "source": "ソース",
+        "supports": "サポート",
+        "archive": "アーカイブ",
+        "actions": {
+          "remove": "削除"
+        }
+      },
+      "sources": {
+        "admin": "管理画面",
+        "core": "コア"
+      }
     },
     "taxonomies": {
       "title": "タクソノミー",
@@ -152,7 +290,14 @@
         "attachTo": "投稿タイプに関連付け",
         "create": "作成"
       },
-      "table": { "taxonomy": "タクソノミー", "hierarchical": "階層型", "attachedTypes": "関連付けられた投稿タイプ", "actions": { "remove": "削除" } }
+      "table": {
+        "taxonomy": "タクソノミー",
+        "hierarchical": "階層型",
+        "attachedTypes": "関連付けられた投稿タイプ",
+        "actions": {
+          "remove": "削除"
+        }
+      }
     }
   },
   "login": {
@@ -160,7 +305,8 @@
     "subtitle": "アカウントにログイン",
     "email": "メールアドレス",
     "password": "パスワード",
-    "submit": "ログイン"
+    "submit": "ログイン",
+    "failed": "メールアドレスまたはパスワードが無効です"
   },
   "common": {
     "save": "保存",
@@ -186,7 +332,67 @@
     "items": "件",
     "item": "件",
     "empty": "{items} が見つかりません。",
-    "toast": { "success": "✓", "error": "エラー: {message}" },
-    "status": { "active": "アクティブ", "inactive": "非アクティブ", "draft": "下書き", "published": "公開済み", "archived": "アーカイブ" }
+    "toast": {
+      "success": "✓",
+      "error": "エラー: {message}"
+    },
+    "status": {
+      "active": "アクティブ",
+      "inactive": "非アクティブ",
+      "draft": "下書き",
+      "published": "公開済み",
+      "archived": "アーカイブ",
+      "locked": "ロック中"
+    },
+    "language": "言語"
+  },
+  "activity": {
+    "justNow": "たった今",
+    "minAgo": "分前",
+    "ago": "前",
+    "published": "公開済み",
+    "updated": "更新済み",
+    "newUser": "新しいユーザー: {name}"
+  },
+  "adminBar": {
+    "mainMenu": "メインメニュー",
+    "notifications": "通知",
+    "notificationsEmpty": "最近のアクティビティはありません",
+    "settings": "設定",
+    "toggleSidebar": "サイドバーを切り替え",
+    "userMenu": "ユーザーメニュー"
+  },
+  "footer": {
+    "copyright": "© 2026 OkCMS. 無断転載を禁じます。",
+    "links": "リンク",
+    "website": "ウェブサイト",
+    "github": "GitHub",
+    "docs": "ドキュメント",
+    "community": "コミュニティ",
+    "poweredBy": "OkCMS で動作"
+  },
+  "helpTabs": {
+    "title": "ヘルプ",
+    "label": "ヘルプ",
+    "tabs": "ヘルプトピック",
+    "topics": {
+      "overview": {
+        "label": "一目瞭然",
+        "content": "<h4>OkCMS ダッシュボードへようこそ</h4><p>このダッシュボードでは、サイトのコンテンツとアクティビティの概要を確認できます。</p><h4>利用可能なウィジェット</h4><ul><li><strong>一目瞭然:</strong>投稿・ページ・メディア・ユーザーの概要</li><li><strong>クイック下書き:</strong>ダッシュボードから下書きをすばやく保存</li><li><strong>アクティビティ:</strong>最近のサイトのアクティビティと更新</li></ul>"
+      },
+      "content": {
+        "label": "コンテンツ管理",
+        "content": "<h4>コンテンツの管理</h4><p>コンテンツセクションからコンテンツを作成・編集・公開します。</p><h4>クイックアクション</h4><ul><li>「新規コンテンツ」をクリックして新しい投稿やページを作成</li><li>フィルターを使って特定のコンテンツを検索</li><li>複数項目に一括操作を適用できます</li></ul>"
+      },
+      "media": {
+        "label": "メディアライブラリ",
+        "content": "<h4>メディアの管理</h4><p>画像・動画・ドキュメントをアップロードして管理します。</p><h4>ヒント</h4><ul><li>ファイルをドラッグ＆ドロップしてアップロード</li><li>アクセシビリティのため代替テキストを追加</li><li>フォルダーで整理（近日公開）</li></ul>"
+      }
+    }
+  },
+  "screenOptions": {
+    "title": "画面オプション",
+    "label": "画面オプション",
+    "showOnScreen": "画面に表示"
   }
 }

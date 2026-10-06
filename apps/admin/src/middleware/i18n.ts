@@ -1,7 +1,7 @@
-// @ts-ignore - Astro middleware module not available in TS environment
+// @ts-expect-error astro:middleware só resolve no build do Astro, não no tsc raiz
 import { defineMiddleware } from 'astro:middleware';
 import { SUPPORTED_LOCALES, DEFAULT_LOCALE, isRTLLocale } from '../i18n/config';
-import { getTranslationsForLocale, createSyncTFunction } from '../i18n';
+import { getTranslationsForLocale } from '../i18n';
 
 // Type definitions for Astro middleware (not available in TS environment)
 interface AstroContext {
@@ -16,10 +16,6 @@ interface AstroContext {
     isRTL?: boolean;
   };
   request: Request;
-}
-
-interface AstroNext {
-  (): Promise<Response>;
 }
 
 function createTFunctionFromMap(map: Record<string, unknown>, fallback: Record<string, unknown>) {

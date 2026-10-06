@@ -30,21 +30,77 @@
       "title": "Ostatnie Treści",
       "viewAll": "Zobacz Wszystkie",
       "empty": "Brak treści — utwórz pierwszą!",
-      "columns": { "title": "Tytuł", "type": "Typ", "status": "Status", "updated": "Zaktualizowano" }
+      "columns": {
+        "title": "Tytuł",
+        "type": "Typ",
+        "status": "Status",
+        "updated": "Zaktualizowano"
+      }
+    },
+    "widgets": {
+      "atGlance": "W skrócie",
+      "posts": "Wpisy",
+      "postsDesc": "Opublikowane / Szkice / Kosz",
+      "pages": "Strony",
+      "pagesDesc": "Opublikowane / Szkice / Kosz",
+      "media": "Media",
+      "mediaDesc": "Pliki w bibliotece",
+      "users": "Użytkownicy",
+      "usersDesc": "Razem / Aktywni / Nieaktywni",
+      "version": "Wersja",
+      "storage": "Przechowywanie",
+      "quickDraft": {
+        "title": "Szybki szkic",
+        "heading": "Tytuł",
+        "headingPlaceholder": "Nadaj swojemu szkicowi tytuł",
+        "content": "Treść",
+        "contentPlaceholder": "O czym myślisz?",
+        "save": "Zapisz szkic",
+        "yourDrafts": "Twoje szkice",
+        "noDrafts": "Nie ma jeszcze szkiców."
+      },
+      "activity": {
+        "title": "Aktywność",
+        "empty": "Brak aktywności."
+      }
     }
   },
   "content": {
     "list": {
       "title": "Treści",
       "description": "Szukaj, filtruj, edytuj i publikuj swoje treści.",
-      "columns": { "title": "Tytuł", "type": "Typ", "status": "Status", "updated": "Zaktualizowano" },
-      "actions": { "edit": "Edytuj", "publish": "Opublikuj", "unpublish": "Cofnij Publikację", "delete": "Usuń" },
-      "filters": { "search": "Szukaj treści…", "allTypes": "Wszystkie typy", "allStatus": "Wszystkie statusy" },
-      "buttons": { "new": "+ Nowa Treść", "search": "Szukaj" },
+      "columns": {
+        "title": "Tytuł",
+        "type": "Typ",
+        "status": "Status",
+        "updated": "Zaktualizowano"
+      },
+      "actions": {
+        "edit": "Edytuj",
+        "publish": "Opublikuj",
+        "unpublish": "Cofnij Publikację",
+        "delete": "Usuń"
+      },
+      "filters": {
+        "search": "Szukaj treści…",
+        "allTypes": "Wszystkie typy",
+        "allStatus": "Wszystkie statusy"
+      },
+      "buttons": {
+        "new": "+ Nowa Treść",
+        "search": "Szukaj"
+      },
       "empty": "Nie znaleziono treści.",
-      "statuses": { "draft": "Szkic", "published": "Opublikowane", "archived": "Zarchiwizowane" },
+      "statuses": {
+        "draft": "Szkic",
+        "published": "Opublikowane",
+        "archived": "Zarchiwizowane"
+      },
       "confirmDelete": "Usunąć \"{title}\"?",
-      "toasts": { "published": "Treść opublikowana ✓", "unpublished": "Publikacja cofnięta ✓" }
+      "toasts": {
+        "published": "Treść opublikowana ✓",
+        "unpublished": "Publikacja cofnięta ✓"
+      }
     },
     "editor": {
       "type": "Typ",
@@ -53,7 +109,11 @@
       "excerpt": "Wstęp",
       "featuredImage": "Obrazek Wyróżniający (ID media)",
       "status": "Status",
-      "statusOptions": { "draft": "Szkic", "published": "Opublikowane", "archived": "Zarchiwizowane" },
+      "statusOptions": {
+        "draft": "Szkic",
+        "published": "Opublikowane",
+        "archived": "Zarchiwizowane"
+      },
       "layout": "Układ",
       "layoutAuto": "Automatyczny (hierarchia motywu)",
       "customFields": "Pola Niestandardowe",
@@ -71,8 +131,21 @@
       "uploading": "Przesyłanie…",
       "hint": "Obrazy, wideo, audio i dokumenty · do 25MB na plik"
     },
-    "toolbar": { "search": "Szukaj po nazwie lub alt…", "allTypes": "Wszystkie typy", "searchBtn": "Szukaj" },
-    "mimeTypes": { "png": "PNG", "jpeg": "JPEG", "gif": "GIF", "webp": "WebP", "svg": "SVG", "pdf": "PDF", "mp4": "MP4", "mp3": "MP3" },
+    "toolbar": {
+      "search": "Szukaj po nazwie lub alt…",
+      "allTypes": "Wszystkie typy",
+      "searchBtn": "Szukaj"
+    },
+    "mimeTypes": {
+      "png": "PNG",
+      "jpeg": "JPEG",
+      "gif": "GIF",
+      "webp": "WebP",
+      "svg": "SVG",
+      "pdf": "PDF",
+      "mp4": "MP4",
+      "mp3": "MP3"
+    },
     "empty": "Brak plików. Prześlij pierwszy!",
     "details": {
       "title": "Szczegóły",
@@ -91,25 +164,63 @@
       "copied": "URL skopiowany ✓",
       "copyError": "Nie można skopiować URL"
     },
-    "toasts": { "uploaded": "{count} plik(ów) przesłano ✓" }
+    "toasts": {
+      "uploaded": "{count} plik(ów) przesłano ✓"
+    }
   },
   "users": {
     "title": "Użytkownicy",
     "description": "Zarządzaj kontami, rolami i dostępem do projektu.",
     "new": "Nowy Użytkownik",
-    "toolbar": { "search": "Szukaj po nazwie lub email…", "allStatus": "Wszystkie statusy", "active": "Aktywni", "inactive": "Nieaktywni", "newBtn": "+ Nowy użytkownik", "searchBtn": "Szukaj" },
-    "table": { "name": "Imię", "email": "Email", "role": "Rola", "status": "Status", "lastAccess": "Ostatni Dostęp", "actions": { "manage": "Zarządzaj", "delete": "Usuń" } },
+    "toolbar": {
+      "search": "Szukaj po nazwie lub email…",
+      "allStatus": "Wszystkie statusy",
+      "active": "Aktywni",
+      "inactive": "Nieaktywni",
+      "newBtn": "+ Nowy użytkownik",
+      "searchBtn": "Szukaj"
+    },
+    "table": {
+      "name": "Imię",
+      "email": "Email",
+      "role": "Rola",
+      "status": "Status",
+      "lastAccess": "Ostatni Dostęp",
+      "actions": {
+        "manage": "Zarządzaj",
+        "delete": "Usuń"
+      }
+    },
     "empty": "Nie znaleziono użytkowników.",
+    "noRole": "Brak roli",
     "detail": {
       "title": "Zarządzaj Użytkownikiem",
-      "fields": { "name": "Imię", "email": "Email", "status": "Status", "role": "Rola" },
-      "statusOptions": { "active": "Aktywny", "inactive": "Nieaktywny" },
+      "fields": {
+        "name": "Imię",
+        "email": "Email",
+        "status": "Status",
+        "role": "Rola",
+        "password": "Hasło"
+      },
+      "statusOptions": {
+        "active": "Aktywny",
+        "inactive": "Nieaktywny"
+      },
       "rolePlaceholder": "— brak roli —",
       "meta": "Utworzono {created} · ostatni dostęp {lastAccess}",
-      "actions": { "save": "Zapisz", "resetPassword": "Zresetuj Hasło", "close": "Zamknij" },
+      "actions": {
+        "save": "Zapisz",
+        "resetPassword": "Zresetuj Hasło",
+        "close": "Zamknij"
+      },
       "passwordPrompt": "Nowe hasło dla {email} (min. 8 znaków):",
       "passwordError": "Hasło musi mieć min. 8 znaków",
-      "toasts": { "roleUpdated": "Rola {name} zaktualizowana ✓", "passwordChanged": "Hasło {name} zmienione ✓", "saved": "Użytkownik {name} zapisany ✓", "deleted": "Użytkownik {name} usunięty ✓" },
+      "toasts": {
+        "roleUpdated": "Rola {name} zaktualizowana ✓",
+        "passwordChanged": "Hasło {name} zmienione ✓",
+        "saved": "Użytkownik {name} zapisany ✓",
+        "deleted": "Użytkownik {name} usunięty ✓"
+      },
       "confirmDelete": "Usunąć użytkownika {email}?"
     }
   },
@@ -118,7 +229,15 @@
       "title": "Ogólne",
       "description": "Podstawowe informacje wyświetlane na stronie.",
       "back": "← Wszystkie Ustawienia",
-      "fields": { "siteTitle": "Tytuł Strony", "siteTitlePlaceholder": "Moja Strona", "siteDescription": "Opis", "siteDescriptionPlaceholder": "Nowa strona z OkCMS", "language": "Język", "timezone": "Strefa Czasowa", "timezonePlaceholder": "Europe/Warsaw" },
+      "fields": {
+        "siteTitle": "Tytuł Strony",
+        "siteTitlePlaceholder": "Moja Strona",
+        "siteDescription": "Opis",
+        "siteDescriptionPlaceholder": "Nowa strona z OkCMS",
+        "language": "Język",
+        "timezone": "Strefa Czasowa",
+        "timezonePlaceholder": "Europe/Warsaw"
+      },
       "saved": "Ustawienia zapisane ✓",
       "loading": "Ładowanie…",
       "save": "Zapisz"
@@ -133,12 +252,31 @@
         "singular": "Nazwa Liczby Pojedynczej",
         "plural": "Nazwa Liczby Mnogiej",
         "supports": "Obsługuje",
-        "supportsOptions": { "title": "Tytuł", "editor": "Edytor", "thumbnail": "Miniatura", "excerpt": "Wstęp", "revisions": "Rewizje" },
+        "supportsOptions": {
+          "title": "Tytuł",
+          "editor": "Edytor",
+          "thumbnail": "Miniatura",
+          "excerpt": "Wstęp",
+          "revisions": "Rewizje"
+        },
         "hasArchive": "Posiada Publiczne Archiwum (/slug)",
         "create": "Utwórz"
       },
-      "table": { "slug": "Slug", "singular": "Pojedyncza", "plural": "Mnoga", "source": "Źródło", "supports": "Obsługuje", "archive": "Archiwum", "actions": { "remove": "Usuń" } },
-      "sources": { "admin": "Admin", "core": "Core" }
+      "table": {
+        "slug": "Slug",
+        "singular": "Pojedyncza",
+        "plural": "Mnoga",
+        "source": "Źródło",
+        "supports": "Obsługuje",
+        "archive": "Archiwum",
+        "actions": {
+          "remove": "Usuń"
+        }
+      },
+      "sources": {
+        "admin": "Admin",
+        "core": "Core"
+      }
     },
     "taxonomies": {
       "title": "Taksonomie",
@@ -152,7 +290,14 @@
         "attachTo": "Połącz z typami treści",
         "create": "Utwórz"
       },
-      "table": { "taxonomy": "Taksonomia", "hierarchical": "Hierarchiczna", "attachedTypes": "Powiązane typy treści", "actions": { "remove": "Usuń" } }
+      "table": {
+        "taxonomy": "Taksonomia",
+        "hierarchical": "Hierarchiczna",
+        "attachedTypes": "Powiązane typy treści",
+        "actions": {
+          "remove": "Usuń"
+        }
+      }
     }
   },
   "login": {
@@ -160,7 +305,8 @@
     "subtitle": "Zaloguj się do swojego konta",
     "email": "Email",
     "password": "Hasło",
-    "submit": "Zaloguj"
+    "submit": "Zaloguj",
+    "failed": "Nieprawidłowy email lub hasło"
   },
   "common": {
     "save": "Zapisz",
@@ -186,7 +332,67 @@
     "items": "elementów",
     "item": "element",
     "empty": "Nie znaleziono {items}.",
-    "toast": { "success": "✓", "error": "Błąd: {message}" },
-    "status": { "active": "Aktywny", "inactive": "Nieaktywny", "draft": "Szkic", "published": "Opublikowane", "archived": "Zarchiwizowane" }
+    "toast": {
+      "success": "✓",
+      "error": "Błąd: {message}"
+    },
+    "status": {
+      "active": "Aktywny",
+      "inactive": "Nieaktywny",
+      "draft": "Szkic",
+      "published": "Opublikowane",
+      "archived": "Zarchiwizowane",
+      "locked": "Zablokowany"
+    },
+    "language": "Język"
+  },
+  "activity": {
+    "justNow": "przed chwilą",
+    "minAgo": "minut temu",
+    "ago": "temu",
+    "published": "Opublikowano",
+    "updated": "Zaktualizowano",
+    "newUser": "Nowy użytkownik: {name}"
+  },
+  "adminBar": {
+    "mainMenu": "Menu główne",
+    "notifications": "Powiadomienia",
+    "notificationsEmpty": "Brak ostatniej aktywności",
+    "settings": "Ustawienia",
+    "toggleSidebar": "Przełącz pasek boczny",
+    "userMenu": "Menu użytkownika"
+  },
+  "footer": {
+    "copyright": "© 2026 OkCMS. Wszelkie prawa zastrzeżone.",
+    "links": "Linki",
+    "website": "Strona internetowa",
+    "github": "GitHub",
+    "docs": "Dokumentacja",
+    "community": "Społeczność",
+    "poweredBy": "Napędzane przez OkCMS"
+  },
+  "helpTabs": {
+    "title": "Pomoc",
+    "label": "Pomoc",
+    "tabs": "Tematy pomocy",
+    "topics": {
+      "overview": {
+        "label": "W skrócie",
+        "content": "<h4>Witamy w panelu OkCMS</h4><p>Ten panel daje przegląd treści i aktywności Twojej witryny.</p><h4>Dostępne widżety</h4><ul><li><strong>W skrócie:</strong> przegląd wpisów, stron, mediów i użytkowników</li><li><strong>Szybki szkic:</strong> szybkie zapisywanie szkiców z panelu</li><li><strong>Aktywność:</strong> ostatnie aktywności i aktualizacje witryny</li></ul>"
+      },
+      "content": {
+        "label": "Zarządzanie treścią",
+        "content": "<h4>Zarządzanie treścią</h4><p>Twórz, edytuj i publikuj treści w sekcji Treści.</p><h4>Szybkie akcje</h4><ul><li>Kliknij \"Nowa treść\", aby utworzyć nowy wpis lub stronę</li><li>Używaj filtrów, aby znaleźć określoną treść</li><li>Akcje zbiorcze dostępne dla wielu elementów</li></ul>"
+      },
+      "media": {
+        "label": "Biblioteka mediów",
+        "content": "<h4>Zarządzanie mediami</h4><p>Przesyłaj i zarządzaj obrazami, filmami i dokumentami.</p><h4>Wskazówki</h4><ul><li>Przeciągnij pliki, aby je przesłać</li><li>Dodaj tekst alternatywny dla dostępności</li><li>Organizuj w folderach (wkrótce)</li></ul>"
+      }
+    }
+  },
+  "screenOptions": {
+    "title": "Opcje ekranu",
+    "label": "Opcje ekranu",
+    "showOnScreen": "Pokaż na ekranie"
   }
 }

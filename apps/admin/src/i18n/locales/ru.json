@@ -30,21 +30,77 @@
       "title": "Недавний контент",
       "viewAll": "Посмотреть все",
       "empty": "Контента пока нет — создайте первый!",
-      "columns": { "title": "Заголовок", "type": "Тип", "status": "Статус", "updated": "Обновлено" }
+      "columns": {
+        "title": "Заголовок",
+        "type": "Тип",
+        "status": "Статус",
+        "updated": "Обновлено"
+      }
+    },
+    "widgets": {
+      "atGlance": "Обзор",
+      "posts": "Записи",
+      "postsDesc": "Опубликовано / Черновики / Корзина",
+      "pages": "Страницы",
+      "pagesDesc": "Опубликовано / Черновики / Корзина",
+      "media": "Медиа",
+      "mediaDesc": "Файлы в библиотеке",
+      "users": "Пользователи",
+      "usersDesc": "Всего / Активные / Неактивные",
+      "version": "Версия",
+      "storage": "Хранилище",
+      "quickDraft": {
+        "title": "Быстрый черновик",
+        "heading": "Заголовок",
+        "headingPlaceholder": "Дайте черновику заголовок",
+        "content": "Содержание",
+        "contentPlaceholder": "О чём вы думаете?",
+        "save": "Сохранить черновик",
+        "yourDrafts": "Ваши черновики",
+        "noDrafts": "Черновиков пока нет."
+      },
+      "activity": {
+        "title": "Активность",
+        "empty": "Активности пока нет."
+      }
     }
   },
   "content": {
     "list": {
       "title": "Контент",
       "description": "Поиск, фильтрация, редактирование и публикация контента.",
-      "columns": { "title": "Заголовок", "type": "Тип", "status": "Статус", "updated": "Обновлено" },
-      "actions": { "edit": "Редактировать", "publish": "Опубликовать", "unpublish": "Снять с публикации", "delete": "Удалить" },
-      "filters": { "search": "Поиск контента…", "allTypes": "Все типы", "allStatus": "Все статусы" },
-      "buttons": { "new": "+ Новый контент", "search": "Поиск" },
+      "columns": {
+        "title": "Заголовок",
+        "type": "Тип",
+        "status": "Статус",
+        "updated": "Обновлено"
+      },
+      "actions": {
+        "edit": "Редактировать",
+        "publish": "Опубликовать",
+        "unpublish": "Снять с публикации",
+        "delete": "Удалить"
+      },
+      "filters": {
+        "search": "Поиск контента…",
+        "allTypes": "Все типы",
+        "allStatus": "Все статусы"
+      },
+      "buttons": {
+        "new": "+ Новый контент",
+        "search": "Поиск"
+      },
       "empty": "Контент не найден.",
-      "statuses": { "draft": "Черновик", "published": "Опубликовано", "archived": "В архиве" },
+      "statuses": {
+        "draft": "Черновик",
+        "published": "Опубликовано",
+        "archived": "В архиве"
+      },
       "confirmDelete": "Удалить \"{title}\"?",
-      "toasts": { "published": "Контент опубликован ✓", "unpublished": "Контент снят с публикации ✓" }
+      "toasts": {
+        "published": "Контент опубликован ✓",
+        "unpublished": "Контент снят с публикации ✓"
+      }
     },
     "editor": {
       "type": "Тип",
@@ -53,7 +109,11 @@
       "excerpt": "Отрывок",
       "featuredImage": "Изображение (ID медиа)",
       "status": "Статус",
-      "statusOptions": { "draft": "Черновик", "published": "Опубликовано", "archived": "В архиве" },
+      "statusOptions": {
+        "draft": "Черновик",
+        "published": "Опубликовано",
+        "archived": "В архиве"
+      },
       "layout": "Макет",
       "layoutAuto": "Авто (иерархия темы)",
       "customFields": "Пользовательские поля",
@@ -71,8 +131,21 @@
       "uploading": "Загрузка…",
       "hint": "Изображения, видео, аудио и документы · до 25МБ на файл"
     },
-    "toolbar": { "search": "Поиск по имени или alt…", "allTypes": "Все типы", "searchBtn": "Поиск" },
-    "mimeTypes": { "png": "PNG", "jpeg": "JPEG", "gif": "GIF", "webp": "WebP", "svg": "SVG", "pdf": "PDF", "mp4": "MP4", "mp3": "MP3" },
+    "toolbar": {
+      "search": "Поиск по имени или alt…",
+      "allTypes": "Все типы",
+      "searchBtn": "Поиск"
+    },
+    "mimeTypes": {
+      "png": "PNG",
+      "jpeg": "JPEG",
+      "gif": "GIF",
+      "webp": "WebP",
+      "svg": "SVG",
+      "pdf": "PDF",
+      "mp4": "MP4",
+      "mp3": "MP3"
+    },
     "empty": "Файлов пока нет. Загрузите первый!",
     "details": {
       "title": "Детали",
@@ -91,25 +164,63 @@
       "copied": "URL скопирован ✓",
       "copyError": "Не удалось скопировать URL"
     },
-    "toasts": { "uploaded": "{count} файл(ов) загружено ✓" }
+    "toasts": {
+      "uploaded": "{count} файл(ов) загружено ✓"
+    }
   },
   "users": {
     "title": "Пользователи",
     "description": "Управление аккаунтами, ролями и доступом проекта.",
     "new": "Новый пользователь",
-    "toolbar": { "search": "Поиск по имени или email…", "allStatus": "Все статусы", "active": "Активные", "inactive": "Неактивные", "newBtn": "+ Новый пользователь", "searchBtn": "Поиск" },
-    "table": { "name": "Имя", "email": "Email", "role": "Роль", "status": "Статус", "lastAccess": "Последний вход", "actions": { "manage": "Управлять", "delete": "Удалить" } },
+    "toolbar": {
+      "search": "Поиск по имени или email…",
+      "allStatus": "Все статусы",
+      "active": "Активные",
+      "inactive": "Неактивные",
+      "newBtn": "+ Новый пользователь",
+      "searchBtn": "Поиск"
+    },
+    "table": {
+      "name": "Имя",
+      "email": "Email",
+      "role": "Роль",
+      "status": "Статус",
+      "lastAccess": "Последний вход",
+      "actions": {
+        "manage": "Управлять",
+        "delete": "Удалить"
+      }
+    },
     "empty": "Пользователи не найдены.",
+    "noRole": "Без роли",
     "detail": {
       "title": "Управление пользователем",
-      "fields": { "name": "Имя", "email": "Email", "status": "Статус", "role": "Роль" },
-      "statusOptions": { "active": "Активен", "inactive": "Неактивен" },
+      "fields": {
+        "name": "Имя",
+        "email": "Email",
+        "status": "Статус",
+        "role": "Роль",
+        "password": "Пароль"
+      },
+      "statusOptions": {
+        "active": "Активен",
+        "inactive": "Неактивен"
+      },
       "rolePlaceholder": "— без роли —",
       "meta": "Создан {created} · последний вход {lastAccess}",
-      "actions": { "save": "Сохранить", "resetPassword": "Сбросить пароль", "close": "Закрыть" },
+      "actions": {
+        "save": "Сохранить",
+        "resetPassword": "Сбросить пароль",
+        "close": "Закрыть"
+      },
       "passwordPrompt": "Новый пароль для {email} (минимум 8 символов):",
       "passwordError": "Пароль должен содержать минимум 8 символов",
-      "toasts": { "roleUpdated": "Роль {name} обновлена ✓", "passwordChanged": "Пароль {name} изменен ✓", "saved": "Пользователь {name} сохранен ✓", "deleted": "Пользователь {name} удален ✓" },
+      "toasts": {
+        "roleUpdated": "Роль {name} обновлена ✓",
+        "passwordChanged": "Пароль {name} изменен ✓",
+        "saved": "Пользователь {name} сохранен ✓",
+        "deleted": "Пользователь {name} удален ✓"
+      },
       "confirmDelete": "Удалить пользователя {email}?"
     }
   },
@@ -118,7 +229,15 @@
       "title": "Общие",
       "description": "Основная информация, отображаемая на сайте.",
       "back": "← Все настройки",
-      "fields": { "siteTitle": "Название сайта", "siteTitlePlaceholder": "Мой сайт", "siteDescription": "Описание", "siteDescriptionPlaceholder": "Новый сайт на OkCMS", "language": "Язык", "timezone": "Часовой пояс", "timezonePlaceholder": "Europe/Moscow" },
+      "fields": {
+        "siteTitle": "Название сайта",
+        "siteTitlePlaceholder": "Мой сайт",
+        "siteDescription": "Описание",
+        "siteDescriptionPlaceholder": "Новый сайт на OkCMS",
+        "language": "Язык",
+        "timezone": "Часовой пояс",
+        "timezonePlaceholder": "Europe/Moscow"
+      },
       "saved": "Настройки сохранены ✓",
       "loading": "Загрузка…",
       "save": "Сохранить"
@@ -133,12 +252,31 @@
         "singular": "Название в единственном числе",
         "plural": "Название во множественном числе",
         "supports": "Поддерживает",
-        "supportsOptions": { "title": "Заголовок", "editor": "Редактор", "thumbnail": "Миниатюра", "excerpt": "Отрывок", "revisions": "Ревизии" },
+        "supportsOptions": {
+          "title": "Заголовок",
+          "editor": "Редактор",
+          "thumbnail": "Миниатюра",
+          "excerpt": "Отрывок",
+          "revisions": "Ревизии"
+        },
         "hasArchive": "Имеет публичный архив (/slug)",
         "create": "Создать"
       },
-      "table": { "slug": "Слаг", "singular": "Един. число", "plural": "Мн. число", "source": "Источник", "supports": "Поддерживает", "archive": "Архив", "actions": { "remove": "Удалить" } },
-      "sources": { "admin": "Admin", "core": "Core" }
+      "table": {
+        "slug": "Слаг",
+        "singular": "Един. число",
+        "plural": "Мн. число",
+        "source": "Источник",
+        "supports": "Поддерживает",
+        "archive": "Архив",
+        "actions": {
+          "remove": "Удалить"
+        }
+      },
+      "sources": {
+        "admin": "Admin",
+        "core": "Core"
+      }
     },
     "taxonomies": {
       "title": "Таксономии",
@@ -152,7 +290,14 @@
         "attachTo": "Связать с типами контента",
         "create": "Создать"
       },
-      "table": { "taxonomy": "Таксономия", "hierarchical": "Иерархическая", "attachedTypes": "Связанные типы контента", "actions": { "remove": "Удалить" } }
+      "table": {
+        "taxonomy": "Таксономия",
+        "hierarchical": "Иерархическая",
+        "attachedTypes": "Связанные типы контента",
+        "actions": {
+          "remove": "Удалить"
+        }
+      }
     }
   },
   "login": {
@@ -160,7 +305,8 @@
     "subtitle": "Войдите в свой аккаунт",
     "email": "Email",
     "password": "Пароль",
-    "submit": "Войти"
+    "submit": "Войти",
+    "failed": "Неверный email или пароль"
   },
   "common": {
     "save": "Сохранить",
@@ -186,7 +332,67 @@
     "items": "элементов",
     "item": "элемент",
     "empty": "Не найдено {items}.",
-    "toast": { "success": "✓", "error": "Ошибка: {message}" },
-    "status": { "active": "Активен", "inactive": "Неактивен", "draft": "Черновик", "published": "Опубликовано", "archived": "В архиве" }
+    "toast": {
+      "success": "✓",
+      "error": "Ошибка: {message}"
+    },
+    "status": {
+      "active": "Активен",
+      "inactive": "Неактивен",
+      "draft": "Черновик",
+      "published": "Опубликовано",
+      "archived": "В архиве",
+      "locked": "Заблокировано"
+    },
+    "language": "Язык"
+  },
+  "activity": {
+    "justNow": "только что",
+    "minAgo": "минут назад",
+    "ago": "назад",
+    "published": "Опубликовано",
+    "updated": "Обновлено",
+    "newUser": "Новый пользователь: {name}"
+  },
+  "adminBar": {
+    "mainMenu": "Главное меню",
+    "notifications": "Уведомления",
+    "notificationsEmpty": "Нет недавней активности",
+    "settings": "Настройки",
+    "toggleSidebar": "Переключить боковую панель",
+    "userMenu": "Меню пользователя"
+  },
+  "footer": {
+    "copyright": "© 2026 OkCMS. Все права защищены.",
+    "links": "Ссылки",
+    "website": "Веб-сайт",
+    "github": "GitHub",
+    "docs": "Документация",
+    "community": "Сообщество",
+    "poweredBy": "Работает на OkCMS"
+  },
+  "helpTabs": {
+    "title": "Помощь",
+    "label": "Помощь",
+    "tabs": "Темы помощи",
+    "topics": {
+      "overview": {
+        "label": "Обзор",
+        "content": "<h4>Добро пожаловать в панель OkCMS</h4><p>Эта панель даёт обзор контента и активности вашего сайта.</p><h4>Доступные виджеты</h4><ul><li><strong>Обзор:</strong> сводка записей, страниц, медиа и пользователей</li><li><strong>Быстрый черновик:</strong> быстрое сохранение черновиков с панели</li><li><strong>Активность:</strong> последние события и обновления сайта</li></ul>"
+      },
+      "content": {
+        "label": "Управление контентом",
+        "content": "<h4>Управление контентом</h4><p>Создавайте, редактируйте и публикуйте контент в разделе «Контент».</p><h4>Быстрые действия</h4><ul><li>Нажмите «Новый контент», чтобы создать запись или страницу</li><li>Используйте фильтры для поиска контента</li><li>Групповые действия доступны для нескольких элементов</li></ul>"
+      },
+      "media": {
+        "label": "Медиатека",
+        "content": "<h4>Работа с медиа</h4><p>Загружайте и управляйте изображениями, видео и документами.</p><h4>Советы</h4><ul><li>Перетаскивайте файлы для загрузки</li><li>Добавляйте alt-текст для доступности</li><li>Организуйте папками (скоро)</li></ul>"
+      }
+    }
+  },
+  "screenOptions": {
+    "title": "Параметры экрана",
+    "label": "Параметры экрана",
+    "showOnScreen": "Показать на экране"
   }
 }

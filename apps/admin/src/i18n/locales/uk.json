@@ -30,21 +30,77 @@
       "title": "Останній контент",
       "viewAll": "Переглянути все",
       "empty": "Контенту ще немає — створіть перший!",
-      "columns": { "title": "Заголовок", "type": "Тип", "status": "Статус", "updated": "Оновлено" }
+      "columns": {
+        "title": "Заголовок",
+        "type": "Тип",
+        "status": "Статус",
+        "updated": "Оновлено"
+      }
+    },
+    "widgets": {
+      "atGlance": "Коротко",
+      "posts": "Записи",
+      "postsDesc": "Опубліковано / Чернетки / Кошик",
+      "pages": "Сторінки",
+      "pagesDesc": "Опубліковано / Чернетки / Кошик",
+      "media": "Медіа",
+      "mediaDesc": "Файли в бібліотеці",
+      "users": "Користувачі",
+      "usersDesc": "Усього / Активні / Неактивні",
+      "version": "Версія",
+      "storage": "Сховище",
+      "quickDraft": {
+        "title": "Швидка чернетка",
+        "heading": "Заголовок",
+        "headingPlaceholder": "Дайте чернетці заголовок",
+        "content": "Вміст",
+        "contentPlaceholder": "Про що ви думаєте?",
+        "save": "Зберегти чернетку",
+        "yourDrafts": "Ваші чернетки",
+        "noDrafts": "Чернеток ще немає."
+      },
+      "activity": {
+        "title": "Активність",
+        "empty": "Активності ще немає."
+      }
     }
   },
   "content": {
     "list": {
       "title": "Контент",
       "description": "Пошук, фільтрація, редагування та публікація контенту.",
-      "columns": { "title": "Заголовок", "type": "Тип", "status": "Статус", "updated": "Оновлено" },
-      "actions": { "edit": "Редагувати", "publish": "Опублікувати", "unpublish": "Зняти з публікації", "delete": "Видалити" },
-      "filters": { "search": "Пошук контенту…", "allTypes": "Усі типи", "allStatus": "Усі статуси" },
-      "buttons": { "new": "+ Новий контент", "search": "Пошук" },
+      "columns": {
+        "title": "Заголовок",
+        "type": "Тип",
+        "status": "Статус",
+        "updated": "Оновлено"
+      },
+      "actions": {
+        "edit": "Редагувати",
+        "publish": "Опублікувати",
+        "unpublish": "Зняти з публікації",
+        "delete": "Видалити"
+      },
+      "filters": {
+        "search": "Пошук контенту…",
+        "allTypes": "Усі типи",
+        "allStatus": "Усі статуси"
+      },
+      "buttons": {
+        "new": "+ Новий контент",
+        "search": "Пошук"
+      },
       "empty": "Контент не знайдено.",
-      "statuses": { "draft": "Чернетка", "published": "Опубліковано", "archived": "В архіві" },
+      "statuses": {
+        "draft": "Чернетка",
+        "published": "Опубліковано",
+        "archived": "В архіві"
+      },
       "confirmDelete": "Видалити \"{title}\"?",
-      "toasts": { "published": "Контент опубліковано ✓", "unpublished": "Контент знято з публікації ✓" }
+      "toasts": {
+        "published": "Контент опубліковано ✓",
+        "unpublished": "Контент знято з публікації ✓"
+      }
     },
     "editor": {
       "type": "Тип",
@@ -53,7 +109,11 @@
       "excerpt": "Уривок",
       "featuredImage": "Зображення (ID медіа)",
       "status": "Статус",
-      "statusOptions": { "draft": "Чернетка", "published": "Опубліковано", "archived": "В архіві" },
+      "statusOptions": {
+        "draft": "Чернетка",
+        "published": "Опубліковано",
+        "archived": "В архіві"
+      },
       "layout": "Макет",
       "layoutAuto": "Авто (ієрархія теми)",
       "customFields": "Користувацькі поля",
@@ -71,8 +131,21 @@
       "uploading": "Завантаження…",
       "hint": "Зображення, відео, аудіо та документи · до 25МБ на файл"
     },
-    "toolbar": { "search": "Пошук за назвою або alt…", "allTypes": "Усі типи", "searchBtn": "Пошук" },
-    "mimeTypes": { "png": "PNG", "jpeg": "JPEG", "gif": "GIF", "webp": "WebP", "svg": "SVG", "pdf": "PDF", "mp4": "MP4", "mp3": "MP3" },
+    "toolbar": {
+      "search": "Пошук за назвою або alt…",
+      "allTypes": "Усі типи",
+      "searchBtn": "Пошук"
+    },
+    "mimeTypes": {
+      "png": "PNG",
+      "jpeg": "JPEG",
+      "gif": "GIF",
+      "webp": "WebP",
+      "svg": "SVG",
+      "pdf": "PDF",
+      "mp4": "MP4",
+      "mp3": "MP3"
+    },
     "empty": "Файлів ще немає. Завантажте перший!",
     "details": {
       "title": "Деталі",
@@ -91,25 +164,63 @@
       "copied": "URL скопійовано ✓",
       "copyError": "Не вдалося скопіювати URL"
     },
-    "toasts": { "uploaded": "{count} файл(ів) завантажено ✓" }
+    "toasts": {
+      "uploaded": "{count} файл(ів) завантажено ✓"
+    }
   },
   "users": {
     "title": "Користувачі",
     "description": "Керування обліковими записами, ролями та доступом проекту.",
     "new": "Новий користувач",
-    "toolbar": { "search": "Пошук за іменем або email…", "allStatus": "Усі статуси", "active": "Активні", "inactive": "Неактивні", "newBtn": "+ Новий користувач", "searchBtn": "Пошук" },
-    "table": { "name": "Ім'я", "email": "Email", "role": "Роль", "status": "Статус", "lastAccess": "Останній вхід", "actions": { "manage": "Керувати", "delete": "Видалити" } },
+    "toolbar": {
+      "search": "Пошук за іменем або email…",
+      "allStatus": "Усі статуси",
+      "active": "Активні",
+      "inactive": "Неактивні",
+      "newBtn": "+ Новий користувач",
+      "searchBtn": "Пошук"
+    },
+    "table": {
+      "name": "Ім'я",
+      "email": "Email",
+      "role": "Роль",
+      "status": "Статус",
+      "lastAccess": "Останній вхід",
+      "actions": {
+        "manage": "Керувати",
+        "delete": "Видалити"
+      }
+    },
     "empty": "Користувачів не знайдено.",
+    "noRole": "Без ролі",
     "detail": {
       "title": "Керування користувачем",
-      "fields": { "name": "Ім'я", "email": "Email", "status": "Статус", "role": "Роль" },
-      "statusOptions": { "active": "Активний", "inactive": "Неактивний" },
+      "fields": {
+        "name": "Ім'я",
+        "email": "Email",
+        "status": "Статус",
+        "role": "Роль",
+        "password": "Пароль"
+      },
+      "statusOptions": {
+        "active": "Активний",
+        "inactive": "Неактивний"
+      },
       "rolePlaceholder": "— без ролі —",
       "meta": "Створено {created} · останній вхід {lastAccess}",
-      "actions": { "save": "Зберегти", "resetPassword": "Скинути пароль", "close": "Закрити" },
+      "actions": {
+        "save": "Зберегти",
+        "resetPassword": "Скинути пароль",
+        "close": "Закрити"
+      },
       "passwordPrompt": "Новий пароль для {email} (мінімум 8 символів):",
       "passwordError": "Пароль має містити мінімум 8 символів",
-      "toasts": { "roleUpdated": "Роль {name} оновлено ✓", "passwordChanged": "Пароль {name} змінено ✓", "saved": "Користувач {name} збережений ✓", "deleted": "Користувач {name} видалений ✓" },
+      "toasts": {
+        "roleUpdated": "Роль {name} оновлено ✓",
+        "passwordChanged": "Пароль {name} змінено ✓",
+        "saved": "Користувач {name} збережений ✓",
+        "deleted": "Користувач {name} видалений ✓"
+      },
       "confirmDelete": "Видалити користувача {email}?"
     }
   },
@@ -118,7 +229,15 @@
       "title": "Загальні",
       "description": "Основна інформація, що відображається на сайті.",
       "back": "← Всі налаштування",
-      "fields": { "siteTitle": "Назва сайту", "siteTitlePlaceholder": "Мій сайт", "siteDescription": "Опис", "siteDescriptionPlaceholder": "Новий сайт на OkCMS", "language": "Мова", "timezone": "Часовий пояс", "timezonePlaceholder": "Europe/Kyiv" },
+      "fields": {
+        "siteTitle": "Назва сайту",
+        "siteTitlePlaceholder": "Мій сайт",
+        "siteDescription": "Опис",
+        "siteDescriptionPlaceholder": "Новий сайт на OkCMS",
+        "language": "Мова",
+        "timezone": "Часовий пояс",
+        "timezonePlaceholder": "Europe/Kyiv"
+      },
       "saved": "Налаштування збережено ✓",
       "loading": "Завантаження…",
       "save": "Зберегти"
@@ -133,12 +252,31 @@
         "singular": "Назва в однині",
         "plural": "Назва во множестві",
         "supports": "Підтримує",
-        "supportsOptions": { "title": "Заголовок", "editor": "Редактор", "thumbnail": "Мініатюра", "excerpt": "Уривок", "revisions": "Ревізії" },
+        "supportsOptions": {
+          "title": "Заголовок",
+          "editor": "Редактор",
+          "thumbnail": "Мініатюра",
+          "excerpt": "Уривок",
+          "revisions": "Ревізії"
+        },
         "hasArchive": "Має публічний архів (/slug)",
         "create": "Створити"
       },
-      "table": { "slug": "Слаг", "singular": "Однина", "plural": "Множина", "source": "Джерело", "supports": "Підтримує", "archive": "Архів", "actions": { "remove": "Видалити" } },
-      "sources": { "admin": "Admin", "core": "Core" }
+      "table": {
+        "slug": "Слаг",
+        "singular": "Однина",
+        "plural": "Множина",
+        "source": "Джерело",
+        "supports": "Підтримує",
+        "archive": "Архів",
+        "actions": {
+          "remove": "Видалити"
+        }
+      },
+      "sources": {
+        "admin": "Admin",
+        "core": "Core"
+      }
     },
     "taxonomies": {
       "title": "Таксономії",
@@ -152,7 +290,14 @@
         "attachTo": "Зв'язати з типами контенту",
         "create": "Створити"
       },
-      "table": { "taxonomy": "Таксономія", "hierarchical": "Ієрархічна", "attachedTypes": "Зв'язані типи контенту", "actions": { "remove": "Видалити" } }
+      "table": {
+        "taxonomy": "Таксономія",
+        "hierarchical": "Ієрархічна",
+        "attachedTypes": "Зв'язані типи контенту",
+        "actions": {
+          "remove": "Видалити"
+        }
+      }
     }
   },
   "login": {
@@ -160,7 +305,8 @@
     "subtitle": "Увійдіть у свій обліковий запис",
     "email": "Email",
     "password": "Пароль",
-    "submit": "Увійти"
+    "submit": "Увійти",
+    "failed": "Невірний email або пароль"
   },
   "common": {
     "save": "Зберегти",
@@ -186,7 +332,67 @@
     "items": "елементів",
     "item": "елемент",
     "empty": "Не знайдено {items}.",
-    "toast": { "success": "✓", "error": "Помилка: {message}" },
-    "status": { "active": "Активний", "inactive": "Неактивний", "draft": "Чернетка", "published": "Опубліковано", "archived": "В архіві" }
+    "toast": {
+      "success": "✓",
+      "error": "Помилка: {message}"
+    },
+    "status": {
+      "active": "Активний",
+      "inactive": "Неактивний",
+      "draft": "Чернетка",
+      "published": "Опубліковано",
+      "archived": "В архіві",
+      "locked": "Заблоковано"
+    },
+    "language": "Мова"
+  },
+  "activity": {
+    "justNow": "щойно",
+    "minAgo": "хвилин тому",
+    "ago": "тому",
+    "published": "Опубліковано",
+    "updated": "Оновлено",
+    "newUser": "Новий користувач: {name}"
+  },
+  "adminBar": {
+    "mainMenu": "Головне меню",
+    "notifications": "Сповіщення",
+    "notificationsEmpty": "Немає нещодавньої активності",
+    "settings": "Налаштування",
+    "toggleSidebar": "Перемкнути бічну панель",
+    "userMenu": "Меню користувача"
+  },
+  "footer": {
+    "copyright": "© 2026 OkCMS. Усі права захищено.",
+    "links": "Посилання",
+    "website": "Вебсайт",
+    "github": "GitHub",
+    "docs": "Документація",
+    "community": "Спільнота",
+    "poweredBy": "Працює на OkCMS"
+  },
+  "helpTabs": {
+    "title": "Довідка",
+    "label": "Довідка",
+    "tabs": "Теми довідки",
+    "topics": {
+      "overview": {
+        "label": "Коротко",
+        "content": "<h4>Вітаємо в панелі OkCMS</h4><p>Ця панель дає огляд вмісту та активності вашого сайту.</p><h4>Доступні віджети</h4><ul><li><strong>Коротко:</strong> огляд записів, сторінок, медіа та користувачів</li><li><strong>Швидка чернетка:</strong> швидке збереження чернеток із панелі</li><li><strong>Активність:</strong> нещодавні події та оновлення сайту</li></ul>"
+      },
+      "content": {
+        "label": "Керування вмістом",
+        "content": "<h4>Керування вмістом</h4><p>Створюйте, редагуйте та публікуйте вміст у розділі «Вміст».</p><h4>Швидкі дії</h4><ul><li>Натисніть «Новий вміст», щоб створити запис або сторінку</li><li>Використовуйте фільтри для пошуку вмісту</li><li>Групові дії доступні для кількох елементів</li></ul>"
+      },
+      "media": {
+        "label": "Медіатека",
+        "content": "<h4>Робота з медіа</h4><p>Завантажуйте та керуйте зображеннями, відео й документами.</p><h4>Поради</h4><ul><li>Перетягуйте файли для завантаження</li><li>Додавайте alt-текст для доступності</li><li>Організовуйте папками (незабаром)</li></ul>"
+      }
+    }
+  },
+  "screenOptions": {
+    "title": "Параметри екрана",
+    "label": "Параметри екрана",
+    "showOnScreen": "Показати на екрані"
   }
 }

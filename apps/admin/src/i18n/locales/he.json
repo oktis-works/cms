@@ -30,21 +30,77 @@
       "title": "תוכן אחרון",
       "viewAll": "הצג הכל",
       "empty": "אין עדיין תוכן — צור את הראשון!",
-      "columns": { "title": "כותרת", "type": "סוג", "status": "סטטוס", "updated": "עודכן" }
+      "columns": {
+        "title": "כותרת",
+        "type": "סוג",
+        "status": "סטטוס",
+        "updated": "עודכן"
+      }
+    },
+    "widgets": {
+      "atGlance": "במבט חטוף",
+      "posts": "פוסטים",
+      "postsDesc": "פורסמו / טיוטות / פח",
+      "pages": "עמודים",
+      "pagesDesc": "פורסמו / טיוטות / פח",
+      "media": "מדיה",
+      "mediaDesc": "קבצים בספרייה",
+      "users": "משתמשים",
+      "usersDesc": "סה״כ / פעילים / לא פעילים",
+      "version": "גרסה",
+      "storage": "אחסון",
+      "quickDraft": {
+        "title": "טיוטה מהירה",
+        "heading": "כותרת",
+        "headingPlaceholder": "תנו כותרת לטיוטה",
+        "content": "תוכן",
+        "contentPlaceholder": "על מה אתם חושבים?",
+        "save": "שמור טיוטה",
+        "yourDrafts": "הטיוטות שלך",
+        "noDrafts": "עדיין אין טיוטות."
+      },
+      "activity": {
+        "title": "פעילות",
+        "empty": "עדיין אין פעילות."
+      }
     }
   },
   "content": {
     "list": {
       "title": "תוכן",
       "description": "חפש, סנן, ערוך ופרסם את התוכן שלך.",
-      "columns": { "title": "כותרת", "type": "סוג", "status": "סטטוס", "updated": "עודכן" },
-      "actions": { "edit": "ערוך", "publish": "פרסם", "unpublish": "בטל פרסום", "delete": "מחק" },
-      "filters": { "search": "חפש תוכן…", "allTypes": "כל הסוגים", "allStatus": "כל הסטטוסים" },
-      "buttons": { "new": "+ תוכן חדש", "search": "חפש" },
+      "columns": {
+        "title": "כותרת",
+        "type": "סוג",
+        "status": "סטטוס",
+        "updated": "עודכן"
+      },
+      "actions": {
+        "edit": "ערוך",
+        "publish": "פרסם",
+        "unpublish": "בטל פרסום",
+        "delete": "מחק"
+      },
+      "filters": {
+        "search": "חפש תוכן…",
+        "allTypes": "כל הסוגים",
+        "allStatus": "כל הסטטוסים"
+      },
+      "buttons": {
+        "new": "+ תוכן חדש",
+        "search": "חפש"
+      },
       "empty": "לא נמצא תוכן.",
-      "statuses": { "draft": "טיוטה", "published": "פורסם", "archived": "ארכיון" },
+      "statuses": {
+        "draft": "טיוטה",
+        "published": "פורסם",
+        "archived": "ארכיון"
+      },
       "confirmDelete": "למחוק \"{title}\"?",
-      "toasts": { "published": "התוכן פורסם ✓", "unpublished": "הפרסום בוטל ✓" }
+      "toasts": {
+        "published": "התוכן פורסם ✓",
+        "unpublished": "הפרסום בוטל ✓"
+      }
     },
     "editor": {
       "type": "סוג",
@@ -53,7 +109,11 @@
       "excerpt": "תקציר",
       "featuredImage": "תמונה ראשית (מזהה מדיה)",
       "status": "סטטוס",
-      "statusOptions": { "draft": "טיוטה", "published": "פורסם", "archived": "ארכיון" },
+      "statusOptions": {
+        "draft": "טיוטה",
+        "published": "פורסם",
+        "archived": "ארכיון"
+      },
       "layout": "פריסה",
       "layoutAuto": "אוטומטי (היררכיית ערכת נושא)",
       "customFields": "שדות מותאמים",
@@ -71,8 +131,21 @@
       "uploading": "מעלה…",
       "hint": "תמונות, סרטונים, שמע ומסמכים · עד 25MB לקובץ"
     },
-    "toolbar": { "search": "חפש לפי שם או alt…", "allTypes": "כל הסוגים", "searchBtn": "חפש" },
-    "mimeTypes": { "png": "PNG", "jpeg": "JPEG", "gif": "GIF", "webp": "WebP", "svg": "SVG", "pdf": "PDF", "mp4": "MP4", "mp3": "MP3" },
+    "toolbar": {
+      "search": "חפש לפי שם או alt…",
+      "allTypes": "כל הסוגים",
+      "searchBtn": "חפש"
+    },
+    "mimeTypes": {
+      "png": "PNG",
+      "jpeg": "JPEG",
+      "gif": "GIF",
+      "webp": "WebP",
+      "svg": "SVG",
+      "pdf": "PDF",
+      "mp4": "MP4",
+      "mp3": "MP3"
+    },
     "empty": "אין עדיין קבצים. העלה את הראשון!",
     "details": {
       "title": "פרטים",
@@ -91,25 +164,63 @@
       "copied": "הכתובת הועתקה ✓",
       "copyError": "לא ניתן להעתיק את הכתובת"
     },
-    "toasts": { "uploaded": "{count} קובץ(ים) הועלו ✓" }
+    "toasts": {
+      "uploaded": "{count} קובץ(ים) הועלו ✓"
+    }
   },
   "users": {
     "title": "משתמשים",
     "description": "נהל חשבונות, תפקידים וגישות לפרויקט.",
     "new": "משתמש חדש",
-    "toolbar": { "search": "חפש לפי שם או אימייל…", "allStatus": "כל הסטטוסים", "active": "פעילים", "inactive": "לא פעילים", "newBtn": "+ משתמש חדש", "searchBtn": "חפש" },
-    "table": { "name": "שם", "email": "אימייל", "role": "תפקיד", "status": "סטטוס", "lastAccess": "גישה אחרונה", "actions": { "manage": "נהל", "delete": "מחק" } },
+    "toolbar": {
+      "search": "חפש לפי שם או אימייל…",
+      "allStatus": "כל הסטטוסים",
+      "active": "פעילים",
+      "inactive": "לא פעילים",
+      "newBtn": "+ משתמש חדש",
+      "searchBtn": "חפש"
+    },
+    "table": {
+      "name": "שם",
+      "email": "אימייל",
+      "role": "תפקיד",
+      "status": "סטטוס",
+      "lastAccess": "גישה אחרונה",
+      "actions": {
+        "manage": "נהל",
+        "delete": "מחק"
+      }
+    },
     "empty": "לא נמצאו משתמשים.",
+    "noRole": "ללא תפקיד",
     "detail": {
       "title": "ניהול משתמש",
-      "fields": { "name": "שם", "email": "אימייל", "status": "סטטוס", "role": "תפקיד" },
-      "statusOptions": { "active": "פעיל", "inactive": "לא פעיל" },
+      "fields": {
+        "name": "שם",
+        "email": "אימייל",
+        "status": "סטטוס",
+        "role": "תפקיד",
+        "password": "סיסמה"
+      },
+      "statusOptions": {
+        "active": "פעיל",
+        "inactive": "לא פעיל"
+      },
       "rolePlaceholder": "— ללא תפקיד —",
       "meta": "נוצר ב-{created} · גישה אחרונה {lastAccess}",
-      "actions": { "save": "שמור", "resetPassword": "אפס סיסמה", "close": "סגור" },
+      "actions": {
+        "save": "שמור",
+        "resetPassword": "אפס סיסמה",
+        "close": "סגור"
+      },
       "passwordPrompt": "סיסמה חדשה עבור {email} (מינימום 8 תווים):",
       "passwordError": "הסיסמה חייבת להיות באורך 8 תווים לפחות",
-      "toasts": { "roleUpdated": "התפקיד של {name} עודכן ✓", "passwordChanged": "הסיסמה של {name} שונתה ✓", "saved": "המשתמש {name} נשמר ✓", "deleted": "המשתמש {name} נמחק ✓" },
+      "toasts": {
+        "roleUpdated": "התפקיד של {name} עודכן ✓",
+        "passwordChanged": "הסיסמה של {name} שונתה ✓",
+        "saved": "המשתמש {name} נשמר ✓",
+        "deleted": "המשתמש {name} נמחק ✓"
+      },
       "confirmDelete": "למחוק את המשתמש {email}?"
     }
   },
@@ -118,7 +229,15 @@
       "title": "כללי",
       "description": "מידע בסיסי המוצג באתר.",
       "back": "← כל ההגדרות",
-      "fields": { "siteTitle": "כותרת האתר", "siteTitlePlaceholder": "האתר שלי", "siteDescription": "תיאור", "siteDescriptionPlaceholder": "אתר חדש עם OkCMS", "language": "שפה", "timezone": "אזור זמן", "timezonePlaceholder": "Asia/Jerusalem" },
+      "fields": {
+        "siteTitle": "כותרת האתר",
+        "siteTitlePlaceholder": "האתר שלי",
+        "siteDescription": "תיאור",
+        "siteDescriptionPlaceholder": "אתר חדש עם OkCMS",
+        "language": "שפה",
+        "timezone": "אזור זמן",
+        "timezonePlaceholder": "Asia/Jerusalem"
+      },
       "saved": "ההגדרות נשמרו ✓",
       "loading": "טוען…",
       "save": "שמור"
@@ -133,12 +252,31 @@
         "singular": "שם ביחיד",
         "plural": "שם ברבים",
         "supports": "תומך",
-        "supportsOptions": { "title": "כותרת", "editor": "עורך", "thumbnail": "תמונה ראשית", "excerpt": "קטע", "revisions": "גרסאות" },
+        "supportsOptions": {
+          "title": "כותרת",
+          "editor": "עורך",
+          "thumbnail": "תמונה ראשית",
+          "excerpt": "קטע",
+          "revisions": "גרסאות"
+        },
         "hasArchive": "יש דף ארכיון ציבורי (/slug)",
         "create": "צור"
       },
-      "table": { "slug": "Slug", "singular": "יחיד", "plural": "רבים", "source": "מקור", "supports": "תומך", "archive": "ארכיון", "actions": { "remove": "הסר" } },
-      "sources": { "admin": "Admin", "core": "Core" }
+      "table": {
+        "slug": "Slug",
+        "singular": "יחיד",
+        "plural": "רבים",
+        "source": "מקור",
+        "supports": "תומך",
+        "archive": "ארכיון",
+        "actions": {
+          "remove": "הסר"
+        }
+      },
+      "sources": {
+        "admin": "Admin",
+        "core": "Core"
+      }
     },
     "taxonomies": {
       "title": "טקסונומיות",
@@ -152,7 +290,14 @@
         "attachTo": "קשר לסוגי תוכן",
         "create": "צור"
       },
-      "table": { "taxonomy": "טקסונומיה", "hierarchical": "היררכית", "attachedTypes": "סוגי תוכן מקושרים", "actions": { "remove": "הסר" } }
+      "table": {
+        "taxonomy": "טקסונומיה",
+        "hierarchical": "היררכית",
+        "attachedTypes": "סוגי תוכן מקושרים",
+        "actions": {
+          "remove": "הסר"
+        }
+      }
     }
   },
   "login": {
@@ -160,7 +305,8 @@
     "subtitle": "התחבר לחשבונך",
     "email": "אימייל",
     "password": "סיסמה",
-    "submit": "התחבר"
+    "submit": "התחבר",
+    "failed": "אימייל או סיסמה שגויים"
   },
   "common": {
     "save": "שמור",
@@ -186,7 +332,67 @@
     "items": "פריטים",
     "item": "פריט",
     "empty": "לא נמצאו {items}.",
-    "toast": { "success": "✓", "error": "שגיאה: {message}" },
-    "status": { "active": "פעיל", "inactive": "לא פעיל", "draft": "טיוטה", "published": "פורסם", "archived": "ארכיון" }
+    "toast": {
+      "success": "✓",
+      "error": "שגיאה: {message}"
+    },
+    "status": {
+      "active": "פעיל",
+      "inactive": "לא פעיל",
+      "draft": "טיוטה",
+      "published": "פורסם",
+      "archived": "ארכיון",
+      "locked": "נעול"
+    },
+    "language": "שפה"
+  },
+  "activity": {
+    "justNow": "עכשיו",
+    "minAgo": "דקות לפני",
+    "ago": "לפני",
+    "published": "פורסם",
+    "updated": "עודכן",
+    "newUser": "משתמש חדש: {name}"
+  },
+  "adminBar": {
+    "mainMenu": "תפריט ראשי",
+    "notifications": "התראות",
+    "notificationsEmpty": "אין פעילות אחרונה",
+    "settings": "הגדרות",
+    "toggleSidebar": "החלף סרגד צד",
+    "userMenu": "תפריט משתמש"
+  },
+  "footer": {
+    "copyright": "© 2026 OkCMS. כל הזכויות שמורות.",
+    "links": "קישורים",
+    "website": "אתר",
+    "github": "GitHub",
+    "docs": "תיעוד",
+    "community": "קהילה",
+    "poweredBy": "מונע על ידי OkCMS"
+  },
+  "helpTabs": {
+    "title": "עזרה",
+    "label": "עזרה",
+    "tabs": "נושאי עזרה",
+    "topics": {
+      "overview": {
+        "label": "במבט חטוף",
+        "content": "<h4>ברוכים הבאים ללוח הבקרה של OkCMS</h4><p>לוח הבקרה הזה נותן סקירה כללית של התוכן והפעילות באתר שלך.</p><h4>וידג'טים זמינים</h4><ul><li><strong>במבט חטוף:</strong> סקירת פוסטים, עמודים, מדיה ומשתמשים</li><li><strong>טיוטה מהירה:</strong> שמירת טיוטות במהירות מלוח הבקרה</li><li><strong>פעילות:</strong> פעילות ועדכונים אחרונים של האתר</li></ul>"
+      },
+      "content": {
+        "label": "ניהול תוכן",
+        "content": "<h4>ניהול תוכן</h4><p>צור, ערוך ופרסם תוכן מאזור התוכן.</p><h4>פעולות מהירות</h4><ul><li>לחץ על \"תוכן חדש\" כדי ליצור פוסט או עמוד חדש</li><li>השתמש בסינונים כדי למצוא תוכן ספציפי</li><li>פעולות מרובות זמינות לפריטים מרובים</li></ul>"
+      },
+      "media": {
+        "label": "ספריית מדיה",
+        "content": "<h4>ניהול מדיה</h4><p>העלה ונהל תמונות, וידאו ומסמכים.</p><h4>טיפים</h4><ul><li>גרור קבצים כדי להעלות</li><li>הוסף טקסט חלופי לנגישות</li><li>ארגן בתיקיות (בקרוב)</li></ul>"
+      }
+    }
+  },
+  "screenOptions": {
+    "title": "אפשרויות מסך",
+    "label": "אפשרויות מסך",
+    "showOnScreen": "הצג במסך"
   }
 }

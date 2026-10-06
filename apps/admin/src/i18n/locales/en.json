@@ -30,21 +30,77 @@
       "title": "Recent Content",
       "viewAll": "View All",
       "empty": "No content yet — create your first!",
-      "columns": { "title": "Title", "type": "Type", "status": "Status", "updated": "Updated" }
+      "columns": {
+        "title": "Title",
+        "type": "Type",
+        "status": "Status",
+        "updated": "Updated"
+      }
+    },
+    "widgets": {
+      "atGlance": "At a Glance",
+      "posts": "Posts",
+      "postsDesc": "Published / Drafts / Trash",
+      "pages": "Pages",
+      "pagesDesc": "Published / Drafts / Trash",
+      "media": "Media",
+      "mediaDesc": "Files in the library",
+      "users": "Users",
+      "usersDesc": "Total / Active / Inactive",
+      "version": "Version",
+      "storage": "Storage",
+      "quickDraft": {
+        "title": "Quick Draft",
+        "heading": "Title",
+        "headingPlaceholder": "Give your draft a title",
+        "content": "Content",
+        "contentPlaceholder": "What's on your mind?",
+        "save": "Save Draft",
+        "yourDrafts": "Your Drafts",
+        "noDrafts": "No drafts yet."
+      },
+      "activity": {
+        "title": "Activity",
+        "empty": "No activity yet."
+      }
     }
   },
   "content": {
     "list": {
       "title": "Content",
       "description": "Search, filter, edit and publish your content.",
-      "columns": { "title": "Title", "type": "Type", "status": "Status", "updated": "Updated" },
-      "actions": { "edit": "Edit", "publish": "Publish", "unpublish": "Unpublish", "delete": "Delete" },
-      "filters": { "search": "Search content…", "allTypes": "All types", "allStatus": "All status" },
-      "buttons": { "new": "+ New content", "search": "Search" },
+      "columns": {
+        "title": "Title",
+        "type": "Type",
+        "status": "Status",
+        "updated": "Updated"
+      },
+      "actions": {
+        "edit": "Edit",
+        "publish": "Publish",
+        "unpublish": "Unpublish",
+        "delete": "Delete"
+      },
+      "filters": {
+        "search": "Search content…",
+        "allTypes": "All types",
+        "allStatus": "All status"
+      },
+      "buttons": {
+        "new": "+ New content",
+        "search": "Search"
+      },
       "empty": "No content found.",
-      "statuses": { "draft": "Draft", "published": "Published", "archived": "Archived" },
+      "statuses": {
+        "draft": "Draft",
+        "published": "Published",
+        "archived": "Archived"
+      },
       "confirmDelete": "Delete \"{title}\"?",
-      "toasts": { "published": "Content published ✓", "unpublished": "Content unpublished ✓" }
+      "toasts": {
+        "published": "Content published ✓",
+        "unpublished": "Content unpublished ✓"
+      }
     },
     "editor": {
       "type": "Type",
@@ -53,7 +109,11 @@
       "excerpt": "Excerpt",
       "featuredImage": "Featured Image (media ID)",
       "status": "Status",
-      "statusOptions": { "draft": "Draft", "published": "Published", "archived": "Archived" },
+      "statusOptions": {
+        "draft": "Draft",
+        "published": "Published",
+        "archived": "Archived"
+      },
       "layout": "Layout",
       "layoutAuto": "Automatic (theme hierarchy)",
       "customFields": "Custom Fields",
@@ -71,8 +131,21 @@
       "uploading": "Uploading…",
       "hint": "Images, videos, audio and documents · up to 25MB per file"
     },
-    "toolbar": { "search": "Search by name or alt…", "allTypes": "All types", "searchBtn": "Search" },
-    "mimeTypes": { "png": "PNG", "jpeg": "JPEG", "gif": "GIF", "webp": "WebP", "svg": "SVG", "pdf": "PDF", "mp4": "MP4", "mp3": "MP3" },
+    "toolbar": {
+      "search": "Search by name or alt…",
+      "allTypes": "All types",
+      "searchBtn": "Search"
+    },
+    "mimeTypes": {
+      "png": "PNG",
+      "jpeg": "JPEG",
+      "gif": "GIF",
+      "webp": "WebP",
+      "svg": "SVG",
+      "pdf": "PDF",
+      "mp4": "MP4",
+      "mp3": "MP3"
+    },
     "empty": "No files yet. Upload the first one!",
     "details": {
       "title": "Details",
@@ -91,25 +164,63 @@
       "copied": "URL copied ✓",
       "copyError": "Could not copy URL"
     },
-    "toasts": { "uploaded": "{count} file(s) uploaded ✓" }
+    "toasts": {
+      "uploaded": "{count} file(s) uploaded ✓"
+    }
   },
   "users": {
     "title": "Users",
     "description": "Manage accounts, roles and project access.",
     "new": "New User",
-    "toolbar": { "search": "Search by name or email…", "allStatus": "All status", "active": "Active", "inactive": "Inactive", "newBtn": "+ New user", "searchBtn": "Search" },
-    "table": { "name": "Name", "email": "Email", "role": "Role", "status": "Status", "lastAccess": "Last access", "actions": { "manage": "Manage", "delete": "Delete" } },
+    "toolbar": {
+      "search": "Search by name or email…",
+      "allStatus": "All status",
+      "active": "Active",
+      "inactive": "Inactive",
+      "newBtn": "+ New user",
+      "searchBtn": "Search"
+    },
+    "table": {
+      "name": "Name",
+      "email": "Email",
+      "role": "Role",
+      "status": "Status",
+      "lastAccess": "Last access",
+      "actions": {
+        "manage": "Manage",
+        "delete": "Delete"
+      }
+    },
     "empty": "No users found.",
+    "noRole": "No role",
     "detail": {
       "title": "Manage user",
-      "fields": { "name": "Name", "email": "Email", "status": "Status", "role": "Role" },
-      "statusOptions": { "active": "Active", "inactive": "Inactive" },
+      "fields": {
+        "name": "Name",
+        "email": "Email",
+        "status": "Status",
+        "role": "Role",
+        "password": "Password"
+      },
+      "statusOptions": {
+        "active": "Active",
+        "inactive": "Inactive"
+      },
       "rolePlaceholder": "— no role —",
       "meta": "Created on {created} · last access {lastAccess}",
-      "actions": { "save": "Save", "resetPassword": "Reset password", "close": "Close" },
+      "actions": {
+        "save": "Save",
+        "resetPassword": "Reset password",
+        "close": "Close"
+      },
       "passwordPrompt": "New password for {email} (minimum 8 chars):",
       "passwordError": "Password must be at least 8 characters",
-      "toasts": { "roleUpdated": "Role for {name} updated ✓", "passwordChanged": "Password for {name} changed ✓", "saved": "User {name} saved ✓", "deleted": "User {name} deleted ✓" },
+      "toasts": {
+        "roleUpdated": "Role for {name} updated ✓",
+        "passwordChanged": "Password for {name} changed ✓",
+        "saved": "User {name} saved ✓",
+        "deleted": "User {name} deleted ✓"
+      },
       "confirmDelete": "Delete user {email}?"
     }
   },
@@ -118,7 +229,15 @@
       "title": "General",
       "description": "Basic information displayed on the site.",
       "back": "← All settings",
-      "fields": { "siteTitle": "Site Title", "siteTitlePlaceholder": "My Site", "siteDescription": "Description", "siteDescriptionPlaceholder": "A new site built with OkCMS", "language": "Language", "timezone": "Timezone", "timezonePlaceholder": "America/Sao_Paulo" },
+      "fields": {
+        "siteTitle": "Site Title",
+        "siteTitlePlaceholder": "My Site",
+        "siteDescription": "Description",
+        "siteDescriptionPlaceholder": "A new site built with OkCMS",
+        "language": "Language",
+        "timezone": "Timezone",
+        "timezonePlaceholder": "America/Sao_Paulo"
+      },
       "saved": "Settings saved ✓",
       "loading": "Loading…",
       "save": "Save"
@@ -133,12 +252,31 @@
         "singular": "Singular name",
         "plural": "Plural name",
         "supports": "Supports",
-        "supportsOptions": { "title": "Title", "editor": "Editor", "thumbnail": "Featured Image", "excerpt": "Excerpt", "revisions": "Revisions" },
+        "supportsOptions": {
+          "title": "Title",
+          "editor": "Editor",
+          "thumbnail": "Featured Image",
+          "excerpt": "Excerpt",
+          "revisions": "Revisions"
+        },
         "hasArchive": "Has public archive (/slug)",
         "create": "Create"
       },
-      "table": { "slug": "Slug", "singular": "Singular", "plural": "Plural", "source": "Source", "supports": "Supports", "archive": "Archive", "actions": { "remove": "Remove" } },
-      "sources": { "admin": "Admin", "core": "Core" }
+      "table": {
+        "slug": "Slug",
+        "singular": "Singular",
+        "plural": "Plural",
+        "source": "Source",
+        "supports": "Supports",
+        "archive": "Archive",
+        "actions": {
+          "remove": "Remove"
+        }
+      },
+      "sources": {
+        "admin": "Admin",
+        "core": "Core"
+      }
     },
     "taxonomies": {
       "title": "Taxonomies",
@@ -152,7 +290,14 @@
         "attachTo": "Link to content types",
         "create": "Create"
       },
-      "table": { "taxonomy": "Taxonomy", "hierarchical": "Hierarchical", "attachedTypes": "Linked content types", "actions": { "remove": "Remove" } }
+      "table": {
+        "taxonomy": "Taxonomy",
+        "hierarchical": "Hierarchical",
+        "attachedTypes": "Linked content types",
+        "actions": {
+          "remove": "Remove"
+        }
+      }
     }
   },
   "login": {
@@ -161,7 +306,6 @@
     "email": "Email",
     "password": "Password",
     "submit": "Sign In",
-    "failed": "Invalid email or password",
     "failed": "Invalid email or password"
   },
   "common": {
@@ -188,7 +332,67 @@
     "items": "items",
     "item": "item",
     "empty": "No {items} found.",
-    "toast": { "success": "✓", "error": "Error: {message}" },
-    "status": { "active": "Active", "inactive": "Inactive", "draft": "Draft", "published": "Published", "archived": "Archived" }
+    "toast": {
+      "success": "✓",
+      "error": "Error: {message}"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "draft": "Draft",
+      "published": "Published",
+      "archived": "Archived",
+      "locked": "Locked"
+    },
+    "language": "Language"
+  },
+  "activity": {
+    "justNow": "just now",
+    "minAgo": "minutes ago",
+    "ago": "ago",
+    "published": "Published",
+    "updated": "Updated",
+    "newUser": "New user: {name}"
+  },
+  "adminBar": {
+    "mainMenu": "Main menu",
+    "notifications": "Notifications",
+    "notificationsEmpty": "No recent activity",
+    "settings": "Settings",
+    "toggleSidebar": "Toggle sidebar",
+    "userMenu": "User menu"
+  },
+  "footer": {
+    "copyright": "© 2026 OkCMS. All rights reserved.",
+    "links": "Links",
+    "website": "Website",
+    "github": "GitHub",
+    "docs": "Documentation",
+    "community": "Community",
+    "poweredBy": "Powered by OkCMS"
+  },
+  "helpTabs": {
+    "title": "Help",
+    "label": "Help",
+    "tabs": "Help topics",
+    "topics": {
+      "overview": {
+        "label": "Overview",
+        "content": "<h4>Welcome to the OkCMS Dashboard</h4><p>This dashboard gives you an overview of your site's content and activity.</p><h4>Available Widgets</h4><ul><li><strong>At a Glance:</strong> overview of posts, pages, media, and users</li><li><strong>Quick Draft:</strong> save drafts quickly from the dashboard</li><li><strong>Activity:</strong> recent site activity and updates</li></ul>"
+      },
+      "content": {
+        "label": "Content Management",
+        "content": "<h4>Managing Content</h4><p>Create, edit, and publish content from the Content section.</p><h4>Quick Actions</h4><ul><li>Click \"New Content\" to create a new post or page</li><li>Use filters to find specific content</li><li>Bulk actions available for multiple items</li></ul>"
+      },
+      "media": {
+        "label": "Media Library",
+        "content": "<h4>Managing Media</h4><p>Upload and manage images, videos, and documents.</p><h4>Tips</h4><ul><li>Drag and drop files to upload</li><li>Add alt text for accessibility</li><li>Organize with folders (coming soon)</li></ul>"
+      }
+    }
+  },
+  "screenOptions": {
+    "title": "Screen Options",
+    "label": "Screen Options",
+    "showOnScreen": "Show on screen"
   }
 }

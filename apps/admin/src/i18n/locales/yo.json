@@ -30,21 +30,77 @@
       "title": "Ọrọ̀ Tuntun",
       "viewAll": "Wò Gbogbo",
       "empty": "Kò sí ọrọ̀ fúnra wá — dá kíni!",
-      "columns": { "title": "Orí", "type": "Eya", "status": "Ìwà", "updated": "Tí a Ṣàtúnṣe" }
+      "columns": {
+        "title": "Orí",
+        "type": "Eya",
+        "status": "Ìwà",
+        "updated": "Tí a Ṣàtúnṣe"
+      }
+    },
+    "widgets": {
+      "atGlance": "Ní ìkànna",
+      "posts": "Àwọn ìkéde",
+      "postsDesc": "Ti gbẹ̀sí / Àwọn àpèjúwe / Tubu",
+      "pages": "Àwọn oju-ìwé",
+      "pagesDesc": "Ti gbẹ̀sí / Àwọn àpèjúwe / Tubu",
+      "media": "Àwọn fáìlì",
+      "mediaDesc": "Àwọn fáìlì tó wà nínú ilé-ìwé",
+      "users": "Àwọn olùmúlò",
+      "usersDesc": "Lápapọ̀ / Ìṣìṣẹ́ / Kò ṣìṣẹ́",
+      "version": "Ẹ̀yà",
+      "storage": "Ìfipamọ́",
+      "quickDraft": {
+        "title": "Àpèjúwe ṣeṣe",
+        "heading": "Akọlé",
+        "headingPlaceholder": "Fún àpèjúwe rẹ ní akọlé",
+        "content": "Àkópò",
+        "contentPlaceholder": "Kí ni oṣì rò?",
+        "save": "Fipamọ́ àpèjúwe",
+        "yourDrafts": "Àwọn àpèjúwe rẹ",
+        "noDrafts": "Kò sí àpèjúwe kankan ṣẹ́yìn."
+      },
+      "activity": {
+        "title": "Iṣẹ́",
+        "empty": "Kò sí iṣẹ́ kankan ṣẹ́yìn."
+      }
     }
   },
   "content": {
     "list": {
       "title": "Ọrọ̀",
       "description": "Wá, tọ́ka, kó, àti gbé ọrọ̀ rẹ́ dè.",
-      "columns": { "title": "Orí", "type": "Eya", "status": "Ìwà", "updated": "Tí a Ṣàtúnṣe" },
-      "actions": { "edit": "Kó", "publish": "Gbé Dè", "unpublish": "Dágbà Gbé Dè", "delete": "Pa" },
-      "filters": { "search": "Wá ọrọ̀…", "allTypes": "Gbogbo Eya", "allStatus": "Gbogbo Ìwà" },
-      "buttons": { "new": "+ Ọrọ̀ Tuntun", "search": "Wá" },
+      "columns": {
+        "title": "Orí",
+        "type": "Eya",
+        "status": "Ìwà",
+        "updated": "Tí a Ṣàtúnṣe"
+      },
+      "actions": {
+        "edit": "Kó",
+        "publish": "Gbé Dè",
+        "unpublish": "Dágbà Gbé Dè",
+        "delete": "Pa"
+      },
+      "filters": {
+        "search": "Wá ọrọ̀…",
+        "allTypes": "Gbogbo Eya",
+        "allStatus": "Gbogbo Ìwà"
+      },
+      "buttons": {
+        "new": "+ Ọrọ̀ Tuntun",
+        "search": "Wá"
+      },
       "empty": "Kò sí ọrọ̀ tí a rí.",
-      "statuses": { "draft": "Àkọ́lé Àpẹrẹ", "published": "Tí a Gbé Dè", "archived": "Tí a Fìpamọ́" },
+      "statuses": {
+        "draft": "Àkọ́lé Àpẹrẹ",
+        "published": "Tí a Gbé Dè",
+        "archived": "Tí a Fìpamọ́"
+      },
       "confirmDelete": "Pa \"{title}\"?",
-      "toasts": { "published": "Ọrọ̀ tí a gbé dè ✓", "unpublished": "Gbé dè ti dagbà ✓" }
+      "toasts": {
+        "published": "Ọrọ̀ tí a gbé dè ✓",
+        "unpublished": "Gbé dè ti dagbà ✓"
+      }
     },
     "editor": {
       "type": "Eya",
@@ -53,7 +109,11 @@
       "excerpt": "Aponbepore",
       "featuredImage": "Àwọn Àwòrán (ID Media)",
       "status": "Ìwà",
-      "statusOptions": { "draft": "Àkọ́lé Àpẹrẹ", "published": "Tí a Gbé Dè", "archived": "Tí a Fìpamọ́" },
+      "statusOptions": {
+        "draft": "Àkọ́lé Àpẹrẹ",
+        "published": "Tí a Gbé Dè",
+        "archived": "Tí a Fìpamọ́"
+      },
       "layout": "Àkọ́nìṣọ́rọ̀",
       "layoutAuto": "Tóka Rara (ìbí ipa àwọn àwòrán)",
       "customFields": "Àkóso Àwọn Àpẹrẹ",
@@ -71,8 +131,21 @@
       "uploading": "Ń Kó Sókè…",
       "hint": "Àwòrán, vídíò, ohun tí a gbọ́ àti àkọ́lé · tẹ́lẹ́ 25MB fún fáìlì"
     },
-    "toolbar": { "search": "Wá síi orúkọ tàbí alt…", "allTypes": "Gbogbo Eya", "searchBtn": "Wá" },
-    "mimeTypes": { "png": "PNG", "jpeg": "JPEG", "gif": "GIF", "webp": "WebP", "svg": "SVG", "pdf": "PDF", "mp4": "MP4", "mp3": "MP3" },
+    "toolbar": {
+      "search": "Wá síi orúkọ tàbí alt…",
+      "allTypes": "Gbogbo Eya",
+      "searchBtn": "Wá"
+    },
+    "mimeTypes": {
+      "png": "PNG",
+      "jpeg": "JPEG",
+      "gif": "GIF",
+      "webp": "WebP",
+      "svg": "SVG",
+      "pdf": "PDF",
+      "mp4": "MP4",
+      "mp3": "MP3"
+    },
     "empty": "Kò sí fáìlì níbí. Kó kíni soke!",
     "details": {
       "title": "Àlàyé",
@@ -91,25 +164,63 @@
       "copied": "URL ti kópi ✓",
       "copyError": "Kò le kópi URL"
     },
-    "toasts": { "uploaded": "Fáìlì {count} ti kó soke ✓" }
+    "toasts": {
+      "uploaded": "Fáìlì {count} ti kó soke ✓"
+    }
   },
   "users": {
     "title": "Onítójú",
     "description": "Dábò akàùntí, àpẹrẹ àti ifibara sí àwọn àpẹrẹ.",
     "new": "Onítójú Tuntun",
-    "toolbar": { "search": "Wá síi orúkọ tàbí ìmẹ́èlì…", "allStatus": "Gbogbo Ìwà", "active": "Tí a Ṣe", "inactive": "Tí a Kò Ṣe", "newBtn": "+ Onítójú Tuntun", "searchBtn": "Wá" },
-    "table": { "name": "Orúkọ", "email": "Ìmẹ́èlì", "role": "Àpẹrẹ", "status": "Ìwà", "lastAccess": "Fífi Sísọ̀rọ̀ Kẹrinlá", "actions": { "manage": "Dábò", "delete": "Pa" } },
+    "toolbar": {
+      "search": "Wá síi orúkọ tàbí ìmẹ́èlì…",
+      "allStatus": "Gbogbo Ìwà",
+      "active": "Tí a Ṣe",
+      "inactive": "Tí a Kò Ṣe",
+      "newBtn": "+ Onítójú Tuntun",
+      "searchBtn": "Wá"
+    },
+    "table": {
+      "name": "Orúkọ",
+      "email": "Ìmẹ́èlì",
+      "role": "Àpẹrẹ",
+      "status": "Ìwà",
+      "lastAccess": "Fífi Sísọ̀rọ̀ Kẹrinlá",
+      "actions": {
+        "manage": "Dábò",
+        "delete": "Pa"
+      }
+    },
     "empty": "Kò sí onítójú tí a rí.",
+    "noRole": "Kò sí ipà",
     "detail": {
       "title": "Dábò Onítójú",
-      "fields": { "name": "Orúkọ", "email": "Ìmẹ́èlì", "status": "Ìwà", "role": "Àpẹrẹ" },
-      "statusOptions": { "active": "Tí a Ṣe", "inactive": "Tí a Kò Ṣe" },
+      "fields": {
+        "name": "Orúkọ",
+        "email": "Ìmẹ́èlì",
+        "status": "Ìwà",
+        "role": "Àpẹrẹ",
+        "password": "Ọ̀rọ̀ àkànṣe"
+      },
+      "statusOptions": {
+        "active": "Tí a Ṣe",
+        "inactive": "Tí a Kò Ṣe"
+      },
       "rolePlaceholder": "— kò sí àpẹrẹ —",
       "meta": "Dá ní {created} · fífi sísọ̀rọ̀ kẹrinlá {lastAccess}",
-      "actions": { "save": "Fifipamọ́", "resetPassword": "Tún Ìbànújẹ Sori", "close": "Dáná" },
+      "actions": {
+        "save": "Fifipamọ́",
+        "resetPassword": "Tún Ìbànújẹ Sori",
+        "close": "Dáná"
+      },
       "passwordPrompt": "Ìbànújẹ tuntun fún {email} (kí tókan 8 ọ̀rọ̀):",
       "passwordError": "Ìbànújẹ gbọ́dọ̀ ní tókàn 8 ọ̀rọ̀",
-      "toasts": { "roleUpdated": "Àpẹrẹ {name} ti ṣàtúnṣe ✓", "passwordChanged": "Ìbànújẹ {name} ti yípadà ✓", "saved": "Onítójú {name} ti fífipamọ́ ✓", "deleted": "Onítójú {name} ti pa ✓" },
+      "toasts": {
+        "roleUpdated": "Àpẹrẹ {name} ti ṣàtúnṣe ✓",
+        "passwordChanged": "Ìbànújẹ {name} ti yípadà ✓",
+        "saved": "Onítójú {name} ti fífipamọ́ ✓",
+        "deleted": "Onítójú {name} ti pa ✓"
+      },
       "confirmDelete": "Pa onítójú {email}?"
     }
   },
@@ -118,7 +229,15 @@
       "title": "Pátápátá",
       "description": "Àlàyé tó wàlàí tó wá lórí wẹ́bùsàìtì.",
       "back": "← Gbogbo Ẹ̀tọ́",
-      "fields": { "siteTitle": "Orí Ìwé", "siteTitlePlaceholder": "Ìwé Mi", "siteDescription": "Àpẹrẹ", "siteDescriptionPlaceholder": "Ìwé tuntun nípa OkCMS", "language": "Èdè", "timezone": "Àpẹrẹ Àkókó", "timezonePlaceholder": "Africa/Lagos" },
+      "fields": {
+        "siteTitle": "Orí Ìwé",
+        "siteTitlePlaceholder": "Ìwé Mi",
+        "siteDescription": "Àpẹrẹ",
+        "siteDescriptionPlaceholder": "Ìwé tuntun nípa OkCMS",
+        "language": "Èdè",
+        "timezone": "Àpẹrẹ Àkókó",
+        "timezonePlaceholder": "Africa/Lagos"
+      },
       "saved": "Ẹ̀tọ́ ti fifipamọ́ ✓",
       "loading": "Ń Ṣàtúnṣe…",
       "save": "Fifipamọ́"
@@ -133,12 +252,31 @@
         "singular": "Orúkọ Kan",
         "plural": "Orúkọ Pupọ̀",
         "supports": "Yóò Sì",
-        "supportsOptions": { "title": "Orí", "editor": "Edítà", "thumbnail": "Àwòrán Pàtàkì", "excerpt": "Apẹrẹ", "revisions": "Ìtàn" },
+        "supportsOptions": {
+          "title": "Orí",
+          "editor": "Edítà",
+          "thumbnail": "Àwòrán Pàtàkì",
+          "excerpt": "Apẹrẹ",
+          "revisions": "Ìtàn"
+        },
         "hasArchive": "Ní Àkíwìrì Ìjoba (/slug)",
         "create": "Dá"
       },
-      "table": { "slug": "Slug", "singular": "Kan", "plural": "Pupọ̀", "source": "Oríṣìírí", "supports": "Yóò Sì", "archive": "Àkíwìrì", "actions": { "remove": "Fagbọ" } },
-      "sources": { "admin": "Admin", "core": "Core" }
+      "table": {
+        "slug": "Slug",
+        "singular": "Kan",
+        "plural": "Pupọ̀",
+        "source": "Oríṣìírí",
+        "supports": "Yóò Sì",
+        "archive": "Àkíwìrì",
+        "actions": {
+          "remove": "Fagbọ"
+        }
+      },
+      "sources": {
+        "admin": "Admin",
+        "core": "Core"
+      }
     },
     "taxonomies": {
       "title": "Takusonọ́mi",
@@ -152,7 +290,14 @@
         "attachTo": "Kún eya ọrọ̀",
         "create": "Dá"
       },
-      "table": { "taxonomy": "Takusonọ́mi", "hierarchical": "Tó wà lórí kí tóka", "attachedTypes": "Eya ọrọ̀ tí a hàn", "actions": { "remove": "Fagbọ" } }
+      "table": {
+        "taxonomy": "Takusonọ́mi",
+        "hierarchical": "Tó wà lórí kí tóka",
+        "attachedTypes": "Eya ọrọ̀ tí a hàn",
+        "actions": {
+          "remove": "Fagbọ"
+        }
+      }
     }
   },
   "login": {
@@ -160,7 +305,8 @@
     "subtitle": "Wá sí àkàùntí rẹ",
     "email": "Ìmẹ́èlì",
     "password": "Ìbànújẹ",
-    "submit": "Wá"
+    "submit": "Wá",
+    "failed": "Ímèèlì tàbí ọ̀rọ̀ àkànṣe kò yé"
   },
   "common": {
     "save": "Fifipamọ́",
@@ -186,7 +332,67 @@
     "items": "àwọn ohun-ìnì",
     "item": "ohun-ìnì",
     "empty": "Kò sí {items} tí a rí.",
-    "toast": { "success": "✓", "error": "Àkúnya: {message}" },
-    "status": { "active": "Tí a Ṣe", "inactive": "Tí a Kò Ṣe", "draft": "Àkọ́lé Àpẹrẹ", "published": "Tí a Gbé Dè", "archived": "Tí a Fìpamọ́" }
+    "toast": {
+      "success": "✓",
+      "error": "Àkúnya: {message}"
+    },
+    "status": {
+      "active": "Tí a Ṣe",
+      "inactive": "Tí a Kò Ṣe",
+      "draft": "Àkọ́lé Àpẹrẹ",
+      "published": "Tí a Gbé Dè",
+      "archived": "Tí a Fìpamọ́",
+      "locked": "Ti pa"
+    },
+    "language": "Èdè"
+  },
+  "activity": {
+    "justNow": "bayiyi",
+    "minAgo": "ìṣẹ́jú kọjá",
+    "ago": "kọjá",
+    "published": "Ti gbẹ̀sí",
+    "updated": "Ti ṣe àtúnṣe",
+    "newUser": "Olùṣìṣẹ́ tuntun: {name}"
+  },
+  "adminBar": {
+    "mainMenu": "Àkọ́sílẹ̀ pàtàkì",
+    "notifications": "Ìròyìn",
+    "notificationsEmpty": "Kò sí iṣẹ́ kankan",
+    "settings": "Àwọn ìṣètò",
+    "toggleSidebar": "Yí àwọn aládììsọ̀rọ̀",
+    "userMenu": "Àkọ́sílẹ̀ olùmúlò"
+  },
+  "footer": {
+    "copyright": "© 2026 OkCMS. Gbogbo ìjọba láti dabobo.",
+    "links": "Àwọn ìbáṣepọ̀",
+    "website": "Wẹ́bù",
+    "github": "GitHub",
+    "docs": "Àwọn ìwé-àkọsílẹ̀",
+    "community": "Àwùjọ",
+    "poweredBy": "Nípasẹ̀ OkCMS"
+  },
+  "helpTabs": {
+    "title": "Ìrànlọ́wọ́",
+    "label": "Ìrànlọ́wọ́",
+    "tabs": "Àwọn ohun ìrànlọ́wọ́",
+    "topics": {
+      "overview": {
+        "label": "Ní ìkànna",
+        "content": "<h4>Káàbọ̀ sí Ìṣàkójọ OkCMS</h4><p>Ìṣàkójọ yìí fún ọ ní ìmọ̀ sí iṣẹ́ àwọn ọ̀rọ̀ àti iṣẹ́ orí ìwé rẹ.</p><h4>Àwọn oju iṣẹ́ tó wà</h4><ul><li><strong>Ní ìkànna:</strong> àkọpọ̀ àwọn ìkéde, oju-ìwé, fáìlì àti olùmúlò</li><li><strong>Àpèjúwe ṣeṣe:</strong> fi àpèjúwe ní kókó láti inú ìṣàkójọ</li><li><strong>Iṣẹ́:</strong> àwọn iṣẹ́ tuntun àti àtúnṣe orí ìwé</li></ul>"
+      },
+      "content": {
+        "label": "Ìṣàkóso àkópò",
+        "content": "<h4>Ìṣàkóso àkópò</h4><p>Ṣẹ̀dá, ṣàtúnṣe àti gbé àkópò sórò nínú apá Àkópò.</p><h4>Iṣẹ́ ìyara</h4><ul><li>Tẹ \"Àkópò tuntun\" láti ṣẹ̀dá ìkéde tàbí oju-ìwé tuntun</li><li>Lo àwọn àlàyé láti wá àkópò pàtó</li><li>Iṣẹ́ ọ̀pọ̀ wà fún ọ̀pọ̀ ohun</li></ul>"
+      },
+      "media": {
+        "label": "Àwọn fáìlì",
+        "content": "<h4>Ìṣàkóso àwọn fáìlì</h4><p>Gbé àti ṣàkóso àwọn ìwé àwòrán, fídìò àti ìwé.</p><h4>Ìmọ̀ràn</h4><ul><li>Da àwọn fáìlì sórò láti gbé wọn</li><li>Fi ìtumọ̀ òmíràn kúnwọ̀ fún àríyànjú</li><li>Ṣàtakọ̀ pẹ̀lú àwọn akópò (ó ń bọ̀)</li></ul>"
+      }
+    }
+  },
+  "screenOptions": {
+    "title": "Àwọn ìtọ́nisọ́nà ìtàbì",
+    "label": "Àwọn ìtọ́nisọ́nà ìtàbì",
+    "showOnScreen": "Fi hàn lórí ìtàbì"
   }
 }

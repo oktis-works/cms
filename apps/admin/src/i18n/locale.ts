@@ -1,6 +1,6 @@
 import { apiClient } from '../lib/api';
 import type { Locale } from './config';
-import { SUPPORTED_LOCALES, DEFAULT_LOCALE, FALLBACK_LOCALE } from './config';
+import { SUPPORTED_LOCALES, DEFAULT_LOCALE } from './config';
 
 const LOCALE_COOKIE = 'admin_locale';
 

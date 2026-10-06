@@ -186,7 +186,7 @@ export function UsersManager() {
                   <td>{user.name}</td>
                   <td class="muted">{user.email}</td>
                   <td>
-                    <Show when={user.roles.length > 0} fallback={<span class="muted">{t('common.status.inactive')}</span>}>
+                    <Show when={user.roles.length > 0} fallback={<span class="muted">{t('users.noRole')}</span>}>
                       <Badge>{user.roles.join(', ')}</Badge>
                     </Show>
                   </td>

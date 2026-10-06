@@ -30,21 +30,77 @@
       "title": "Maudhui ya Hivi Karibuni",
       "viewAll": "Ona Yote",
       "empty": "Hakuna maudhui bado — unda la kwanza!",
-      "columns": { "title": "Kichwa", "type": "Aina", "status": "Hali", "updated": "Yasasishwa" }
+      "columns": {
+        "title": "Kichwa",
+        "type": "Aina",
+        "status": "Hali",
+        "updated": "Yasasishwa"
+      }
+    },
+    "widgets": {
+      "atGlance": "Kwa mtazamo",
+      "posts": "Machapisho",
+      "postsDesc": "Zilizochapishwa / Rasimu / Tupio",
+      "pages": "Kurasa",
+      "pagesDesc": "Zilizochapishwa / Rasimu / Tupio",
+      "media": "Midia",
+      "mediaDesc": "Faili kwenye maktaba",
+      "users": "Watumiaji",
+      "usersDesc": "Jumla / Hai / Haifanyi",
+      "version": "Toleo",
+      "storage": "Hifadhi",
+      "quickDraft": {
+        "title": "Rasimu ya haraka",
+        "heading": "Kichwa",
+        "headingPlaceholder": "Toa kichwa kwa rasimu yako",
+        "content": "Maudhui",
+        "contentPlaceholder": "Una kufikiria nini?",
+        "save": "Hifadhi rasimu",
+        "yourDrafts": "Rasimu zako",
+        "noDrafts": "Bado hakuna rasimu."
+      },
+      "activity": {
+        "title": "Shughuli",
+        "empty": "Bado hakuna shughuli."
+      }
     }
   },
   "content": {
     "list": {
       "title": "Maudhui",
       "description": "Tafuta, chuja, hariri na toa maudhui yako.",
-      "columns": { "title": "Kichwa", "type": "Aina", "status": "Hali", "updated": "Yasasishwa" },
-      "actions": { "edit": "Hariri", "publish": "Toa", "unpublish": "Futa Utoaji", "delete": "Futa" },
-      "filters": { "search": "Tafuta maudhui…", "allTypes": "Zote Aina", "allStatus": "Zote Hali" },
-      "buttons": { "new": "+ Maudhui Mpya", "search": "Tafuta" },
+      "columns": {
+        "title": "Kichwa",
+        "type": "Aina",
+        "status": "Hali",
+        "updated": "Yasasishwa"
+      },
+      "actions": {
+        "edit": "Hariri",
+        "publish": "Toa",
+        "unpublish": "Futa Utoaji",
+        "delete": "Futa"
+      },
+      "filters": {
+        "search": "Tafuta maudhui…",
+        "allTypes": "Zote Aina",
+        "allStatus": "Zote Hali"
+      },
+      "buttons": {
+        "new": "+ Maudhui Mpya",
+        "search": "Tafuta"
+      },
       "empty": "Hakuna maudhui yaliyopatikana.",
-      "statuses": { "draft": "Draft", "published": "Yametolewa", "archived": "Imehifadhiwa" },
+      "statuses": {
+        "draft": "Draft",
+        "published": "Yametolewa",
+        "archived": "Imehifadhiwa"
+      },
       "confirmDelete": "Futa \"{title}\"?",
-      "toasts": { "published": "Maudhui yametolewa ✓", "unpublished": "Utoaji umefutwa ✓" }
+      "toasts": {
+        "published": "Maudhui yametolewa ✓",
+        "unpublished": "Utoaji umefutwa ✓"
+      }
     },
     "editor": {
       "type": "Aina",
@@ -53,7 +109,11 @@
       "excerpt": "Muhtasar",
       "featuredImage": "Picha ya Kuonekana (ID ya Media)",
       "status": "Hali",
-      "statusOptions": { "draft": "Draft", "published": "Yametolewa", "archived": "Imehifadhiwa" },
+      "statusOptions": {
+        "draft": "Draft",
+        "published": "Yametolewa",
+        "archived": "Imehifadhiwa"
+      },
       "layout": "Mtindo",
       "layoutAuto": "Kioto (mtindo wa mraba)",
       "customFields": "Vipengee Vya Kipekee",
@@ -71,8 +131,21 @@
       "uploading": "Inapakia…",
       "hint": "Picha, video, sauti na nyaraka · hadi 25MB kwa faili"
     },
-    "toolbar": { "search": "Tafuta kwa jina au alt…", "allTypes": "Zote Aina", "searchBtn": "Tafuta" },
-    "mimeTypes": { "png": "PNG", "jpeg": "JPEG", "gif": "GIF", "webp": "WebP", "svg": "SVG", "pdf": "PDF", "mp4": "MP4", "mp3": "MP3" },
+    "toolbar": {
+      "search": "Tafuta kwa jina au alt…",
+      "allTypes": "Zote Aina",
+      "searchBtn": "Tafuta"
+    },
+    "mimeTypes": {
+      "png": "PNG",
+      "jpeg": "JPEG",
+      "gif": "GIF",
+      "webp": "WebP",
+      "svg": "SVG",
+      "pdf": "PDF",
+      "mp4": "MP4",
+      "mp3": "MP3"
+    },
     "empty": "Hakuna faili bado. Pakua ya kwanza!",
     "details": {
       "title": "Maelezo",
@@ -91,25 +164,63 @@
       "copied": "URL imenakiliwa ✓",
       "copyError": "Haikuweza nakili URL"
     },
-    "toasts": { "uploaded": "Faili {count} zimepakwa ✓" }
+    "toasts": {
+      "uploaded": "Faili {count} zimepakwa ✓"
+    }
   },
   "users": {
     "title": "Watumiaji",
     "description": "Simamia akaunti, nafasi na ufikiaji wa mradi.",
     "new": "Mtumiaji Mpya",
-    "toolbar": { "search": "Tafuta kwa jina au baruapepe…", "allStatus": "Zote Hali", "active": "Wawezeshaji", "inactive": "Hawawezeshaji", "newBtn": "+ Mtumiaji Mpya", "searchBtn": "Tafuta" },
-    "table": { "name": "Jina", "email": "Baruapepe", "role": "Nafasi", "status": "Hali", "lastAccess": "Ufikiaji wa Mwisho", "actions": { "manage": "Simamia", "delete": "Futa" } },
+    "toolbar": {
+      "search": "Tafuta kwa jina au baruapepe…",
+      "allStatus": "Zote Hali",
+      "active": "Wawezeshaji",
+      "inactive": "Hawawezeshaji",
+      "newBtn": "+ Mtumiaji Mpya",
+      "searchBtn": "Tafuta"
+    },
+    "table": {
+      "name": "Jina",
+      "email": "Baruapepe",
+      "role": "Nafasi",
+      "status": "Hali",
+      "lastAccess": "Ufikiaji wa Mwisho",
+      "actions": {
+        "manage": "Simamia",
+        "delete": "Futa"
+      }
+    },
     "empty": "Hakuna watumiaji waliopatikana.",
+    "noRole": "Hakuna jukumu",
     "detail": {
       "title": "Simamia Mtumiaji",
-      "fields": { "name": "Jina", "email": "Baruapepe", "status": "Hali", "role": "Nafasi" },
-      "statusOptions": { "active": "Mwezeshaji", "inactive": "Hawezeshaji" },
+      "fields": {
+        "name": "Jina",
+        "email": "Baruapepe",
+        "status": "Hali",
+        "role": "Nafasi",
+        "password": "Nenosiri"
+      },
+      "statusOptions": {
+        "active": "Mwezeshaji",
+        "inactive": "Hawezeshaji"
+      },
       "rolePlaceholder": "— hakuna nafasi —",
       "meta": "Uliundwa {created} · ufikiaji wa mwisho {lastAccess}",
-      "actions": { "save": "Hifadhi", "resetPassword": "Weka Upya Nywila", "close": "Funga" },
+      "actions": {
+        "save": "Hifadhi",
+        "resetPassword": "Weka Upya Nywila",
+        "close": "Funga"
+      },
       "passwordPrompt": "Nywila mpya kwa {email} (angalau herufi 8):",
       "passwordError": "Nywila inahitaji angalau herufi 8",
-      "toasts": { "roleUpdated": "Nafasi ya {name} imesasishwa ✓", "passwordChanged": "Nywila ya {name} imebadilishwa ✓", "saved": "Mtumiwa {name} amehifadhiwa ✓", "deleted": "Mtumiwa {name} amefutwa ✓" },
+      "toasts": {
+        "roleUpdated": "Nafasi ya {name} imesasishwa ✓",
+        "passwordChanged": "Nywila ya {name} imebadilishwa ✓",
+        "saved": "Mtumiwa {name} amehifadhiwa ✓",
+        "deleted": "Mtumiwa {name} amefutwa ✓"
+      },
       "confirmDelete": "Futa mtumiaji {email}?"
     }
   },
@@ -118,7 +229,15 @@
       "title": "Jumla",
       "description": "Maelezo ya msingi yanayoonyeshwa kwenye tovuti.",
       "back": "← Mipangilio Yote",
-      "fields": { "siteTitle": "Kichwa cha Tovuti", "siteTitlePlaceholder": "Tovuti Yangu", "siteDescription": "Maelezo", "siteDescriptionPlaceholder": "Tovuti mpya ya OkCMS", "language": "Lugha", "timezone": "Eneo la Muda", "timezonePlaceholder": "Africa/Nairobi" },
+      "fields": {
+        "siteTitle": "Kichwa cha Tovuti",
+        "siteTitlePlaceholder": "Tovuti Yangu",
+        "siteDescription": "Maelezo",
+        "siteDescriptionPlaceholder": "Tovuti mpya ya OkCMS",
+        "language": "Lugha",
+        "timezone": "Eneo la Muda",
+        "timezonePlaceholder": "Africa/Nairobi"
+      },
       "saved": "Mipangilio yamehifadhiwa ✓",
       "loading": "Inapakia…",
       "save": "Hifadhi"
@@ -133,12 +252,31 @@
         "singular": "Jina la Mojamoja",
         "plural": "Jina la Wingi",
         "supports": "Inasaidia",
-        "supportsOptions": { "title": "Kichwa", "editor": "Editor", "thumbnail": "Picha ya Kuonekana", "excerpt": "Muhtasar", "revisions": "Mapitio" },
+        "supportsOptions": {
+          "title": "Kichwa",
+          "editor": "Editor",
+          "thumbnail": "Picha ya Kuonekana",
+          "excerpt": "Muhtasar",
+          "revisions": "Mapitio"
+        },
         "hasArchive": "Ina Arshivi ya Umma (/slug)",
         "create": "Unda"
       },
-      "table": { "slug": "Slug", "singular": "Mojamoja", "plural": "Wingi", "source": "Chanzo", "supports": "Inasaidia", "archive": "Arshivi", "actions": { "remove": "Ondoa" } },
-      "sources": { "admin": "Admin", "core": "Core" }
+      "table": {
+        "slug": "Slug",
+        "singular": "Mojamoja",
+        "plural": "Wingi",
+        "source": "Chanzo",
+        "supports": "Inasaidia",
+        "archive": "Arshivi",
+        "actions": {
+          "remove": "Ondoa"
+        }
+      },
+      "sources": {
+        "admin": "Admin",
+        "core": "Core"
+      }
     },
     "taxonomies": {
       "title": "Taksonomia",
@@ -152,7 +290,14 @@
         "attachTo": "Unganisha kwa aina za maudhui",
         "create": "Unda"
       },
-      "table": { "taxonomy": "Taksonomia", "hierarchical": "Ya mraba", "attachedTypes": "Aina za maudhui zilizounganishwa", "actions": { "remove": "Ondoa" } }
+      "table": {
+        "taxonomy": "Taksonomia",
+        "hierarchical": "Ya mraba",
+        "attachedTypes": "Aina za maudhui zilizounganishwa",
+        "actions": {
+          "remove": "Ondoa"
+        }
+      }
     }
   },
   "login": {
@@ -160,7 +305,8 @@
     "subtitle": "Ingia kwenye akaunti yako",
     "email": "Baruapepe",
     "password": "Nywila",
-    "submit": "Ingia"
+    "submit": "Ingia",
+    "failed": "Barua pepe au nenosiri si sahihi"
   },
   "common": {
     "save": "Hifadhi",
@@ -186,7 +332,67 @@
     "items": "vipengele",
     "item": "kipengele",
     "empty": "Hakuna {items} zilizopatikana.",
-    "toast": { "success": "✓", "error": "Hitilafu: {message}" },
-    "status": { "active": "Mwezeshaji", "inactive": "Hawezeshaji", "draft": "Draft", "published": "Yametolewa", "archived": "Imehifadhiwa" }
+    "toast": {
+      "success": "✓",
+      "error": "Hitilafu: {message}"
+    },
+    "status": {
+      "active": "Mwezeshaji",
+      "inactive": "Hawezeshaji",
+      "draft": "Draft",
+      "published": "Yametolewa",
+      "archived": "Imehifadhiwa",
+      "locked": "Imefungwa"
+    },
+    "language": "Lugha"
+  },
+  "activity": {
+    "justNow": "sasa hivi",
+    "minAgo": "dakika zilizopita",
+    "ago": "zilizopita",
+    "published": "Imechapishwa",
+    "updated": "Imesasishwa",
+    "newUser": "Mtumiaji mpya: {name}"
+  },
+  "adminBar": {
+    "mainMenu": "Menyu kuu",
+    "notifications": "Arifa",
+    "notificationsEmpty": "Hakuna shughuli ya karibu",
+    "settings": "Mipangilio",
+    "toggleSidebar": "Badilisha upande wa kando",
+    "userMenu": "Menyu ya mtumiaji"
+  },
+  "footer": {
+    "copyright": "© 2026 OkCMS. Haki zote zimehifadhiwa.",
+    "links": "Viungo",
+    "website": "Tovuti",
+    "github": "GitHub",
+    "docs": "Nyaraka",
+    "community": "Jamii",
+    "poweredBy": "Imeendeshwa na OkCMS"
+  },
+  "helpTabs": {
+    "title": "Msaada",
+    "label": "Msaada",
+    "tabs": "Mada za msaada",
+    "topics": {
+      "overview": {
+        "label": "Kwa mtazamo",
+        "content": "<h4>Karibu kwenye Dashibodi ya OkCMS</h4><p>Dashibodi hii inakupa mwujuzi wa maudhui na shughuli za tovuti yako.</p><h4>Vifaa vinavyopatikana</h4><ul><li><strong>Kwa mtazamo:</strong> muhtasari wa machapisho, kurasa, midia na watumiaji</li><li><strong>Rasimu ya haraka:</strong> hifadhi rasimu kwa haraka kutoka dashibodi</li><li><strong>Shughuli:</strong> shughuli na masasisho ya hivi karibuni ya tovuti</li></ul>"
+      },
+      "content": {
+        "label": "Usimamizi wa maudhui",
+        "content": "<h4>Kusimamiza maudhui</h4><p>Tengeneza, hariri na chapisha maudhui kutoka sehemu ya Maudhui.</p><h4>Vitendo vya haraka</h4><ul><li>Bonyeza \"Maudhui mapya\" kutengeneza wigo kipya au ukurasa</li><li>Tumia vichujio kupata maudhui mahususi</li><li>Vitendo vya pamoja vinapatikana kwa vipengee vyengi</li></ul>"
+      },
+      "media": {
+        "label": "Maktaba ya media",
+        "content": "<h4>Kusimamiza midia</h4><p>Pakia na simamia picha, video na nyaraka.</p><h4>Vidokezo</h4><ul><li>Vuta na tone faili ili kupakia</li><li>Ongeza maandishi mbadala kwa ufikivu</li><li>Panga kwa folda (inakuja hivi karibuni)</li></ul>"
+      }
+    }
+  },
+  "screenOptions": {
+    "title": "Chaguo za skrini",
+    "label": "Chaguo za skrini",
+    "showOnScreen": "Onyesha kwenye skrini"
   }
 }

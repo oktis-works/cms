@@ -30,21 +30,77 @@
       "title": "最近内容",
       "viewAll": "查看全部",
       "empty": "暂无内容 — 创建第一篇！",
-      "columns": { "title": "标题", "type": "类型", "status": "状态", "updated": "更新时间" }
+      "columns": {
+        "title": "标题",
+        "type": "类型",
+        "status": "状态",
+        "updated": "更新时间"
+      }
+    },
+    "widgets": {
+      "atGlance": "概览",
+      "posts": "文章",
+      "postsDesc": "已发布 / 草稿 / 回收站",
+      "pages": "页面",
+      "pagesDesc": "已发布 / 草稿 / 回收站",
+      "media": "媒体",
+      "mediaDesc": "库中的文件",
+      "users": "用户",
+      "usersDesc": "总计 / 活跃 / 未激活",
+      "version": "版本",
+      "storage": "存储",
+      "quickDraft": {
+        "title": "快速草稿",
+        "heading": "标题",
+        "headingPlaceholder": "为草稿起个标题",
+        "content": "内容",
+        "contentPlaceholder": "你在想什么？",
+        "save": "保存草稿",
+        "yourDrafts": "你的草稿",
+        "noDrafts": "暂无草稿。"
+      },
+      "activity": {
+        "title": "活动",
+        "empty": "暂无活动。"
+      }
     }
   },
   "content": {
     "list": {
       "title": "内容管理",
       "description": "搜索、筛选、编辑和发布您的内容。",
-      "columns": { "title": "标题", "type": "类型", "status": "状态", "updated": "更新时间" },
-      "actions": { "edit": "编辑", "publish": "发布", "unpublish": "取消发布", "delete": "删除" },
-      "filters": { "search": "搜索内容…", "allTypes": "所有类型", "allStatus": "所有状态" },
-      "buttons": { "new": "+ 新建内容", "search": "搜索" },
+      "columns": {
+        "title": "标题",
+        "type": "类型",
+        "status": "状态",
+        "updated": "更新时间"
+      },
+      "actions": {
+        "edit": "编辑",
+        "publish": "发布",
+        "unpublish": "取消发布",
+        "delete": "删除"
+      },
+      "filters": {
+        "search": "搜索内容…",
+        "allTypes": "所有类型",
+        "allStatus": "所有状态"
+      },
+      "buttons": {
+        "new": "+ 新建内容",
+        "search": "搜索"
+      },
       "empty": "未找到内容。",
-      "statuses": { "draft": "草稿", "published": "已发布", "archived": "已归档" },
+      "statuses": {
+        "draft": "草稿",
+        "published": "已发布",
+        "archived": "已归档"
+      },
       "confirmDelete": "确定删除 \"{title}\"？",
-      "toasts": { "published": "内容已发布 ✓", "unpublished": "已取消发布 ✓" }
+      "toasts": {
+        "published": "内容已发布 ✓",
+        "unpublished": "已取消发布 ✓"
+      }
     },
     "editor": {
       "type": "类型",
@@ -53,7 +109,11 @@
       "excerpt": "摘要",
       "featuredImage": "特色图片 (媒体ID)",
       "status": "状态",
-      "statusOptions": { "draft": "草稿", "published": "已发布", "archived": "已归档" },
+      "statusOptions": {
+        "draft": "草稿",
+        "published": "已发布",
+        "archived": "已归档"
+      },
       "layout": "布局",
       "layoutAuto": "自动 (主题层级)",
       "customFields": "自定义字段",
@@ -71,8 +131,21 @@
       "uploading": "上传中…",
       "hint": "图片、视频、音频和文档 · 单文件最大 25MB"
     },
-    "toolbar": { "search": "按名称或 alt 搜索…", "allTypes": "所有类型", "searchBtn": "搜索" },
-    "mimeTypes": { "png": "PNG", "jpeg": "JPEG", "gif": "GIF", "webp": "WebP", "svg": "SVG", "pdf": "PDF", "mp4": "MP4", "mp3": "MP3" },
+    "toolbar": {
+      "search": "按名称或 alt 搜索…",
+      "allTypes": "所有类型",
+      "searchBtn": "搜索"
+    },
+    "mimeTypes": {
+      "png": "PNG",
+      "jpeg": "JPEG",
+      "gif": "GIF",
+      "webp": "WebP",
+      "svg": "SVG",
+      "pdf": "PDF",
+      "mp4": "MP4",
+      "mp3": "MP3"
+    },
     "empty": "暂无文件。上传第一个！",
     "details": {
       "title": "详情",
@@ -91,25 +164,63 @@
       "copied": "链接已复制 ✓",
       "copyError": "无法复制链接"
     },
-    "toasts": { "uploaded": "已上传 {count} 个文件 ✓" }
+    "toasts": {
+      "uploaded": "已上传 {count} 个文件 ✓"
+    }
   },
   "users": {
     "title": "用户管理",
     "description": "管理账户、角色和项目访问权限。",
     "new": "新用户",
-    "toolbar": { "search": "按姓名或邮箱搜索…", "allStatus": "所有状态", "active": "激活", "inactive": "未激活", "newBtn": "+ 新用户", "searchBtn": "搜索" },
-    "table": { "name": "姓名", "email": "邮箱", "role": "角色", "status": "状态", "lastAccess": "最后访问", "actions": { "manage": "管理", "delete": "删除" } },
+    "toolbar": {
+      "search": "按姓名或邮箱搜索…",
+      "allStatus": "所有状态",
+      "active": "激活",
+      "inactive": "未激活",
+      "newBtn": "+ 新用户",
+      "searchBtn": "搜索"
+    },
+    "table": {
+      "name": "姓名",
+      "email": "邮箱",
+      "role": "角色",
+      "status": "状态",
+      "lastAccess": "最后访问",
+      "actions": {
+        "manage": "管理",
+        "delete": "删除"
+      }
+    },
     "empty": "未找到用户。",
+    "noRole": "无角色",
     "detail": {
       "title": "管理用户",
-      "fields": { "name": "姓名", "email": "邮箱", "status": "状态", "role": "角色" },
-      "statusOptions": { "active": "激活", "inactive": "未激活" },
+      "fields": {
+        "name": "姓名",
+        "email": "邮箱",
+        "status": "状态",
+        "role": "角色",
+        "password": "密码"
+      },
+      "statusOptions": {
+        "active": "激活",
+        "inactive": "未激活"
+      },
       "rolePlaceholder": "— 无角色 —",
       "meta": "创建于 {created} · 最后访问 {lastAccess}",
-      "actions": { "save": "保存", "resetPassword": "重置密码", "close": "关闭" },
+      "actions": {
+        "save": "保存",
+        "resetPassword": "重置密码",
+        "close": "关闭"
+      },
       "passwordPrompt": "为 {email} 设置新密码 (最少 8 字符):",
       "passwordError": "密码至少需要 8 个字符",
-      "toasts": { "roleUpdated": "{name} 的角色已更新 ✓", "passwordChanged": "{name} 的密码已修改 ✓", "saved": "用户 {name} 已保存 ✓", "deleted": "用户 {name} 已删除 ✓" },
+      "toasts": {
+        "roleUpdated": "{name} 的角色已更新 ✓",
+        "passwordChanged": "{name} 的密码已修改 ✓",
+        "saved": "用户 {name} 已保存 ✓",
+        "deleted": "用户 {name} 已删除 ✓"
+      },
       "confirmDelete": "确定删除用户 {email}？"
     }
   },
@@ -118,7 +229,15 @@
       "title": "常规",
       "description": "网站显示的基本信息。",
       "back": "← 所有设置",
-      "fields": { "siteTitle": "网站标题", "siteTitlePlaceholder": "我的网站", "siteDescription": "描述", "siteDescriptionPlaceholder": "基于 OkCMS 的新网站", "language": "语言", "timezone": "时区", "timezonePlaceholder": "Asia/Shanghai" },
+      "fields": {
+        "siteTitle": "网站标题",
+        "siteTitlePlaceholder": "我的网站",
+        "siteDescription": "描述",
+        "siteDescriptionPlaceholder": "基于 OkCMS 的新网站",
+        "language": "语言",
+        "timezone": "时区",
+        "timezonePlaceholder": "Asia/Shanghai"
+      },
       "saved": "设置已保存 ✓",
       "loading": "加载中…",
       "save": "保存"
@@ -133,12 +252,31 @@
         "singular": "单数名称",
         "plural": "复数名称",
         "supports": "支持功能",
-        "supportsOptions": { "title": "标题", "editor": "编辑器", "thumbnail": "特色图片", "excerpt": "摘要", "revisions": "版本控制" },
+        "supportsOptions": {
+          "title": "标题",
+          "editor": "编辑器",
+          "thumbnail": "特色图片",
+          "excerpt": "摘要",
+          "revisions": "版本控制"
+        },
         "hasArchive": "拥有公开归档页 (/slug)",
         "create": "创建"
       },
-      "table": { "slug": "别名", "singular": "单数", "plural": "复数", "source": "来源", "supports": "支持功能", "archive": "归档", "actions": { "remove": "移除" } },
-      "sources": { "admin": "后台", "core": "核心" }
+      "table": {
+        "slug": "别名",
+        "singular": "单数",
+        "plural": "复数",
+        "source": "来源",
+        "supports": "支持功能",
+        "archive": "归档",
+        "actions": {
+          "remove": "移除"
+        }
+      },
+      "sources": {
+        "admin": "后台",
+        "core": "核心"
+      }
     },
     "taxonomies": {
       "title": "分类法",
@@ -152,7 +290,14 @@
         "attachTo": "关联到内容类型",
         "create": "创建"
       },
-      "table": { "taxonomy": "分类法", "hierarchical": "层级化", "attachedTypes": "关联的内容类型", "actions": { "remove": "移除" } }
+      "table": {
+        "taxonomy": "分类法",
+        "hierarchical": "层级化",
+        "attachedTypes": "关联的内容类型",
+        "actions": {
+          "remove": "移除"
+        }
+      }
     }
   },
   "login": {
@@ -160,7 +305,8 @@
     "subtitle": "登录您的账户",
     "email": "邮箱",
     "password": "密码",
-    "submit": "登录"
+    "submit": "登录",
+    "failed": "邮箱或密码无效"
   },
   "common": {
     "save": "保存",
@@ -186,7 +332,67 @@
     "items": "项",
     "item": "项",
     "empty": "未找到 {items}。",
-    "toast": { "success": "✓", "error": "错误: {message}" },
-    "status": { "active": "激活", "inactive": "未激活", "draft": "草稿", "published": "已发布", "archived": "已归档" }
+    "toast": {
+      "success": "✓",
+      "error": "错误: {message}"
+    },
+    "status": {
+      "active": "激活",
+      "inactive": "未激活",
+      "draft": "草稿",
+      "published": "已发布",
+      "archived": "已归档",
+      "locked": "已锁定"
+    },
+    "language": "语言"
+  },
+  "activity": {
+    "justNow": "刚刚",
+    "minAgo": "分钟前",
+    "ago": "前",
+    "published": "已发布",
+    "updated": "已更新",
+    "newUser": "新用户：{name}"
+  },
+  "adminBar": {
+    "mainMenu": "主菜单",
+    "notifications": "通知",
+    "notificationsEmpty": "暂无最新活动",
+    "settings": "设置",
+    "toggleSidebar": "切换侧边栏",
+    "userMenu": "用户菜单"
+  },
+  "footer": {
+    "copyright": "© 2026 OkCMS。保留所有权利。",
+    "links": "链接",
+    "website": "网站",
+    "github": "GitHub",
+    "docs": "文档",
+    "community": "社区",
+    "poweredBy": "由 OkCMS 驱动"
+  },
+  "helpTabs": {
+    "title": "帮助",
+    "label": "帮助",
+    "tabs": "帮助主题",
+    "topics": {
+      "overview": {
+        "label": "概览",
+        "content": "<h4>欢迎使用 OkCMS 控制台</h4><p>此控制台让您可以概览网站的内容和活动。</p><h4>可用小工具</h4><ul><li><strong>概览：</strong>文章、页面、媒体和用户的总览</li><li><strong>快速草稿：</strong>从控制台快速保存草稿</li><li><strong>活动：</strong>最近的网站活动和更新</li></ul>"
+      },
+      "content": {
+        "label": "内容管理",
+        "content": "<h4>管理内容</h4><p>在“内容”部分创建、编辑和发布内容。</p><h4>快捷操作</h4><ul><li>点击“新建内容”创建新文章或页面</li><li>使用筛选器查找特定内容</li><li>可对多个项目执行批量操作</li></ul>"
+      },
+      "media": {
+        "label": "媒体库",
+        "content": "<h4>管理媒体</h4><p>上传和管理图片、视频及文档。</p><h4>提示</h4><ul><li>拖放文件即可上传</li><li>添加替代文本以提升可访问性</li><li>用文件夹整理（即将推出）</li></ul>"
+      }
+    }
+  },
+  "screenOptions": {
+    "title": "屏幕选项",
+    "label": "屏幕选项",
+    "showOnScreen": "在屏幕上显示"
   }
 }

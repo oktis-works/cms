@@ -42,8 +42,7 @@ export function LanguageSelector() {
       <Show when={open()}>
         <ul class="language-dropdown" role="menu" aria-label={translate('common.language') ?? 'Language'}>
           {SUPPORTED_LOCALES.map((loc) => (
-            // @ts-ignore
-            <li key={loc} role="menuitem">
+            <li role="menuitem">
               <button
                 class={currentLocale === loc ? 'active' : ''}
                 onClick={() => { changeLocale(loc); setOpen(false); }}

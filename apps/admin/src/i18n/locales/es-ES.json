@@ -30,21 +30,77 @@
       "title": "Contenido Reciente",
       "viewAll": "Ver Todo",
       "empty": "Aún no hay contenido — ¡crea el primero!",
-      "columns": { "title": "Título", "type": "Tipo", "status": "Estado", "updated": "Actualizado" }
+      "columns": {
+        "title": "Título",
+        "type": "Tipo",
+        "status": "Estado",
+        "updated": "Actualizado"
+      }
+    },
+    "widgets": {
+      "atGlance": "De un vistazo",
+      "posts": "Entradas",
+      "postsDesc": "Publicados / Borradores / Papelera",
+      "pages": "Páginas",
+      "pagesDesc": "Publicadas / Borradores / Papelera",
+      "media": "Medios",
+      "mediaDesc": "Archivos en la biblioteca",
+      "users": "Usuarios",
+      "usersDesc": "Total / Activos / Inactivos",
+      "version": "Versión",
+      "storage": "Almacenamiento",
+      "quickDraft": {
+        "title": "Borrador rápido",
+        "heading": "Título",
+        "headingPlaceholder": "Dale un título a tu borrador",
+        "content": "Contenido",
+        "contentPlaceholder": "¿Qué tienes en mente?",
+        "save": "Guardar borrador",
+        "yourDrafts": "Tus borradores",
+        "noDrafts": "Aún no hay borradores."
+      },
+      "activity": {
+        "title": "Actividad",
+        "empty": "Sin actividad aún."
+      }
     }
   },
   "content": {
     "list": {
       "title": "Contenido",
       "description": "Busca, filtra, edita y publica tu contenido.",
-      "columns": { "title": "Título", "type": "Tipo", "status": "Estado", "updated": "Actualizado" },
-      "actions": { "edit": "Editar", "publish": "Publicar", "unpublish": "Despublicar", "delete": "Eliminar" },
-      "filters": { "search": "Buscar contenido…", "allTypes": "Todos los tipos", "allStatus": "Todos los estados" },
-      "buttons": { "new": "+ Nuevo contenido", "search": "Buscar" },
+      "columns": {
+        "title": "Título",
+        "type": "Tipo",
+        "status": "Estado",
+        "updated": "Actualizado"
+      },
+      "actions": {
+        "edit": "Editar",
+        "publish": "Publicar",
+        "unpublish": "Despublicar",
+        "delete": "Eliminar"
+      },
+      "filters": {
+        "search": "Buscar contenido…",
+        "allTypes": "Todos los tipos",
+        "allStatus": "Todos los estados"
+      },
+      "buttons": {
+        "new": "+ Nuevo contenido",
+        "search": "Buscar"
+      },
       "empty": "No se encontró contenido.",
-      "statuses": { "draft": "Borrador", "published": "Publicado", "archived": "Archivado" },
+      "statuses": {
+        "draft": "Borrador",
+        "published": "Publicado",
+        "archived": "Archivado"
+      },
       "confirmDelete": "¿Eliminar \"{title}\"?",
-      "toasts": { "published": "Contenido publicado ✓", "unpublished": "Contenido despublicado ✓" }
+      "toasts": {
+        "published": "Contenido publicado ✓",
+        "unpublished": "Contenido despublicado ✓"
+      }
     },
     "editor": {
       "type": "Tipo",
@@ -53,7 +109,11 @@
       "excerpt": "Extracto",
       "featuredImage": "Imagen Destacada (ID de medio)",
       "status": "Estado",
-      "statusOptions": { "draft": "Borrador", "published": "Publicado", "archived": "Archivado" },
+      "statusOptions": {
+        "draft": "Borrador",
+        "published": "Publicado",
+        "archived": "Archivado"
+      },
       "layout": "Layout",
       "layoutAuto": "Automático (jerarquía del tema)",
       "customFields": "Campos Personalizados",
@@ -71,8 +131,21 @@
       "uploading": "Subiendo…",
       "hint": "Imágenes, videos, audio y documentos · hasta 25MB por archivo"
     },
-    "toolbar": { "search": "Buscar por nombre o alt…", "allTypes": "Todos los tipos", "searchBtn": "Buscar" },
-    "mimeTypes": { "png": "PNG", "jpeg": "JPEG", "gif": "GIF", "webp": "WebP", "svg": "SVG", "pdf": "PDF", "mp4": "MP4", "mp3": "MP3" },
+    "toolbar": {
+      "search": "Buscar por nombre o alt…",
+      "allTypes": "Todos los tipos",
+      "searchBtn": "Buscar"
+    },
+    "mimeTypes": {
+      "png": "PNG",
+      "jpeg": "JPEG",
+      "gif": "GIF",
+      "webp": "WebP",
+      "svg": "SVG",
+      "pdf": "PDF",
+      "mp4": "MP4",
+      "mp3": "MP3"
+    },
     "empty": "Aún no hay archivos. ¡Sube el primero!",
     "details": {
       "title": "Detalles",
@@ -91,25 +164,63 @@
       "copied": "URL copiada ✓",
       "copyError": "No se pudo copiar la URL"
     },
-    "toasts": { "uploaded": "{count} archivo(s) subido(s) ✓" }
+    "toasts": {
+      "uploaded": "{count} archivo(s) subido(s) ✓"
+    }
   },
   "users": {
     "title": "Usuarios",
     "description": "Gestiona cuentas, roles y accesos del proyecto.",
     "new": "Nuevo Usuario",
-    "toolbar": { "search": "Buscar por nombre o email…", "allStatus": "Todos los estados", "active": "Activos", "inactive": "Inactivos", "newBtn": "+ Nuevo usuario", "searchBtn": "Buscar" },
-    "table": { "name": "Nombre", "email": "Email", "role": "Rol", "status": "Estado", "lastAccess": "Último acceso", "actions": { "manage": "Gestionar", "delete": "Eliminar" } },
+    "toolbar": {
+      "search": "Buscar por nombre o email…",
+      "allStatus": "Todos los estados",
+      "active": "Activos",
+      "inactive": "Inactivos",
+      "newBtn": "+ Nuevo usuario",
+      "searchBtn": "Buscar"
+    },
+    "table": {
+      "name": "Nombre",
+      "email": "Email",
+      "role": "Rol",
+      "status": "Estado",
+      "lastAccess": "Último acceso",
+      "actions": {
+        "manage": "Gestionar",
+        "delete": "Eliminar"
+      }
+    },
     "empty": "No se encontraron usuarios.",
+    "noRole": "Sin rol",
     "detail": {
       "title": "Gestionar usuario",
-      "fields": { "name": "Nombre", "email": "Email", "status": "Estado", "role": "Rol" },
-      "statusOptions": { "active": "Activo", "inactive": "Inactivo" },
+      "fields": {
+        "name": "Nombre",
+        "email": "Email",
+        "status": "Estado",
+        "role": "Rol",
+        "password": "Contraseña"
+      },
+      "statusOptions": {
+        "active": "Activo",
+        "inactive": "Inactivo"
+      },
       "rolePlaceholder": "— sin rol —",
       "meta": "Creado el {created} · último acceso {lastAccess}",
-      "actions": { "save": "Guardar", "resetPassword": "Restablecer contraseña", "close": "Cerrar" },
+      "actions": {
+        "save": "Guardar",
+        "resetPassword": "Restablecer contraseña",
+        "close": "Cerrar"
+      },
       "passwordPrompt": "Nueva contraseña para {email} (mínimo 8 caracteres):",
       "passwordError": "La contraseña debe tener al menos 8 caracteres",
-      "toasts": { "roleUpdated": "Rol de {name} actualizado ✓", "passwordChanged": "Contraseña de {name} cambiada ✓", "saved": "Usuario {name} guardado ✓", "deleted": "Usuario {name} eliminado ✓" },
+      "toasts": {
+        "roleUpdated": "Rol de {name} actualizado ✓",
+        "passwordChanged": "Contraseña de {name} cambiada ✓",
+        "saved": "Usuario {name} guardado ✓",
+        "deleted": "Usuario {name} eliminado ✓"
+      },
       "confirmDelete": "¿Eliminar usuario {email}?"
     }
   },
@@ -118,7 +229,15 @@
       "title": "General",
       "description": "Información básica mostrada en el sitio.",
       "back": "← Todos los ajustes",
-      "fields": { "siteTitle": "Título del sitio", "siteTitlePlaceholder": "Mi Sitio", "siteDescription": "Descripción", "siteDescriptionPlaceholder": "Un nuevo sitio hecho con OkCMS", "language": "Idioma", "timezone": "Zona horaria", "timezonePlaceholder": "America/Mexico_City" },
+      "fields": {
+        "siteTitle": "Título del sitio",
+        "siteTitlePlaceholder": "Mi Sitio",
+        "siteDescription": "Descripción",
+        "siteDescriptionPlaceholder": "Un nuevo sitio hecho con OkCMS",
+        "language": "Idioma",
+        "timezone": "Zona horaria",
+        "timezonePlaceholder": "America/Mexico_City"
+      },
       "saved": "Ajustes guardados ✓",
       "loading": "Cargando…",
       "save": "Guardar"
@@ -133,12 +252,31 @@
         "singular": "Nombre en singular",
         "plural": "Nombre en plural",
         "supports": "Soporta",
-        "supportsOptions": { "title": "Título", "editor": "Editor", "thumbnail": "Imagen Destacada", "excerpt": "Extracto", "revisions": "Revisiones" },
+        "supportsOptions": {
+          "title": "Título",
+          "editor": "Editor",
+          "thumbnail": "Imagen Destacada",
+          "excerpt": "Extracto",
+          "revisions": "Revisiones"
+        },
         "hasArchive": "Tiene archivo público (/slug)",
         "create": "Crear"
       },
-      "table": { "slug": "Slug", "singular": "Singular", "plural": "Plural", "source": "Origen", "supports": "Soporta", "archive": "Archivo", "actions": { "remove": "Eliminar" } },
-      "sources": { "admin": "Admin", "core": "Core" }
+      "table": {
+        "slug": "Slug",
+        "singular": "Singular",
+        "plural": "Plural",
+        "source": "Origen",
+        "supports": "Soporta",
+        "archive": "Archivo",
+        "actions": {
+          "remove": "Eliminar"
+        }
+      },
+      "sources": {
+        "admin": "Admin",
+        "core": "Core"
+      }
     },
     "taxonomies": {
       "title": "Taxonomías",
@@ -152,7 +290,14 @@
         "attachTo": "Vincular a tipos de contenido",
         "create": "Crear"
       },
-      "table": { "taxonomy": "Taxonomía", "hierarchical": "Jerárquica", "attachedTypes": "Tipos de contenido vinculados", "actions": { "remove": "Eliminar" } }
+      "table": {
+        "taxonomy": "Taxonomía",
+        "hierarchical": "Jerárquica",
+        "attachedTypes": "Tipos de contenido vinculados",
+        "actions": {
+          "remove": "Eliminar"
+        }
+      }
     }
   },
   "login": {
@@ -161,8 +306,7 @@
     "email": "Email",
     "password": "Contraseña",
     "submit": "Entrar",
-    "failed": "Email ou senha inválidos",
-    "failed": "Email ou senha inválidos"
+    "failed": "Correo o contraseña no válidos"
   },
   "common": {
     "save": "Guardar",
@@ -188,7 +332,67 @@
     "items": "elementos",
     "item": "elemento",
     "empty": "No se encontraron {items}.",
-    "toast": { "success": "✓", "error": "Error: {message}" },
-    "status": { "active": "Activo", "inactive": "Inactivo", "draft": "Borrador", "published": "Publicado", "archived": "Archivado" }
+    "toast": {
+      "success": "✓",
+      "error": "Error: {message}"
+    },
+    "status": {
+      "active": "Activo",
+      "inactive": "Inactivo",
+      "draft": "Borrador",
+      "published": "Publicado",
+      "archived": "Archivado",
+      "locked": "Bloqueado"
+    },
+    "language": "Idioma"
+  },
+  "activity": {
+    "justNow": "ahora mismo",
+    "minAgo": "minutos atrás",
+    "ago": "atrás",
+    "published": "Publicado",
+    "updated": "Actualizado",
+    "newUser": "Nuevo usuario: {name}"
+  },
+  "adminBar": {
+    "mainMenu": "Menú principal",
+    "notifications": "Notificaciones",
+    "notificationsEmpty": "Sin actividad reciente",
+    "settings": "Ajustes",
+    "toggleSidebar": "Alternar barra lateral",
+    "userMenu": "Menú de usuario"
+  },
+  "footer": {
+    "copyright": "© 2026 OkCMS. Todos los derechos reservados.",
+    "links": "Enlaces",
+    "website": "Sitio web",
+    "github": "GitHub",
+    "docs": "Documentación",
+    "community": "Comunidad",
+    "poweredBy": "Desarrollado con OkCMS"
+  },
+  "helpTabs": {
+    "title": "Ayuda",
+    "label": "Ayuda",
+    "tabs": "Temas de ayuda",
+    "topics": {
+      "overview": {
+        "label": "De un vistazo",
+        "content": "<h4>Bienvenido al panel de OkCMS</h4><p>Este panel te ofrece una visión general del contenido y la actividad de tu sitio.</p><h4>Widgets disponibles</h4><ul><li><strong>De un vistazo:</strong> resumen de entradas, páginas, medios y usuarios</li><li><strong>Borrador rápido:</strong> guarda borradores rápidamente desde el panel</li><li><strong>Actividad:</strong> actividad y actualizaciones recientes del sitio</li></ul>"
+      },
+      "content": {
+        "label": "Gestión de contenido",
+        "content": "<h4>Gestionar contenido</h4><p>Crea, edita y publica contenido desde la sección de Contenido.</p><h4>Acciones rápidas</h4><ul><li>Haz clic en \"Nuevo contenido\" para crear una nueva entrada o página</li><li>Usa filtros para encontrar contenido específico</li><li>Acciones en lote disponibles para varios elementos</li></ul>"
+      },
+      "media": {
+        "label": "Biblioteca de medios",
+        "content": "<h4>Gestionar medios</h4><p>Sube y gestiona imágenes, vídeos y documentos.</p><h4>Consejos</h4><ul><li>Arrastra y suelta archivos para subirlos</li><li>Añade texto alternativo para accesibilidad</li><li>Organiza con carpetas (próximamente)</li></ul>"
+      }
+    }
+  },
+  "screenOptions": {
+    "title": "Opciones de pantalla",
+    "label": "Opciones de pantalla",
+    "showOnScreen": "Mostrar en pantalla"
   }
 }

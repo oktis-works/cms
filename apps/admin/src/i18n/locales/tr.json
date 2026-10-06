@@ -30,21 +30,77 @@
       "title": "Son İçerikler",
       "viewAll": "Tümünü Gör",
       "empty": "Henüz içerik yok — ilkini oluşturun!",
-      "columns": { "title": "Başlık", "type": "Tür", "status": "Durum", "updated": "Güncellendi" }
+      "columns": {
+        "title": "Başlık",
+        "type": "Tür",
+        "status": "Durum",
+        "updated": "Güncellendi"
+      }
+    },
+    "widgets": {
+      "atGlance": "Bir Bakışta",
+      "posts": "Yazılar",
+      "postsDesc": "Yayınlanmış / Taslaklar / Çöp",
+      "pages": "Sayfalar",
+      "pagesDesc": "Yayınlanmış / Taslaklar / Çöp",
+      "media": "Medya",
+      "mediaDesc": "Kütüphanedeki dosyalar",
+      "users": "Kullanıcılar",
+      "usersDesc": "Toplam / Aktif / Pasif",
+      "version": "Sürüm",
+      "storage": "Depolama",
+      "quickDraft": {
+        "title": "Hızlı Taslak",
+        "heading": "Başlık",
+        "headingPlaceholder": "Taslağınıza bir başlık verin",
+        "content": "İçerik",
+        "contentPlaceholder": "Aklınızda ne var?",
+        "save": "Taslağı Kaydet",
+        "yourDrafts": "Taslaklarınız",
+        "noDrafts": "Henüz taslak yok."
+      },
+      "activity": {
+        "title": "Etkinlik",
+        "empty": "Henüz etkinlik yok."
+      }
     }
   },
   "content": {
     "list": {
       "title": "İçerik",
       "description": "İçerik arayın, filtreleyin, düzenleyin ve yayınlayın.",
-      "columns": { "title": "Başlık", "type": "Tür", "status": "Durum", "updated": "Güncellendi" },
-      "actions": { "edit": "Düzenle", "publish": "Yayınla", "unpublish": "Yayını Kaldır", "delete": "Sil" },
-      "filters": { "search": "İçerik ara…", "allTypes": "Tüm türler", "allStatus": "Tüm durumlar" },
-      "buttons": { "new": "+ Yeni içerik", "search": "Ara" },
+      "columns": {
+        "title": "Başlık",
+        "type": "Tür",
+        "status": "Durum",
+        "updated": "Güncellendi"
+      },
+      "actions": {
+        "edit": "Düzenle",
+        "publish": "Yayınla",
+        "unpublish": "Yayını Kaldır",
+        "delete": "Sil"
+      },
+      "filters": {
+        "search": "İçerik ara…",
+        "allTypes": "Tüm türler",
+        "allStatus": "Tüm durumlar"
+      },
+      "buttons": {
+        "new": "+ Yeni içerik",
+        "search": "Ara"
+      },
       "empty": "İçerik bulunamadı.",
-      "statuses": { "draft": "Taslak", "published": "Yayınlandı", "archived": "Arşivlendi" },
+      "statuses": {
+        "draft": "Taslak",
+        "published": "Yayınlandı",
+        "archived": "Arşivlendi"
+      },
       "confirmDelete": "\"{title}\" silinsin mi?",
-      "toasts": { "published": "İçerik yayınlandı ✓", "unpublished": "Yayın kaldırıldı ✓" }
+      "toasts": {
+        "published": "İçerik yayınlandı ✓",
+        "unpublished": "Yayın kaldırıldı ✓"
+      }
     },
     "editor": {
       "type": "Tür",
@@ -53,7 +109,11 @@
       "excerpt": "Özet",
       "featuredImage": "Öne Çıkan Görsel (medya ID)",
       "status": "Durum",
-      "statusOptions": { "draft": "Taslak", "published": "Yayınlandı", "archived": "Arşivlendi" },
+      "statusOptions": {
+        "draft": "Taslak",
+        "published": "Yayınlandı",
+        "archived": "Arşivlendi"
+      },
       "layout": "Düzen",
       "layoutAuto": "Otomatik (tema hiyerarşisi)",
       "customFields": "Özel Alanlar",
@@ -71,8 +131,21 @@
       "uploading": "Yükleniyor…",
       "hint": "Görseller, videolar, sesler ve belgeler · dosya başına 25MB'a kadar"
     },
-    "toolbar": { "search": "İsim veya alt metinle ara…", "allTypes": "Tüm türler", "searchBtn": "Ara" },
-    "mimeTypes": { "png": "PNG", "jpeg": "JPEG", "gif": "GIF", "webp": "WebP", "svg": "SVG", "pdf": "PDF", "mp4": "MP4", "mp3": "MP3" },
+    "toolbar": {
+      "search": "İsim veya alt metinle ara…",
+      "allTypes": "Tüm türler",
+      "searchBtn": "Ara"
+    },
+    "mimeTypes": {
+      "png": "PNG",
+      "jpeg": "JPEG",
+      "gif": "GIF",
+      "webp": "WebP",
+      "svg": "SVG",
+      "pdf": "PDF",
+      "mp4": "MP4",
+      "mp3": "MP3"
+    },
     "empty": "Henüz dosya yok. İlk dosyayı yükleyin!",
     "details": {
       "title": "Detaylar",
@@ -91,25 +164,63 @@
       "copied": "URL kopyalandı ✓",
       "copyError": "URL kopyalanamadı"
     },
-    "toasts": { "uploaded": "{count} dosya yüklendi ✓" }
+    "toasts": {
+      "uploaded": "{count} dosya yüklendi ✓"
+    }
   },
   "users": {
     "title": "Kullanıcılar",
     "description": "Hesapları, rolleri ve proje erişimini yönetin.",
     "new": "Yeni Kullanıcı",
-    "toolbar": { "search": "İsim veya email ile ara…", "allStatus": "Tüm durumlar", "active": "Aktif", "inactive": "Pasif", "newBtn": "+ Yeni kullanıcı", "searchBtn": "Ara" },
-    "table": { "name": "İsim", "email": "Email", "role": "Rol", "status": "Durum", "lastAccess": "Son erişim", "actions": { "manage": "Yönet", "delete": "Sil" } },
+    "toolbar": {
+      "search": "İsim veya email ile ara…",
+      "allStatus": "Tüm durumlar",
+      "active": "Aktif",
+      "inactive": "Pasif",
+      "newBtn": "+ Yeni kullanıcı",
+      "searchBtn": "Ara"
+    },
+    "table": {
+      "name": "İsim",
+      "email": "Email",
+      "role": "Rol",
+      "status": "Durum",
+      "lastAccess": "Son erişim",
+      "actions": {
+        "manage": "Yönet",
+        "delete": "Sil"
+      }
+    },
     "empty": "Kullanıcı bulunamadı.",
+    "noRole": "Rol yok",
     "detail": {
       "title": "Kullanıcıyı yönet",
-      "fields": { "name": "İsim", "email": "Email", "status": "Durum", "role": "Rol" },
-      "statusOptions": { "active": "Aktif", "inactive": "Pasif" },
+      "fields": {
+        "name": "İsim",
+        "email": "Email",
+        "status": "Durum",
+        "role": "Rol",
+        "password": "Şifre"
+      },
+      "statusOptions": {
+        "active": "Aktif",
+        "inactive": "Pasif"
+      },
       "rolePlaceholder": "— rol yok —",
       "meta": "Oluşturulma {created} · son erişim {lastAccess}",
-      "actions": { "save": "Kaydet", "resetPassword": "Parolayı sıfırla", "close": "Kapat" },
+      "actions": {
+        "save": "Kaydet",
+        "resetPassword": "Parolayı sıfırla",
+        "close": "Kapat"
+      },
       "passwordPrompt": "{email} için yeni parola (en az 8 karakter):",
       "passwordError": "Parola en az 8 karakter olmalıdır",
-      "toasts": { "roleUpdated": "{name} rolü güncellendi ✓", "passwordChanged": "{name} parolası değiştirildi ✓", "saved": "Kullanıcı {name} kaydedildi ✓", "deleted": "Kullanıcı {name} silindi ✓" },
+      "toasts": {
+        "roleUpdated": "{name} rolü güncellendi ✓",
+        "passwordChanged": "{name} parolası değiştirildi ✓",
+        "saved": "Kullanıcı {name} kaydedildi ✓",
+        "deleted": "Kullanıcı {name} silindi ✓"
+      },
       "confirmDelete": "{email} kullanıcısını sil?"
     }
   },
@@ -118,7 +229,15 @@
       "title": "Genel",
       "description": "Sitede görüntülenen temel bilgiler.",
       "back": "← Tüm ayarlar",
-      "fields": { "siteTitle": "Site başlığı", "siteTitlePlaceholder": "Benim Sitem", "siteDescription": "Açıklama", "siteDescriptionPlaceholder": "OkCMS ile yeni bir site", "language": "Dil", "timezone": "Zaman dilimi", "timezonePlaceholder": "Europe/Istanbul" },
+      "fields": {
+        "siteTitle": "Site başlığı",
+        "siteTitlePlaceholder": "Benim Sitem",
+        "siteDescription": "Açıklama",
+        "siteDescriptionPlaceholder": "OkCMS ile yeni bir site",
+        "language": "Dil",
+        "timezone": "Zaman dilimi",
+        "timezonePlaceholder": "Europe/Istanbul"
+      },
       "saved": "Ayarlar kaydedildi ✓",
       "loading": "Yükleniyor…",
       "save": "Kaydet"
@@ -133,12 +252,31 @@
         "singular": "Tekil isim",
         "plural": "Çoğul isim",
         "supports": "Destekler",
-        "supportsOptions": { "title": "Başlık", "editor": "Editör", "thumbnail": "Öne çıkan görsel", "excerpt": "Özet", "revisions": "Revizyonlar" },
+        "supportsOptions": {
+          "title": "Başlık",
+          "editor": "Editör",
+          "thumbnail": "Öne çıkan görsel",
+          "excerpt": "Özet",
+          "revisions": "Revizyonlar"
+        },
         "hasArchive": "Genel arşiv sayfası var (/slug)",
         "create": "Oluştur"
       },
-      "table": { "slug": "Slug", "singular": "Tekil", "plural": "Çoğul", "source": "Kaynak", "supports": "Destekler", "archive": "Arşiv", "actions": { "remove": "Sil" } },
-      "sources": { "admin": "Admin", "core": "Core" }
+      "table": {
+        "slug": "Slug",
+        "singular": "Tekil",
+        "plural": "Çoğul",
+        "source": "Kaynak",
+        "supports": "Destekler",
+        "archive": "Arşiv",
+        "actions": {
+          "remove": "Sil"
+        }
+      },
+      "sources": {
+        "admin": "Admin",
+        "core": "Core"
+      }
     },
     "taxonomies": {
       "title": "Taksonomiler",
@@ -152,7 +290,14 @@
         "attachTo": "İçerik türlerine bağla",
         "create": "Oluştur"
       },
-      "table": { "taxonomy": "Taksonomi", "hierarchical": "Hiyerarşik", "attachedTypes": "Bağlı içerik türleri", "actions": { "remove": "Sil" } }
+      "table": {
+        "taxonomy": "Taksonomi",
+        "hierarchical": "Hiyerarşik",
+        "attachedTypes": "Bağlı içerik türleri",
+        "actions": {
+          "remove": "Sil"
+        }
+      }
     }
   },
   "login": {
@@ -160,7 +305,8 @@
     "subtitle": "Hesabınıza giriş yapın",
     "email": "Email",
     "password": "Parola",
-    "submit": "Giriş"
+    "submit": "Giriş",
+    "failed": "E-posta veya şifre geçersiz"
   },
   "common": {
     "save": "Kaydet",
@@ -186,7 +332,67 @@
     "items": "öğe",
     "item": "öğe",
     "empty": "{items} bulunamadı.",
-    "toast": { "success": "✓", "error": "Hata: {message}" },
-    "status": { "active": "Aktif", "inactive": "Pasif", "draft": "Taslak", "published": "Yayınlandı", "archived": "Arşivlendi" }
+    "toast": {
+      "success": "✓",
+      "error": "Hata: {message}"
+    },
+    "status": {
+      "active": "Aktif",
+      "inactive": "Pasif",
+      "draft": "Taslak",
+      "published": "Yayınlandı",
+      "archived": "Arşivlendi",
+      "locked": "Kilitli"
+    },
+    "language": "Dil"
+  },
+  "activity": {
+    "justNow": "az önce",
+    "minAgo": "dakika önce",
+    "ago": "önce",
+    "published": "Yayınlandı",
+    "updated": "Güncellendi",
+    "newUser": "Yeni kullanıcı: {name}"
+  },
+  "adminBar": {
+    "mainMenu": "Ana menü",
+    "notifications": "Bildirimler",
+    "notificationsEmpty": "Son aktivite yok",
+    "settings": "Ayarlar",
+    "toggleSidebar": "Kenar çubuğunu aç/kapat",
+    "userMenu": "Kullanıcı menüsü"
+  },
+  "footer": {
+    "copyright": "© 2026 OkCMS. Tüm hakları saklıdır.",
+    "links": "Bağlantılar",
+    "website": "Web sitesi",
+    "github": "GitHub",
+    "docs": "Dokümantasyon",
+    "community": "Topluluk",
+    "poweredBy": "OkCMS ile güçlendirildi"
+  },
+  "helpTabs": {
+    "title": "Yardım",
+    "label": "Yardım",
+    "tabs": "Yardım konuları",
+    "topics": {
+      "overview": {
+        "label": "Bir Bakışta",
+        "content": "<h4>OkCMS Kontrol Paneline Hoş Geldiniz</h4><p>Bu kontrol paneli, sitenizin içeriğine ve etkinliğine genel bakış sunar.</p><h4>Kullanılabilir Widget'lar</h4><ul><li><strong>Bir Bakışta:</strong> yazılar, sayfalar, medya ve kullanıcılar özeti</li><li><strong>Hızlı Taslak:</strong> kontrol panelinden taslakları hızlıca kaydedin</li><li><strong>Etkinlik:</strong> son site etkinlikleri ve güncellemeleri</li></ul>"
+      },
+      "content": {
+        "label": "İçerik yönetimi",
+        "content": "<h4>İçeriği Yönetme</h4><p>İçerik bölümünden içerik oluşturun, düzenleyin ve yayınlayın.</p><h4>Hızlı İşlemler</h4><ul><li>Yeni bir yazı veya sayfa oluşturmak için \"Yeni İçerik\"e tıklayın</li><li>Belirli içerikleri bulmak için filtreleri kullanın</li><li>Birden fazla öğe için toplu işlemler mevcuttur</li></ul>"
+      },
+      "media": {
+        "label": "Medya kitaplığı",
+        "content": "<h4>Medya Yönetimi</h4><p>Resimleri, videoları ve belgeleri yükleyin ve yönetin.</p><h4>İpuçları</h4><ul><li>Yüklemek için dosyaları sürükleyip bırakın</li><li>Erişilebilirlik için alternatif metin ekleyin</li><li>Klasörlerle düzenleyin (yakında)</li></ul>"
+      }
+    }
+  },
+  "screenOptions": {
+    "title": "Ekran seçenekleri",
+    "label": "Ekran seçenekleri",
+    "showOnScreen": "Ekranda göster"
   }
 }

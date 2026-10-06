@@ -1,5 +1,5 @@
 import type { Locale, TranslationMap, TFunction } from './types';
-import { SUPPORTED_LOCALES, DEFAULT_LOCALE, FALLBACK_LOCALE } from './config';
+import { DEFAULT_LOCALE, FALLBACK_LOCALE } from './config';
 import { loadLocale } from './loaders';
 import { changeLocale, resolveLocale } from './locale';
 import { createSignal, onMount } from 'solid-js';

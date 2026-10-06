@@ -63,6 +63,26 @@ export interface Role {
   created_at?: string;
 }
 
+/** Sessão atual — resposta de GET /api/v1/auth/me */
+export interface CurrentUser {
+  id: string;
+  email: string;
+  name: string;
+  avatar?: string | null;
+  status?: string;
+  last_login_at?: string | null;
+}
+
+/** Linha de auditoria — resposta de GET /api/v1/audit-logs (alimenta o sino do admin bar) */
+export interface AuditLogEntry {
+  tenantId?: string | null;
+  userId?: string | null;
+  action: string;
+  resourceType: string;
+  resourceId?: string | null;
+  created_at?: string;
+}
+
 export interface Setting {
   id?: string;
   key: string;
@@ -165,6 +185,16 @@ class ApiClient {
   /** Salva locale do usuário via /me/locale */
   async setUserLocale(locale: string): Promise<void> {
     await this.request('PUT', '/api/v1/users/me/locale', { locale });
+  }
+
+  /** Sessão atual (/auth/me) — usuário + tenant + papéis (alimenta o admin bar) */
+  async getMe(): Promise<{ user: CurrentUser; tenantId?: string; roles?: string[] }> {
+    return this.request('GET', '/api/v1/auth/me');
+  }
+
+  /** Auditoria recente — notificações reais do sino no admin bar */
+  async getAuditLogs(limit = 8): Promise<{ data: AuditLogEntry[]; count: number }> {
+    return this.request('GET', `/api/v1/audit-logs?limit=${limit}`);
   }
 
   /** Login — o backend seta cookies HttpOnly e CSRF; retorna user + tenantId */
