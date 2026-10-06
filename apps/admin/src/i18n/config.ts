@@ -8,7 +8,7 @@ export const SUPPORTED_LOCALES: Locale[] = [
   'ru', 'uk', 'tr', 'he', 'it', 'pl', 'zh-CN', 'ja', 
   'ar', 'sw', 'yo', 'zu', 'am', 'ha', 'ig'
 ];
-export const DEFAULT_LOCALE: Locale = 'pt-BR';
+export const DEFAULT_LOCALE: Locale = 'en';
 export const FALLBACK_LOCALE: Locale = 'en';
 
 // RTL (Right-to-Left) locales
