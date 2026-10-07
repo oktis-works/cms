@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/validation",
-  "version": "0.4.12",
+  "version": "0.4.13",
   "description": "Pure field validation library (ACF parity) — UI-safe, sem dependência de banco",
   "type": "module",
   "main": "./dist/index.js",
