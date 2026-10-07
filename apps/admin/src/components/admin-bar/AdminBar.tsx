@@ -175,6 +175,20 @@ export function AdminBar(props: Props) {
           padding: 0 4px;
         }
         .notifications-dropdown { position: relative; }
+        .lang-dropdown {
+          position: relative;
+          display: flex;
+          align-items: center;
+        }
+        .lang-dropdown > .notifications-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.4rem;
+          min-height: 32px;
+          line-height: 1;
+          white-space: nowrap;
+        }
         .notifications-panel {
           position: absolute;
           top: calc(100% + 0.5rem);
@@ -292,13 +306,17 @@ export function AdminBar(props: Props) {
           position: absolute;
           top: calc(100% + 0.5rem);
           right: 0;
-          min-width: 180px;
+          min-width: 192px;
+          max-height: min(18rem, calc(100vh - 3.5rem));
           background: #FFFFFF;
           border: 1px solid #DCDCDE;
           border-radius: 0.5rem;
           box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1);
           z-index: 2100;
-          overflow: hidden;
+          overflow-x: hidden;
+          overflow-y: auto;
+          overscroll-behavior: contain;
+          scrollbar-gutter: stable;
           animation: slideIn 0.15s ease-out;
         }
         @keyframes slideIn { from { opacity: 0; transform: translateY(-0.5rem); } to { opacity: 1; transform: translateY(0); } }
@@ -315,6 +333,7 @@ export function AdminBar(props: Props) {
           font-weight: 500;
           text-align: left;
           cursor: pointer;
+          min-height: 36px;
         }
         .lang-menu-item:hover { background: #F6F7F7; }
         .lang-menu-item.active { background: #FAF5E8; color: #B99542; font-weight: 600; }
