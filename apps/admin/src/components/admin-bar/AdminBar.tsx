@@ -17,7 +17,7 @@ export function AdminBar(props: Props) {
   const [showNotifications, setShowNotifications] = createSignal(false);
   const [notifications, setNotifications] = createSignal<AuditLogEntry[]>([]);
 
-  const currentLocale = locale as Locale;
+  const currentLocale = () => locale as Locale;
   const translate = t as (key: string, params?: Record<string, string | number>) => string;
 
   const handleClickOutside = (e: MouseEvent) => {
@@ -429,8 +429,8 @@ export function AdminBar(props: Props) {
 
           <div class="lang-dropdown">
             <button class="notifications-btn" aria-label={t('common.language')} aria-expanded={showLangMenu()} onClick={() => setShowLangMenu(!showLangMenu())}>
-              <span class="flag">{LOCALE_FLAGS[currentLocale] ?? '🌐'}</span>
-              <span>{LOCALE_LABELS[currentLocale] ?? currentLocale}</span>
+              <span class="flag">{LOCALE_FLAGS[currentLocale()] ?? '🌐'}</span>
+              <span>{LOCALE_LABELS[currentLocale()] ?? currentLocale()}</span>
               <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <path d="M6 9l6 6 6-6"/>
               </svg>
@@ -439,7 +439,7 @@ export function AdminBar(props: Props) {
               <div class="lang-menu-dropdown" role="menu" aria-label={t('common.language')}>
                 {SUPPORTED_LOCALES.map((loc) => (
                   <button
-                    class={currentLocale === loc ? 'lang-menu-item active' : 'lang-menu-item'}
+                    class={currentLocale() === loc ? 'lang-menu-item active' : 'lang-menu-item'}
                     onClick={() => { changeLocale(loc); setShowLangMenu(false); }}
                     type="button"
                     role="menuitem"
