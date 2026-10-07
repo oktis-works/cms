@@ -1,4 +1,5 @@
 import { createSignal, Show, onMount, onCleanup } from 'solid-js';
+import { isServer } from 'solid-js/web';
 import { useTranslation } from '../../i18n';
 
 interface Props {
@@ -50,10 +51,12 @@ export function ScreenOptions(props: Props) {
 
   // Um único listener global (antes: um novo a cada clique — vazamento)
   onMount(() => {
+    if (isServer) return;
     document.addEventListener('click', handleClickOutside);
   });
 
   onCleanup(() => {
+    if (isServer) return;
     document.removeEventListener('click', handleClickOutside);
   });
 

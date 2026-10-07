@@ -29,6 +29,9 @@ export function AdminBar(props: Props) {
   };
 
   onMount(() => {
+    // Guard SSR: document/window só existem no client
+    if (typeof document === 'undefined') return;
+
     document.addEventListener('click', handleClickOutside);
 
     // Sessão real (/auth/me) — o admin bar nunca é "sempre deslogado"

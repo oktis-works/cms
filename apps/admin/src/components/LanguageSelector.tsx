@@ -1,7 +1,8 @@
-import { Show, createSignal, onCleanup } from 'solid-js';
+import { Show, createSignal, onCleanup, onMount } from 'solid-js';
 import { useTranslation } from '../i18n';
 import { SUPPORTED_LOCALES, LOCALE_LABELS, LOCALE_FLAGS } from '../i18n/config';
 import type { Locale } from '../i18n/config';
+import { isServer } from 'solid-js/web';
 
 export function LanguageSelector() {
   const { locale, changeLocale, t } = useTranslation();
@@ -13,12 +14,16 @@ export function LanguageSelector() {
     }
   };
 
-  onCleanup(() => {
-    document.removeEventListener('click', handleClickOutside);
+  // Adiciona listener após mount (client-side only)
+  onMount(() => {
+    if (isServer) return;
+    document.addEventListener('click', handleClickOutside);
   });
 
-  // Adiciona listener após mount
-  setTimeout(() => document.addEventListener('click', handleClickOutside), 0);
+  onCleanup(() => {
+    if (isServer) return;
+    document.removeEventListener('click', handleClickOutside);
+  });
 
   const currentLocale = locale as Locale;
   const translate = t as (key: string, params?: Record<string, string | number>) => string;

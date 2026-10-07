@@ -1,6 +1,7 @@
 import { createSignal, Show, onMount, onCleanup } from 'solid-js';
 import { useTranslation } from '../../i18n';
 import { sanitizeHtml } from '../../lib/sanitize';
+import { isServer } from 'solid-js/web';
 
 interface HelpTab {
   id: string;
@@ -27,10 +28,12 @@ export function HelpTabs(props: Props) {
 
   // Um único listener global (antes: um novo a cada clique — vazamento)
   onMount(() => {
+    if (isServer) return;
     document.addEventListener('click', handleClickOutside);
   });
 
   onCleanup(() => {
+    if (isServer) return;
     document.removeEventListener('click', handleClickOutside);
   });
 
