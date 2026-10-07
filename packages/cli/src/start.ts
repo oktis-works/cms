@@ -46,7 +46,10 @@ export async function startProject(options: Record<string, string> = {}): Promis
     spawnApp('api', 'bunx', ['@oktis-works/api'], { PORT: String(config.ports.api) });
 
     if (includeAdmin) {
-      const apiUrl = process.env['PUBLIC_API_URL'] ?? `http://localhost:${config.ports.api}`;
+      // Empty PUBLIC_API_URL must not make the Admin call itself on :3011.
+      // This also keeps `okcms start` consistent across WSL, Linux and Windows.
+      const apiUrl = process.env['PUBLIC_API_URL']?.trim()
+        || `http://localhost:${config.ports.api}`;
       spawnApp('admin', 'bunx', ['@oktis-works/admin'], { PORT: String(config.ports.admin), PUBLIC_API_URL: apiUrl });
     }
 

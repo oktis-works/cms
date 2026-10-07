@@ -1,8 +1,31 @@
 // API Client for Admin Dashboard (HttpOnly cookies + CSRF + auto-refresh)
 
-// Em produção, usar mesma origem por padrão (/api). No desenvolvimento,
-// mantém a API separada na porta 3000 quando PUBLIC_API_URL não foi definida.
-const API_BASE = import.meta.env.PUBLIC_API_URL ?? (import.meta.env.DEV ? 'http://localhost:3000' : '');
+/**
+ * Resolve a API em runtime.
+ *
+ * O Admin também é distribuído como pacote pré-compilado. Nesse caso,
+ * import.meta.env.PUBLIC_API_URL é resolvido no build do pacote e não pode
+ * receber o valor definido pelo `okcms start` depois que o processo inicia.
+ * O BaseLayout injeta esse valor em um meta tag no SSR; o fallback relativo
+ * mantém deployments atrás de proxy na mesma origem funcionando.
+ */
+function resolveApiBase(): string {
+  const buildTimeUrl = import.meta.env.PUBLIC_API_URL?.trim();
+  if (buildTimeUrl) return buildTimeUrl.replace(/\/$/, '');
+
+  if (typeof document !== 'undefined') {
+    const runtimeUrl = document.querySelector('meta[name="okcms-api-url"]')?.getAttribute('content')?.trim();
+    if (runtimeUrl) return runtimeUrl.replace(/\/$/, '');
+  }
+
+  // Desenvolvimento local sem PUBLIC_API_URL: API padrão do CLI.
+  if (import.meta.env.DEV) return 'http://localhost:3000';
+
+  // Em produção, /api deve ser encaminhado pelo proxy para a API.
+  return '';
+}
+
+const API_BASE = resolveApiBase();
 
 export interface ApiResponse<T> {
   data?: T;

@@ -71,7 +71,9 @@ export const i18nMiddleware = defineMiddleware(async (context: AstroContext, nex
     let userLocale: string | null = null;
     try {
       // Em Astro, env vars estão disponíveis via import.meta.env
-      const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:3000';
+      const apiUrl = import.meta.env.PUBLIC_API_URL?.trim()
+        || (typeof process !== 'undefined' ? process.env['PUBLIC_API_URL']?.trim() : '')
+        || 'http://localhost:3000';
       const res = await fetch(`${apiUrl}/api/v1/users/me/locale`, {
         credentials: 'include',
         headers: { Cookie: context.request.headers.get('Cookie') ?? '' }

@@ -8,6 +8,11 @@ const { title, description } = Astro.props;
 const { locale, isRTL } = Astro.locals;
 const htmlLang = locale ?? 'en';
 const dir = isRTL ? 'rtl' : 'ltr';
+// import.meta.env é resolvido no build; process.env preserva a configuração
+// quando o Admin é iniciado como pacote pré-compilado pelo `okcms start`.
+const runtimeApiUrl = import.meta.env.PUBLIC_API_URL?.trim()
+  || (typeof process !== 'undefined' ? process.env.PUBLIC_API_URL?.trim() : '')
+  || '';
 ---
 
 <!DOCTYPE html>
@@ -16,6 +21,7 @@ const dir = isRTL ? 'rtl' : 'ltr';
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content={description ?? 'OkCMS Admin Dashboard'}>
+  <meta name="okcms-api-url" content={runtimeApiUrl}>
   <title>{title} | OkCMS</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 </head>
