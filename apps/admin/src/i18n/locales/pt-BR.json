@@ -71,6 +71,7 @@
     "list": {
       "title": "Conteúdo",
       "description": "Busque, filtre, edite e publique seu conteúdo.",
+      "typeNotFound": "Este tipo de conteúdo não foi encontrado.",
       "columns": {
         "title": "Título",
         "type": "Tipo",
@@ -293,6 +294,12 @@
           "revisions": "Revisões"
         },
         "hasArchive": "Possui arquivo público (/slug)",
+        "singleton": "Singleton (apenas um conteúdo)",
+        "icon": "Ícone do sidebar (nome Lucide)",
+        "iconHint": "Exemplos: box, package, shopping-bag, file-text",
+        "editTitle": "Editar Tipo de Conteúdo",
+        "update": "Atualizar",
+        "cancel": "Cancelar",
         "create": "Criar"
       },
       "table": {
@@ -302,7 +309,12 @@
         "source": "Origem",
         "supports": "Suporta",
         "archive": "Arquivo",
+        "mode": "Modo",
+        "singleton": "Singleton",
+        "collection": "Coleção",
+        "icon": "Ícone",
         "actions": {
+          "edit": "Editar",
           "remove": "Remover"
         }
       },

@@ -10,6 +10,13 @@ const contentRouter = new Hono();
 
 contentRouter.use('*', authMiddleware);
 
+contentRouter.get('/singleton/:type', requirePermission('read', 'content'), async (c) => {
+  const type = c.req.param('type') as string;
+  const tenantId = await resolveTenantId(String(c.get('tenantId' as never) ?? 'default'));
+  const content = await contentService.getSingleton(type, tenantId);
+  return c.json({ content });
+});
+
 contentRouter.get('/', requirePermission('read', 'content'), async (c) => {
   const page = Number(c.req.query('page') ?? 1);
   const limit = Number(c.req.query('limit') ?? 20);

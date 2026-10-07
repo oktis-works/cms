@@ -8,6 +8,7 @@ interface QuickDraftPost {
   title: string;
   excerpt?: string;
   status: string;
+  type: string;
   /** Pode faltar no tipo `Content` do cliente — o backend envia snake_case */
   updated_at?: string;
   slug: string;
@@ -121,7 +122,7 @@ export function QuickDraftWidget() {
                     <h4>{t('dashboard.widgets.quickDraft.yourDrafts')}</h4>
                     <For each={drafts()}>
                       {(draft) => (
-                        <a href={`/content/edit?id=${draft.id}`} class="draft-item">
+                        <a href={`/content/${encodeURIComponent(draft.type || 'post')}/edit?id=${draft.id}`} class="draft-item">
                           <div class="draft-info">
                             <span class="draft-title">{draft.title}</span>
                             <span class="draft-meta">

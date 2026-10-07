@@ -9,6 +9,7 @@ export function PostTypesManager() {
   const [types, setTypes] = createSignal<ContentType[]>([]);
   const [error, setError] = createSignal('');
   const [saving, setSaving] = createSignal(false);
+  const [editingSlug, setEditingSlug] = createSignal<string | null>(null);
 
   const supportsOptions = createMemo(() => [
     { value: 'title', label: t('settings.postTypes.form.supportsOptions.title') },
@@ -24,8 +25,15 @@ export function PostTypesManager() {
     singularLabel: '',
     pluralLabel: '',
     hasArchive: false,
+    singleton: false,
+    menuIcon: 'box',
     supports: ['title', 'editor'] as string[],
   });
+
+  const resetForm = (): void => {
+    setEditingSlug(null);
+    setForm({ name: '', slug: '', singularLabel: '', pluralLabel: '', hasArchive: false, singleton: false, menuIcon: 'box', supports: ['title', 'editor'] });
+  };
 
   const load = async (): Promise<void> => {
     try {
@@ -43,15 +51,22 @@ export function PostTypesManager() {
     setSaving(true);
 
     try {
-      await apiClient.createContentType({
-        name: form().slug,
+      const payload = {
+        name: form().name || form().slug,
         slug: form().slug,
         singularLabel: form().singularLabel,
         pluralLabel: form().pluralLabel,
         hasArchive: form().hasArchive,
+        singleton: form().singleton,
+        menuIcon: form().menuIcon || 'box',
         supports: form().supports,
-      });
-      setForm({ name: '', slug: '', singularLabel: '', pluralLabel: '', hasArchive: false, supports: ['title', 'editor'] });
+      };
+      if (editingSlug()) {
+        await apiClient.updateContentType(editingSlug()!, payload);
+      } else {
+        await apiClient.createContentType(payload);
+      }
+      resetForm();
       await load();
       window.dispatchEvent(new Event('okcms:content-models-changed'));
     } catch (err) {
@@ -59,6 +74,20 @@ export function PostTypesManager() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const edit = (type: ContentType): void => {
+    setEditingSlug(type.slug);
+    setForm({
+      name: type.name,
+      slug: type.slug,
+      singularLabel: type.singularLabel,
+      pluralLabel: type.pluralLabel,
+      hasArchive: type.hasArchive ?? false,
+      singleton: type.singleton ?? false,
+      menuIcon: type.menuIcon ?? 'box',
+      supports: [...(type.supports ?? ['title', 'editor'])],
+    });
   };
 
   const remove = async (slug: string): Promise<void> => {
@@ -78,7 +107,7 @@ export function PostTypesManager() {
       </Show>
 
       <form class="card" onSubmit={submit}>
-        <h3>{t('settings.postTypes.form.title')}</h3>
+        <h3>{editingSlug() ? t('settings.postTypes.form.editTitle') : t('settings.postTypes.form.title')}</h3>
         <div class="form-grid">
           <label>
             {t('settings.postTypes.form.slug')}
@@ -108,6 +137,11 @@ export function PostTypesManager() {
               value={form().pluralLabel}
               onInput={(e) => setForm({ ...form(), pluralLabel: e.currentTarget.value })}
             />
+          </label>
+          <label>
+            {t('settings.postTypes.form.icon')}
+            <input class="input" value={form().menuIcon} placeholder="box" onInput={(e) => setForm({ ...form(), menuIcon: e.currentTarget.value })} />
+            <small class="muted">{t('settings.postTypes.form.iconHint')}</small>
           </label>
         </div>
 
@@ -142,11 +176,19 @@ export function PostTypesManager() {
             {' '}
             {t('settings.postTypes.form.hasArchive')}
           </label>
+          <label>
+            <input type="checkbox" checked={form().singleton} onChange={(e) => setForm({ ...form(), singleton: e.currentTarget.checked })} />
+            {' '}
+            {t('settings.postTypes.form.singleton')}
+          </label>
         </fieldset>
 
         <button type="submit" class="btn btn-primary" disabled={saving()}>
-          {t('settings.postTypes.form.create')}
+          {editingSlug() ? t('settings.postTypes.form.update') : t('settings.postTypes.form.create')}
         </button>
+        <Show when={editingSlug()}>
+          <button type="button" class="btn btn-secondary" onClick={resetForm}>{t('settings.postTypes.form.cancel')}</button>
+        </Show>
       </form>
 
       <table class="table">
@@ -158,6 +200,8 @@ export function PostTypesManager() {
             <th>{t('settings.postTypes.table.source')}</th>
             <th>{t('settings.postTypes.table.supports')}</th>
             <th>{t('settings.postTypes.table.archive')}</th>
+            <th>{t('settings.postTypes.table.mode')}</th>
+            <th>{t('settings.postTypes.table.icon')}</th>
             <th />
           </tr>
         </thead>
@@ -171,7 +215,12 @@ export function PostTypesManager() {
                 <td>{type.source ?? t('settings.postTypes.sources.admin')}</td>
                 <td>{(type.supports ?? []).join(', ')}</td>
                 <td>{type.hasArchive ? t('common.yes') : t('common.no')}</td>
+                <td>{type.singleton ? t('settings.postTypes.table.singleton') : t('settings.postTypes.table.collection')}</td>
+                <td>{type.menuIcon ?? 'box'}</td>
                 <td>
+                  <button type="button" class="btn btn-secondary" onClick={() => edit(type)}>
+                    {t('settings.postTypes.table.actions.edit')}
+                  </button>{' '}
                   <Show when={type.source !== 'CORE'}>
                     <button type="button" class="btn btn-danger" onClick={() => remove(type.slug)}>
                       {t('settings.postTypes.table.actions.remove')}

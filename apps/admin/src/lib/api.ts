@@ -443,6 +443,14 @@ class ApiClient {
     return this.request('GET', `/api/v1/content/${id}`);
   }
 
+  async getSingletonContent(type: string): Promise<Content | null> {
+    const response = await this.request<Content | { content: Content | null }>(
+      'GET',
+      `/api/v1/content/singleton/${encodeURIComponent(type)}`
+    );
+    return 'content' in response ? response.content : response;
+  }
+
   async createContent(data: Partial<Content>): Promise<Content> {
     return this.request('POST', `/api/v1/content`, data);
   }
@@ -905,6 +913,7 @@ export interface ContentType {
   supports?: string[];
   hasArchive?: boolean;
   menuIcon?: string;
+  singleton?: boolean;
   defaultFields?: string[];
 }
 

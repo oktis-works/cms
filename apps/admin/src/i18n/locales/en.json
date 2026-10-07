@@ -71,6 +71,7 @@
     "list": {
       "title": "Content",
       "description": "Search, filter, edit and publish your content.",
+      "typeNotFound": "This content type was not found.",
       "columns": {
         "title": "Title",
         "type": "Type",
@@ -293,6 +294,12 @@
           "revisions": "Revisions"
         },
         "hasArchive": "Has public archive (/slug)",
+        "singleton": "Singleton (only one content entry)",
+        "icon": "Sidebar icon (Lucide name)",
+        "iconHint": "Examples: box, package, shopping-bag, file-text",
+        "editTitle": "Edit Content Type",
+        "update": "Update",
+        "cancel": "Cancel",
         "create": "Create"
       },
       "table": {
@@ -302,7 +309,12 @@
         "source": "Source",
         "supports": "Supports",
         "archive": "Archive",
+        "mode": "Mode",
+        "singleton": "Singleton",
+        "collection": "Collection",
+        "icon": "Icon",
         "actions": {
+          "edit": "Edit",
           "remove": "Remove"
         }
       },

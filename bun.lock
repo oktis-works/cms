@@ -33,11 +33,12 @@
       "dependencies": {
         "@astrojs/node": "11.1.6",
         "@astrojs/solid-js": "7.0.2",
-        "@oktis-works/plugin-sdk": "workspace:*",
-        "@oktis-works/types": "workspace:*",
-        "@oktis-works/ui": "workspace:*",
-        "@oktis-works/validation": "workspace:*",
+        "@oktis-works/plugin-sdk": "^0.4.0",
+        "@oktis-works/types": "^0.4.0",
+        "@oktis-works/ui": "^0.3.3",
+        "@oktis-works/validation": "^0.4.0",
         "astro": "7.3.5",
+        "lucide": "^1.52.0",
         "solid-js": "1.9.15",
       },
       "devDependencies": {
@@ -261,7 +262,7 @@
       "name": "@oktis-works/ui",
       "version": "0.3.3",
       "dependencies": {
-        "@oktis-works/validation": "workspace:*",
+        "@oktis-works/validation": "^0.4.0",
         "solid-js": "1.9.15",
       },
       "devDependencies": {
@@ -1379,6 +1380,8 @@
     "loupe": ["loupe@3.2.1", "", {}, "sha512-CdzqowRJCeLU72bHvWqwRBBlLcMEtIvGrlvef74kMnV2AolS9Y8xUv1I0U/MNAWMhBlKIoyuEgoJ0t/bbwHbLQ=="],
 
     "lru-cache": ["lru-cache@11.5.3", "", {}, "sha512-U4N8FgzmWxc8k1VH8Kr6lQg18U7Fjvby6wXHVRX/ZZ7IwWbRMgrRbP0Wrb5q5NVinryp4SQampHKdvtecItxUg=="],
+
+    "lucide": ["lucide@1.52.0", "", {}, "sha512-XlP0U+m3seobjTPfT0Ybg9YqJeTwSxx1I6R2Ty7vwpA/4HtibMbV28p9tW7AnIwb77YkTboK9x/OPBEqGAzCFg=="],
 
     "luxon": ["luxon@3.7.2", "", {}, "sha512-vtEhXh/gNjI9Yg1u4jX/0YVPMvxzHuGgCm6tC5kZyb08yjGWGnqAjGJvcXbqQR2P3MyMEFnRbpcdFS6PBcLqew=="],
 

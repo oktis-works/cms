@@ -18,14 +18,14 @@ function formatDate(row: Content): string {
   return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('pt-BR');
 }
 
-export function ContentList() {
+export function ContentList(props: { contentType: string }) {
   const { t } = useTranslation();
   const [items, setItems] = createSignal<Content[]>([]);
   const [types, setTypes] = createSignal<ContentType[]>([]);
   const [total, setTotal] = createSignal(0);
   const [page, setPage] = createSignal(1);
   const [search, setSearch] = createSignal('');
-  const [type, setType] = createSignal('');
+  const [type] = createSignal(props.contentType);
   const [status, setStatus] = createSignal('');
   const [error, setError] = createSignal('');
   const [info, setInfo] = createSignal('');
@@ -51,7 +51,6 @@ export function ContentList() {
 
   onMount(async () => {
     const query = new URLSearchParams(window.location.search);
-    setType(query.get('type') ?? '');
     setStatus(query.get('status') ?? '');
     setSearch(query.get('search') ?? '');
     await load();
@@ -64,7 +63,7 @@ export function ContentList() {
 
   const activeType = createMemo(() => types().find((entry) => entry.slug === type()));
   const pageTitle = createMemo(() => activeType()?.pluralLabel || t('content.list.title'));
-  const newContentHref = createMemo(() => `/content/new?type=${encodeURIComponent(type() || 'post')}`);
+  const newContentHref = createMemo(() => `/content/${encodeURIComponent(type())}/new`);
 
   const searchNow = async (): Promise<void> => {
     setPage(1);
@@ -119,7 +118,7 @@ export function ContentList() {
         const isPublished = raw(content)['status'] === 'PUBLISHED';
         return (
           <div class="users-table__actions">
-            <a class="btn btn-secondary btn-sm" href={`/content/edit?id=${encodeURIComponent(content.id)}`}>
+            <a class="btn btn-secondary btn-sm" href={`/content/${encodeURIComponent(content.type || type())}/edit?id=${encodeURIComponent(content.id)}`}>
               {t('content.list.actions.edit')}
             </a>
             <Button
@@ -146,9 +145,7 @@ export function ContentList() {
           <h2>{pageTitle()}</h2>
           <p class="muted">{t('content.list.description')}</p>
         </div>
-        <Show when={type()}>
-          <a class="btn btn-primary" href={newContentHref()}>{t('content.list.buttons.addNew')}</a>
-        </Show>
+        <a class="btn btn-primary" href={newContentHref()}>{t('content.list.buttons.addNew')}</a>
       </div>
       <Show when={error()}>
         <div class="notice notice--error">{error()}</div>

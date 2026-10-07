@@ -15,6 +15,7 @@ export interface ContentTypeDefinition {
   supports?: Array<'title' | 'editor' | 'thumbnail' | 'excerpt' | 'revisions'>;
   hasArchive?: boolean;
   menuIcon?: string;
+  singleton?: boolean;
   public?: boolean;
   defaultFields?: string[];
 }
@@ -41,6 +42,7 @@ const CORE_TYPES: ContentTypeDefinition[] = [
     supports: ['title', 'editor', 'thumbnail', 'excerpt', 'revisions'],
     hasArchive: true,
     menuIcon: 'file-text',
+    singleton: false,
     public: true,
     defaultFields: DEFAULT_CONTENT_FIELDS,
   },
@@ -53,6 +55,7 @@ const CORE_TYPES: ContentTypeDefinition[] = [
     supports: ['title', 'editor', 'thumbnail', 'revisions'],
     hasArchive: false,
     menuIcon: 'file',
+    singleton: false,
     public: true,
     defaultFields: DEFAULT_CONTENT_FIELDS,
   },
@@ -73,7 +76,13 @@ export class PostTypeRegistry {
 
     const bySlug = new Map<string, ContentTypeDefinition>();
     for (const coreType of CORE_TYPES) bySlug.set(coreType.slug, coreType);
-    for (const dbType of dbTypes) bySlug.set(dbType.slug, { ...dbType, ...this.mergeCore(dbType.slug, dbType) });
+    for (const dbType of dbTypes) {
+      const coreType = CORE_TYPES.find((type) => type.slug === dbType.slug);
+      const dbOverrides = Object.fromEntries(
+        Object.entries(dbType).filter(([, value]) => value !== undefined)
+      ) as Partial<ContentTypeDefinition>;
+      bySlug.set(dbType.slug, coreType ? { ...coreType, ...dbOverrides } : dbType);
+    }
 
     return [...bySlug.values()];
   }
@@ -105,6 +114,7 @@ export class PostTypeRegistry {
           supports: input.supports ?? ['title', 'editor', 'revisions'],
           hasArchive: input.hasArchive ?? false,
           menuIcon: input.menuIcon ?? 'box',
+          singleton: input.singleton ?? false,
           public: input.public ?? true,
         },
         input.pluralLabel,
@@ -123,9 +133,39 @@ export class PostTypeRegistry {
     const existingRow = await sql.unsafe('SELECT * FROM content_types WHERE slug = $1', [slug]);
     const row = existingRow[0] as Record<string, unknown> | undefined;
 
-    if (!row) throw new Error(`Content type "${slug}" é do core e não pode ser alterado`);
+    const coreType = CORE_TYPES.find((type) => type.slug === slug);
+    if (!row && !coreType) throw new Error(`Content type "${slug}" não encontrado`);
 
-    const current = this.rowToDefinition(row);
+    if (!row && coreType) {
+      const mergedCore = { ...coreType, ...patch, slug };
+      await sql.unsafe(
+        `INSERT INTO content_types (id, name, slug, source, source_id, schema, plural_label, singular_label, default_fields)
+         VALUES ($1, $2, $3, 'CORE', NULL, $4::jsonb, $5, $6, $7::jsonb)`,
+        [
+          randomUUID(),
+          mergedCore.name,
+          slug,
+          {
+            supports: mergedCore.supports ?? [],
+            hasArchive: mergedCore.hasArchive ?? false,
+            menuIcon: mergedCore.menuIcon,
+            singleton: mergedCore.singleton ?? false,
+            public: mergedCore.public ?? true,
+          },
+          mergedCore.pluralLabel,
+          mergedCore.singularLabel,
+          mergedCore.defaultFields ?? DEFAULT_CONTENT_FIELDS,
+        ]
+      );
+      await getCache().del(this.cacheKey);
+      return this.getBySlug(slug);
+    }
+
+    const stored = this.rowToDefinition(row!);
+    const current = {
+      ...(coreType ?? {}),
+      ...Object.fromEntries(Object.entries(stored).filter(([, value]) => value !== undefined)),
+    } as ContentTypeDefinition;
     const merged: ContentTypeDefinition = { ...current, ...patch, slug };
 
     await sql.unsafe(
@@ -136,6 +176,7 @@ export class PostTypeRegistry {
           supports: merged.supports ?? [],
           hasArchive: merged.hasArchive ?? false,
           menuIcon: merged.menuIcon,
+          singleton: merged.singleton ?? false,
           public: merged.public ?? true,
         },
         merged.pluralLabel,
@@ -178,10 +219,13 @@ export class PostTypeRegistry {
       singularLabel: String(row['singular_label']),
       source: (row['source'] as ContentTypeDefinition['source']) ?? 'ADMIN',
       sourceId: (row['source_id'] as string | null) ?? null,
-      supports: (schemaJson['supports'] as ContentTypeDefinition['supports']) ?? ['title', 'editor'],
-      hasArchive: Boolean(schemaJson['hasArchive']),
+      supports: Array.isArray(schemaJson['supports'])
+        ? (schemaJson['supports'] as ContentTypeDefinition['supports'])
+        : undefined,
+      hasArchive: typeof schemaJson['hasArchive'] === 'boolean' ? schemaJson['hasArchive'] : undefined,
       menuIcon: schemaJson['menuIcon'] as string | undefined,
-      public: schemaJson['public'] !== false,
+      singleton: typeof schemaJson['singleton'] === 'boolean' ? schemaJson['singleton'] : undefined,
+      public: typeof schemaJson['public'] === 'boolean' ? schemaJson['public'] : undefined,
       defaultFields: Array.isArray(row['default_fields'])
         ? (row['default_fields'] as unknown[]).filter((value): value is string => typeof value === 'string')
         : undefined,

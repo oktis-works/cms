@@ -1,5 +1,12 @@
 # @oktis-works/cms
 
+## 0.4.20
+
+### Minor Changes
+
+- Replaced the generic Content page with per-content-type navigation and routes.
+- Added singleton content types, editable core types, and Lucide-configurable sidebar icons.
+
 ## 0.4.19
 
 ### Minor Changes

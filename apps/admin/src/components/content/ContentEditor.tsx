@@ -22,6 +22,7 @@ interface Draft {
 
 interface Props {
   initialType?: string;
+  singleton?: boolean;
 }
 
 export function ContentEditor(props: Props) {
@@ -93,9 +94,15 @@ export function ContentEditor(props: Props) {
     }
 
     const editId = new URLSearchParams(window.location.search).get('id');
-    if (editId) {
+    if (editId || props.singleton) {
       try {
-        const existing = await apiClient.getContentById(editId);
+        const existing = editId
+          ? await apiClient.getContentById(editId)
+          : await apiClient.getSingletonContent(draft().type);
+        if (!existing) {
+          await loadGroups({ type: draft().type, status: draft().status });
+          return;
+        }
         const rawRow = existing as unknown as Record<string, unknown>;
         setDraft({
           id: existing.id,
@@ -178,7 +185,7 @@ export function ContentEditor(props: Props) {
           <h2>{draft().id ? t('content.editor.editing') : t('content.editor.adding')}</h2>
         </div>
         <div class="classic-editor__actions">
-          <a class="btn btn-secondary" href={`/content?type=${encodeURIComponent(draft().type)}`}>{t('content.editor.backToList')}</a>
+          <a class="btn btn-secondary" href={`/content/${encodeURIComponent(draft().type)}`}>{t('content.editor.backToList')}</a>
           <button type="submit" class="btn btn-primary" disabled={saving()}>{saving() ? t('content.editor.saving') : t('content.editor.save')}</button>
         </div>
       </div>

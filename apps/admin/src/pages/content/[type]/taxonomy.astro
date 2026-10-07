@@ -1,16 +1,16 @@
 ---
-import DashboardLayout from '../../layouts/DashboardLayout.astro';
-import { TaxonomyTermsManager } from '../../components/content/TaxonomyTermsManager';
+import DashboardLayout from '../../../layouts/DashboardLayout.astro';
+import { TaxonomyTermsManager } from '../../../components/content/TaxonomyTermsManager';
 
 const { t } = Astro.locals;
+const contentType = Astro.params.type ?? '';
 const taxonomySlug = Astro.url.searchParams.get('taxonomy') ?? '';
-const contentType = Astro.url.searchParams.get('type') ?? undefined;
 ---
 
 <DashboardLayout title={t('content.taxonomy.title')}>
   <div class="taxonomy-page">
     <div class="page-header">
-      <a href={contentType ? `/content?type=${encodeURIComponent(contentType)}` : '/content'} class="back-link">{t('content.taxonomy.back')}</a>
+      <a href={`/content/${encodeURIComponent(contentType)}`} class="back-link">{t('content.taxonomy.back')}</a>
       <h2>{t('content.taxonomy.title')}</h2>
       <p>{taxonomySlug || t('content.taxonomy.choose')}</p>
     </div>
@@ -20,6 +20,4 @@ const contentType = Astro.url.searchParams.get('type') ?? undefined;
 
 <style>
   .taxonomy-page { max-width: 960px; }
-  .page-header { margin-bottom: 1rem; }
-  .back-link { display: inline-block; margin-bottom: 0.75rem; font-size: 0.875rem; }
 </style>

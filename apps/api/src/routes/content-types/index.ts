@@ -31,6 +31,7 @@ router.post('/', requirePermission('create', 'content'), async (c) => {
       supports: body.supports,
       hasArchive: body.hasArchive,
       menuIcon: body.menuIcon,
+      singleton: body.singleton,
       defaultFields: body.defaultFields,
       source: 'ADMIN',
     });
@@ -51,6 +52,7 @@ router.put('/:slug', requirePermission('update', 'content'), async (c) => {
       supports: body.supports,
       hasArchive: body.hasArchive,
       menuIcon: body.menuIcon,
+      singleton: body.singleton,
       defaultFields: body.defaultFields,
     });
     return c.json(result);

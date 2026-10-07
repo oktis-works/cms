@@ -89,7 +89,7 @@ export function DashboardHome() {
       <div class="card">
         <div class="card-header">
           <h3>{t('dashboard.recent.title')}</h3>
-          <a href="/content" class="btn btn-secondary btn-sm">{t('dashboard.recent.viewAll')}</a>
+          <a href="/content/post" class="btn btn-secondary btn-sm">{t('dashboard.recent.viewAll')}</a>
         </div>
 
         <Show
@@ -110,7 +110,7 @@ export function DashboardHome() {
                 {(row) => (
                   <tr>
                     <td>
-                      <a href={`/content/edit?id=${encodeURIComponent(String(raw(row)['id'] ?? ''))}`}>
+                      <a href={`/content/${encodeURIComponent(String(raw(row)['type'] ?? 'post'))}/edit?id=${encodeURIComponent(String(raw(row)['id'] ?? ''))}`}>
                         {String(raw(row)['title'] ?? '—')}
                       </a>
                     </td>

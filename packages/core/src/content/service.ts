@@ -77,6 +77,18 @@ function generateSlug(title: string): string {
 }
 
 export class ContentService {
+  async getSingleton(type: string, tenantId: string): Promise<Content | null> {
+    const definition = await postTypeRegistry.getBySlug(type);
+    if (!definition?.singleton) return null;
+
+    const sql = getConnection();
+    const result = await sql.unsafe(
+      'SELECT * FROM content WHERE tenant_id = $1 AND type = $2 ORDER BY created_at ASC LIMIT 1',
+      [tenantId, type]
+    );
+    return (result[0] as unknown as Content) ?? null;
+  }
+
   async list(options: {
     page?: number;
     limit?: number;
@@ -180,6 +192,15 @@ export class ContentService {
     const registry = getHookRegistry();
 
     const input = (await stripUnsupportedFields(rawInput.type, rawInput)) as CreateContentInput;
+
+    const definition = await postTypeRegistry.getBySlug(input.type);
+    if (!definition) throw new Error(`Content type "${input.type}" não encontrado`);
+    if (definition.singleton) {
+      const existing = await this.getSingleton(input.type, input.tenantId);
+      if (existing) {
+        throw new Error(`O conteúdo singleton "${input.type}" já existe`);
+      }
+    }
 
     const filteredInput = (await registry.applyFiltersAsync(
       HOOK_POINTS.BEFORE_SAVE_CONTENT(input.type),

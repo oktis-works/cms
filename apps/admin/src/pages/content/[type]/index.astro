@@ -1,0 +1,17 @@
+---
+import DashboardLayout from '../../../layouts/DashboardLayout.astro';
+import { ContentTypeWorkspace } from '../../../components/content/ContentTypeWorkspace';
+
+const { t } = Astro.locals;
+const contentType = Astro.params.type ?? 'post';
+---
+
+<DashboardLayout title={contentType}>
+  <div class="content-type-page">
+    <ContentTypeWorkspace client:load contentType={contentType} />
+  </div>
+</DashboardLayout>
+
+<style>
+  .content-type-page { max-width: 1200px; }
+</style>

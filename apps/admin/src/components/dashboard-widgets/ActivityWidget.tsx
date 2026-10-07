@@ -42,7 +42,7 @@ export function ActivityWidget() {
           user: { name: author?.name ?? '—', email: author?.email ?? '' },
           description: `${item.status === 'PUBLISHED' ? t('activity.published') : t('activity.updated')} "${item.title}"`,
           timestamp: updatedAt ?? new Date().toISOString(),
-          url: `/content/edit?id=${item.id}`
+          url: `/content/${encodeURIComponent(item.type || 'post')}/edit?id=${item.id}`
         });
       });
 
