@@ -121,4 +121,23 @@ describe('isSameOrigin', () => {
       delete process.env['TRUSTED_ORIGINS'];
     }
   });
+
+  it('aceita TRUSTED_ORIGINS como URL completa, inclusive Referer com caminho', () => {
+    const ctx = (origin: string, host = 'localhost:3000') =>
+      ({
+        req: {
+          header: (name: string) =>
+            name === 'Origin' ? undefined : name === 'Referer' ? origin : name === 'Host' ? host : undefined,
+        },
+      }) as never;
+
+    process.env['TRUSTED_ORIGINS'] = 'http://localhost:3011';
+    try {
+      expect(isSameOrigin(ctx('http://localhost:3011/admin/login'))).toBe(true);
+      expect(isSameOrigin(ctx('https://localhost:3011/admin/login'))).toBe(false);
+      expect(isSameOrigin(ctx('http://localhost:3012/admin/login'))).toBe(false);
+    } finally {
+      delete process.env['TRUSTED_ORIGINS'];
+    }
+  });
 });

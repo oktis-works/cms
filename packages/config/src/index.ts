@@ -1,5 +1,8 @@
 // @oktis-works/config - Configuration Management
 
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 export interface DatabaseConfig {
   driver: 'postgres' | 'mysql';
   host: string;
@@ -108,6 +111,34 @@ function getEnv(key: string, defaultValue?: string): string {
   return value;
 }
 
+/**
+ * Carrega o .env do projeto quando a aplicação é iniciada diretamente
+ * (`bun run dev`, `bunx @oktis-works/api`, etc.). Variáveis já presentes no
+ * ambiente sempre vencem; assim, secrets injetados pelo shell/CI não são
+ * substituídos pelo arquivo local.
+ */
+function loadProjectEnv(): void {
+  const path = join(process.cwd(), '.env');
+  if (!existsSync(path)) return;
+
+  const text = readFileSync(path, 'utf8');
+  for (const line of text.split(/\r?\n/)) {
+    const match = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/.exec(line);
+    if (!match) continue;
+
+    const key = match[1];
+    if (!key) continue;
+    let value = match[2] ?? '';
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    } else {
+      value = value.replace(/\s+#.*$/, '');
+    }
+
+    if (process.env[key] === undefined) process.env[key] = value;
+  }
+}
+
 function getEnvInt(key: string, defaultValue: number): number {
   const value = process.env[key];
   return value ? parseInt(value, 10) : defaultValue;
@@ -200,12 +231,13 @@ function loadDatabaseConfig(): DatabaseConfig {
 }
 
 export function loadConfig(): Config {
+  loadProjectEnv();
   return {
     app: {
       nodeEnv: (process.env['NODE_ENV'] as AppConfig['nodeEnv']) ?? 'development',
       port: getEnvInt('PORT', 3000),
       host: getEnv('HOST', '0.0.0.0'),
-      corsOrigins: getEnv('CORS_ORIGINS', 'http://localhost:4321').split(','),
+      corsOrigins: getEnv('CORS_ORIGINS', 'http://localhost:3011,http://127.0.0.1:3011').split(','),
       rateLimit: {
         windowMs: getEnvInt('RATE_LIMIT_WINDOW_MS', 60000),
         max: getEnvInt('RATE_LIMIT_MAX', 100),

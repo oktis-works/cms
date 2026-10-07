@@ -1,10 +1,26 @@
 // @oktis-works/cms - Project Start (API + Admin + Web)
 
 import { spawn, type ChildProcess } from 'node:child_process';
+import { join } from 'node:path';
+import { loadEnvFile } from './env-file.js';
 import { loadProjectConfig } from './project-config.js';
 import { clearPids, recordPid } from './runtime-state.js';
 
 const children: ChildProcess[] = [];
+
+/**
+ * Carrega o .env do projeto sem sobrescrever variáveis já exportadas pelo
+ * shell. Isso é importante tanto para `okcms start` quanto para o processo
+ * filho da API: configurações como CORS_ORIGINS e TRUSTED_ORIGINS precisam
+ * chegar aos três processos, mas segredos fornecidos pelo ambiente têm
+ * precedência.
+ */
+function loadProjectEnv(cwd = process.cwd()): void {
+  const values = loadEnvFile(join(cwd, '.env')).toRecord();
+  for (const [key, value] of Object.entries(values)) {
+    if (process.env[key] === undefined) process.env[key] = value;
+  }
+}
 
 function spawnApp(label: string, command: string, args: string[], env: Record<string, string>): void {
   console.log(`[start] ${label}: ${command} ${args.join(' ')}`);
@@ -24,6 +40,7 @@ function spawnApp(label: string, command: string, args: string[], env: Record<st
 }
 
 export async function startProject(options: Record<string, string> = {}): Promise<void> {
+  loadProjectEnv();
   const config = loadProjectConfig();
 
   const anyFlag =

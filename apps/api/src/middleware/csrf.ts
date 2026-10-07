@@ -17,27 +17,45 @@ export function issueCsrfToken(): string {
   return randomUUID();
 }
 
+function normalizeOrigin(value: string): { origin: string; host: string; hasProtocol: boolean } | null {
+  const raw = value.trim();
+  if (!raw) return null;
+
+  const hasProtocol = /^[a-z][a-z\d+.-]*:\/\//i.test(raw);
+  try {
+    const parsed = new URL(hasProtocol ? raw : `http://${raw}`);
+    return { origin: parsed.origin, host: parsed.host, hasProtocol };
+  } catch {
+    return null;
+  }
+}
+
 /** Origem esperada: mesma do Host da requisição (ou configurada em TRUSTED_ORIGINS). */
 export function isSameOrigin(c: Context): boolean {
   const origin = c.req.header('Origin') ?? c.req.header('Referer');
   if (!origin) return false;
 
-  let originHost: string;
-  try {
-    originHost = new URL(origin).host;
-  } catch {
-    return false;
-  }
+  const parsedOrigin = normalizeOrigin(origin);
+  if (!parsedOrigin) return false;
 
   const trusted = (process.env['TRUSTED_ORIGINS'] ?? '')
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
 
-  if (trusted.includes(originHost)) return true;
+  // Aceita tanto `localhost:3011` quanto `http://localhost:3011`, mas nunca
+  // faz wildcard: quando o protocolo é informado, a origem completa precisa
+  // ser exatamente igual (incluindo protocolo, host e porta).
+  if (trusted.some((value) => {
+    const parsedTrusted = normalizeOrigin(value);
+    if (!parsedTrusted) return false;
+    return parsedTrusted.hasProtocol
+      ? parsedTrusted.origin === parsedOrigin.origin
+      : parsedTrusted.host === parsedOrigin.host;
+  })) return true;
 
-  const host = c.req.header('X-Forwarded-Host') ?? c.req.header('Host');
-  return Boolean(host) && originHost === host;
+  const host = (c.req.header('X-Forwarded-Host') ?? c.req.header('Host'))?.split(',')[0]?.trim();
+  return Boolean(host) && parsedOrigin.host === host;
 }
 
 function readCookie(cookieHeader: string | undefined, name: string): string | null {
