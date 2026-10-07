@@ -20,7 +20,7 @@ export function ThemeManager() {
       setLoading(true);
       const data = await apiClient.getThemes();
       setThemes(data);
-    } catch (err) {
+    } catch {
       setError(t('themes.loadError'));
     } finally {
       setLoading(false);
@@ -35,7 +35,7 @@ export function ThemeManager() {
         ? await apiClient.deactivateTheme(theme.id)
         : await apiClient.activateTheme(theme.id);
       setThemes(themes().map(t => t.id === theme.id ? updated : t));
-    } catch (err) {
+    } catch {
       setError(wasActive ? t('themes.deactivateError') : t('themes.activateError'));
     } finally {
       setToggling(null);

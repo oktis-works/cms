@@ -20,7 +20,7 @@ export function PluginManager() {
       setLoading(true);
       const data = await apiClient.getPlugins();
       setPlugins(data);
-    } catch (err) {
+    } catch {
       setError(t('plugins.loadError'));
     } finally {
       setLoading(false);
@@ -37,7 +37,7 @@ export function PluginManager() {
         ? await apiClient.deactivatePlugin(plugin.id)
         : await apiClient.activatePlugin(plugin.id);
       setPlugins(plugins().map(p => p.id === plugin.id ? updated : p));
-    } catch (err) {
+    } catch {
       setError(wasActive ? t('plugins.deactivateError') : t('plugins.activateError'));
     } finally {
       setToggling(null);
