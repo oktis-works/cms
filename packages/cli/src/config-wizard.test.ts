@@ -346,7 +346,7 @@ describe('runConfigWizard interactive', () => {
 
     // 1 = seção "Application" → 7 campos; Enter mantém; PORT vira 8080;
     // depois: não a mais seções → grava
-    const lines = ['1', '', '', '8080', '', '', '', '', 'n', 'y'];
+    const lines = ['1', '', '', '8080', '', '', '', '', '', 'n', 'y'];
     const io = fakeIO(lines);
 
     const code = await runConfigWizard({ cwd: dir, io });
@@ -360,7 +360,7 @@ describe('runConfigWizard interactive', () => {
   it('does not save when the operator refuses the confirmation', async () => {
     writeEnv();
 
-    const lines = ['1', '', '', '8080', '', '', '', '', 'n', 'n'];
+    const lines = ['1', '', '', '8080', '', '', '', '', '', 'n', 'n'];
     const code = await runConfigWizard({ cwd: dir, io: fakeIO(lines) });
 
     expect(code).toBe(0);

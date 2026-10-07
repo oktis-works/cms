@@ -73,7 +73,8 @@ export async function scaffoldProject(
 ): Promise<string> {
   const root = resolve(process.cwd(), targetDir);
 
-  console.log(`Creating project "${name}" at ${root}...`);
+  console.log(`${style.cyan('◈')} ${style.bold('OKCMS')} ${style.dim('· project setup')}`);
+  console.log(style.dim(`  Creating ${name} at ${root}`));
 
   await mkdir(join(root, 'themes'), { recursive: true });
   await mkdir(join(root, 'plugins'), { recursive: true });
@@ -117,7 +118,7 @@ export async function scaffoldProject(
         '@oktis-works/worker': appRange,
       },
       devDependencies: {
-        // CLI fixada no projeto: `npx okcms ...` usa a versão local compatível
+        // CLI disponível como binário local: `okcms ...` usa a versão local compatível
         // com os apps instalados (sem buscar outra no registry).
         '@oktis-works/cms': appRange,
       },
@@ -154,6 +155,11 @@ WEB_PORT=${config.ports.web}
 # Admin ↔ API communication (required for browser fetch)
 PUBLIC_API_URL=http://localhost:${config.ports.api}
 CORS_ORIGINS=http://localhost:${config.ports.admin},http://127.0.0.1:${config.ports.admin}
+TRUSTED_ORIGINS=http://localhost:${config.ports.admin},http://127.0.0.1:${config.ports.admin}
+
+# Auth cookies (development over HTTP)
+AUTH_COOKIE_SAMESITE=lax
+AUTH_COOKIE_SECURE=false
 
 # JWT
 JWT_SECRET=change-me
@@ -275,15 +281,15 @@ volumes:
   console.log('');
   console.log(`  ${style.bold('DEV')}    ${'edit .env'.padEnd(26)}${style.dim('(DB_PASSWORD · JWT_SECRET)')}`);
   console.log(command('docker compose up -d', '(Postgres + Redis)'));
-  console.log(command('npx okcms db:migrate', '(or: bun run migrate)'));
-  console.log(command('npx okcms start', '(api · admin · web · worker)'));
+  console.log(command('okcms db:migrate', '(or: bun run migrate)'));
+  console.log(command('okcms start', '(api · admin · web · worker)'));
 
   console.log('');
-  console.log(`  ${style.bold('PROD')}   ${'npx okcms deploy'.padEnd(26)}${style.dim('(docker · blue/green, simple or pm2)')}`);
+  console.log(`  ${style.bold('PROD')}   ${'okcms deploy'.padEnd(26)}${style.dim('(docker · blue/green, simple or pm2)')}`);
 
   console.log('');
   console.log(`  ${style.bold('config')}  ${cfgName}`);
   console.log(`  ${style.bold('docs')}    README.md · PLUGIN.md · THEME.md`);
-  console.log(`  ${style.bold('help')}    npx okcms --help`);
+  console.log(`  ${style.bold('help')}    okcms --help`);
   return root;
 }

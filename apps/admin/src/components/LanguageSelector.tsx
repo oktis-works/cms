@@ -25,7 +25,7 @@ export function LanguageSelector() {
     document.removeEventListener('click', handleClickOutside);
   });
 
-  const currentLocale = () => locale as Locale;
+  const currentLocale = () => locale() as Locale;
   const translate = t as (key: string, params?: Record<string, string | number>) => string;
 
   return (

@@ -30,13 +30,13 @@ const navActive = {
 };
 
 const settingsChildren = [
-  { href: '/settings/general', label: t('settings.general.title'), active: isActive('/settings/general') },
-  { href: '/settings/post-types', label: t('settings.postTypes.title'), active: isActive('/settings/post-types') },
-  { href: '/settings/custom-fields', label: t('settings.customFields.title'), active: isActive('/settings/custom-fields') },
-  { href: '/settings/taxonomies', label: t('settings.taxonomies.title'), active: isActive('/settings/taxonomies') },
-  { href: '/settings/resources', label: t('resources.title'), active: isActive('/settings/resources') },
-  { href: '/settings/access', label: t('access.title'), active: isActive('/settings/access') },
-  { href: '/settings/operations', label: t('operations.title'), active: isActive('/settings/operations') },
+  { href: '/settings/general', key: 'settings.general.title', active: isActive('/settings/general') },
+  { href: '/settings/post-types', key: 'settings.postTypes.title', active: isActive('/settings/post-types') },
+  { href: '/settings/custom-fields', key: 'settings.customFields.title', active: isActive('/settings/custom-fields') },
+  { href: '/settings/taxonomies', key: 'settings.taxonomies.title', active: isActive('/settings/taxonomies') },
+  { href: '/settings/resources', key: 'resources.title', active: isActive('/settings/resources') },
+  { href: '/settings/access', key: 'access.title', active: isActive('/settings/access') },
+  { href: '/settings/operations', key: 'operations.title', active: isActive('/settings/operations') },
 ];
 
 ---
@@ -66,34 +66,35 @@ const settingsChildren = [
       <nav class="sidebar-nav">
         <a href="/" class:list={['nav-item', { active: navActive.dashboard }]}>
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-          <span class="nav-label">{t('layout.nav.dashboard')}</span>
+          <span class="nav-label" data-sidebar-i18n="layout.nav.dashboard">{t('layout.nav.dashboard')}</span>
         </a>
 
         <a href="/content" class:list={['nav-item', { active: navActive.content }]}>
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-          <span class="nav-label">{t('layout.nav.content')}</span>
+          <span class="nav-label" data-sidebar-i18n="layout.nav.content">{t('layout.nav.content')}</span>
         </a>
 
         <a href="/media" class:list={['nav-item', { active: navActive.media }]}>
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-          <span class="nav-label">{t('layout.nav.media')}</span>
+          <span class="nav-label" data-sidebar-i18n="layout.nav.media">{t('layout.nav.media')}</span>
         </a>
 
         <a href="/users" class:list={['nav-item', { active: navActive.users }]}>
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-          <span class="nav-label">{t('layout.nav.users')}</span>
+          <span class="nav-label" data-sidebar-i18n="layout.nav.users">{t('layout.nav.users')}</span>
         </a>
 
         <a href="/settings" class:list={['nav-item', { active: navActive.settings }]}>
+          <svg class="settings-nav-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 0-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06-.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.82-.33l-.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0-2.83l-.06-.06a1.65 1.65 0 0 0-.33-1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-          <span class="nav-label">{t('layout.nav.settings')}</span>
+          <span class="nav-label" data-sidebar-i18n="layout.nav.settings">{t('layout.nav.settings')}</span>
         </a>
 
         <!-- Submenu de configurações fica agrupado diretamente sob Settings. -->
         <div class="nav-submenu">
           {settingsChildren.map((child) => (
-            <a href={child.href} class:list={['nav-subitem', { active: child.active }]}>
-              {child.label}
+            <a href={child.href} class:list={['nav-subitem', { active: child.active }]} data-sidebar-i18n={child.key}>
+              {t(child.key)}
             </a>
           ))}
         </div>
@@ -105,7 +106,7 @@ const settingsChildren = [
             <path d="M9 17H5a2 2 0 0 1-2-2V9"></path>
             <line x1="8" y1="12" x2="16" y2="12"></line>
           </svg>
-          <span class="nav-label">{t('layout.nav.plugins')}</span>
+          <span class="nav-label" data-sidebar-i18n="layout.nav.plugins">{t('layout.nav.plugins')}</span>
         </a>
 
         <a href="/themes" class:list={['nav-item', { active: navActive.themes }]}>
@@ -114,7 +115,7 @@ const settingsChildren = [
             <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
             <path d="M2 12h20"></path>
           </svg>
-          <span class="nav-label">{t('layout.nav.themes')}</span>
+          <span class="nav-label" data-sidebar-i18n="layout.nav.themes">{t('layout.nav.themes')}</span>
         </a>
 
         <!-- D1: slots de extensao — paginas de menu declaradas por plugins ativos -->
@@ -166,6 +167,21 @@ const settingsChildren = [
   } catch {
     // storage indisponivel - sidebar inicia expandida
   }
+
+  import { getTFunction, type Locale } from '../i18n';
+
+  const updateSidebarTranslations = async (locale: Locale): Promise<void> => {
+    const translate = await getTFunction(locale);
+    document.querySelectorAll<HTMLElement>('[data-sidebar-i18n]').forEach((element) => {
+      const key = element.dataset.sidebarI18n;
+      if (key) element.textContent = translate(key);
+    });
+  };
+
+  window.addEventListener('okcms:locale-changed', (event) => {
+    const locale = (event as CustomEvent<{ locale?: Locale }>).detail?.locale;
+    if (locale) void updateSidebarTranslations(locale);
+  });
 
 </script>
 
@@ -274,6 +290,8 @@ const settingsChildren = [
 
   .nav-item svg { flex-shrink: 0; width: 20px; height: 20px; }
 
+  .nav-item[href="/settings"] > svg:not(.settings-nav-icon) { display: none; }
+
   .nav-submenu {
     margin: 0.25rem 0 0.5rem 1.5rem;
     padding-left: 0.75rem;
@@ -311,6 +329,7 @@ const settingsChildren = [
 
   /* Dashboard Widgets Area */
   .dashboard-widgets-area {
+    margin-top: 1.5rem;
     margin-bottom: 2rem;
   }
 

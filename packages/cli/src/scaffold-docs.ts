@@ -107,11 +107,9 @@ CMS API-first, multi-tenant e extensível. Quatro apps + uma CLI:
 Pré-requisitos: **Node 20+** ou **Bun 1.3+** · **PostgreSQL 16+** (obrigatório) ·
 **Redis** (opcional — só para filas do worker).
 
-> **CLI do projeto:** os comandos abaixo rodam com \`npx okcms\` (com Bun,
-> \`bunx okcms\`) — a CLI é instalada em devDependencies, **não** no PATH.
-> Atalhos que já vêm no \`package.json\`: \`bun run start\` · \`bun run migrate\`
-> · \`bun run doctor\`. Para usar \`okcms\` cru sem prefixo em qualquer pasta,
-> instale a CLI globalmente: \`bun add -g @oktis-works/cms\`.
+> **CLI do projeto:** depois do install, os comandos rodam diretamente com
+> \`okcms\`. Para o bootstrap sem instalação global, use
+> \`npx @oktis-works/cms@latest init\` ou \`bunx @oktis-works/cms@latest init\`.
 
 \`\`\`bash
 # 1. Banco no .env — escolha UM formato:
@@ -129,10 +127,10 @@ docker compose up -d
 #   REDIS_HOST=disabled   (cache em memória; filas do worker exigem Redis)
 
 # 3. Migrações (aplica schema + seed de roles/settings)
-npx okcms db:migrate
+okcms db:migrate
 
 # 4. **Crie seu primeiro usuário (OBRIGATÓRIO — sem isso não há login)**
-npx okcms user:create \
+okcms user:create \
   --email seu@email.com \
   --name "Admin" \
   --password "SenhaForte123" \
@@ -140,10 +138,10 @@ npx okcms user:create \
   --tenant default
 
 # 5. Sobe tudo: api + admin + web + worker
-npx okcms start
+okcms start
 
 # 6. Se algo falhar
-npx okcms doctor
+okcms doctor
 \`\`\`
 
 Ports padrão (ajustáveis no \`.env\`): **API 3000** (\`PORT\`) · **Web 3001**
@@ -153,8 +151,8 @@ Ports padrão (ajustáveis no \`.env\`): **API 3000** (\`PORT\`) · **Web 3001**
 
 \`\`\`bash
 docker compose up -d   # só a infra: postgres:16 + redis:7 (healthcheck + volumes)
-npx okcms db:migrate
-npx okcms start            # apps rodam como processos normais, fora do compose
+okcms db:migrate
+okcms start            # apps rodam como processos normais, fora do compose
 \`\`\`
 
 O \`.env\` gerado já aponta para \`localhost\`, que é onde o compose expõe as
@@ -165,8 +163,8 @@ Para subir a aplicação **inteira em Docker** (api, admin, web e worker em
 containers, atrás de um nginx), use o \`okcms deploy\`:
 
 \`\`\`bash
-npx okcms deploy                       # abre o menu do destino (setas ↑/↓ + Enter)
-npx okcms deploy --target simple      # ou fixa o destino sem menu
+okcms deploy                       # abre o menu do destino (setas ↑/↓ + Enter)
+okcms deploy --target simple      # ou fixa o destino sem menu
 \`\`\`
 
 São três destinos: **blue/green** (duas lanes, sem downtime), **simple** (um
@@ -222,9 +220,9 @@ O projeto já nasce com tudo que o deploy precisa (o \`okcms init\` escreve
 comando a partir do host:
 
 \`\`\`bash
-npx okcms deploy                   # primeiro deploy (menu do destino)
-npx okcms update --mode deploy     # depois disso: wizard com o destino salvo
-npx okcms deploy --target simple   # stack único, sem lanes
+okcms deploy                   # primeiro deploy (menu do destino)
+okcms update --mode deploy     # depois disso: wizard com o destino salvo
+okcms deploy --target simple   # stack único, sem lanes
 \`\`\`
 
 No destino **blue/green** a aplicação roda em **duas lanes** (\`okcms-blue\` e
@@ -270,10 +268,9 @@ os 6 passos acima na mão. Prefira o comando da CLI.
 
 ## Comandos da CLI
 
-> Os nomes abaixo são o comando em si: no projeto, prefixe com \`npx\`
-> (ex.: \`npx okcms doctor\`) ou use um script do \`package.json\` (\`bun run
-> doctor\`); sem prefixo, \`okcms\` só funciona com a CLI instalada
-> globalmente (\`bun add -g @oktis-works/cms\`).
+> Os nomes abaixo são o comando em si: depois do install, use \`okcms\`
+> diretamente. Para usar fora de um projeto, instale globalmente com
+> \`bun add -g @oktis-works/cms\`.
 
 | Comando | O que faz |
 |---|---|
@@ -313,10 +310,10 @@ os 6 passos acima na mão. Prefira o comando da CLI.
 ## Atualizando
 
 \`\`\`bash
-npx okcms update        # com TTY: escolhe entre baixar pacotes ou deploy
-npx okcms update -i     # só baixa/aplica os pacotes (igual sempre foi)
-npx okcms update --mode deploy          # deploy blue/green completo
-npx okcms update --mode deploy --yes    # sem prompts (CI/CD)
+okcms update        # com TTY: escolhe entre baixar pacotes ou deploy
+okcms update -i     # só baixa/aplica os pacotes (igual sempre foi)
+okcms update --mode deploy          # deploy blue/green completo
+okcms update --mode deploy --yes    # sem prompts (CI/CD)
 \`\`\`
 
 Em **não-TTY** (script/CI) o default continua sendo \`download\` — um \`-i\`
@@ -333,7 +330,7 @@ na imagem no build, e \`themes/<n>/dist/theme.css\` é compilado **no host**.
 Depois de \`plugin:install\` / \`theme:install\`, rode:
 
 \`\`\`bash
-npx okcms redeploy
+okcms redeploy
 \`\`\`
 
 Ele copia \`plugins/<n>/migrations/*.sql\` para \`migrations/\` (idempotente),
@@ -343,7 +340,7 @@ compila o estilo de cada tema com entrada e refaz o deploy blue/green — sem
 \`--skip-theme-build\` para pular etapas.
 
 \`\`\`bash
-npx okcms doctor        # confere docker, compose v2, lane e proxy antes/depois
+okcms doctor        # confere docker, compose v2, lane e proxy antes/depois
 \`\`\`
 
 ## Próximos passos
@@ -397,11 +394,9 @@ An API-first, multi-tenant, extensible CMS. Four apps + one CLI:
 Prerequisites: **Node 20+** or **Bun 1.3+** · **PostgreSQL 16+** (required) ·
 **Redis** (optional — only for the worker queues).
 
-> **Project CLI:** the commands below run with \`npx okcms\` (with Bun,
-> \`bunx okcms\`) — the CLI is installed in devDependencies, **not** on PATH.
-> Shortcuts already in \`package.json\`: \`bun run start\` · \`bun run migrate\`
-> · \`bun run doctor\`. To use bare \`okcms\` without a prefix anywhere,
-> install the CLI globally: \`bun add -g @oktis-works/cms\`.
+> **Project CLI:** after installation, commands run directly with \`okcms\`.
+> For bootstrap without a global install, use
+> \`npx @oktis-works/cms@latest init\` or \`bunx @oktis-works/cms@latest init\`.
 
 \`\`\`bash
 # 1. Database in .env — pick ONE format:
@@ -419,10 +414,10 @@ docker compose up -d
 #   REDIS_HOST=disabled   (in-memory cache; the worker queues require Redis)
 
 # 3. Migrations (applies schema + seeds roles/settings)
-npx okcms db:migrate
+okcms db:migrate
 
 # 4. **Create your first user (REQUIRED — no login exists without it)**
-npx okcms user:create \
+okcms user:create \
   --email your@email.com \
   --name "Admin" \
   --password "StrongPass123" \
@@ -430,10 +425,10 @@ npx okcms user:create \
   --tenant default
 
 # 5. Start everything: api + admin + web + worker
-npx okcms start
+okcms start
 
 # 6. If something fails
-npx okcms doctor
+okcms doctor
 \`\`\`
 
 Default ports (adjustable in \`.env\`): **API 3000** (\`PORT\`) · **Web 3001**
@@ -443,8 +438,8 @@ Default ports (adjustable in \`.env\`): **API 3000** (\`PORT\`) · **Web 3001**
 
 \`\`\`bash
 docker compose up -d   # infrastructure only: postgres:16 + redis:7 (healthcheck + volumes)
-npx okcms db:migrate
-npx okcms start            # apps run as normal processes, outside the compose
+okcms db:migrate
+okcms start            # apps run as normal processes, outside the compose
 \`\`\`
 
 The generated \`.env\` already points to \`localhost\`, where the compose publishes
@@ -455,8 +450,8 @@ To run the **whole application in Docker** (api, admin, web and worker in
 containers behind an nginx), use \`okcms deploy\`:
 
 \`\`\`bash
-npx okcms deploy                       # opens the target menu (↑/↓ + Enter)
-npx okcms deploy --target simple      # or fixes the target without the menu
+okcms deploy                       # opens the target menu (↑/↓ + Enter)
+okcms deploy --target simple      # or fixes the target without the menu
 \`\`\`
 
 There are three targets: **blue/green** (two lanes, no downtime), **simple**
@@ -512,9 +507,9 @@ The project ships with everything a deploy needs ( \`okcms init\` writes
 single command from the host:
 
 \`\`\`bash
-npx okcms deploy                   # first deploy (target menu)
-npx okcms update --mode deploy     # after that: wizard with the saved target
-npx okcms deploy --target simple   # single stack, no lanes
+okcms deploy                   # first deploy (target menu)
+okcms update --mode deploy     # after that: wizard with the saved target
+okcms deploy --target simple   # single stack, no lanes
 \`\`\`
 
 With the **blue/green** target the application runs in **two lanes**
@@ -560,10 +555,9 @@ the 6 steps above to do by hand. Prefer the CLI command.
 
 ## CLI commands
 
-> The names below are the command itself: in the project, prefix them with
-> \`npx\` (e.g. \`npx okcms doctor\`) or use a \`package.json\` script (\`bun run
-> doctor\`); without a prefix, \`okcms\` only works with the CLI installed
-> globally (\`bun add -g @oktis-works/cms\`).
+> The names below are the command itself: after install, use \`okcms\`
+> directly. Outside a project, install it globally with
+> \`bun add -g @oktis-works/cms\`.
 
 | Command | What it does |
 |---|---|
@@ -604,10 +598,10 @@ the 6 steps above to do by hand. Prefer the CLI command.
 ## Updating
 
 \`\`\`bash
-npx okcms update        # with TTY: choose between downloading packages or deploying
-npx okcms update -i     # only downloads/applies the packages (as always)
-npx okcms update --mode deploy          # full blue/green deploy
-npx okcms update --mode deploy --yes    # no prompts (CI/CD)
+okcms update        # with TTY: choose between downloading packages or deploying
+okcms update -i     # only downloads/applies the packages (as always)
+okcms update --mode deploy          # full blue/green deploy
+okcms update --mode deploy --yes    # no prompts (CI/CD)
 \`\`\`
 
 In **non-TTY** (script/CI) the default is still \`download\` — an \`-i\` in a
@@ -624,7 +618,7 @@ go into the image at build time, and \`themes/<n>/dist/theme.css\` is compiled
 **on the host**. After \`plugin:install\` / \`theme:install\`, run:
 
 \`\`\`bash
-npx okcms redeploy
+okcms redeploy
 \`\`\`
 
 It copies \`plugins/<n>/migrations/*.sql\` into \`migrations/\` (idempotent),
@@ -634,7 +628,7 @@ deploy — without \`bun add\`. Use \`--dry-run\` to see the plan,
 \`--skip-migrations\` / \`--skip-theme-build\` to skip steps.
 
 \`\`\`bash
-npx okcms doctor        # checks docker, compose v2, lane and proxy before/after
+okcms doctor        # checks docker, compose v2, lane and proxy before/after
 \`\`\`
 
 ## Next steps
@@ -659,7 +653,7 @@ O catálogo de hooks disponíveis é servido pela API em
 ## Estrutura gerada
 
 \`\`\`bash
-npx okcms plugin:create --name meu-plugin
+okcms plugin:create --name meu-plugin
 \`\`\`
 
 \`\`\`
@@ -740,26 +734,26 @@ Duas regras que o redeploy impõe:
 
 \`\`\`bash
 # 1. Crie (em ./plugins do projeto, ou num workspace externo com --dir)
-npx okcms plugin:create --name meu-plugin
+okcms plugin:create --name meu-plugin
 
 # 2. Implemente plugins/meu-plugin/index.js
 
 # 3. Se criou FORA do projeto, instale (valida compatibilidade e copia para plugins/)
-npx okcms plugin:install --name ../meu-plugin-fonte
+okcms plugin:install --name ../meu-plugin-fonte
 
 # 4. Gestão
-npx okcms plugin:list                                # instalados + status
-npx okcms plugin:manage -n meu-plugin --info         # informações do manifesto
-npx okcms plugin:manage -n meu-plugin --disable      # desabilita (mantém os arquivos)
-npx okcms plugin:manage -n meu-plugin --enable       # habilita de novo
-npx okcms plugin:manage -n meu-plugin --uninstall    # remove arquivos + registro
+okcms plugin:list                                # instalados + status
+okcms plugin:manage -n meu-plugin --info         # informações do manifesto
+okcms plugin:manage -n meu-plugin --disable      # desabilita (mantém os arquivos)
+okcms plugin:manage -n meu-plugin --enable       # habilita de novo
+okcms plugin:manage -n meu-plugin --uninstall    # remove arquivos + registro
 
 # 5. Busca no npm (pacotes com a keyword okcms-plugin)
-npx okcms plugin:search -q galeria
+okcms plugin:search -q galeria
 
 # 6. Publicou/atualizou? Stage do SQL + build dos temas + deploy blue/green
-npx okcms redeploy --dry-run   # só mostra o plano
-npx okcms redeploy
+okcms redeploy --dry-run   # só mostra o plano
+okcms redeploy
 \`\`\`
 
 ## Publicando
@@ -783,7 +777,7 @@ CSS para outro.
 ## Estrutura gerada
 
 \`\`\`bash
-npx okcms theme:create --name meu-tema --style css   # css | scss | tailwind
+okcms theme:create --name meu-tema --style css   # css | scss | tailwind
 \`\`\`
 
 \`\`\`
@@ -852,30 +846,30 @@ sai com \`preflight: false\`).
 
 \`\`\`bash
 # 1. Crie
-npx okcms theme:create --name meu-tema --style scss
+okcms theme:create --name meu-tema --style scss
 
 # 2. Edite templates/ e estilos
 
 # 3. Compile os estilos (scss/tailwind)
-npx okcms theme:build --name meu-tema
+okcms theme:build --name meu-tema
 
 # 4. Ative (grava activeTheme no okcms.config.json)
-npx okcms theme:manage --name meu-tema --set-active
+okcms theme:manage --name meu-tema --set-active
 #    (equivalente: ACTIVE_THEME=meu-tema no .env)
 
 # 5. Gestão
-npx okcms theme:list                               # instalados + status
-npx okcms theme:manage -n meu-tema --info          # informações do theme.json
-npx okcms theme:manage -n meu-tema --disable|enable
-npx okcms theme:manage -n meu-tema --uninstall
-npx okcms theme:search -q blog                     # busca no npm (keyword okcms-theme)
+okcms theme:list                               # instalados + status
+okcms theme:manage -n meu-tema --info          # informações do theme.json
+okcms theme:manage -n meu-tema --disable|enable
+okcms theme:manage -n meu-tema --uninstall
+okcms theme:search -q blog                     # busca no npm (keyword okcms-theme)
 
 # Se criou FORA do projeto:
-npx okcms theme:install --name ../meu-tema-fonte
+okcms theme:install --name ../meu-tema-fonte
 
 # 6. Depois de mudar templates/estilos: recompila e refaz o deploy
-npx okcms theme:build --name meu-tema   # (o redeploy já compila sozinho)
-npx okcms redeploy
+okcms theme:build --name meu-tema   # (o redeploy já compila sozinho)
+okcms redeploy
 \`\`\`
 
 ## Publicando
@@ -901,7 +895,7 @@ etc.). The catalogue of available hooks is served by the API at
 ## Generated structure
 
 \`\`\`bash
-npx okcms plugin:create --name my-plugin
+okcms plugin:create --name my-plugin
 \`\`\`
 
 \`\`\`
@@ -982,26 +976,26 @@ Two rules the redeploy enforces:
 
 \`\`\`bash
 # 1. Create it (in the project's ./plugins, or an external workspace with --dir)
-npx okcms plugin:create --name my-plugin
+okcms plugin:create --name my-plugin
 
 # 2. Implement plugins/my-plugin/index.js
 
 # 3. If you created it OUTSIDE the project, install it (validates compatibility and copies into plugins/)
-npx okcms plugin:install --name ../my-plugin-source
+okcms plugin:install --name ../my-plugin-source
 
 # 4. Management
-npx okcms plugin:list                                # installed + status
-npx okcms plugin:manage -n my-plugin --info          # manifest information
-npx okcms plugin:manage -n my-plugin --disable       # disables (keeps the files)
-npx okcms plugin:manage -n my-plugin --enable        # enables it again
-npx okcms plugin:manage -n my-plugin --uninstall     # removes files + registration
+okcms plugin:list                                # installed + status
+okcms plugin:manage -n my-plugin --info          # manifest information
+okcms plugin:manage -n my-plugin --disable       # disables (keeps the files)
+okcms plugin:manage -n my-plugin --enable        # enables it again
+okcms plugin:manage -n my-plugin --uninstall     # removes files + registration
 
 # 5. Search npm (packages with the okcms-plugin keyword)
-npx okcms plugin:search -q gallery
+okcms plugin:search -q gallery
 
 # 6. Published/updated? Stage the SQL + build the themes + blue/green deploy
-npx okcms redeploy --dry-run   # only shows the plan
-npx okcms redeploy
+okcms redeploy --dry-run   # only shows the plan
+okcms redeploy
 \`\`\`
 
 ## Publishing
@@ -1025,7 +1019,7 @@ another one.
 ## Generated structure
 
 \`\`\`bash
-npx okcms theme:create --name my-theme --style css   # css | scss | tailwind
+okcms theme:create --name my-theme --style css   # css | scss | tailwind
 \`\`\`
 
 \`\`\`
@@ -1094,30 +1088,30 @@ isolation** (styles never leak between themes; Tailwind already ships with
 
 \`\`\`bash
 # 1. Create it
-npx okcms theme:create --name my-theme --style scss
+okcms theme:create --name my-theme --style scss
 
 # 2. Edit templates/ and styles
 
 # 3. Compile the styles (scss/tailwind)
-npx okcms theme:build --name my-theme
+okcms theme:build --name my-theme
 
 # 4. Activate it (writes activeTheme into okcms.config.json)
-npx okcms theme:manage --name my-theme --set-active
+okcms theme:manage --name my-theme --set-active
 #    (equivalent: ACTIVE_THEME=my-theme in .env)
 
 # 5. Management
-npx okcms theme:list                               # installed + status
-npx okcms theme:manage -n my-theme --info          # theme.json information
-npx okcms theme:manage -n my-theme --disable|enable
-npx okcms theme:manage -n my-theme --uninstall
-npx okcms theme:search -q blog                     # npm search (keyword okcms-theme)
+okcms theme:list                               # installed + status
+okcms theme:manage -n my-theme --info          # theme.json information
+okcms theme:manage -n my-theme --disable|enable
+okcms theme:manage -n my-theme --uninstall
+okcms theme:search -q blog                     # npm search (keyword okcms-theme)
 
 # If you created it OUTSIDE the project:
-npx okcms theme:install --name ../my-theme-source
+okcms theme:install --name ../my-theme-source
 
 # 6. After changing templates/styles: recompile and redo the deploy
-npx okcms theme:build --name my-theme   # (the redeploy compiles it anyway)
-npx okcms redeploy
+okcms theme:build --name my-theme   # (the redeploy compiles it anyway)
+okcms redeploy
 \`\`\`
 
 ## Publishing
@@ -1140,7 +1134,8 @@ export function projectReadme(
   projectName: string,
   lang: DocsLang = DEFAULT_DOCS_LANG
 ): string {
-  return lang === 'pt' ? projectReadmePt(projectName) : projectReadmeEn(projectName);
+  const readme = lang === 'pt' ? projectReadmePt(projectName) : projectReadmeEn(projectName);
+  return readme.replaceAll('npx okcms', 'okcms');
 }
 
 /** PLUGIN.md na língua pedida. */

@@ -95,6 +95,15 @@ export const ENV_FIELDS: EnvField[] = [
     example: 'https://meusite.com,https://admin.meusite.com',
   },
   {
+    key: 'TRUSTED_ORIGINS',
+    section: 'app',
+    label: 'TRUSTED_ORIGINS',
+    description: 'Origins allowed by CSRF protection (comma-separated)',
+    type: 'string',
+    default: 'http://localhost:3011,http://127.0.0.1:3011',
+    example: 'https://admin.meusite.com',
+  },
+  {
     key: 'PUBLIC_API_URL',
     section: 'app',
     label: 'PUBLIC_API_URL',

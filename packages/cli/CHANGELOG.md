@@ -1,5 +1,13 @@
 # @oktis-works/cms
 
+## 0.4.18
+
+### Minor Changes
+
+- `okcms init` now generates the development CSRF origin and auth-cookie settings, and installs the CLI as a local project binary.
+- Redesigned CLI output around the OKCMS identity: grouped command map, command-level help, quick-start guidance, and consistent error messages.
+- Admin sidebar and language selector now react immediately to locale changes; dashboard widget spacing and the Settings icon were refined.
+
 ## 0.3.3
 
 ### Minor Changes

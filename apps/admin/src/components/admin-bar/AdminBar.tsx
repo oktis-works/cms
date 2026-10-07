@@ -17,7 +17,7 @@ export function AdminBar(props: Props) {
   const [showNotifications, setShowNotifications] = createSignal(false);
   const [notifications, setNotifications] = createSignal<AuditLogEntry[]>([]);
 
-  const currentLocale = () => locale as Locale;
+  const currentLocale = () => locale() as Locale;
   const translate = t as (key: string, params?: Record<string, string | number>) => string;
 
   const handleClickOutside = (e: MouseEvent) => {

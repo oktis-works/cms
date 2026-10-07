@@ -29,22 +29,23 @@ configuration always happen from the host.
 # global (allows `okcms ...` without a prefix)
 npm install -g @oktis-works/cms      # or: bun add -g @oktis-works/cms
 
-# without installing: always works with npx (or bunx with Bun)
-npx okcms --help
+# create a project without a global install
+npx @oktis-works/cms@latest --help
+# or: bunx @oktis-works/cms@latest --help
 
-# in a scaffolded project the CLI is already in devDependencies
-npx okcms doctor
+# in a scaffolded project the CLI is available as `okcms`
+okcms doctor
 ```
 
 ### First steps
 
 ```bash
-npx okcms init meu-site      # scaffolding + bun install (or npm, without bun)
+npx @oktis-works/cms@latest init meu-site  # or: bunx @oktis-works/cms@latest init meu-site
 cd meu-site
 $EDITOR .env                 # set DB_PASSWORD and JWT_SECRET
-npx okcms db:migrate         # applies migrations/
-npx okcms start              # api + admin + web + worker
-npx okcms doctor             # if anything fails
+okcms db:migrate             # applies migrations/
+okcms start                  # api + admin + web + worker
+okcms doctor                 # if anything fails
 ```
 
 `init` asks which language to write the docs in (`README.md`, `PLUGIN.md`,
@@ -75,10 +76,10 @@ shows each package's real version as it lands; without bun it falls back to
 ports · theme · deploy`.
 
 ```bash
-npx okcms config                          # interactive wizard
-npx okcms config --list                   # keys with secrets masked
-npx okcms config --set PORT=4000 --set JWT_SECRET=$(openssl rand -hex 32)
-npx okcms config --section deploy -n      # programmatic, no TTY
+okcms config                          # interactive wizard
+okcms config --list                   # keys with secrets masked
+okcms config --set PORT=4000 --set JWT_SECRET=$(openssl rand -hex 32)
+okcms config --section deploy -n      # programmatic, no TTY
 ```
 
 **Update and deployment**
@@ -93,15 +94,15 @@ npx okcms config --section deploy -n      # programmatic, no TTY
 | (deploy flags) | `-c, --no-cache` · `-r, --remove-orphans` · `-k, --keep-orphans` · `-y, --yes` · `-F, --force` | `-c`/`-r`/`-k` belong to `redeploy` and `update --mode deploy` only — the first `deploy` does not expose them, and the orphan options only affect blue/green; `-y` and `-F` are for use without TTY |
 
 ```bash
-npx okcms deploy --target simple      # first deploy: menu, or --target to skip it
-npx okcms update                     # with TTY: menu (download or deploy)
-npx okcms update -i                  # non-TTY: packages only (original behavior)
-npx okcms update --mode deploy       # deployment: target from menu, --target or saved
-npx okcms update --mode deploy --target pm2 --yes # CI: no prompts, defaults
+okcms deploy --target simple      # first deploy: menu, or --target to skip it
+okcms update                     # with TTY: menu (download or deploy)
+okcms update -i                  # non-TTY: packages only (original behavior)
+okcms update --mode deploy       # deployment: target from menu, --target or saved
+okcms update --mode deploy --target pm2 --yes # CI: no prompts, defaults
 
-npx okcms plugin:install -n ./meu-plugin   # or theme:install
-npx okcms redeploy                  # stage + build + deploy (what to do after installing)
-npx okcms redeploy --dry-run        # only shows the plan
+okcms plugin:install -n ./meu-plugin   # or theme:install
+okcms redeploy                  # stage + build + deploy (what to do after installing)
+okcms redeploy --dry-run        # only shows the plan
 ```
 
 > **Non-TTY never deploys by accident.** Without `--mode`, the default in
@@ -186,8 +187,8 @@ meu-site/
 ```
 
 ```bash
-npx okcms deploy --target blue-green     # first deploy
-npx okcms update --mode deploy           # the same, from every update
+okcms deploy --target blue-green     # first deploy
+okcms update --mode deploy           # the same, from every update
 ```
 
 What happens, in this order (blue/green):
@@ -214,8 +215,8 @@ Installing an extension **doesn't change what's running**: `plugins/` and
 compile SCSS/Tailwind). A plugin that touches the database must apply its own SQL.
 
 ```bash
-npx okcms plugin:install -n ./meu-plugin   # or: theme:install
-npx okcms redeploy
+okcms plugin:install -n ./meu-plugin   # or: theme:install
+okcms redeploy
 ```
 
 `okcms redeploy` runs the full cycle, in this order:
@@ -362,7 +363,7 @@ WEB_PORT=3001    # public site
 ADMIN_PORT=3011  # admin panel
 ```
 
-Edit it with the wizard: `npx okcms config`.
+Edit it with the wizard: `okcms config`.
 
 ## API Endpoints
 

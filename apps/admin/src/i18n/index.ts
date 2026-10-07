@@ -7,7 +7,7 @@ import englishTranslations from './locales/en.json';
 
 interface UseTranslationReturn {
   t: (key: string, params?: Record<string, string | number>) => string;
-  locale: Locale;
+  locale: () => Locale;
   changeLocale: (locale: Locale) => Promise<void>;
   loading: boolean;
 }
@@ -86,6 +86,14 @@ let currentTFunction: TFunction = createTFunction(initialTranslations, initialTr
 let currentLocale: Locale = DEFAULT_LOCALE;
 let isLoading = true;
 
+const LOCALE_CHANGE_EVENT = 'okcms:locale-changed';
+
+function emitLocaleChange(): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(LOCALE_CHANGE_EVENT, { detail: { locale: currentLocale } }));
+  }
+}
+
 /** Hook Solid para usar traduções em componentes */
 export function useTranslation(initialLocale?: Locale): UseTranslationReturn {
   onMount(async () => {
@@ -98,6 +106,7 @@ export function useTranslation(initialLocale?: Locale): UseTranslationReturn {
         currentTFunction = await getTFunction(resolvedLocale);
         isLoading = false;
         notifyTranslationChange((version) => version + 1);
+        emitLocaleChange();
       })();
     }
 
@@ -106,11 +115,12 @@ export function useTranslation(initialLocale?: Locale): UseTranslationReturn {
   
   const changeLocaleFn = async (newLocale: Locale) => {
     isLoading = true;
-    await changeLocale(newLocale);
     currentLocale = newLocale;
     currentTFunction = await getTFunction(newLocale);
     isLoading = false;
     notifyTranslationChange((version) => version + 1);
+    emitLocaleChange();
+    await changeLocale(newLocale);
   };
   
   // Função de tradução que usa o estado global
@@ -123,7 +133,10 @@ export function useTranslation(initialLocale?: Locale): UseTranslationReturn {
   
   return { 
     t: translate, 
-    get locale(): Locale { return currentLocale; }, 
+    locale: () => {
+      translationVersion();
+      return currentLocale;
+    },
     changeLocale: changeLocaleFn, 
     get loading(): boolean { return isLoading; }
   };

@@ -29,22 +29,23 @@ host.
 # global (permite `okcms ...` sem prefixo)
 npm install -g @oktis-works/cms      # ou: bun add -g @oktis-works/cms
 
-# sem instalar: sempre funciona com npx (ou bunx com Bun)
-npx okcms --help
+# criar um projeto sem instalação global
+npx @oktis-works/cms@latest --help
+# ou: bunx @oktis-works/cms@latest --help
 
-# num projeto scaffoldado a CLI já está em devDependencies
-npx okcms doctor
+# num projeto scaffoldado, a CLI fica disponível como `okcms`
+okcms doctor
 ```
 
 ### Primeiros passos
 
 ```bash
-npx okcms init meu-site      # scaffolding + bun install (ou npm, sem bun)
+npx @oktis-works/cms@latest init meu-site  # ou: bunx @oktis-works/cms@latest init meu-site
 cd meu-site
 $EDITOR .env                 # ajuste DB_PASSWORD e JWT_SECRET
-npx okcms db:migrate         # aplica migrations/
-npx okcms start              # api + admin + web + worker
-npx okcms doctor             # se algo falhar
+okcms db:migrate             # aplica migrations/
+okcms start                  # api + admin + web + worker
+okcms doctor                 # se algo falhar
 ```
 
 O `init` pergunta em que língua escrever as docs (`README.md`, `PLUGIN.md`,
@@ -75,10 +76,10 @@ mostra a versão real de cada pacote conforme instala; sem bun, ele cai para o
 ports · theme · deploy`.
 
 ```bash
-npx okcms config                          # wizard interativo
-npx okcms config --list                   # chaves com segredos mascarados
-npx okcms config --set PORT=4000 --set JWT_SECRET=$(openssl rand -hex 32)
-npx okcms config --section deploy -n      # programático, sem TTY
+okcms config                          # wizard interativo
+okcms config --list                   # chaves com segredos mascarados
+okcms config --set PORT=4000 --set JWT_SECRET=$(openssl rand -hex 32)
+okcms config --section deploy -n      # programático, sem TTY
 ```
 
 **Atualização e deploy**
@@ -93,15 +94,15 @@ npx okcms config --section deploy -n      # programático, sem TTY
 | (flags de deploy) | `-c, --no-cache` · `-r, --remove-orphans` · `-k, --keep-orphans` · `-y, --yes` · `-F, --force` | `-c`/`-r`/`-k` valem só para `redeploy` e `update --mode deploy` — o primeiro `deploy` não os expõe, e as opções de órfãos só afetam o blue/green; `-y` e `-F` são para uso sem TTY |
 
 ```bash
-npx okcms deploy --target simple      # primeiro deploy: menu, ou --target para pular
-npx okcms update                     # com TTY: menu (download ou deploy)
-npx okcms update -i                  # não-TTY: só pacotes (comportamento original)
-npx okcms update --mode deploy       # deploy: target do menu, --target ou salvo
-npx okcms update --mode deploy --target pm2 --yes # CI: sem prompts, defaults
+okcms deploy --target simple      # primeiro deploy: menu, ou --target para pular
+okcms update                     # com TTY: menu (download ou deploy)
+okcms update -i                  # não-TTY: só pacotes (comportamento original)
+okcms update --mode deploy       # deploy: target do menu, --target ou salvo
+okcms update --mode deploy --target pm2 --yes # CI: sem prompts, defaults
 
-npx okcms plugin:install -n ./meu-plugin   # ou theme:install
-npx okcms redeploy                  # stage + build + deploy (o que fazer depois de instalar)
-npx okcms redeploy --dry-run        # só mostra o plano
+okcms plugin:install -n ./meu-plugin   # ou theme:install
+okcms redeploy                  # stage + build + deploy (o que fazer depois de instalar)
+okcms redeploy --dry-run        # só mostra o plano
 ```
 
 > **Não-TTY nunca faz deploy por acidente.** Sem `--mode`, o default em script
@@ -186,8 +187,8 @@ meu-site/
 ```
 
 ```bash
-npx okcms deploy --target blue-green     # primeiro deploy
-npx okcms update --mode deploy           # o mesmo, a cada update
+okcms deploy --target blue-green     # primeiro deploy
+okcms update --mode deploy           # o mesmo, a cada update
 ```
 
 O que acontece, nesta ordem (blue/green):
@@ -214,8 +215,8 @@ compilado **no host** (o container não compila SCSS/Tailwind). Um plugin que
 mexe no banco, além disso, precisa aplicar o SQL dele.
 
 ```bash
-npx okcms plugin:install -n ./meu-plugin   # ou: theme:install
-npx okcms redeploy
+okcms plugin:install -n ./meu-plugin   # ou: theme:install
+okcms redeploy
 ```
 
 O `okcms redeploy` faz o ciclo completo, nesta ordem:
@@ -362,7 +363,7 @@ WEB_PORT=3001    # site público
 ADMIN_PORT=3011  # painel
 ```
 
-Edite com o wizard: `npx okcms config`.
+Edite com o wizard: `okcms config`.
 
 ## API Endpoints
 

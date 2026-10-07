@@ -18,7 +18,7 @@ export interface LocaleConfig {
 
 export interface UseTranslationReturn {
   t: TFunction;
-  locale: Locale;
+  locale: () => Locale;
   changeLocale: (locale: Locale) => Promise<void>;
 }
 
