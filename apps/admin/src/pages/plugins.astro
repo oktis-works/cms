@@ -1,8 +1,10 @@
 ---
-import BaseLayout from '../layouts/BaseLayout.astro';
+import DashboardLayout from '../layouts/DashboardLayout.astro';
 import { PluginManager } from '../components/apps/plugins/PluginManager';
+
+const { t } = Astro.locals;
 ---
 
-<BaseLayout title="Plugins" description="Gerencie plugins do sistema">
+<DashboardLayout title={t('plugins.title')} description={t('plugins.description')}>
   <PluginManager client:load />
-</BaseLayout>
+</DashboardLayout>

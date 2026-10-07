@@ -1,8 +1,10 @@
 ---
-import BaseLayout from '../layouts/BaseLayout.astro';
+import DashboardLayout from '../layouts/DashboardLayout.astro';
 import { ThemeManager } from '../components/apps/themes/ThemeManager';
+
+const { t } = Astro.locals;
 ---
 
-<BaseLayout title="Temas" description="Gerencie temas do sistema">
+<DashboardLayout title={t('themes.title')} description={t('themes.description')}>
   <ThemeManager client:load />
-</BaseLayout>
+</DashboardLayout>

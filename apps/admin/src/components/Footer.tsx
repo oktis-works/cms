@@ -43,14 +43,14 @@ export function Footer() {
           right: 0;
           height: 48px;
           background: #2d2d2d;
-          border-top: 1px solid var(--color-border);
+          border-top: 1px solid #4a4a4a;
           padding: 0 1.5rem;
           z-index: 1000;
           display: flex;
           align-items: center;
           justify-content: space-between;
           font-size: 0.75rem;
-          color: var(--color-muted);
+          color: #e5e7eb;
         }
 
         .footer-content {
@@ -67,12 +67,12 @@ export function Footer() {
 
         .footer-version {
           display: flex; align-items: center; gap: 0.5rem;
-          font-weight: 600; color: var(--color-text); font-size: 0.8125rem;
+          font-weight: 600; color: #ffffff; font-size: 0.8125rem;
         }
 
         .version-badge {
           background: var(--color-primary-soft);
-          color: var(--color-primary-hover);
+          color: #2d2d2d;
           padding: 0.125rem 0.375rem;
           border-radius: var(--radius-sm);
           font-size: 0.6875rem;
@@ -84,17 +84,17 @@ export function Footer() {
         }
 
         .footer-links a {
-          color: var(--color-muted);
+          color: #e5e7eb;
           font-size: 0.75rem;
           font-weight: 500;
           text-decoration: none;
           transition: color 0.15s;
         }
 
-        .footer-links a:hover { color: var(--color-primary); }
+        .footer-links a:hover { color: #f0c96a; }
 
         .footer-right { text-align: right; }
-        .footer-powered { font-size: 0.6875rem; color: var(--color-muted); }
+        .footer-powered { font-size: 0.6875rem; color: #d1d5db; }
 
         @media (max-width: 768px) {
           .admin-footer { flex-direction: column; height: auto; padding: 0.75rem 1rem; gap: 0.5rem; }
