@@ -3,16 +3,17 @@ import DashboardLayout from '../../layouts/DashboardLayout.astro';
 import { ContentEditor } from '../../components/content/ContentEditor';
 
 const { t } = Astro.locals;
+const initialType = Astro.url.searchParams.get('type') ?? 'post';
 ---
 
 <DashboardLayout title={t('content.editor.save')}>
   <div class="editor-page">
-    <ContentEditor client:load />
+    <ContentEditor client:load initialType={initialType} />
   </div>
 </DashboardLayout>
 
 <style>
   .editor-page {
-    max-width: 960px;
+    max-width: 1200px;
   }
 </style>

@@ -90,8 +90,10 @@
       },
       "buttons": {
         "new": "+ Novo conteúdo",
+        "addNew": "+ Adicionar novo",
         "search": "Buscar"
       },
+      "all": "Todo o conteúdo",
       "empty": "Nenhum conteúdo encontrado.",
       "statuses": {
         "draft": "Rascunho",
@@ -106,10 +108,23 @@
     },
     "editor": {
       "type": "Tipo",
+      "adding": "Adicionar novo",
+      "editing": "Editar",
+      "backToList": "Voltar para a lista",
+      "saving": "Salvando…",
       "title": "Título",
+      "titlePlaceholder": "Adicione um título",
       "slug": "Slug",
+      "slugPlaceholder": "gerado-a-partir-do-titulo",
+      "toolbar": "Barra de ferramentas do editor",
+      "bodyPlaceholder": "Comece a escrever…",
+      "linkPrompt": "Digite a URL:",
       "excerpt": "Resumo",
       "featuredImage": "Imagem destacada (ID da mídia)",
+      "mediaIdPlaceholder": "ID da mídia",
+      "featuredImageHint": "Escolha um item na Biblioteca de Mídia.",
+      "pageAttributes": "Atributos da página",
+      "publishPanel": "Publicar",
       "status": "Status",
       "statusOptions": {
         "draft": "Rascunho",
@@ -122,6 +137,22 @@
       "inspectTypes": "Inspecionar tipos disponíveis",
       "save": "Salvar",
       "saved": "Conteúdo salvo com sucesso."
+    },
+    "taxonomy": {
+      "title": "Termos da taxonomia",
+      "back": "← Voltar para o conteúdo",
+      "choose": "Escolha uma taxonomia no menu de conteúdo.",
+      "notFound": "Taxonomia não encontrada.",
+      "addTerm": "Adicionar novo termo",
+      "name": "Nome",
+      "slug": "Slug",
+      "description": "Descrição",
+      "descriptionHint": "Gerencie os termos usados por este tipo de conteúdo.",
+      "attachedTo": "Vinculada a",
+      "add": "Adicionar termo",
+      "delete": "Excluir",
+      "empty": "Nenhum termo ainda.",
+      "confirmDelete": "Excluir \"{name}\"?"
     }
   },
   "media": {
@@ -545,7 +576,7 @@
     "github": "GitHub",
     "docs": "Documentação",
     "community": "Comunidade",
-    "poweredBy": "Desenvolvido com OkCMS"
+    "poweredBy": "Desenvolvido com Oktis Works"
   },
   "helpTabs": {
     "title": "Ajuda",

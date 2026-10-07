@@ -1,5 +1,13 @@
 # @oktis-works/cms
 
+## 0.4.19
+
+### Minor Changes
+
+- Added WordPress-style content navigation with dynamic post type links, taxonomy dropdowns and taxonomy term management.
+- Reworked content creation and editing into a classic editor workspace with a rich-text canvas, publish panel and contextual fields.
+- Settings navigation is now collapsible, and the admin footer identifies Oktis Works with the CMS repository link.
+
 ## 0.4.18
 
 ### Minor Changes

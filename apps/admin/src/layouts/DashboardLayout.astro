@@ -69,10 +69,19 @@ const settingsChildren = [
           <span class="nav-label" data-sidebar-i18n="layout.nav.dashboard">{t('layout.nav.dashboard')}</span>
         </a>
 
-        <a href="/content" class:list={['nav-item', { active: navActive.content }]}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-          <span class="nav-label" data-sidebar-i18n="layout.nav.content">{t('layout.nav.content')}</span>
-        </a>
+        <div class:list={['nav-group', { open: navActive.content }]} data-nav-group="content">
+          <div class="nav-group-header">
+            <a href="/content" class:list={['nav-item', { active: navActive.content }]}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+              <span class="nav-label" data-sidebar-i18n="layout.nav.content">{t('layout.nav.content')}</span>
+            </a>
+            <button class="nav-group-toggle" type="button" aria-expanded={navActive.content ? 'true' : 'false'} aria-label="Toggle content menu">⌄</button>
+          </div>
+          <div class="nav-submenu">
+            <a class="nav-subitem" href="/content" data-sidebar-i18n="content.list.all">All content</a>
+            <div data-post-types-menu></div>
+          </div>
+        </div>
 
         <a href="/media" class:list={['nav-item', { active: navActive.media }]}>
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
@@ -84,11 +93,16 @@ const settingsChildren = [
           <span class="nav-label" data-sidebar-i18n="layout.nav.users">{t('layout.nav.users')}</span>
         </a>
 
+        <div class:list={['nav-group', { open: navActive.settings }]} data-nav-group="settings">
+          <div class="nav-group-header">
         <a href="/settings" class:list={['nav-item', { active: navActive.settings }]}>
           <svg class="settings-nav-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 0-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06-.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.82-.33l-.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0-2.83l-.06-.06a1.65 1.65 0 0 0-.33-1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
           <span class="nav-label" data-sidebar-i18n="layout.nav.settings">{t('layout.nav.settings')}</span>
         </a>
+
+            <button class="nav-group-toggle" type="button" aria-expanded={navActive.settings ? 'true' : 'false'} aria-label="Toggle settings menu">⌄</button>
+          </div>
 
         <!-- Submenu de configurações fica agrupado diretamente sob Settings. -->
         <div class="nav-submenu">
@@ -97,6 +111,7 @@ const settingsChildren = [
               {t(child.key)}
             </a>
           ))}
+        </div>
         </div>
 
         <a href="/plugins" class:list={['nav-item', { active: navActive.plugins }]}>
@@ -170,6 +185,96 @@ const settingsChildren = [
 
   import { getTFunction, type Locale } from '../i18n';
 
+  const setupNavGroups = (): void => {
+    document.querySelectorAll<HTMLElement>('[data-nav-group]').forEach((group) => {
+      const toggle = group.querySelector<HTMLButtonElement>(':scope > .nav-group-header .nav-group-toggle');
+      if (!toggle || toggle.dataset.bound === 'true') return;
+      toggle.dataset.bound = 'true';
+      toggle.addEventListener('click', () => {
+        const open = !group.classList.contains('open');
+        group.classList.toggle('open', open);
+        toggle.setAttribute('aria-expanded', String(open));
+      });
+    });
+  };
+
+  const createSidebarLink = (label: string, href: string, className = 'nav-subitem', translationKey?: string): HTMLAnchorElement => {
+    const link = document.createElement('a');
+    link.className = className;
+    link.href = href;
+    link.textContent = label;
+    if (translationKey) link.dataset.sidebarI18n = translationKey;
+    return link;
+  };
+
+  const renderContentTypes = async (): Promise<void> => {
+    const target = document.querySelector<HTMLElement>('[data-post-types-menu]');
+    if (!target) return;
+
+    try {
+      const [types, taxonomies] = await Promise.all([
+        apiClient.getContentTypes(),
+        apiClient.getTaxonomies().catch(() => []),
+      ]);
+      target.replaceChildren();
+      const currentParams = new URLSearchParams(window.location.search);
+
+      for (const type of types) {
+        const entry = document.createElement('div');
+        entry.className = 'nav-type-entry';
+
+        const row = document.createElement('div');
+        row.className = 'nav-type-row';
+        row.append(createSidebarLink(type.pluralLabel || type.name, `/content?type=${encodeURIComponent(type.slug)}`, 'nav-subitem nav-type-link'));
+        row.append(createSidebarLink('+ Add new', `/content/new?type=${encodeURIComponent(type.slug)}`, 'nav-subitem nav-subitem-add', 'content.list.addNew'));
+
+        const attached = taxonomies.filter((taxonomy) => taxonomy.attachTo?.includes(type.slug));
+        if (attached.length > 0) {
+          const taxonomyToggle = document.createElement('button');
+          taxonomyToggle.className = 'nav-taxonomy-toggle';
+          taxonomyToggle.type = 'button';
+          taxonomyToggle.textContent = '⌄';
+          taxonomyToggle.setAttribute('aria-label', `Toggle ${type.pluralLabel || type.name} taxonomies`);
+          row.append(taxonomyToggle);
+          entry.append(row);
+
+          const taxonomyMenu = document.createElement('div');
+          taxonomyMenu.className = 'nav-taxonomy-menu';
+          const shouldOpen = currentParams.get('type') === type.slug;
+          taxonomyMenu.classList.toggle('open', shouldOpen);
+          taxonomyToggle.setAttribute('aria-expanded', String(shouldOpen));
+          taxonomyToggle.addEventListener('click', () => {
+            const open = !taxonomyMenu.classList.contains('open');
+            taxonomyMenu.classList.toggle('open', open);
+            taxonomyToggle.setAttribute('aria-expanded', String(open));
+          });
+
+          for (const taxonomy of attached) {
+            const label = taxonomy.labels?.['plural_name'] ?? taxonomy.labels?.['name'] ?? taxonomy.name;
+            taxonomyMenu.append(
+              createSidebarLink(
+                label,
+                `/content/taxonomy?taxonomy=${encodeURIComponent(taxonomy.slug)}&type=${encodeURIComponent(type.slug)}`,
+                'nav-subitem nav-taxonomy-item'
+              )
+            );
+          }
+          entry.append(taxonomyMenu);
+        } else {
+          entry.append(row);
+        }
+
+        target.append(entry);
+      }
+    } catch {
+      // The rest of the sidebar remains usable while the API is booting.
+    }
+  };
+
+  setupNavGroups();
+  void renderContentTypes();
+  window.addEventListener('okcms:content-models-changed', () => void renderContentTypes());
+
   const updateSidebarTranslations = async (locale: Locale): Promise<void> => {
     const translate = await getTFunction(locale);
     document.querySelectorAll<HTMLElement>('[data-sidebar-i18n]').forEach((element) => {
@@ -200,7 +305,8 @@ const settingsChildren = [
   }
 
   body.sidebar-collapsed .sidebar-nav .nav-item span,
-  body.sidebar-collapsed .nav-submenu {
+  body.sidebar-collapsed .nav-submenu,
+  body.sidebar-collapsed .nav-group-toggle {
     display: none;
   }
 
@@ -276,6 +382,58 @@ const settingsChildren = [
     font-weight: 500;
     text-decoration: none;
     transition: all 0.15s ease;
+  }
+
+  .nav-group-header {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .nav-group-header .nav-item { flex: 1; }
+
+  .nav-group:not(.open) > .nav-submenu { display: none; }
+
+  .nav-group-toggle,
+  .nav-taxonomy-toggle {
+    border: 0;
+    background: transparent;
+    color: rgba(255,255,255,0.62);
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 0.45rem 0.55rem;
+    border-radius: var(--radius-sm);
+  }
+
+  .nav-group-toggle:hover,
+  .nav-taxonomy-toggle:hover {
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+  }
+
+  .nav-type-row {
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+  }
+
+  .nav-type-row .nav-type-link { flex: 1; }
+  .nav-type-row .nav-subitem-add { white-space: nowrap; color: var(--color-primary); }
+
+  .nav-taxonomy-menu {
+    display: none;
+    margin: 0 0 0.25rem 1rem;
+    padding-left: 0.65rem;
+    border-left: 1px solid rgba(216,180,94,0.6);
+  }
+
+  .nav-taxonomy-menu.open { display: block; }
+
+  .nav-taxonomy-item {
+    font-size: 0.75rem;
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
   }
 
   .nav-item:hover {

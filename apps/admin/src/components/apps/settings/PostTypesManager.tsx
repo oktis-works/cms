@@ -53,6 +53,7 @@ export function PostTypesManager() {
       });
       setForm({ name: '', slug: '', singularLabel: '', pluralLabel: '', hasArchive: false, supports: ['title', 'editor'] });
       await load();
+      window.dispatchEvent(new Event('okcms:content-models-changed'));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -64,6 +65,7 @@ export function PostTypesManager() {
     try {
       await apiClient.deleteContentType(slug);
       await load();
+      window.dispatchEvent(new Event('okcms:content-models-changed'));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }

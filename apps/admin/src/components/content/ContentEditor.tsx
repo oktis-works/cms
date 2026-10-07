@@ -1,12 +1,11 @@
-// @oktis-works/admin - Content Editor (conteúdo base + campos customizados)
+// @oktis-works/admin - Classic editor inspired content workspace
 
 import { For, Show, createSignal, onMount } from 'solid-js';
 import { expandCloneFields } from '../../lib/validation';
-import { apiClient, type ThemeInfo } from '../../lib/api';
-import type { ContentType } from '../../lib/api';
+import { sanitizeHtml } from '../../lib/sanitize';
+import { apiClient, type ThemeInfo, type ContentType, type FieldTypeInfo, type FieldCategoryInfo } from '../../lib/api';
 import { FieldRenderer } from './FieldRenderer';
 import { FieldTypePicker } from './FieldTypePicker';
-import type { FieldTypeInfo, FieldCategoryInfo } from '../../lib/api';
 import type { ResolvedFieldDefinition } from './types';
 import { useTranslation } from '../../i18n';
 
@@ -21,7 +20,11 @@ interface Draft {
   layout?: string | null;
 }
 
-export function ContentEditor() {
+interface Props {
+  initialType?: string;
+}
+
+export function ContentEditor(props: Props) {
   const { t } = useTranslation();
   const [types, setTypes] = createSignal<ContentType[]>([]);
   const [fieldTypes, setFieldTypes] = createSignal<FieldTypeInfo[]>([]);
@@ -34,23 +37,54 @@ export function ContentEditor() {
   const [message, setMessage] = createSignal('');
 
   const [draft, setDraft] = createSignal<Draft>({
-    type: 'post',
+    type: props.initialType || 'post',
     title: '',
     status: 'DRAFT',
   });
 
   const supports = (): Set<string> =>
-    new Set(types().find((t) => t.slug === draft().type)?.supports ?? ['title', 'editor']);
+    new Set(types().find((type) => type.slug === draft().type)?.supports ?? ['title', 'editor']);
   const hasSupport = (support: string): boolean => supports().has(support);
 
-  onMount(async () => {
+  const typeListFallback = (available: ContentType[], requested?: string): string =>
+    requested || available[0]?.slug || 'post';
+
+  const availableLayouts = () => {
+    const layouts = new Set<string>();
+    for (const theme of themes()) {
+      for (const layout of theme.manifest?.provides?.layouts ?? []) layouts.add(layout);
+    }
+    return [...layouts].sort();
+  };
+
+  const loadGroups = async (context: { type?: string; slug?: string; status?: string } | string): Promise<void> => {
     try {
-      const [typeList, fieldTypeCatalog, themeList] = await Promise.all([
+      const query = typeof context === 'string' ? { type: context } : context;
+      const all = await apiClient.getFieldGroups(query.type ? query : undefined);
+      const resolved = await Promise.all(
+        all
+          .filter((group) => group.active)
+          .map(async (group) => {
+            const full = await apiClient.getFieldGroup(group.id);
+            return full.fields ?? [];
+          })
+      );
+      setGroups(expandCloneFields(resolved.flat() as ResolvedFieldDefinition[]));
+    } catch (err) {
+      setErrors([err instanceof Error ? err.message : String(err)]);
+    }
+  };
+
+  onMount(async () => {
+    let typeList: ContentType[] = [];
+    try {
+      const [typeCatalog, fieldTypeCatalog, themeList] = await Promise.all([
         apiClient.getContentTypes(),
         apiClient.getFieldTypes(),
         apiClient.getThemes().catch(() => [] as ThemeInfo[]),
       ]);
-      setTypes(typeList);
+      typeList = typeCatalog;
+      setTypes(typeCatalog);
       setFieldTypes(fieldTypeCatalog.types);
       setCategories(fieldTypeCatalog.categories);
       setThemes(themeList);
@@ -58,8 +92,6 @@ export function ContentEditor() {
       setErrors([err instanceof Error ? err.message : String(err)]);
     }
 
-    // Edição: /content/edit?id=... carrega o conteúdo existente (antes dos
-    // grupos de campos, para que carreguem pelo tipo real do conteúdo).
     const editId = new URLSearchParams(window.location.search).get('id');
     if (editId) {
       try {
@@ -81,53 +113,39 @@ export function ContentEditor() {
       } catch (err) {
         setErrors([err instanceof Error ? err.message : String(err)]);
       }
+    } else if (!typeList.some((type) => type.slug === draft().type)) {
+      setDraft({ ...draft(), type: typeListFallback(typeList, props.initialType) });
     }
 
-    // Carrega grupos de campos aplicáveis quando o tipo muda
     await loadGroups({ type: draft().type, slug: draft().slug, status: draft().status });
   });
 
-  // Layouts disponíveis dos temas instalados (provides.layouts), únicos
-  const availableLayouts = () => {
-    const layouts = new Set<string>();
-    for (const theme of themes()) {
-      for (const layout of theme.manifest?.provides?.layouts ?? []) layouts.add(layout);
-    }
-    return [...layouts].sort();
+  const editorContent = (): string => {
+    const value = data()['content'];
+    return typeof value === 'string' ? value : '';
   };
 
-  const loadGroups = async (context: { type?: string; slug?: string; status?: string } | string): Promise<void> => {
-    try {
-      // Os grupos são resolvidos por location rules no servidor:
-      // o endpoint filtra pelas regras de localização recebidas.
-      const query = typeof context === 'string' ? { type: context } : context;
-      const all = await apiClient.getFieldGroups(query.type ? query : undefined);
-      const resolved = await Promise.all(
-        all
-          .filter((group) => group.active)
-          .map(async (group) => {
-            const full = await apiClient.getFieldGroup(group.id);
-            return full.fields ?? [];
-          })
-      );
-      // Expande clones (seamless/group) com as mesmas regras do core
-      setGroups(expandCloneFields(resolved.flat() as ResolvedFieldDefinition[]));
-      void query;
-    } catch (err) {
-      setErrors([err instanceof Error ? err.message : String(err)]);
-    }
+  const syncEditorContent = (element: HTMLElement): void => {
+    setData({ ...data(), content: element.innerHTML });
+  };
+
+  const formatEditor = (command: string, value?: string): void => {
+    document.execCommand(command, false, value);
+    const editor = document.querySelector<HTMLElement>('[data-classic-editor]');
+    if (editor) syncEditorContent(editor);
   };
 
   const save = async (event: Event): Promise<void> => {
     event.preventDefault();
     setMessage('');
+    setErrors([]);
     setSaving(true);
 
     try {
       const payload = {
         ...draft(),
         layout: draft().layout || null,
-        body: data(),
+        body: { ...data(), content: sanitizeHtml(editorContent()) },
         ...(hasSupport('excerpt') ? {} : { excerpt: undefined }),
         ...(hasSupport('thumbnail') ? {} : { featuredImageId: undefined }),
       };
@@ -146,135 +164,123 @@ export function ContentEditor() {
   };
 
   return (
-    <form class="content-editor" onSubmit={save}>
+    <form class="content-editor classic-editor" onSubmit={save}>
       <Show when={errors().length > 0}>
-        <For each={errors()}>
-          {(err) => <div class="notice notice--error">{err}</div>}
-        </For>
+        <For each={errors()}>{(err) => <div class="notice notice--error">{err}</div>}</For>
       </Show>
       <Show when={message()}>
         <div class="notice notice--success">{message()}</div>
       </Show>
 
-      <div class="card">
-        <label>
-          {t('content.editor.type')}
-          <select
-            class="input"
-            value={draft().type}
-            onChange={(e) => {
-              setDraft({ ...draft(), type: e.currentTarget.value });
-              void loadGroups(e.currentTarget.value);
-            }}
-          >
-            <For each={types()}>
-              {(type) => <option value={type.slug}>{type.pluralLabel}</option>}
-            </For>
-          </select>
-        </label>
-
-        <Show when={hasSupport('title')}>
-          <label>
-            {t('content.editor.title')}
-            <input
-              class="input"
-              required
-              value={draft().title}
-              onInput={(e) => setDraft({ ...draft(), title: e.currentTarget.value })}
-            />
-          </label>
-        </Show>
-
-        <label>
-          {t('content.editor.slug')}
-          <input
-            class="input"
-            value={draft().slug ?? ''}
-            onInput={(e) => setDraft({ ...draft(), slug: e.currentTarget.value })}
-          />
-        </label>
-
-        <Show when={hasSupport('excerpt')}>
-          <label>
-            {t('content.editor.excerpt')}
-            <textarea
-              class="input"
-              rows={3}
-              value={draft().excerpt ?? ''}
-              onInput={(e) => setDraft({ ...draft(), excerpt: e.currentTarget.value })}
-            />
-          </label>
-        </Show>
-
-        <Show when={hasSupport('thumbnail')}>
-          <label>
-            {t('content.editor.featuredImage')}
-            <input
-              class="input"
-              value={draft().featuredImageId ?? ''}
-              onInput={(e) => setDraft({ ...draft(), featuredImageId: e.currentTarget.value })}
-            />
-          </label>
-        </Show>
-
-        <label>
-          {t('content.editor.status')}
-          <select
-            class="input"
-            value={draft().status}
-            onChange={(e) => setDraft({ ...draft(), status: e.currentTarget.value })}
-          >
-            <option value="DRAFT">{t('content.editor.statusOptions.draft')}</option>
-            <option value="PUBLISHED">{t('content.editor.statusOptions.published')}</option>
-            <option value="ARCHIVED">{t('content.editor.statusOptions.archived')}</option>
-          </select>
-        </label>
-
-        <Show when={availableLayouts().length > 0}>
-          <label>
-            {t('content.editor.layout')}
-            <select
-              class="input"
-              value={draft().layout ?? ''}
-              onChange={(e) => setDraft({ ...draft(), layout: e.currentTarget.value || null })}
-            >
-              <option value="">{t('content.editor.layoutAuto')}</option>
-              <For each={availableLayouts()}>
-                {(layout) => <option value={layout}>{layout}</option>}
-              </For>
-            </select>
-          </label>
-        </Show>
+      <div class="classic-editor__topbar">
+        <div>
+          <span class="classic-editor__eyebrow">{types().find((type) => type.slug === draft().type)?.singularLabel || draft().type}</span>
+          <h2>{draft().id ? t('content.editor.editing') : t('content.editor.adding')}</h2>
+        </div>
+        <div class="classic-editor__actions">
+          <a class="btn btn-secondary" href={`/content?type=${encodeURIComponent(draft().type)}`}>{t('content.editor.backToList')}</a>
+          <button type="submit" class="btn btn-primary" disabled={saving()}>{saving() ? t('content.editor.saving') : t('content.editor.save')}</button>
+        </div>
       </div>
 
-      <Show when={groups().length > 0 || fieldTypes().length > 0}>
-        <div class="card custom-fields">
-          <h3>{t('content.editor.customFields')}</h3>
-          <For each={groups()}>
-            {(field) => (
-              <FieldRenderer
-                field={field}
-                values={data()}
-                onChange={(name, value) => setData({ ...data(), [name]: value })}
+      <div class="classic-editor__columns">
+        <main class="classic-editor__main">
+          <section class="card classic-editor__canvas-card">
+            <Show when={hasSupport('title')}>
+              <input
+                class="classic-editor__title"
+                required
+                aria-label={t('content.editor.title')}
+                placeholder={t('content.editor.titlePlaceholder')}
+                value={draft().title}
+                onInput={(event) => setDraft({ ...draft(), title: event.currentTarget.value })}
               />
-            )}
-          </For>
+            </Show>
 
-          <details>
-            <summary>{t('content.editor.inspectTypes')}</summary>
-            <FieldTypePicker
-              categories={categories()}
-              types={fieldTypes()}
-              value=""
-              onChange={() => undefined}
-            />
-          </details>
-        </div>
-      </Show>
+            <div class="classic-editor__permalink">
+              <span>{t('content.editor.slug')}:</span>
+              <input class="input" value={draft().slug ?? ''} placeholder={t('content.editor.slugPlaceholder')} onInput={(event) => setDraft({ ...draft(), slug: event.currentTarget.value })} />
+            </div>
 
-      <button type="submit" class="btn btn-primary" disabled={saving()}>
-        {t('content.editor.save')}
-      </button>
+            <Show when={hasSupport('editor')}>
+              <div class="classic-editor__toolbar" role="toolbar" aria-label={t('content.editor.toolbar')}>
+                <button type="button" onClick={() => formatEditor('bold')}><strong>B</strong></button>
+                <button type="button" onClick={() => formatEditor('italic')}><em>I</em></button>
+                <button type="button" onClick={() => formatEditor('underline')}><u>U</u></button>
+                <span class="classic-editor__toolbar-divider" />
+                <button type="button" onClick={() => formatEditor('formatBlock', 'blockquote')}>❝</button>
+                <button type="button" onClick={() => formatEditor('insertUnorderedList')}>• List</button>
+                <button type="button" onClick={() => formatEditor('insertOrderedList')}>1. List</button>
+                <button type="button" onClick={() => formatEditor('createLink', window.prompt(t('content.editor.linkPrompt')) || '')}>Link</button>
+              </div>
+              <div
+                class="classic-editor__body"
+                contentEditable={true}
+                data-classic-editor
+                role="textbox"
+                aria-multiline="true"
+                data-placeholder={t('content.editor.bodyPlaceholder')}
+                innerHTML={sanitizeHtml(editorContent())}
+                onInput={(event) => syncEditorContent(event.currentTarget)}
+              />
+            </Show>
+
+            <Show when={hasSupport('excerpt')}>
+              <label class="classic-editor__excerpt">
+                <span>{t('content.editor.excerpt')}</span>
+                <textarea class="input" rows={4} value={draft().excerpt ?? ''} onInput={(event) => setDraft({ ...draft(), excerpt: event.currentTarget.value })} />
+              </label>
+            </Show>
+          </section>
+
+          <Show when={groups().length > 0 || fieldTypes().length > 0}>
+            <section class="card custom-fields">
+              <h3>{t('content.editor.customFields')}</h3>
+              <For each={groups()}>{(field) => <FieldRenderer field={field} values={data()} onChange={(name, value) => setData({ ...data(), [name]: value })} />}</For>
+              <details>
+                <summary>{t('content.editor.inspectTypes')}</summary>
+                <FieldTypePicker categories={categories()} types={fieldTypes()} value="" onChange={() => undefined} />
+              </details>
+            </section>
+          </Show>
+        </main>
+
+        <aside class="classic-editor__sidebar">
+          <section class="card classic-editor__panel">
+            <h3>{t('content.editor.publishPanel')}</h3>
+            <label>
+              {t('content.editor.status')}
+              <select class="input" value={draft().status} onChange={(event) => setDraft({ ...draft(), status: event.currentTarget.value })}>
+                <option value="DRAFT">{t('content.editor.statusOptions.draft')}</option>
+                <option value="PUBLISHED">{t('content.editor.statusOptions.published')}</option>
+                <option value="ARCHIVED">{t('content.editor.statusOptions.archived')}</option>
+              </select>
+            </label>
+            <button type="submit" class="btn btn-primary classic-editor__full-button" disabled={saving()}>{saving() ? t('content.editor.saving') : t('content.editor.save')}</button>
+          </section>
+
+          <Show when={hasSupport('thumbnail')}>
+            <section class="card classic-editor__panel">
+              <h3>{t('content.editor.featuredImage')}</h3>
+              <input class="input" value={draft().featuredImageId ?? ''} placeholder={t('content.editor.mediaIdPlaceholder')} onInput={(event) => setDraft({ ...draft(), featuredImageId: event.currentTarget.value })} />
+              <p class="muted">{t('content.editor.featuredImageHint')}</p>
+            </section>
+          </Show>
+
+          <Show when={availableLayouts().length > 0}>
+            <section class="card classic-editor__panel">
+              <h3>{t('content.editor.pageAttributes')}</h3>
+              <label>
+                {t('content.editor.layout')}
+                <select class="input" value={draft().layout ?? ''} onChange={(event) => setDraft({ ...draft(), layout: event.currentTarget.value || null })}>
+                  <option value="">{t('content.editor.layoutAuto')}</option>
+                  <For each={availableLayouts()}>{(layout) => <option value={layout}>{layout}</option>}</For>
+                </select>
+              </label>
+            </section>
+          </Show>
+        </aside>
+      </div>
     </form>
   );
 }

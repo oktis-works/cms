@@ -90,8 +90,10 @@
       },
       "buttons": {
         "new": "+ New content",
+        "addNew": "+ Add new",
         "search": "Search"
       },
+      "all": "All content",
       "empty": "No content found.",
       "statuses": {
         "draft": "Draft",
@@ -106,10 +108,23 @@
     },
     "editor": {
       "type": "Type",
+      "adding": "Add new",
+      "editing": "Edit",
+      "backToList": "Back to list",
+      "saving": "Saving…",
       "title": "Title",
+      "titlePlaceholder": "Add title",
       "slug": "Slug",
+      "slugPlaceholder": "auto-generated-from-title",
+      "toolbar": "Editor toolbar",
+      "bodyPlaceholder": "Start writing…",
+      "linkPrompt": "Enter the URL:",
       "excerpt": "Excerpt",
       "featuredImage": "Featured Image (media ID)",
+      "mediaIdPlaceholder": "Media ID",
+      "featuredImageHint": "Choose a media item from the Media library.",
+      "pageAttributes": "Page attributes",
+      "publishPanel": "Publish",
       "status": "Status",
       "statusOptions": {
         "draft": "Draft",
@@ -122,6 +137,22 @@
       "inspectTypes": "Inspect available types",
       "save": "Save",
       "saved": "Content saved successfully."
+    },
+    "taxonomy": {
+      "title": "Taxonomy terms",
+      "back": "← Back to content",
+      "choose": "Choose a taxonomy from the content menu.",
+      "notFound": "Taxonomy not found.",
+      "addTerm": "Add new term",
+      "name": "Name",
+      "slug": "Slug",
+      "description": "Description",
+      "descriptionHint": "Manage the terms used by this content type.",
+      "attachedTo": "Attached to",
+      "add": "Add term",
+      "delete": "Delete",
+      "empty": "No terms yet.",
+      "confirmDelete": "Delete \"{name}\"?"
     }
   },
   "media": {
@@ -558,7 +589,7 @@
     "github": "GitHub",
     "docs": "Documentation",
     "community": "Community",
-    "poweredBy": "Powered by OkCMS"
+    "poweredBy": "Powered by Oktis Works"
   },
   "helpTabs": {
     "title": "Help",

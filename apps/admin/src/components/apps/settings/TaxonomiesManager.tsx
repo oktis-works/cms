@@ -48,6 +48,7 @@ export function TaxonomiesManager() {
       });
       setForm({ name: '', slug: '', hierarchical: false, attachTo: [] });
       await load();
+      window.dispatchEvent(new Event('okcms:content-models-changed'));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -65,6 +66,7 @@ export function TaxonomiesManager() {
         await apiClient.attachTaxonomy(taxonomy.slug, contentTypeSlug);
       }
       await load();
+      window.dispatchEvent(new Event('okcms:content-models-changed'));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -74,6 +76,7 @@ export function TaxonomiesManager() {
     try {
       await apiClient.deleteTaxonomy(slug);
       await load();
+      window.dispatchEvent(new Event('okcms:content-models-changed'));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }

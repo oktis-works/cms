@@ -50,6 +50,10 @@ export function ContentList() {
   };
 
   onMount(async () => {
+    const query = new URLSearchParams(window.location.search);
+    setType(query.get('type') ?? '');
+    setStatus(query.get('status') ?? '');
+    setSearch(query.get('search') ?? '');
     await load();
     try {
       setTypes(await apiClient.getContentTypes());
@@ -57,6 +61,10 @@ export function ContentList() {
       // filtros de tipo continuam com os básicos
     }
   });
+
+  const activeType = createMemo(() => types().find((entry) => entry.slug === type()));
+  const pageTitle = createMemo(() => activeType()?.pluralLabel || t('content.list.title'));
+  const newContentHref = createMemo(() => `/content/new?type=${encodeURIComponent(type() || 'post')}`);
 
   const searchNow = async (): Promise<void> => {
     setPage(1);
@@ -133,6 +141,15 @@ export function ContentList() {
 
   return (
     <div class="content-list">
+      <div class="content-list__heading">
+        <div>
+          <h2>{pageTitle()}</h2>
+          <p class="muted">{t('content.list.description')}</p>
+        </div>
+        <Show when={type()}>
+          <a class="btn btn-primary" href={newContentHref()}>{t('content.list.buttons.addNew')}</a>
+        </Show>
+      </div>
       <Show when={error()}>
         <div class="notice notice--error">{error()}</div>
       </Show>
@@ -151,16 +168,6 @@ export function ContentList() {
           }}
         />
         <Select
-          name="type"
-          placeholder={t('content.list.filters.allTypes')}
-          value={type()}
-          options={types().map((t) => ({ value: t.slug, label: t.pluralLabel || t.name }))}
-          onChange={(value) => {
-            setType(value);
-            void searchNow();
-          }}
-        />
-        <Select
           name="status"
           placeholder={t('content.list.filters.allStatus')}
           value={status()}
@@ -174,7 +181,6 @@ export function ContentList() {
             void searchNow();
           }}
         />
-        <a class="btn btn-primary" href="/content/new">{t('content.list.buttons.new')}</a>
         <Button variant="secondary" onClick={() => void searchNow()}>
           {t('content.list.buttons.search')}
         </Button>
