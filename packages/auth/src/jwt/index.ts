@@ -95,6 +95,12 @@ export class JWTService {
     };
   }
 
+  async generateAccessToken(payload: Omit<TokenPayload, 'iat' | 'exp'>): Promise<string> {
+    const now = Math.floor(Date.now() / 1000);
+    const expiresIn = parseDuration(this.config.jwtExpiresIn);
+    return this.sign({ ...payload, iat: now, exp: now + expiresIn });
+  }
+
   async verifyToken(token: string): Promise<TokenPayload | null> {
     try {
       const parts = token.split('.');

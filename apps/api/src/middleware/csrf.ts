@@ -80,18 +80,30 @@ export async function csrfMiddleware(c: Context, next: Next): Promise<Response |
     return;
   }
 
-  const cookieHeader = c.req.header('Cookie');
-
-  if (cookieHeader?.includes(CSRF_COOKIE)) {
-    const cookieToken = readCookie(cookieHeader, CSRF_COOKIE);
-    const headerToken = c.req.header(CSRF_HEADER);
-
-    if (!cookieToken || !headerToken || cookieToken !== headerToken || !isSameOrigin(c)) {
+  // Login ainda não possui sessão para emitir um token CSRF. A validação
+  // estrita de Origin protege contra login-CSRF; as demais mutações exigem o
+  // par cookie + header abaixo.
+  if (c.req.path === '/api/v1/auth/login' || c.req.path === '/api/v1/auth/register') {
+    if (!isSameOrigin(c)) {
       return c.json(
         { error: 'CSRF_TOKEN_INVALID', message: 'CSRF validation failed.' },
         403
       );
     }
+    await next();
+    return;
+  }
+
+  const cookieHeader = c.req.header('Cookie');
+
+  const cookieToken = readCookie(cookieHeader, CSRF_COOKIE);
+  const headerToken = c.req.header(CSRF_HEADER);
+
+  if (!cookieToken || !headerToken || cookieToken !== headerToken || !isSameOrigin(c)) {
+    return c.json(
+      { error: 'CSRF_TOKEN_INVALID', message: 'CSRF validation failed.' },
+      403
+    );
   }
 
   await next();

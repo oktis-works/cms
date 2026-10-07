@@ -104,7 +104,7 @@ function buildOpenApiDocument(origin: string): Record<string, unknown> {
       title: 'OkCMS API',
       version: CMS_VERSION,
       description:
-        'CMS híbrido, modular e API-first. Autenticação JWT Bearer; clientes browser também devem enviar o par CSRF (cookie bl_csrf + header X-CSRF-Token). Rate limit padrão: 300 req/min por tenant+IP.',
+        'CMS híbrido, modular e API-first. Autenticação JWT Bearer; clientes browser também devem enviar o par CSRF (cookie configurado + header X-CSRF-Token). Rate limit padrão: 300 req/min por tenant+IP.',
     },
     servers: [{ url: origin }],
     components: {

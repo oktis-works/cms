@@ -8,7 +8,8 @@ const fetchMock = vi.fn();
 beforeEach(() => {
   fetchMock.mockReset();
   vi.stubGlobal('fetch', fetchMock);
-  vi.stubGlobal('document', { cookie: '' });
+  // Simula o cookie não-HttpOnly emitido pelo endpoint /auth/csrf.
+  vi.stubGlobal('document', { cookie: 'csrf_token=test-token' });
 });
 
 afterEach(() => vi.unstubAllGlobals());

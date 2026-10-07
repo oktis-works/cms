@@ -40,6 +40,8 @@ export interface AuthConfig {
     sameSite: 'strict' | 'lax' | 'none';
     /** Secure flag (auto em produção se undefined) */
     secure?: boolean;
+    /** Domain compartilhado entre admin e API (ex.: .example.com). */
+    domain?: string;
     /** Access token cookie max-age in seconds (default 15min) */
     accessTokenMaxAge?: number;
     /** Refresh token cookie max-age in seconds (default 30d) */
@@ -225,7 +227,10 @@ export function loadConfig(): Config {
       bcryptRounds: getEnvInt('BCRYPT_ROUNDS', 12),
       cookie: {
         sameSite: getEnvSameSite('AUTH_COOKIE_SAMESITE', 'lax'),
-        secure: getEnvBool('AUTH_COOKIE_SECURE', false),
+        secure: process.env['AUTH_COOKIE_SECURE'] === undefined
+          ? undefined
+          : getEnvBool('AUTH_COOKIE_SECURE', false),
+        domain: process.env['AUTH_COOKIE_DOMAIN'] || undefined,
         accessTokenMaxAge: getEnvInt('AUTH_COOKIE_ACCESS_MAXAGE', 60 * 15),
         refreshTokenMaxAge: getEnvInt('AUTH_COOKIE_REFRESH_MAXAGE', 60 * 60 * 24 * 30),
       },

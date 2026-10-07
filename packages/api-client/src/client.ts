@@ -45,6 +45,7 @@ export class OkCMSClient {
   private baseUrl: string;
   private headers: Record<string, string>;
   private tokens: TokenState = { accessToken: null, refreshToken: null };
+  private refreshPromise: Promise<RefreshTokenResponse> | null = null;
 
   constructor(baseUrl: string, options?: OkCMSClientOptions) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
@@ -62,6 +63,14 @@ export class OkCMSClient {
   }
 
   async refreshToken(): Promise<RefreshTokenResponse> {
+    if (this.refreshPromise) return this.refreshPromise;
+    this.refreshPromise = this.performRefresh().finally(() => {
+      this.refreshPromise = null;
+    });
+    return this.refreshPromise;
+  }
+
+  private async performRefresh(): Promise<RefreshTokenResponse> {
     // Híbrido: refreshToken em memória (API-first, Bearer) OU cookie HttpOnly
     // (browser) — o backend aceita body OU cookie como fallback.
     const body = this.tokens.refreshToken ? { refreshToken: this.tokens.refreshToken } : {};
@@ -101,7 +110,9 @@ export class OkCMSClient {
 
   async logout(): Promise<void> {
     try {
-      await this.request('POST', '/api/v1/auth/logout');
+      await this.request('POST', '/api/v1/auth/logout', this.tokens.refreshToken
+        ? { refreshToken: this.tokens.refreshToken }
+        : undefined);
     } finally {
       this.clearTokens();
     }

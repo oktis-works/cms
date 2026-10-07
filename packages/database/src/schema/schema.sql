@@ -511,10 +511,17 @@ CREATE TABLE IF NOT EXISTS sessions (
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS refresh_token_hash VARCHAR(128);
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS refresh_family_id UUID;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS replaced_by_session_id UUID;
+
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_tenant ON sessions(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_sessions_refresh_hash ON sessions(refresh_token_hash);
+CREATE INDEX IF NOT EXISTS idx_sessions_refresh_family ON sessions(refresh_family_id);
 
 -- ============================================================
 -- Custom Taxonomies (SDD ENTI-025)
@@ -850,6 +857,26 @@ BEGIN
     WHERE policyname = 'tenant_isolation_sessions' AND tablename = 'sessions'
   ) THEN
     CREATE POLICY tenant_isolation_sessions ON sessions USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+  END IF;
+END $$;
+
+-- Refresh token lookup happens before the access-token tenant context exists.
+-- The application sets this transaction-local hash only during auth operations,
+-- so RLS still permits exactly one opaque token lookup without exposing the
+-- sessions table to requests from another tenant.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE policyname = 'session_refresh_token_access' AND tablename = 'sessions'
+  ) THEN
+    CREATE POLICY session_refresh_token_access ON sessions
+      USING (
+        refresh_token_hash = NULLIF(current_setting('app.current_refresh_token_hash', true), '')
+      )
+      WITH CHECK (
+        tenant_id = current_setting('app.current_tenant_id', true)::uuid
+      );
   END IF;
 END $$;
 

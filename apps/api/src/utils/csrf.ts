@@ -16,6 +16,7 @@ const CSRF_COOKIE_OPTS = {
   httpOnly: false,
   secure: cookieCfg.secure ?? isProd,
   sameSite: cookieCfg.sameSite,
+  ...(cookieCfg.domain ? { domain: cookieCfg.domain } : {}),
   path: '/',
   maxAge: 60 * 60 * 24, // 24h
 };

@@ -41,6 +41,14 @@ describe('csrfMiddleware', () => {
     expect(body.error).toBe('CSRF_TOKEN_INVALID');
   });
 
+  it('POST de browser sem cookie CSRF também é bloqueado', async () => {
+    const res = await buildApp().request('/api/v1/things', {
+      method: 'POST',
+      headers: { Host: 'cms.local', Origin: 'https://cms.local' },
+    });
+    expect(res.status).toBe(403);
+  });
+
   it('POST sem Origin/Referer (cliente não-browser: curl/SDK/CI) é isento de CSRF', async () => {
     const res = await buildApp().request('/api/v1/things', {
       method: 'POST',

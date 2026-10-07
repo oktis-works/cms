@@ -167,7 +167,7 @@ export class AuthService {
 
     const userRoles = roles.map((r: Record<string, unknown>) => r['slug'] as string);
 
-    const tokens = await this.jwt.generateTokenPair({
+    const accessToken = await this.jwt.generateAccessToken({
       sub: user.id,
       email: user.email,
       tenantId,
@@ -177,28 +177,57 @@ export class AuthService {
     const session = await this.session.create(user.id, tenantId, {
       ipAddress: input.ipAddress,
       userAgent: input.userAgent,
+      expiresInSeconds: this.config.cookie.refreshTokenMaxAge ?? 60 * 60 * 24 * 30,
     });
 
     await sql.unsafe('UPDATE users SET last_login_at = NOW() WHERE id = $1', [user.id]);
 
     return {
       user: sanitizeUser(user),
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
+      accessToken,
+      refreshToken: session.refreshToken,
       sessionId: session.id,
       tenantId,
     };
   }
 
-  async refreshToken(refreshToken: string): Promise<{ accessToken: string; refreshToken: string } | null> {
-    const payload = await this.jwt.verifyToken(refreshToken);
-    if (!payload) return null;
+  async refreshToken(
+    refreshToken: string,
+    options?: { ipAddress?: string; userAgent?: string }
+  ): Promise<{ accessToken: string; refreshToken: string } | null> {
+    const session = await this.session.rotate(refreshToken, {
+      ...options,
+      expiresInSeconds: this.config.cookie.refreshTokenMaxAge ?? 60 * 60 * 24 * 30,
+    });
+    if (!session) return null;
 
-    return this.jwt.refreshAccessToken(refreshToken);
+    const sql = getConnection();
+    await setTenantContext(session.tenantId);
+    const users = await sql.unsafe(
+      'SELECT id, email, status FROM users WHERE id = $1 AND status = $2',
+      [session.userId, 'ACTIVE']
+    );
+    if (!users.length) return null;
+
+    const roles = await sql.unsafe(
+      `SELECT r.slug
+       FROM roles r
+       JOIN tenant_users tu ON tu.role_id = r.id
+       WHERE tu.user_id = $1 AND tu.tenant_id = $2 AND tu.status = 'ACTIVE'`,
+      [session.userId, session.tenantId]
+    );
+    const accessToken = await this.jwt.generateAccessToken({
+      sub: session.userId,
+      email: String((users[0] as Record<string, unknown>)['email']),
+      tenantId: session.tenantId,
+      roles: roles.map((role: Record<string, unknown>) => String(role['slug'])),
+    });
+
+    return { accessToken, refreshToken: session.refreshToken };
   }
 
-  async logout(token: string): Promise<void> {
-    await this.session.delete(token);
+  async logout(refreshToken: string): Promise<void> {
+    await this.session.revokeByRefreshToken(refreshToken);
   }
 
   async verifyToken(token: string) {

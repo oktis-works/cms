@@ -1,6 +1,8 @@
 // API Client for Admin Dashboard (HttpOnly cookies + CSRF + auto-refresh)
 
-const API_BASE = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:3000';
+// Em produção, usar mesma origem por padrão (/api). No desenvolvimento,
+// mantém a API separada na porta 3000 quando PUBLIC_API_URL não foi definida.
+const API_BASE = import.meta.env.PUBLIC_API_URL ?? (import.meta.env.DEV ? 'http://localhost:3000' : '');
 
 export interface ApiResponse<T> {
   data?: T;
@@ -162,7 +164,11 @@ export interface PluginInfo {
 class ApiClient {
   private baseUrl: string;
   private csrfToken: string | null = null;
-  private isRefreshing = false;
+  private refreshPromise: Promise<void> | null = null;
+  private readonly refreshOwner = typeof globalThis.crypto?.randomUUID === 'function'
+    ? globalThis.crypto.randomUUID()
+    : Math.random().toString(36).slice(2);
+  private readonly refreshLockKey = 'okcms:auth:refresh-lock';
 
   constructor(baseUrl: string = API_BASE) {
     this.baseUrl = baseUrl;
@@ -171,11 +177,7 @@ class ApiClient {
   /** Inicializa lendo CSRF do cookie (chamado no boot da app) */
   async init(): Promise<void> {
     try {
-      // Tenta obter token CSRF do cookie
-      const _res = await fetch(`${this.baseUrl}/api/v1/auth/me`, {
-        credentials: 'include',
-      });
-      // Se 401, não logado; se 200, sessão válida
+      await this.ensureCsrfToken();
     } catch {
       // ignora
     }
@@ -184,10 +186,8 @@ class ApiClient {
   /** Sessão válida — verifica via /me (usa cookies HttpOnly automaticamente) */
   async isLoggedIn(): Promise<boolean> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/v1/auth/me`, {
-        credentials: 'include',
-      });
-      return res.ok;
+      await this.request('GET', '/api/v1/auth/me');
+      return true;
     } catch {
       return false;
     }
@@ -196,11 +196,7 @@ class ApiClient {
   /** Obtém tenantId do backend via /me */
   async getTenantId(): Promise<string | null> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/v1/auth/me`, {
-        credentials: 'include',
-      });
-      if (!res.ok) return null;
-      const data = await res.json();
+      const data = await this.request<{ tenantId?: string }>('GET', '/api/v1/auth/me');
       return data.tenantId ?? null;
     } catch {
       return null;
@@ -210,11 +206,7 @@ class ApiClient {
   /** Obtém locale do usuário logado via /me/locale */
   async getUserLocale(): Promise<string> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/v1/users/me/locale`, {
-        credentials: 'include',
-      });
-      if (!res.ok) return 'pt-BR';
-      const data = await res.json();
+      const data = await this.request<{ locale?: string }>('GET', '/api/v1/users/me/locale');
       return data.locale ?? 'pt-BR';
     } catch {
       return 'pt-BR';
@@ -238,8 +230,8 @@ class ApiClient {
 
   /** Login — o backend seta cookies HttpOnly e CSRF; retorna user + tenantId */
   async login(input: LoginInput): Promise<LoginResponse> {
+    await this.ensureCsrfToken();
     const response = await this.request<LoginResponse>('POST', '/api/v1/auth/login', input);
-    // CSRF token virá no cookie (setCsrfCookie no backend)
     return response;
   }
 
@@ -251,12 +243,60 @@ class ApiClient {
 
   /** Refresh de access token via cookie refresh_token */
   async refreshTokens(): Promise<void> {
-    if (this.isRefreshing) return;
-    this.isRefreshing = true;
+    if (this.refreshPromise) return this.refreshPromise;
+    this.refreshPromise = this.refreshWithCrossTabLock()
+      .finally(() => { this.refreshPromise = null; });
+    return this.refreshPromise;
+  }
+
+  private async refreshWithCrossTabLock(): Promise<void> {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      await this.request('POST', '/api/v1/auth/refresh', {}, undefined, { skipRefresh: true });
+      return;
+    }
+
+    const now = Date.now();
+    let current: { owner?: string; expiresAt?: number } | null;
     try {
-      await this.request('POST', '/api/v1/auth/refresh', {});
+      current = JSON.parse(localStorage.getItem(this.refreshLockKey) ?? 'null') as { owner?: string; expiresAt?: number } | null;
+    } catch {
+      // Storage indisponível (privacidade): mantém o refresh seguro dentro da aba.
+      await this.request('POST', '/api/v1/auth/refresh', {}, undefined, { skipRefresh: true });
+      return;
+    }
+
+    if (current?.owner && current.owner !== this.refreshOwner && Number(current.expiresAt) > now) {
+      await this.waitForOtherTabRefresh(Number(current.expiresAt));
+      return;
+    }
+
+    try {
+      localStorage.setItem(this.refreshLockKey, JSON.stringify({ owner: this.refreshOwner, expiresAt: now + 10000 }));
+    } catch {
+      await this.request('POST', '/api/v1/auth/refresh', {}, undefined, { skipRefresh: true });
+      return;
+    }
+    try {
+      await this.request('POST', '/api/v1/auth/refresh', {}, undefined, { skipRefresh: true });
     } finally {
-      this.isRefreshing = false;
+      try {
+        const lock = JSON.parse(localStorage.getItem(this.refreshLockKey) ?? 'null') as { owner?: string } | null;
+        if (lock?.owner === this.refreshOwner) localStorage.removeItem(this.refreshLockKey);
+      } catch {
+        // Storage pode ficar indisponível durante a navegação; o lock expira sozinho.
+      }
+    }
+  }
+
+  private async waitForOtherTabRefresh(expiresAt: number): Promise<void> {
+    while (Date.now() < Math.min(expiresAt, Date.now() + 10000)) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      try {
+        const lock = JSON.parse(localStorage.getItem(this.refreshLockKey) ?? 'null') as { expiresAt?: number } | null;
+        if (!lock || Number(lock.expiresAt) <= Date.now()) return;
+      } catch {
+        return;
+      }
     }
   }
 
@@ -269,38 +309,53 @@ class ApiClient {
     method: string,
     path: string,
     body?: unknown,
-    headers?: Record<string, string>
+    headers?: Record<string, string>,
+    options?: { skipRefresh?: boolean; skipCsrfRecovery?: boolean }
   ): Promise<T> {
     const url = `${this.baseUrl}${path}`;
 
-    const requestHeaders: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...headers,
-    };
+    const send = async (): Promise<Response> => {
+      const requestHeaders: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...headers,
+      };
 
-    // CSRF para mutações (não-GET/HEAD/OPTIONS)
-    if (!['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase())) {
-      const csrf = this.getCsrfToken();
-      if (csrf) requestHeaders['x-csrf-token'] = csrf;
-    }
+      if (!['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase())) {
+        const csrf = await this.ensureCsrfToken();
+        if (csrf) requestHeaders['x-csrf-token'] = csrf;
+      }
 
-    let response = await fetch(url, {
-      method,
-      headers: requestHeaders,
-      credentials: 'include', // ESSENCIAL: envia cookies HttpOnly
-      body: body ? JSON.stringify(body) : undefined,
-    });
-
-    // Auto-refresh em 401 (exceto em /refresh e /logout)
-    if (response.status === 401 && !path.includes('/auth/refresh') && !path.includes('/auth/logout')) {
-      await this.refreshTokens();
-      // Repete a requisição original
-      response = await fetch(url, {
+      return fetch(url, {
         method,
         headers: requestHeaders,
         credentials: 'include',
         body: body ? JSON.stringify(body) : undefined,
       });
+    };
+
+    let response = await send();
+
+    // Auto-refresh em 401 (exceto em /refresh e /logout)
+    if (response.status === 401 && !options?.skipRefresh && !path.includes('/auth/refresh') && !path.includes('/auth/logout')) {
+      await this.refreshTokens();
+      response = await send();
+    }
+
+    // Um token CSRF pode ter sido renovado por outra aba. Rebootstrapa e
+    // repete uma única vez; falha de Origin continua sendo rejeitada.
+    if (response.status === 403 && !options?.skipCsrfRecovery) {
+      let errorCode = '';
+      try {
+        const probe = typeof response.clone === 'function' ? response.clone() : response;
+        const data = await probe.json() as { error?: string };
+        errorCode = data.error ?? '';
+      } catch {
+        // resposta não JSON: segue para o erro original
+      }
+      if (errorCode === 'CSRF_TOKEN_INVALID') {
+        await this.ensureCsrfToken(true);
+        response = await send();
+      }
     }
 
     if (!response.ok) {
@@ -308,24 +363,39 @@ class ApiClient {
       throw new Error(error.error ?? `Request failed: ${response.status}`);
     }
 
-    // Atualiza CSRF token do cookie de resposta (se houver)
-    const setCookie = response.headers.get('set-cookie');
-    if (setCookie) {
-      const csrfMatch = setCookie.match(/csrf_token=([^;]+)/);
-      if (csrfMatch?.[1]) this.csrfToken = csrfMatch[1];
-    }
-
     return response.json() as Promise<T>;
   }
 
-  /** Lê CSRF token do cookie (document.cookie) */
-  private getCsrfToken(): string | null {
-    if (this.csrfToken) return this.csrfToken;
+  /** Garante um token CSRF sincronizado com o cookie do browser. */
+  private async ensureCsrfToken(force = false): Promise<string | null> {
+    const cookieToken = this.readCsrfCookie();
+    if (!force && cookieToken) {
+      this.csrfToken = cookieToken;
+      return cookieToken;
+    }
+    if (!force && this.csrfToken) return this.csrfToken;
+
+    try {
+      const response = await fetch(`${this.baseUrl}/api/v1/auth/csrf`, {
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+      });
+      if (!response.ok) return this.csrfToken;
+      const data = await response.json() as { csrfToken?: string };
+      this.csrfToken = data.csrfToken ?? this.readCsrfCookie();
+    } catch {
+      // O endpoint pode estar indisponível durante o boot; a API responderá
+      // com erro explícito em vez de enviar uma mutação sem proteção.
+    }
+    return this.csrfToken;
+  }
+
+  private readCsrfCookie(): string | null {
     if (typeof document !== 'undefined') {
       const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
       if (match?.[1]) return match[1];
     }
-    return null;
+    return this.csrfToken;
   }
 
   // Content
@@ -596,18 +666,36 @@ class ApiClient {
     if (options?.caption) formData.append('caption', options.caption);
 
     const url = `${this.baseUrl}/api/v1/media/upload`;
-    const requestHeaders: Record<string, string> = {};
+    const send = async (): Promise<Response> => {
+      const csrf = await this.ensureCsrfToken();
+      const requestHeaders: Record<string, string> = {};
+      if (csrf) requestHeaders['x-csrf-token'] = csrf;
+      return fetch(url, {
+        method: 'POST',
+        headers: requestHeaders,
+        credentials: 'include',
+        body: formData,
+      });
+    };
 
-    // CSRF para upload
-    const csrf = this.getCsrfToken();
-    if (csrf) requestHeaders['x-csrf-token'] = csrf;
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: requestHeaders,
-      credentials: 'include',
-      body: formData,
-    });
+    let response = await send();
+    if (response.status === 401) {
+      await this.refreshTokens();
+      response = await send();
+    }
+    if (response.status === 403) {
+      let errorCode = '';
+      try {
+        const data = await response.clone().json() as { error?: string };
+        errorCode = data.error ?? '';
+      } catch {
+        // segue para o erro original
+      }
+      if (errorCode === 'CSRF_TOKEN_INVALID') {
+        await this.ensureCsrfToken(true);
+        response = await send();
+      }
+    }
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: `Upload failed: ${response.status}` }));

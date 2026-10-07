@@ -7,7 +7,7 @@ import { AuthService } from '@oktis-works/auth';
 import { loadConfig } from '@oktis-works/config';
 import { establishTenantContext } from '@oktis-works/core';
 import { getConnection } from '@oktis-works/database';
-import { setCsrfCookie } from '../../utils/csrf.js';
+import { getCsrfToken, setCsrfCookie } from '../../utils/csrf.js';
 
 const config = loadConfig();
 const authService = new AuthService(config.auth);
@@ -59,10 +59,12 @@ const authRouter = new Hono();
 // Cookie options from config — None requer Secure (auto em produção)
 const isProd = config.app.nodeEnv === 'production';
 const cookieSecure = cookieCfg.secure ?? isProd;
+const cookieDomain = cookieCfg.domain;
 const ACCESS_OPTS = {
   httpOnly: true,
   secure: cookieSecure,
   sameSite: cookieCfg.sameSite,
+  ...(cookieDomain ? { domain: cookieDomain } : {}),
   path: '/',
   maxAge: cookieCfg.accessTokenMaxAge ?? 60 * 15, // 15min
 };
@@ -70,6 +72,7 @@ const REFRESH_OPTS = {
   httpOnly: true,
   secure: cookieSecure,
   sameSite: cookieCfg.sameSite,
+  ...(cookieDomain ? { domain: cookieDomain } : {}),
   path: '/',
   maxAge: cookieCfg.refreshTokenMaxAge ?? 60 * 60 * 24 * 30, // 30d
 };
@@ -81,11 +84,33 @@ function setAuthCookies(c: Context, accessToken: string, refreshToken: string): 
 }
 
 function clearAuthCookies(c: Context): void {
-  deleteCookie(c, 'access_token', { path: '/' });
-  deleteCookie(c, 'refresh_token', { path: '/' });
+  deleteCookie(c, 'access_token', { path: '/', ...(cookieDomain ? { domain: cookieDomain } : {}) });
+  deleteCookie(c, 'refresh_token', { path: '/', ...(cookieDomain ? { domain: cookieDomain } : {}) });
+}
+
+function isBrowserRequest(c: Context): boolean {
+  return Boolean(c.req.header('Origin') || c.req.header('Sec-Fetch-Site'));
+}
+
+function authResponse(c: Context, result: { user: unknown; tenantId: string; accessToken: string; refreshToken: string }): Record<string, unknown> {
+  if (isBrowserRequest(c)) {
+    return { user: result.user, tenantId: result.tenantId };
+  }
+  return {
+    user: result.user,
+    tenantId: result.tenantId,
+    accessToken: result.accessToken,
+    refreshToken: result.refreshToken,
+  };
 }
 
 // CSRF é validado globalmente em app.use('/api/*', csrfMiddleware) — ver middleware/csrf.ts
+
+// GET /auth/csrf — bootstrap explícito para browsers, sem expor Set-Cookie ao JS
+authRouter.get('/csrf', async (c: Context) => {
+  const token = getCsrfToken(c) ?? setCsrfCookie(c);
+  return c.json({ csrfToken: token });
+});
 
 // POST /auth/register
 authRouter.post('/register', async (c: Context) => {
@@ -113,15 +138,7 @@ authRouter.post('/register', async (c: Context) => {
     setCsrfCookie(c);
 
     // Tokens no body também: compat com clientes API-first (@oktis-works/api-client)
-    return c.json(
-      {
-        user: result.user,
-        tenantId: result.tenantId,
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-      },
-      201
-    );
+    return c.json(authResponse(c, result), 201);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Registration failed';
     return c.json({ error: message }, 400);
@@ -161,12 +178,7 @@ authRouter.post('/login', async (c: Context) => {
 
     // Tokens no body também: clientes API-first (@oktis-works/api-client) usam
     // Bearer; o browser continua nos cookies HttpOnly (nunca localStorage).
-    return c.json({
-      user: result.user,
-      tenantId: result.tenantId,
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
-    });
+    return c.json(authResponse(c, result));
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Login failed';
     return c.json({ error: message }, 401);
@@ -184,26 +196,33 @@ authRouter.post('/refresh', async (c: Context) => {
       return c.json({ error: 'Missing refresh token' }, 400);
     }
 
-    const tokens = await authService.refreshToken(refreshToken);
+    const tokens = await authService.refreshToken(refreshToken, {
+      ipAddress: c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip'),
+      userAgent: c.req.header('user-agent'),
+    });
     if (!tokens) {
       clearAuthCookies(c);
       return c.json({ error: 'Invalid refresh token' }, 401);
     }
 
     setAuthCookies(c, tokens.accessToken, tokens.refreshToken);
+    if (!getCsrfToken(c)) setCsrfCookie(c);
 
-    // Tokens no body: compat com clientes API-first (@oktis-works/api-client)
-    return c.json({ success: true, accessToken: tokens.accessToken, refreshToken: tokens.refreshToken });
+    // Browser usa cookies; apenas clientes sem Origin recebem tokens no body.
+    return c.json(isBrowserRequest(c)
+      ? { success: true }
+      : { success: true, accessToken: tokens.accessToken, refreshToken: tokens.refreshToken });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Token refresh failed';
     return c.json({ error: message }, 400);
   }
 });
 
-// POST /auth/logout — encerra sessão pelo refresh_token do cookie
+// POST /auth/logout — encerra sessão pelo refresh_token do cookie ou do body
 authRouter.post('/logout', async (c: Context) => {
   try {
-    const refreshToken = getCookie(c, 'refresh_token');
+    const body = await c.req.json().catch(() => ({}));
+    const refreshToken = getCookie(c, 'refresh_token') ?? body['refreshToken'];
 
     if (refreshToken) {
       await authService.logout(refreshToken);
