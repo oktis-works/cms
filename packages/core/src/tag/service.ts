@@ -38,6 +38,18 @@ export class TagService {
     return result[0] as unknown as Tag;
   }
 
+  async update(id: string, input: { name?: string; slug?: string }): Promise<Tag | null> {
+    const sql = getConnection();
+    const existing = await this.getById(id);
+    if (!existing) return null;
+
+    const result = await sql.unsafe(
+      'UPDATE tags SET name = $1, slug = $2 WHERE id = $3 RETURNING *',
+      [input.name ?? existing.name, input.slug ?? existing.slug, id]
+    );
+    return (result[0] as unknown as Tag) ?? null;
+  }
+
   async delete(id: string): Promise<boolean> {
     const sql = getConnection();
 

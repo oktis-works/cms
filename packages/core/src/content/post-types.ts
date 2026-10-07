@@ -16,7 +16,20 @@ export interface ContentTypeDefinition {
   hasArchive?: boolean;
   menuIcon?: string;
   public?: boolean;
+  defaultFields?: string[];
 }
+
+const DEFAULT_CONTENT_FIELDS = [
+  'title',
+  'slug',
+  'content',
+  'excerpt',
+  'featured_image',
+  'seo_title',
+  'seo_description',
+  'status',
+  'author',
+];
 
 const CORE_TYPES: ContentTypeDefinition[] = [
   {
@@ -29,6 +42,7 @@ const CORE_TYPES: ContentTypeDefinition[] = [
     hasArchive: true,
     menuIcon: 'file-text',
     public: true,
+    defaultFields: DEFAULT_CONTENT_FIELDS,
   },
   {
     name: 'page',
@@ -40,6 +54,7 @@ const CORE_TYPES: ContentTypeDefinition[] = [
     hasArchive: false,
     menuIcon: 'file',
     public: true,
+    defaultFields: DEFAULT_CONTENT_FIELDS,
   },
 ];
 
@@ -78,8 +93,8 @@ export class PostTypeRegistry {
     const id = randomUUID();
 
     await sql.unsafe(
-      `INSERT INTO content_types (id, name, slug, source, source_id, schema, plural_label, singular_label)
-       VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8)`,
+      `INSERT INTO content_types (id, name, slug, source, source_id, schema, plural_label, singular_label, default_fields)
+       VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9::jsonb)`,
       [
         id,
         input.name,
@@ -94,6 +109,7 @@ export class PostTypeRegistry {
         },
         input.pluralLabel,
         input.singularLabel,
+        input.defaultFields ?? DEFAULT_CONTENT_FIELDS,
       ]
     );
 
@@ -113,8 +129,8 @@ export class PostTypeRegistry {
     const merged: ContentTypeDefinition = { ...current, ...patch, slug };
 
     await sql.unsafe(
-      `UPDATE content_types SET schema = $1::jsonb, plural_label = $2, singular_label = $3, updated_at = NOW()
-       WHERE slug = $4`,
+      `UPDATE content_types SET schema = $1::jsonb, plural_label = $2, singular_label = $3, default_fields = $4::jsonb, updated_at = NOW()
+       WHERE slug = $5`,
       [
         {
           supports: merged.supports ?? [],
@@ -124,6 +140,7 @@ export class PostTypeRegistry {
         },
         merged.pluralLabel,
         merged.singularLabel,
+        merged.defaultFields ?? DEFAULT_CONTENT_FIELDS,
         slug,
       ]
     );
@@ -165,6 +182,9 @@ export class PostTypeRegistry {
       hasArchive: Boolean(schemaJson['hasArchive']),
       menuIcon: schemaJson['menuIcon'] as string | undefined,
       public: schemaJson['public'] !== false,
+      defaultFields: Array.isArray(row['default_fields'])
+        ? (row['default_fields'] as unknown[]).filter((value): value is string => typeof value === 'string')
+        : undefined,
     };
   }
 }

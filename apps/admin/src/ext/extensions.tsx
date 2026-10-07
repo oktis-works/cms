@@ -7,6 +7,7 @@
 
 import { Show, For, createSignal, onMount } from '@oktis-works/ui';
 import type { AdminExtensionsState } from '@oktis-works/plugin-sdk';
+import { apiClient } from '../lib/api';
 import { AdminSidebarSlot } from './slots';
 
 interface PluginRow {
@@ -41,7 +42,7 @@ export function extensionsFromPlugins(plugins: PluginRow[]): AdminExtensionsStat
   const state = emptyExtensionsState();
 
   for (const plugin of plugins) {
-    if (plugin.status !== 'ACTIVE') continue;
+    if (plugin.status !== 'ACTIVE' && plugin.status !== 'ACTIVATED') continue;
     const admin = plugin.manifest?.admin;
     if (!admin) continue;
 
@@ -70,10 +71,11 @@ export function PluginExtensionsSlot() {
 
   onMount(async () => {
     try {
-      const response = await fetch('/api/v1/plugins', { credentials: 'include' });
-      if (!response.ok) return;
-      const plugins = (await response.json()) as PluginRow[];
-      setExtensions(extensionsFromPlugins(plugins));
+      // Use o mesmo cliente da UI: em desenvolvimento a API roda na porta
+      // 3000 e o admin na 3011. Um fetch relativo cairia em 3011 e retornaria
+      // 404 (/api/v1/plugins não é uma rota do Astro).
+      const plugins = await apiClient.getPlugins();
+      setExtensions(extensionsFromPlugins(plugins as unknown as PluginRow[]));
     } catch {
       // extensões são opcionais — sidebar continua funcional sem plugins
     }

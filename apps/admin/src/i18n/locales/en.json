@@ -7,7 +7,9 @@
       "content": "Content",
       "media": "Media",
       "users": "Users",
-      "settings": "Settings"
+      "settings": "Settings",
+      "plugins": "Plugins",
+      "themes": "Themes"
     },
     "actions": {
       "logout": "Logout",
@@ -298,7 +300,194 @@
           "remove": "Remove"
         }
       }
+    },
+    "customFields": {
+      "title": "Custom Fields",
+      "description": "Create field groups, arrange fields and choose which standard fields are visible for each content type.",
+      "contentType": "Content type",
+      "location": {
+        "title": "Location rules",
+        "description": "Choose where this field group appears. Rules in the same group use AND; groups use OR.",
+        "parameter": "Location parameter",
+        "operator": "Operator",
+        "chooseValue": "Choose a value",
+        "valuePlaceholder": "Enter a value or slug",
+        "required": "Add a value to every location rule.",
+        "addRule": "Add condition",
+        "addGroup": "Add OR group",
+        "remove": "Remove",
+        "and": "AND",
+        "or": "OR",
+        "params": {
+          "content_type": "Post type",
+          "content_slug": "Post slug",
+          "taxonomy": "Taxonomy",
+          "term": "Term slug",
+          "user_role": "User role",
+          "page_template": "Page template",
+          "post_status": "Post status"
+        },
+        "operators": {
+          "eq": "is",
+          "neq": "is not"
+        }
+      },
+      "standard": {
+        "title": "Standard fields",
+        "description": "Title and slug are required. The other standard fields can be enabled or disabled.",
+        "enabled": "Enabled",
+        "locked": "Required",
+        "fields": {
+          "title": "Title",
+          "slug": "Slug",
+          "content": "Content",
+          "excerpt": "Excerpt",
+          "featured_image": "Featured image",
+          "seo_title": "SEO title",
+          "seo_description": "SEO description",
+          "status": "Status",
+          "author": "Author"
+        }
+      },
+      "groups": {
+        "title": "Field groups",
+        "new": "New field group",
+        "empty": "No custom field groups yet.",
+        "fields": "fields",
+        "edit": "Edit",
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "form": {
+        "createTitle": "Create field group",
+        "editTitle": "Edit field group",
+        "title": "Group name",
+        "titlePlaceholder": "Example: Product details",
+        "position": "Position",
+        "positions": {
+          "normal": "Normal",
+          "side": "Sidebar",
+          "acf_after_title": "After title"
+        },
+        "displayStyle": "Display style",
+        "displayStyles": {
+          "standard": "Standard",
+          "seamless": "Seamless",
+          "grouped": "Grouped"
+        },
+        "field": "Field",
+        "fieldName": "Name/key",
+        "fieldNamePlaceholder": "product_code",
+        "fieldLabel": "Label",
+        "fieldLabelPlaceholder": "Product code",
+        "fieldType": "Type",
+        "instructions": "Instructions",
+        "instructionsPlaceholder": "Optional help text for editors",
+        "required": "Required",
+        "options": "Options",
+        "optionsHint": "One option per line: value|Label",
+        "addField": "Add field",
+        "removeField": "Remove",
+        "dragHint": "Drag to reorder",
+        "save": "Save group",
+        "cancel": "Cancel",
+        "newFieldDefault": "New field",
+        "saved": "Field group saved.",
+        "deleted": "Field group deleted."
+      },
+      "actions": {
+        "delete": "Delete",
+        "confirmDelete": "Delete this field group?"
+      },
+      "loading": "Loading custom fields…",
+      "loadError": "Could not load custom fields."
     }
+  },
+  "resources": {
+    "title": "Content Resources",
+    "description": "Manage categories, tags, menus and taxonomy terms.",
+    "tabs": { "category": "Categories", "tag": "Tags", "menu": "Menus" },
+    "new": "New resource",
+    "name": "Name",
+    "slug": "Slug",
+    "description": "Description",
+    "items": "Menu items (JSON)",
+    "saved": "Resource saved.",
+    "confirmDelete": "Delete this resource?",
+    "form": { "new": "Create resource", "edit": "Edit resource" },
+    "terms": { "title": "Taxonomy terms", "choose": "Choose a taxonomy", "new": "New term" }
+  },
+  "access": {
+    "title": "Access",
+    "description": "Manage roles, permissions and tenants.",
+    "roles": "Roles",
+    "tenants": "Tenants",
+    "permissions": "Permissions (comma separated)",
+    "domain": "Domain"
+  },
+  "operations": {
+    "title": "Operations",
+    "description": "Manage webhooks, builds, deployments and events.",
+    "webhooks": "Webhooks",
+    "events": "Events",
+    "secret": "Secret",
+    "builds": "Builds",
+    "deployments": "Deployments",
+    "createBuild": "Create build",
+    "deploy": "Deploy"
+  },
+  "plugins": {
+    "title": "Plugins",
+    "description": "Manage installed plugins.",
+    "columns": {
+      "name": "Name",
+      "version": "Version",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "status": {
+      "active": "Active",
+      "installed": "Installed",
+      "inactive": "Inactive"
+    },
+    "activate": "Activate",
+    "deactivate": "Deactivate",
+    "install": "Install plugin",
+    "uninstall": "Uninstall",
+    "confirmUninstall": "Uninstall {name}?",
+    "name": "Plugin name",
+    "version": "Version",
+    "manifest": "Manifest (JSON)",
+    "loadError": "Could not load plugins.",
+    "activateError": "Could not activate the plugin.",
+    "deactivateError": "Could not deactivate the plugin.",
+    "installError": "Could not install the plugin.",
+    "uninstallError": "Could not uninstall the plugin.",
+    "empty": "No plugins installed."
+  },
+  "themes": {
+    "title": "Themes",
+    "description": "Manage installed themes.",
+    "version": "Version",
+    "active": "Active",
+    "status": {
+      "active": "Active",
+      "installed": "Installed",
+      "inactive": "Inactive"
+    },
+    "activate": "Activate",
+    "deactivate": "Deactivate",
+    "install": "Install theme",
+    "uninstall": "Uninstall",
+    "confirmUninstall": "Uninstall {name}?",
+    "name": "Theme name",
+    "manifest": "Manifest (JSON)",
+    "loadError": "Could not load themes.",
+    "activateError": "Could not activate the theme.",
+    "deactivateError": "Could not deactivate the theme.",
+    "installError": "Could not install the theme.",
+    "uninstallError": "Could not uninstall the theme.",
+    "empty": "No themes installed."
   },
   "login": {
     "title": "Login",

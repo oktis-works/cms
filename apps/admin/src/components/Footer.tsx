@@ -13,7 +13,6 @@ export function Footer() {
             <span class="product-name">OkCMS</span>
             <span class="version-badge">v{version}</span>
           </p>
-          <p class="footer-copyright">{t('footer.copyright')}</p>
         </div>
 
         <nav class="footer-links" aria-label={t('footer.links')}>
@@ -43,7 +42,7 @@ export function Footer() {
           left: 0;
           right: 0;
           height: 48px;
-          background: var(--color-surface);
+          background: #2d2d2d;
           border-top: 1px solid var(--color-border);
           padding: 0 1.5rem;
           z-index: 1000;
@@ -79,8 +78,6 @@ export function Footer() {
           font-size: 0.6875rem;
           font-weight: 700;
         }
-
-        .footer-copyright { font-size: 0.6875rem; color: var(--color-muted); }
 
         .footer-links {
           display: flex; gap: 1.5rem;

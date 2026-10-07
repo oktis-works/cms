@@ -53,6 +53,18 @@ export interface AdminUser {
   roles: string[];
 }
 
+export interface Tenant {
+  id?: string;
+  name: string;
+  slug: string;
+  domain?: string | null;
+  subdomain?: string | null;
+  status?: string;
+  settings?: Record<string, unknown> | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface Role {
   id: string;
   tenant_id?: string | null;
@@ -352,12 +364,14 @@ class ApiClient {
 
   /** A2: publica via rota real do publisher (eventBus + cache + revisions). */
   async publishContent(id: string): Promise<Content> {
-    return this.request('POST', `/api/v1/content/${id}/publish`);
+    const response = await this.request<Content | { content: Content }>('POST', `/api/v1/content/${id}/publish`);
+    return 'content' in response ? response.content : response;
   }
 
   /** A2: despublica via rota real do publisher. */
   async unpublishContent(id: string): Promise<Content> {
-    return this.request('POST', `/api/v1/content/${id}/unpublish`);
+    const response = await this.request<Content | { content: Content }>('POST', `/api/v1/content/${id}/unpublish`);
+    return 'content' in response ? response.content : response;
   }
 
   /** Atalho usado pela ContentList: publish/unpublish conforme status atual. */
@@ -403,8 +417,72 @@ class ApiClient {
     await this.request('DELETE', `/api/v1/taxonomies/${slug}`);
   }
 
+  async getTaxonomyTerms(slug: string): Promise<TaxonomyTerm[]> {
+    return this.request('GET', `/api/v1/taxonomies/${encodeURIComponent(slug)}/terms`);
+  }
+
+  async createTaxonomyTerm(slug: string, data: Partial<TaxonomyTerm>): Promise<TaxonomyTerm> {
+    return this.request('POST', `/api/v1/taxonomies/${encodeURIComponent(slug)}/terms`, data);
+  }
+
+  async updateTaxonomyTerm(slug: string, id: string, data: Partial<TaxonomyTerm>): Promise<TaxonomyTerm> {
+    return this.request('PUT', `/api/v1/taxonomies/${encodeURIComponent(slug)}/terms/${id}`, data);
+  }
+
+  async deleteTaxonomyTerm(slug: string, id: string): Promise<void> {
+    await this.request('DELETE', `/api/v1/taxonomies/${encodeURIComponent(slug)}/terms/${id}`);
+  }
+
+  async getCategories(): Promise<Category[]> {
+    return this.request('GET', '/api/v1/categories');
+  }
+
+  async createCategory(data: Partial<Category>): Promise<Category> {
+    return this.request('POST', '/api/v1/categories', data);
+  }
+
+  async updateCategory(id: string, data: Partial<Category>): Promise<Category> {
+    return this.request('PUT', `/api/v1/categories/${id}`, data);
+  }
+
+  async deleteCategory(id: string): Promise<void> {
+    await this.request('DELETE', `/api/v1/categories/${id}`);
+  }
+
+  async getTags(): Promise<Tag[]> {
+    return this.request('GET', '/api/v1/tags');
+  }
+
+  async createTag(data: Partial<Tag>): Promise<Tag> {
+    return this.request('POST', '/api/v1/tags', data);
+  }
+
+  async updateTag(id: string, data: Partial<Tag>): Promise<Tag> {
+    return this.request('PUT', `/api/v1/tags/${id}`, data);
+  }
+
+  async deleteTag(id: string): Promise<void> {
+    await this.request('DELETE', `/api/v1/tags/${id}`);
+  }
+
+  async getMenus(): Promise<Menu[]> {
+    return this.request('GET', '/api/v1/menus');
+  }
+
+  async createMenu(data: Partial<Menu>): Promise<Menu> {
+    return this.request('POST', '/api/v1/menus', data);
+  }
+
+  async updateMenu(id: string, data: Partial<Menu>): Promise<Menu> {
+    return this.request('PUT', `/api/v1/menus/${id}`, data);
+  }
+
+  async deleteMenu(id: string): Promise<void> {
+    await this.request('DELETE', `/api/v1/menus/${id}`);
+  }
+
   // Field Groups & Types
-  async getFieldGroups(context?: { type?: string; taxonomy?: string; term?: string; userRole?: string; template?: string; status?: string }): Promise<FieldGroupSummary[]> {
+  async getFieldGroups(context?: { type?: string; slug?: string; taxonomy?: string; term?: string; userRole?: string; template?: string; status?: string }): Promise<FieldGroupSummary[]> {
     if (context?.type) {
       const qs = new URLSearchParams({ type: context.type });
       for (const [key, value] of Object.entries(context)) {
@@ -423,9 +501,69 @@ class ApiClient {
     return this.request('POST', '/api/v1/field-groups', data);
   }
 
+  async updateFieldGroup(id: string, data: Record<string, unknown>): Promise<FieldGroup> {
+    return this.request('PUT', `/api/v1/field-groups/${id}`, data);
+  }
+
+  async deleteFieldGroup(id: string): Promise<void> {
+    await this.request('DELETE', `/api/v1/field-groups/${id}`);
+  }
+
   async getFieldTypes(category?: string): Promise<{ categories: FieldCategoryInfo[]; types: FieldTypeInfo[] }> {
     const query = category ? `?category=${encodeURIComponent(category)}` : '';
     return this.request('GET', `/api/v1/field-types${query}`);
+  }
+
+  async getWebhooks(): Promise<Webhook[]> {
+    return this.request('GET', '/api/v1/webhooks');
+  }
+
+  async createWebhook(data: Partial<Webhook>): Promise<Webhook> {
+    return this.request('POST', '/api/v1/webhooks', data);
+  }
+
+  async updateWebhook(id: string, data: Partial<Webhook>): Promise<Webhook> {
+    return this.request('PUT', `/api/v1/webhooks/${id}`, data);
+  }
+
+  async deleteWebhook(id: string): Promise<void> {
+    await this.request('DELETE', `/api/v1/webhooks/${id}`);
+  }
+
+  async getBuilds(options?: { page?: number; limit?: number; status?: string }): Promise<PaginatedResponse<Build>> {
+    const params = new URLSearchParams();
+    if (options?.page) params.set('page', String(options.page));
+    if (options?.limit) params.set('limit', String(options.limit));
+    if (options?.status) params.set('status', options.status);
+    return this.request('GET', `/api/v1/builds?${params.toString()}`);
+  }
+
+  async createBuild(data: Partial<Build>): Promise<Build & { queued?: boolean }> {
+    return this.request('POST', '/api/v1/builds', data);
+  }
+
+  async getDeployments(options?: { page?: number; limit?: number; status?: string }): Promise<PaginatedResponse<Deployment>> {
+    const params = new URLSearchParams();
+    if (options?.page) params.set('page', String(options.page));
+    if (options?.limit) params.set('limit', String(options.limit));
+    if (options?.status) params.set('status', options.status);
+    return this.request('GET', `/api/v1/deployments?${params.toString()}`);
+  }
+
+  async createDeployment(data: Partial<Deployment>): Promise<Deployment> {
+    return this.request('POST', '/api/v1/deployments', data);
+  }
+
+  async rollbackDeployment(id: string, rollbackToId: string): Promise<Deployment> {
+    return this.request('POST', `/api/v1/deployments/${id}/rollback`, { rollbackToId });
+  }
+
+  async getEvents(options?: { page?: number; limit?: number; type?: string }): Promise<PaginatedResponse<Record<string, unknown>>> {
+    const params = new URLSearchParams();
+    if (options?.page) params.set('page', String(options.page));
+    if (options?.limit) params.set('limit', String(options.limit));
+    if (options?.type) params.set('type', options.type);
+    return this.request('GET', `/api/v1/events?${params.toString()}`);
   }
 
   // Media (upload real: multipart → disco → URL pública)
@@ -541,6 +679,38 @@ class ApiClient {
     return this.request('GET', '/api/v1/roles');
   }
 
+  async createRole(data: Partial<Role>): Promise<Role> {
+    return this.request('POST', '/api/v1/roles', data);
+  }
+
+  async updateRole(id: string, data: Partial<Role>): Promise<Role> {
+    return this.request('PUT', `/api/v1/roles/${id}`, data);
+  }
+
+  async deleteRole(id: string): Promise<void> {
+    await this.request('DELETE', `/api/v1/roles/${id}`);
+  }
+
+  async listTenants(options?: { page?: number; limit?: number; search?: string }): Promise<PaginatedResponse<Tenant>> {
+    const params = new URLSearchParams();
+    if (options?.page) params.set('page', String(options.page));
+    if (options?.limit) params.set('limit', String(options.limit));
+    if (options?.search) params.set('search', options.search);
+    return this.request('GET', `/api/v1/tenants?${params.toString()}`);
+  }
+
+  async createTenant(data: Partial<Tenant>): Promise<Tenant> {
+    return this.request('POST', '/api/v1/tenants', data);
+  }
+
+  async updateTenant(id: string, data: Partial<Tenant>): Promise<Tenant> {
+    return this.request('PUT', `/api/v1/tenants/${id}`, data);
+  }
+
+  async deleteTenant(id: string): Promise<void> {
+    await this.request('DELETE', `/api/v1/tenants/${id}`);
+  }
+
   // Settings (KV por grupo — ?group=general no GET; PUT em lote)
   async getSettings(group?: string): Promise<Setting[]> {
     const query = group ? `?group=${encodeURIComponent(group)}` : '';
@@ -578,6 +748,14 @@ class ApiClient {
     return this.request('POST', `/api/v1/themes/${id}/deactivate`);
   }
 
+  async installTheme(data: { name: string; version: string; manifest: Record<string, unknown> }): Promise<ThemeInfo> {
+    return this.request('POST', '/api/v1/themes/install', data);
+  }
+
+  async uninstallTheme(id: string): Promise<void> {
+    await this.request('DELETE', `/api/v1/themes/${id}`);
+  }
+
   // Plugins
   async getPlugins(): Promise<PluginInfo[]> {
     const plugins = await this.request<Array<Record<string, unknown>>>('GET', '/api/v1/plugins');
@@ -597,6 +775,14 @@ class ApiClient {
   async deactivatePlugin(id: string): Promise<PluginInfo> {
     return this.request('POST', `/api/v1/plugins/${id}/deactivate`);
   }
+
+  async installPlugin(data: { name: string; version: string; manifest: Record<string, unknown> }): Promise<PluginInfo> {
+    return this.request('POST', '/api/v1/plugins/install', data);
+  }
+
+  async uninstallPlugin(id: string): Promise<void> {
+    await this.request('DELETE', `/api/v1/plugins/${id}`);
+  }
 }
 
 export interface ContentType {
@@ -608,6 +794,7 @@ export interface ContentType {
   supports?: string[];
   hasArchive?: boolean;
   menuIcon?: string;
+  defaultFields?: string[];
 }
 
 export interface Taxonomy {
@@ -620,20 +807,129 @@ export interface Taxonomy {
   source?: string;
 }
 
+export interface TaxonomyTerm {
+  id?: string;
+  taxonomyId?: string;
+  taxonomy_id?: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  parentId?: string | null;
+  parent_id?: string | null;
+  meta?: Record<string, unknown>;
+}
+
+export interface Category {
+  id?: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  parent_id?: string | null;
+  parentId?: string | null;
+}
+
+export interface Tag {
+  id?: string;
+  name: string;
+  slug: string;
+}
+
+export interface Menu {
+  id?: string;
+  name: string;
+  slug: string;
+  items?: Record<string, unknown> | unknown[];
+}
+
+export interface Webhook {
+  id?: string;
+  url: string;
+  events?: string[];
+  secret?: string;
+  active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Build {
+  id?: string;
+  status?: string;
+  core_version?: string;
+  coreVersion?: string;
+  plugins?: Record<string, string>;
+  theme?: { name: string; version: string };
+  docker_image?: string | null;
+  checksum?: string | null;
+  build_log?: string | null;
+  error?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Deployment {
+  id?: string;
+  status?: string;
+  build_id?: string;
+  buildId?: string;
+  core_version?: string;
+  theme_version?: string;
+  plugin_versions?: Record<string, string>;
+  checksum?: string;
+  health_check_status?: string | null;
+  rollback_to_id?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface FieldGroupSummary {
   id: string;
   title: string;
   key: string;
   active: boolean;
   fieldCount: number;
-  locationRules?: unknown[];
+  locationRules?: LocationRule[][];
+}
+
+export interface LocationRule {
+  param: 'content_type' | 'content_slug' | 'taxonomy' | 'term' | 'user_role' | 'page_template' | 'post_status';
+  operator: 'eq' | 'neq';
+  value: string;
 }
 
 export interface FieldGroup {
   id: string;
   title: string;
   key: string;
-  fields: unknown[];
+  locationRules?: LocationRule[][];
+  position?: 'normal' | 'side' | 'acf_after_title';
+  displayStyle?: 'standard' | 'seamless' | 'grouped';
+  active?: boolean;
+  fields: FieldDefinition[];
+}
+
+export interface FieldDefinition {
+  id?: string;
+  type: string;
+  name: string;
+  key?: string;
+  label: string;
+  instructions?: string;
+  required?: boolean;
+  config?: Record<string, unknown>;
+  conditionalLogic?: unknown;
+  sortOrder?: number;
+  subFields?: FieldDefinition[];
+  layouts?: Array<{
+    name: string;
+    label: string;
+    display?: string;
+    min?: number;
+    max?: number;
+    subFields: FieldDefinition[];
+  }>;
+  isCoreField?: boolean;
+  isLocked?: boolean;
+  coreFieldKey?: string;
 }
 
 export interface FieldCategoryInfo {

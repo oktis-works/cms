@@ -7,7 +7,9 @@
       "content": "内容",
       "media": "媒体库",
       "users": "用户",
-      "settings": "设置"
+      "settings": "设置",
+      "plugins": "插件",
+      "themes": "主题"
     },
     "actions": {
       "logout": "退出",

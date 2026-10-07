@@ -190,6 +190,42 @@ export class TaxonomyService {
     return this.rowToTerm(rows[0] as Record<string, unknown>);
   }
 
+  async updateTerm(
+    taxonomySlug: string,
+    termId: string,
+    patch: { name?: string; slug?: string; description?: string; parentId?: string | null; meta?: Record<string, unknown> }
+  ): Promise<TaxonomyTerm | null> {
+    const sql = getConnection();
+    const taxonomy = await this.getBySlug(taxonomySlug);
+    if (!taxonomy) return null;
+    const rows = await sql.unsafe('SELECT * FROM taxonomy_terms WHERE id = $1 AND taxonomy_id = $2', [termId, taxonomy.id]);
+    const existing = rows[0] as Record<string, unknown> | undefined;
+    if (!existing) return null;
+
+    const result = await sql.unsafe(
+      `UPDATE taxonomy_terms SET name = $1, slug = $2, description = $3, parent_id = $4, meta = $5::jsonb
+       WHERE id = $6 AND taxonomy_id = $7 RETURNING *`,
+      [
+        patch.name ?? String(existing['name']),
+        patch.slug ?? String(existing['slug']),
+        patch.description ?? (existing['description'] as string | null) ?? null,
+        patch.parentId !== undefined ? patch.parentId : (existing['parent_id'] as string | null) ?? null,
+        patch.meta ?? (existing['meta'] as Record<string, unknown>) ?? {},
+        termId,
+        taxonomy.id,
+      ]
+    );
+    return result[0] ? this.rowToTerm(result[0] as Record<string, unknown>) : null;
+  }
+
+  async deleteTerm(taxonomySlug: string, termId: string): Promise<boolean> {
+    const sql = getConnection();
+    const taxonomy = await this.getBySlug(taxonomySlug);
+    if (!taxonomy) return false;
+    const result = await sql.unsafe('DELETE FROM taxonomy_terms WHERE id = $1 AND taxonomy_id = $2 RETURNING id', [termId, taxonomy.id]);
+    return result.length > 0;
+  }
+
   async setTermsForContent(contentId: string, taxonomySlug: string, termIds: string[]): Promise<void> {
     const sql = getConnection();
     const taxonomy = await this.getBySlug(taxonomySlug);

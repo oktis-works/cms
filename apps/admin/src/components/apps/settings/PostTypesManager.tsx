@@ -1,6 +1,6 @@
 // @oktis-works/admin - Post Types Manager (settings)
 
-import { For, Show, createSignal, onMount } from 'solid-js';
+import { For, Show, createMemo, createSignal, onMount } from 'solid-js';
 import { apiClient, type ContentType } from '../../../lib/api';
 import { useTranslation } from '../../../i18n';
 
@@ -10,13 +10,13 @@ export function PostTypesManager() {
   const [error, setError] = createSignal('');
   const [saving, setSaving] = createSignal(false);
 
-  const SUPPORTS_OPTIONS = [
+  const supportsOptions = createMemo(() => [
     { value: 'title', label: t('settings.postTypes.form.supportsOptions.title') },
     { value: 'editor', label: t('settings.postTypes.form.supportsOptions.editor') },
     { value: 'thumbnail', label: t('settings.postTypes.form.supportsOptions.thumbnail') },
     { value: 'excerpt', label: t('settings.postTypes.form.supportsOptions.excerpt') },
     { value: 'revisions', label: t('settings.postTypes.form.supportsOptions.revisions') },
-  ] as const;
+  ] as const);
 
   const [form, setForm] = createSignal({
     name: '',
@@ -111,7 +111,7 @@ export function PostTypesManager() {
 
         <fieldset class="supports">
           <legend>{t('settings.postTypes.form.supports')}</legend>
-          <For each={[...SUPPORTS_OPTIONS]}>
+          <For each={supportsOptions()}>
             {(option) => (
               <label>
                 <input

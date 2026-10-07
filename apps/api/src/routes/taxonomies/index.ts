@@ -115,4 +115,21 @@ router.post('/:slug/terms', requirePermission('create', 'category'), async (c) =
   }
 });
 
+router.put('/:slug/terms/:termId', requirePermission('update', 'category'), async (c) => {
+  try {
+    const result = await taxonomyService.updateTerm(c.req.param('slug') as string, c.req.param('termId') as string, await c.req.json());
+    if (!result) return c.json({ error: 'Term not found' }, 404);
+    return c.json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to update term';
+    return c.json({ error: message }, 400);
+  }
+});
+
+router.delete('/:slug/terms/:termId', requirePermission('delete', 'category'), async (c) => {
+  const deleted = await taxonomyService.deleteTerm(c.req.param('slug') as string, c.req.param('termId') as string);
+  if (!deleted) return c.json({ error: 'Term not found' }, 404);
+  return c.json({ success: true });
+});
+
 export default router;

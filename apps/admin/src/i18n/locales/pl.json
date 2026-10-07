@@ -7,7 +7,9 @@
       "content": "Treści",
       "media": "Media",
       "users": "Użytkownicy",
-      "settings": "Ustawienia"
+      "settings": "Ustawienia",
+      "plugins": "Wtyczki",
+      "themes": "Motywy"
     },
     "actions": {
       "logout": "Wyloguj",

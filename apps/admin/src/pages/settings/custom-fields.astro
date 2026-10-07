@@ -1,0 +1,286 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { CustomFieldsManager } from '../../components/apps/settings/CustomFieldsManager';
+
+const { t } = Astro.locals;
+---
+
+<DashboardLayout title={t('settings.customFields.title')}>
+  <div class="settings-page">
+    <div class="page-header">
+      <h2>{t('settings.customFields.title')}</h2>
+      <p>{t('settings.customFields.description')}</p>
+    </div>
+    <CustomFieldsManager client:load />
+  </div>
+</DashboardLayout>
+
+<style>
+  .settings-page .page-header {
+    margin-bottom: 1rem;
+  }
+
+  .custom-fields-toolbar,
+  .section-heading,
+  .fields-editor-heading,
+  .editable-field__topline,
+  .group-row,
+  .group-row__actions,
+  .standard-field-control,
+  .editor-actions {
+    display: flex;
+    align-items: center;
+  }
+
+  .custom-fields-toolbar,
+  .section-heading,
+  .fields-editor-heading,
+  .editable-field__topline,
+  .group-row,
+  .editor-actions {
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .custom-fields-toolbar {
+    margin-bottom: 1rem;
+  }
+
+  .custom-fields-toolbar label,
+  .field-group-editor label,
+  .field-group-editor fieldset {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .custom-fields-toolbar label {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .custom-fields-toolbar .input {
+    min-width: 220px;
+  }
+
+  .standard-fields-card,
+  .field-group-editor,
+  .groups-card {
+    margin-bottom: 1rem;
+  }
+
+  .section-heading {
+    margin-bottom: 1rem;
+  }
+
+  .section-heading h3,
+  .fields-editor-heading h4 {
+    margin: 0;
+  }
+
+  .section-heading p {
+    margin-top: 0.35rem;
+  }
+
+  .standard-fields-list,
+  .groups-list,
+  .editable-fields-list {
+    display: grid;
+    gap: 0.65rem;
+  }
+
+  .standard-field-row,
+  .group-row {
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-hover);
+  }
+
+  .standard-field-row > span:first-child,
+  .group-row > div:first-child {
+    display: grid;
+    gap: 0.2rem;
+  }
+
+  .standard-field-row small,
+  .group-row small {
+    color: var(--color-muted);
+    font-size: 0.75rem;
+  }
+
+  .standard-field-control {
+    gap: 0.65rem;
+  }
+
+  .form-grid,
+  .field-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .checkbox-label {
+    flex-direction: row !important;
+    align-items: center;
+    align-self: end;
+  }
+
+  .fields-editor-heading {
+    margin: 1.25rem 0 0.75rem;
+  }
+
+  .editable-field {
+    display: grid;
+    gap: 0.85rem;
+    padding: 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-hover);
+  }
+
+  .location-rules-editor {
+    margin: 1.25rem 0;
+    padding: 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-hover);
+  }
+
+  .location-rule-group {
+    display: grid;
+    gap: 0.65rem;
+    padding: 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-white);
+  }
+
+  .location-rule-row {
+    display: grid;
+    grid-template-columns: minmax(150px, 1fr) minmax(110px, 0.7fr) minmax(180px, 1.4fr) auto;
+    gap: 0.65rem;
+    align-items: center;
+  }
+
+  .rule-connector {
+    color: var(--color-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-align: center;
+  }
+
+  .rule-add {
+    justify-self: start;
+  }
+
+  .editable-field.is-dragging {
+    opacity: 0.55;
+    border-color: var(--color-primary);
+  }
+
+  .editable-field__topline {
+    justify-content: flex-start;
+  }
+
+  .editable-field__topline .btn-danger {
+    margin-left: auto;
+  }
+
+  .drag-handle {
+    color: var(--color-muted);
+    font-size: 1.4rem;
+    cursor: grab;
+    user-select: none;
+  }
+
+  .field-type-picker {
+    position: relative;
+  }
+
+  :global(.field-type-picker__trigger) {
+    width: 100%;
+    min-height: 2.35rem;
+    padding: 0.45rem 0.65rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-white);
+    color: var(--color-text);
+    text-align: left;
+  }
+
+  :global(.field-type-picker__panel) {
+    position: absolute;
+    z-index: 20;
+    width: min(360px, 90vw);
+    max-height: 320px;
+    overflow: auto;
+    padding: 0.5rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-white);
+    box-shadow: var(--shadow-lg);
+  }
+
+  :global(.field-type-picker__search) {
+    width: 100%;
+    padding: 0.45rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+  }
+
+  :global(.field-type-picker__group-label) {
+    padding: 0.65rem 0.4rem 0.25rem;
+    color: var(--color-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  :global(.field-type-picker__option) {
+    display: flex;
+    width: 100%;
+    gap: 0.5rem;
+    padding: 0.45rem;
+    border: 0;
+    background: transparent;
+    text-align: left;
+  }
+
+  :global(.field-type-picker__option:hover),
+  :global(.field-type-picker__option.is-selected) {
+    background: var(--color-primary-soft);
+  }
+
+  .editor-actions {
+    margin-top: 1rem;
+  }
+
+  @media (max-width: 720px) {
+    .custom-fields-toolbar,
+    .group-row {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .custom-fields-toolbar label {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .custom-fields-toolbar .input {
+      min-width: 0;
+    }
+
+    .group-row__actions {
+      flex-wrap: wrap;
+    }
+
+    .location-rule-row {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

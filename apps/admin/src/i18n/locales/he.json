@@ -7,7 +7,9 @@
       "content": "תוכן",
       "media": "מדיה",
       "users": "משתמשים",
-      "settings": "הגדרות"
+      "settings": "הגדרות",
+      "plugins": "תוספים",
+      "themes": "ערכות נושא"
     },
     "actions": {
       "logout": "התנתקות",

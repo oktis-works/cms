@@ -7,7 +7,9 @@
       "content": "Contenuti",
       "media": "Media",
       "users": "Utenti",
-      "settings": "Impostazioni"
+      "settings": "Impostazioni",
+      "plugins": "Plugin",
+      "themes": "Temi"
     },
     "actions": {
       "logout": "Esci",

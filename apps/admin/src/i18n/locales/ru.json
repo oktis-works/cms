@@ -7,7 +7,9 @@
       "content": "Контент",
       "media": "Медиа",
       "users": "Пользователи",
-      "settings": "Настройки"
+      "settings": "Настройки",
+      "plugins": "Плагины",
+      "themes": "Темы"
     },
     "actions": {
       "logout": "Выйти",

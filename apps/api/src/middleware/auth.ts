@@ -4,6 +4,7 @@ import type { Context, Next } from 'hono';
 import { getCookie } from 'hono/cookie';
 import { AuthService } from '@oktis-works/auth';
 import { loadConfig } from '@oktis-works/config';
+import { establishTenantContext } from '@oktis-works/core';
 
 const config = loadConfig();
 const authService = new AuthService(config.auth);
@@ -30,6 +31,12 @@ export const authMiddleware = async (c: Context, next: Next) => {
   c.set('userEmail', payload.email);
   c.set('tenantId', payload.tenantId);
   c.set('userRoles', payload.roles);
+
+  // O tenant efetivo vem da sessão assinada, nunca do header/query controlado
+  // pelo cliente. Isso reafirma o contexto usado pelo RLS após a autenticação.
+  if (payload.tenantId) {
+    await establishTenantContext(payload.tenantId, payload.sub);
+  }
 
   await next();
 };

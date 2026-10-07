@@ -1,7 +1,7 @@
 // @oktis-works/admin - Lista de conteúdo (busca, filtros, paginação, publish, ações)
 // Migrada para o design-system @oktis-works/ui (Button/Input/Select/Table/Pagination/Badge).
 
-import { Show, createSignal, onMount } from 'solid-js';
+import { Show, createMemo, createSignal, onMount } from 'solid-js';
 import { Button, Input, Select, Card, Table, Pagination, Badge } from '@oktis-works/ui';
 import type { TableColumn } from '@oktis-works/ui';
 import { apiClient, type Content, type ContentType } from '../../lib/api';
@@ -90,7 +90,7 @@ export function ContentList() {
     }
   };
 
-  const columns: TableColumn[] = [
+  const columns = createMemo<TableColumn[]>(() => [
     { key: 'title', label: t('content.list.columns.title') },
     { key: 'type', label: t('content.list.columns.type') },
     {
@@ -129,7 +129,7 @@ export function ContentList() {
         );
       },
     },
-  ];
+  ]);
 
   return (
     <div class="content-list">
@@ -182,7 +182,7 @@ export function ContentList() {
 
       <Card>
         <Table
-          columns={columns}
+          columns={columns()}
           data={items() as unknown[]}
           emptyMessage={t('content.list.empty')}
         />

@@ -1,7 +1,7 @@
 // @oktis-works/admin - Settings → General (grupo "general")
 // Migrada para o design-system @oktis-works/ui (Input/Select/Card/Button).
 
-import { Show, createSignal, onMount } from '@oktis-works/ui';
+import { Show, createMemo, createSignal, onMount } from '@oktis-works/ui';
 import { Card, Input, Select, Button } from '@oktis-works/ui';
 import { apiClient } from '../../../lib/api';
 import { useTranslation } from '../../../i18n';
@@ -14,12 +14,12 @@ export function GeneralSettings() {
   const [info, setInfo] = createSignal('');
   const [saving, setSaving] = createSignal(false);
 
-  const FIELDS = [
+  const fields = createMemo(() => [
     { key: 'siteTitle', label: t('settings.general.fields.siteTitle'), type: 'text', placeholder: t('settings.general.fields.siteTitlePlaceholder') },
     { key: 'siteDescription', label: t('settings.general.fields.siteDescription'), type: 'text', placeholder: t('settings.general.fields.siteDescriptionPlaceholder') },
     { key: 'language', label: t('settings.general.fields.language'), type: 'select', options: ['pt-BR', 'en-US', 'es-ES'] },
     { key: 'timezone', label: t('settings.general.fields.timezone'), type: 'text', placeholder: t('settings.general.fields.timezonePlaceholder') },
-  ] as const;
+  ] as const);
 
   onMount(async () => {
     try {
@@ -29,7 +29,7 @@ export function GeneralSettings() {
         map[row.key] = typeof row.value === 'string' ? row.value : JSON.stringify(row.value ?? '');
       }
       // garante os campos na tela mesmo sem seed
-      for (const field of FIELDS) {
+      for (const field of fields()) {
         if (map[field.key] === undefined) map[field.key] = '';
       }
       setValues(map);
@@ -50,7 +50,7 @@ export function GeneralSettings() {
       const existing = new Map(current.map((row) => [row.key, row]));
 
       await apiClient.updateSettings(
-        FIELDS.map((field) => {
+        fields().map((field) => {
           const row = existing.get(field.key);
           return {
             key: field.key,
@@ -82,7 +82,7 @@ export function GeneralSettings() {
           <form onSubmit={submit}>
             <h3>{t('settings.general.title')}</h3>
             <div class="form-grid">
-              {FIELDS.map((field) =>
+              {fields().map((field) =>
                 field.type === 'select' ? (
                   <Select
                     name={field.key}

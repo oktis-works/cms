@@ -8,6 +8,8 @@ export function PluginManager() {
   const [loading, setLoading] = createSignal(true);
   const [error, setError] = createSignal<string | null>(null);
   const [toggling, setToggling] = createSignal<string | null>(null);
+  const [installForm, setInstallForm] = createSignal({ name: '', version: '', manifest: '{}' });
+  const [showInstall, setShowInstall] = createSignal(false);
 
   onMount(async () => {
     await loadPlugins();
@@ -25,8 +27,10 @@ export function PluginManager() {
     }
   }
 
+  const isActive = (plugin: PluginInfo): boolean => plugin.status === 'ACTIVE' || plugin.status === 'ACTIVATED';
+
   async function handleToggle(plugin: PluginInfo) {
-    const wasActive = plugin.status === 'ACTIVE';
+    const wasActive = isActive(plugin);
     setToggling(plugin.id);
     try {
       const updated = wasActive
@@ -40,20 +44,47 @@ export function PluginManager() {
     }
   }
 
+  async function installPlugin(event: Event): Promise<void> {
+    event.preventDefault();
+    try {
+      const form = installForm();
+      await apiClient.installPlugin({ name: form.name, version: form.version, manifest: JSON.parse(form.manifest) });
+      setInstallForm({ name: '', version: '', manifest: '{}' });
+      setShowInstall(false);
+      await loadPlugins();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('plugins.installError'));
+    }
+  }
+
+  async function uninstallPlugin(plugin: PluginInfo): Promise<void> {
+    if (!confirm(t('plugins.confirmUninstall', { name: plugin.name }))) return;
+    try {
+      await apiClient.uninstallPlugin(plugin.id);
+      await loadPlugins();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('plugins.uninstallError'));
+    }
+  }
+
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'ACTIVE': return t('plugins.status.active');
+      case 'ACTIVE':
+      case 'ACTIVATED': return t('plugins.status.active');
       case 'INSTALLED': return t('plugins.status.installed');
-      case 'INACTIVE': return t('plugins.status.inactive');
+      case 'INACTIVE':
+      case 'DEACTIVATED': return t('plugins.status.inactive');
       default: return status;
     }
   };
 
   const getStatusClass = (status: string) => {
     switch (status) {
-      case 'ACTIVE': return 'status-active';
+      case 'ACTIVE':
+      case 'ACTIVATED': return 'status-active';
       case 'INSTALLED': return 'status-installed';
-      case 'INACTIVE': return 'status-inactive';
+      case 'INACTIVE':
+      case 'DEACTIVATED': return 'status-inactive';
       default: return '';
     }
   };
@@ -63,7 +94,17 @@ export function PluginManager() {
       <div class="page-header">
         <h2>{t('plugins.title')}</h2>
         <p class="page-description">{t('plugins.description')}</p>
+        <button class="btn btn-primary" type="button" onClick={() => setShowInstall(!showInstall())}>{t('plugins.install')}</button>
       </div>
+
+      <Show when={showInstall()}>
+        <form class="card plugin-install-form" onSubmit={installPlugin}>
+          <input class="input" required placeholder={t('plugins.name')} value={installForm().name} onInput={(event) => setInstallForm({ ...installForm(), name: event.currentTarget.value })} />
+          <input class="input" required placeholder={t('plugins.version')} value={installForm().version} onInput={(event) => setInstallForm({ ...installForm(), version: event.currentTarget.value })} />
+          <textarea class="input" required rows={5} placeholder={t('plugins.manifest')} value={installForm().manifest} onInput={(event) => setInstallForm({ ...installForm(), manifest: event.currentTarget.value })} />
+          <button class="btn btn-primary" type="submit">{t('common.save')}</button>
+        </form>
+      </Show>
 
       {error() && <div class="alert alert-error">{error()}</div>}
 
@@ -101,12 +142,13 @@ export function PluginManager() {
                         class={`btn btn-sm ${toggling() === plugin.id ? 'btn-loading' : ''}`}
                         onClick={() => handleToggle(plugin)}
                         disabled={toggling() !== null}
-                        aria-label={plugin.status === 'ACTIVE' ? t('plugins.deactivate') : t('plugins.activate')}
+                        aria-label={isActive(plugin) ? t('plugins.deactivate') : t('plugins.activate')}
                       >
-                        {plugin.status === 'ACTIVE'
+                        {isActive(plugin)
                           ? t('plugins.deactivate')
                           : t('plugins.activate')}
                       </button>
+                      <button class="btn btn-sm btn-danger" type="button" onClick={() => void uninstallPlugin(plugin)}>{t('plugins.uninstall')}</button>
                     </td>
                   </tr>
                 )}

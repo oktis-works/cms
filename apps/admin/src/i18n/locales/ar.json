@@ -7,7 +7,9 @@
       "content": "المحتوى",
       "media": "الوسائط",
       "users": "المستخدمون",
-      "settings": "الإعدادات"
+      "settings": "الإعدادات",
+      "plugins": "الإضافات",
+      "themes": "القوالب"
     },
     "actions": {
       "logout": "تسجيل الخروج",

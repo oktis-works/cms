@@ -1,14 +1,14 @@
 import { Hono } from 'hono';
 import { getConnection } from '@oktis-works/database';
-import { authMiddleware } from '../../middleware/auth.js';
+import { authMiddleware, requirePermission } from '../../middleware/auth.js';
 
 const router = new Hono();
 
 router.use('*', authMiddleware);
 
-router.get('/', async (c) => {
-  const page = Number(c.req.query('page') ?? 1);
-  const limit = Number(c.req.query('limit') ?? 50);
+router.get('/', requirePermission('read', 'system'), async (c) => {
+  const page = Math.max(1, Number(c.req.query('page') ?? 1) || 1);
+  const limit = Math.min(100, Math.max(1, Number(c.req.query('limit') ?? 50) || 50));
   const type = c.req.query('type') || undefined;
   const offset = (page - 1) * limit;
 

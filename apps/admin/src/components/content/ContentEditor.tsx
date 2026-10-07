@@ -84,7 +84,7 @@ export function ContentEditor() {
     }
 
     // Carrega grupos de campos aplicáveis quando o tipo muda
-    await loadGroups(draft().type);
+    await loadGroups({ type: draft().type, slug: draft().slug, status: draft().status });
   });
 
   // Layouts disponíveis dos temas instalados (provides.layouts), únicos
@@ -96,11 +96,12 @@ export function ContentEditor() {
     return [...layouts].sort();
   };
 
-  const loadGroups = async (type: string): Promise<void> => {
+  const loadGroups = async (context: { type?: string; slug?: string; status?: string } | string): Promise<void> => {
     try {
       // Os grupos são resolvidos por location rules no servidor:
-      // o endpoint filtra por content_type quando recebemos ?type=.
-      const all = await apiClient.getFieldGroups(type ? { type } : undefined);
+      // o endpoint filtra pelas regras de localização recebidas.
+      const query = typeof context === 'string' ? { type: context } : context;
+      const all = await apiClient.getFieldGroups(query.type ? query : undefined);
       const resolved = await Promise.all(
         all
           .filter((group) => group.active)
@@ -111,7 +112,7 @@ export function ContentEditor() {
       );
       // Expande clones (seamless/group) com as mesmas regras do core
       setGroups(expandCloneFields(resolved.flat() as ResolvedFieldDefinition[]));
-      void type;
+      void query;
     } catch (err) {
       setErrors([err instanceof Error ? err.message : String(err)]);
     }

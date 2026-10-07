@@ -60,7 +60,23 @@ export interface ResolvedFieldDefinition {
   sortOrder: number;
   subFields: ResolvedFieldDefinition[];
   layouts: Array<{ name: string; label: string; display: string; min?: number; max?: number; subFields: ResolvedFieldDefinition[] }>;
+  isCoreField: boolean;
+  isLocked: boolean;
+  coreFieldKey?: string;
 }
+
+const REQUIRED_CORE_FIELDS = new Set(['title', 'slug']);
+const DEFAULT_CORE_FIELDS = [
+  'title',
+  'slug',
+  'content',
+  'excerpt',
+  'featured_image',
+  'seo_title',
+  'seo_description',
+  'status',
+  'author',
+];
 
 function slugifyKey(input: string): string {
   return input
@@ -105,13 +121,7 @@ export class FieldGroupService {
   async create(input: FieldGroupInput): Promise<FieldGroup> {
     const sql = getConnection();
 
-    if (input.fields) {
-      const flat = this.flattenForValidation(input.fields);
-      const issues = findConditionalIssues(flat);
-      if (issues.length > 0) {
-        throw new Error(`Conditional logic inválida: ${issues.map((issue) => `${issue.field}: ${issue.issue}`).join('; ')}`);
-      }
-    }
+    this.validateFields(input.fields);
 
     const id = randomUUID();
     const key = input.key ?? `group_${slugifyKey(input.title)}_${Date.now().toString(36)}`;
@@ -144,6 +154,8 @@ export class FieldGroupService {
     const existing = await this.getById(id);
     if (!existing) return null;
 
+    this.validateFields(patch.fields);
+
     await sql.unsafe(
       `UPDATE field_groups SET
          title = $1,
@@ -163,6 +175,13 @@ export class FieldGroupService {
       ]
     );
 
+    if (patch.fields !== undefined) {
+      await sql.unsafe('DELETE FROM field_definitions WHERE group_id = $1', [id]);
+      for (const [index, field] of patch.fields.entries()) {
+        await this.insertDefinition(id, field, null, null, index);
+      }
+    }
+
     return this.getById(id);
   }
 
@@ -175,13 +194,16 @@ export class FieldGroupService {
   async resolveGroupsByLocation(context: LocationContext): Promise<FieldGroup[]> {
     const all = await this.list();
     const matching: FieldGroup[] = [];
+    const enabledCoreFields = context.contentType
+      ? await this.getEnabledCoreFields(context.contentType)
+      : null;
 
     for (const summary of all) {
       if (!summary.active) continue;
       if (!matchLocationRules(summary.locationRules ?? [], context)) continue;
 
       const full = await this.getById(summary.id);
-      if (full) matching.push(full);
+      if (full) matching.push(enabledCoreFields ? this.filterCoreFields(full, enabledCoreFields) : full);
     }
 
     return matching;
@@ -232,6 +254,36 @@ export class FieldGroupService {
 
     walk(fields);
     return flat;
+  }
+
+  private validateFields(fields?: FieldDefinitionInput[]): void {
+    if (!fields) return;
+
+    const flat = this.flattenForValidation(fields);
+    const issues = findConditionalIssues(flat);
+    if (issues.length > 0) {
+      throw new Error(`Conditional logic inválida: ${issues.map((issue) => `${issue.field}: ${issue.issue}`).join('; ')}`);
+    }
+  }
+
+  private async getEnabledCoreFields(contentType: string): Promise<Set<string>> {
+    const sql = getConnection();
+    const rows = await sql.unsafe('SELECT default_fields FROM content_types WHERE slug = $1', [contentType]);
+    const raw = rows[0]?.['default_fields'];
+    const configured = Array.isArray(raw)
+      ? raw.filter((value): value is string => typeof value === 'string')
+      : DEFAULT_CORE_FIELDS;
+
+    // Título e slug são sempre obrigatórios no editor e não podem ser desativados.
+    return new Set([...configured, ...REQUIRED_CORE_FIELDS]);
+  }
+
+  private filterCoreFields(group: FieldGroup, enabledCoreFields: Set<string>): FieldGroup {
+    const fields = group.fields.filter(
+      (field) => !field.isCoreField || !field.coreFieldKey || enabledCoreFields.has(field.coreFieldKey)
+    );
+
+    return { ...group, fields };
   }
 
   private async insertDefinition(
@@ -387,6 +439,9 @@ export class FieldGroupService {
       sortOrder: Number(row['sort_order'] ?? 0),
       subFields: [],
       layouts: [],
+      isCoreField: Boolean(row['is_core_field']),
+      isLocked: Boolean(row['is_locked']),
+      coreFieldKey: (row['core_field_key'] as string | null) ?? undefined,
     };
   }
 

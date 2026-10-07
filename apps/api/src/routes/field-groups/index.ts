@@ -11,8 +11,9 @@ router.use('*', authMiddleware);
 router.get('/', requirePermission('read', 'content'), async (c) => {
   const type = c.req.query('type');
   if (type) {
-    const resolved = await fieldGroupService.resolveGroupsByLocation({
-      contentType: type,
+      const resolved = await fieldGroupService.resolveGroupsByLocation({
+        contentType: type,
+        contentSlug: c.req.query('slug') || undefined,
       taxonomy: c.req.query('taxonomy') || undefined,
       termSlug: c.req.query('term') || undefined,
       userRole: c.req.query('userRole') || undefined,
@@ -61,6 +62,7 @@ router.put('/:id', requirePermission('update', 'content'), async (c) => {
       position: body.position,
       displayStyle: body.displayStyle,
       active: body.active,
+      fields: body.fields,
     });
     if (!result) return c.json({ error: 'Field group not found' }, 404);
     return c.json(result);

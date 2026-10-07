@@ -1093,3 +1093,18 @@ select.input {
 [dir="rtl"] ::-webkit-scrollbar {
   /* Scrollbar stays on the left in RTL */
 }
+
+/* Resource, access and operations hubs */
+.resource-hub { display: grid; gap: 1rem; }
+.resource-tabs, .resource-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.resource-form, .term-form { display: grid; gap: 0.75rem; margin: 1rem 0; }
+.resource-form label { display: grid; gap: 0.35rem; }
+.resource-form textarea, .term-form { width: 100%; }
+.access-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1rem; }
+.table { width: 100%; border-collapse: collapse; }
+.table th, .table td { padding: 0.65rem; border-bottom: 1px solid var(--color-border); text-align: left; vertical-align: middle; }
+.terms-panel { display: grid; gap: 0.75rem; }
+@media (max-width: 720px) {
+  .access-grid { grid-template-columns: 1fr; }
+  .table { display: block; overflow-x: auto; }
+}

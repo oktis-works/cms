@@ -3,6 +3,7 @@ import { DEFAULT_LOCALE, FALLBACK_LOCALE } from './config';
 import { loadLocale } from './loaders';
 import { changeLocale, resolveLocale } from './locale';
 import { createSignal, onMount } from 'solid-js';
+import englishTranslations from './locales/en.json';
 
 interface UseTranslationReturn {
   t: (key: string, params?: Record<string, string | number>) => string;
@@ -13,6 +14,26 @@ interface UseTranslationReturn {
 
 // Cache de funções de tradução criadas
 const tFunctionCache = new Map<Locale, TFunction>();
+
+// A renderização SSR/hidratação dos islands Solid acontece antes da carga
+// assíncrona do locale. Mantemos inglês como fallback imediato para nunca
+// expor chaves técnicas (por exemplo, "content.list.columns.title") na UI.
+const initialTranslations = englishTranslations as TranslationMap;
+
+// Todos os componentes que chamam `t` passam a reagir quando o locale termina
+// de carregar ou muda pelo seletor de idioma.
+const [translationVersion, notifyTranslationChange] = createSignal(0);
+let translationLoadPromise: Promise<void> | null = null;
+
+function humanizeKey(key: string): string {
+  const lastSegment = key.split('.').at(-1) ?? key;
+  return lastSegment
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^\w/, (letter) => letter.toUpperCase());
+}
 
 /** Cria função de tradução para um locale */
 function createTFunction(translations: TranslationMap, fallback: TranslationMap): TFunction {
@@ -29,14 +50,14 @@ function createTFunction(translations: TranslationMap, fallback: TranslationMap)
           if (value && typeof value === 'object' && k in value) {
             value = (value as Record<string, unknown>)[k];
           } else {
-            return key;
+            return humanizeKey(key);
           }
         }
         break;
       }
     }
     
-    if (typeof value !== 'string') return key;
+    if (typeof value !== 'string') return humanizeKey(key);
     
     if (params) {
       return value.replace(/\{(\w+)\}/g, (_, param) => String(params[param] ?? ''));
@@ -61,22 +82,26 @@ export async function getTFunction(locale: Locale): Promise<TFunction> {
 }
 
 // Estado global do i18n (não precisa de signal reativo complexo)
-let currentTFunction: TFunction = (key: string) => key;
+let currentTFunction: TFunction = createTFunction(initialTranslations, initialTranslations);
 let currentLocale: Locale = DEFAULT_LOCALE;
 let isLoading = true;
 
 /** Hook Solid para usar traduções em componentes */
 export function useTranslation(initialLocale?: Locale): UseTranslationReturn {
-  const [, forceUpdate] = createSignal(0);
-  
   onMount(async () => {
-    if (isLoading) {
-      const resolvedLocale = initialLocale ?? await resolveLocale();
-      currentLocale = resolvedLocale;
-      currentTFunction = await getTFunction(resolvedLocale);
-      isLoading = false;
-      forceUpdate(n => n + 1);
+    if (!isLoading) return;
+
+    if (!translationLoadPromise) {
+      translationLoadPromise = (async () => {
+        const resolvedLocale = initialLocale ?? await resolveLocale();
+        currentLocale = resolvedLocale;
+        currentTFunction = await getTFunction(resolvedLocale);
+        isLoading = false;
+        notifyTranslationChange((version) => version + 1);
+      })();
     }
+
+    await translationLoadPromise;
   });
   
   const changeLocaleFn = async (newLocale: Locale) => {
@@ -85,12 +110,16 @@ export function useTranslation(initialLocale?: Locale): UseTranslationReturn {
     currentLocale = newLocale;
     currentTFunction = await getTFunction(newLocale);
     isLoading = false;
-    forceUpdate(n => n + 1);
+    notifyTranslationChange((version) => version + 1);
   };
   
   // Função de tradução que usa o estado global
-  const translate = (key: string, params?: Record<string, string | number>) => 
-    currentTFunction(key, params);
+  const translate = (key: string, params?: Record<string, string | number>) => {
+    // Registra dependência reativa para que textos usados diretamente no JSX
+    // sejam atualizados depois do carregamento assíncrono.
+    translationVersion();
+    return currentTFunction(key, params);
+  };
   
   return { 
     t: translate, 
@@ -113,9 +142,11 @@ export async function getTranslationsForLocale(locale: Locale): Promise<Translat
 /** Limpa cache (útil para testes) */
 export function clearTranslationCache(): void {
   tFunctionCache.clear();
-  currentTFunction = (key: string) => key;
+  currentTFunction = createTFunction(initialTranslations, initialTranslations);
   currentLocale = DEFAULT_LOCALE;
   isLoading = true;
+  translationLoadPromise = null;
+  notifyTranslationChange((version) => version + 1);
 }
 
 // Exportar tipos e config

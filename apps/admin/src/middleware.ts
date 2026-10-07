@@ -17,6 +17,16 @@ interface AstroContext {
   request: Request;
 }
 
+function humanizeTranslationKey(key: string): string {
+  const lastSegment = key.split('.').at(-1) ?? key;
+  return lastSegment
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^\w/, (letter) => letter.toUpperCase());
+}
+
 /** Cria função de tradução que NUNCA falha — retorna a chave se não achar. */
 function createTFunctionFromMap(map: Record<string, unknown>, fallback: Record<string, unknown>) {
   return (key: string, params?: Record<string, string | number>) => {
@@ -30,12 +40,12 @@ function createTFunctionFromMap(map: Record<string, unknown>, fallback: Record<s
         for (const k of keys) {
           if (value && typeof value === 'object' && k in value) {
             value = (value as Record<string, unknown>)[k];
-          } else return key;
+          } else return humanizeTranslationKey(key);
         }
         break;
       }
     }
-    if (typeof value !== 'string') return key;
+    if (typeof value !== 'string') return humanizeTranslationKey(key);
     if (params) return value.replace(/\{(\w+)\}/g, (_, p) => String(params[p] ?? ''));
     return value;
   };

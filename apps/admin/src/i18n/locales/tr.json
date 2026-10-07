@@ -7,7 +7,9 @@
       "content": "İçerik",
       "media": "Medya",
       "users": "Kullanıcılar",
-      "settings": "Ayarlar"
+      "settings": "Ayarlar",
+      "plugins": "Eklentiler",
+      "themes": "Temalar"
     },
     "actions": {
       "logout": "Çıkış",

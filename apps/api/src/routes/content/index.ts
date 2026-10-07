@@ -169,39 +169,4 @@ contentRouter.get('/:id/versions', requirePermission('read', 'content'), async (
   return c.json(versions);
 });
 
-/**
- * POST /content/:id/publish — fluxo real do publisher: hooks before/after,
- * version snapshot (revisions), eventBus (content.published) e invalidação de cache.
- */
-contentRouter.post('/:id/publish', requirePermission('update', 'content'), async (c) => {
-  try {
-    const id = c.req.param('id') as string;
-    const userId = c.get('userId' as never) as string;
-
-    const result = await contentPublisher.publish(id, userId);
-
-    return c.json({ content: result.content, previousStatus: result.previousStatus });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to publish content';
-    const status = message === 'Content not found' ? 404 : 400;
-    return c.json({ error: message }, status);
-  }
-});
-
-/** POST /content/:id/unpublish — PUBLISHED → DRAFT com snapshot + evento + cache. */
-contentRouter.post('/:id/unpublish', requirePermission('update', 'content'), async (c) => {
-  try {
-    const id = c.req.param('id') as string;
-    const userId = c.get('userId' as never) as string;
-
-    const result = await contentPublisher.unpublish(id, userId);
-
-    return c.json({ content: result.content, previousStatus: result.previousStatus });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to unpublish content';
-    const status = message === 'Content not found' ? 404 : 400;
-    return c.json({ error: message }, status);
-  }
-});
-
 export default contentRouter;

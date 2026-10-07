@@ -7,7 +7,9 @@
       "content": "Conteúdo",
       "media": "Mídia",
       "users": "Usuários",
-      "settings": "Configurações"
+      "settings": "Configurações",
+      "plugins": "Plugins",
+      "themes": "Temas"
     },
     "actions": {
       "logout": "Sair",
@@ -298,7 +300,181 @@
           "remove": "Remover"
         }
       }
+    },
+    "customFields": {
+      "title": "Campos personalizados",
+      "description": "Crie grupos de campos, organize os campos e escolha quais campos padrão ficam visíveis em cada tipo de conteúdo.",
+      "contentType": "Tipo de conteúdo",
+      "location": {
+        "title": "Regras de localização",
+        "description": "Escolha onde este grupo aparece. Regras no mesmo grupo usam E; grupos diferentes usam OU.",
+        "parameter": "Parâmetro de localização",
+        "operator": "Operador",
+        "chooseValue": "Escolha um valor",
+        "valuePlaceholder": "Digite um valor ou slug",
+        "required": "Adicione um valor a todas as regras de localização.",
+        "addRule": "Adicionar condição",
+        "addGroup": "Adicionar grupo OU",
+        "remove": "Remover",
+        "and": "E",
+        "or": "OU",
+        "params": {
+          "content_type": "Tipo de post",
+          "content_slug": "Slug do post",
+          "taxonomy": "Taxonomia",
+          "term": "Slug do termo",
+          "user_role": "Papel do usuário",
+          "page_template": "Template da página",
+          "post_status": "Status do post"
+        },
+        "operators": {
+          "eq": "é",
+          "neq": "não é"
+        }
+      },
+      "standard": {
+        "title": "Campos padrão",
+        "description": "Título e slug são obrigatórios. Os demais campos padrão podem ser ativados ou desativados.",
+        "enabled": "Ativo",
+        "locked": "Obrigatório",
+        "fields": {
+          "title": "Título",
+          "slug": "Slug",
+          "content": "Conteúdo",
+          "excerpt": "Resumo",
+          "featured_image": "Imagem destacada",
+          "seo_title": "Título SEO",
+          "seo_description": "Descrição SEO",
+          "status": "Status",
+          "author": "Autor"
+        }
+      },
+      "groups": {
+        "title": "Grupos de campos",
+        "new": "Novo grupo de campos",
+        "empty": "Ainda não há grupos de campos personalizados.",
+        "fields": "campos",
+        "edit": "Editar",
+        "active": "Ativo",
+        "inactive": "Inativo"
+      },
+      "form": {
+        "createTitle": "Criar grupo de campos",
+        "editTitle": "Editar grupo de campos",
+        "title": "Nome do grupo",
+        "titlePlaceholder": "Ex.: Detalhes do produto",
+        "position": "Posição",
+        "positions": {
+          "normal": "Normal",
+          "side": "Barra lateral",
+          "acf_after_title": "Após o título"
+        },
+        "displayStyle": "Estilo de exibição",
+        "displayStyles": {
+          "standard": "Padrão",
+          "seamless": "Contínuo",
+          "grouped": "Agrupado"
+        },
+        "field": "Campo",
+        "fieldName": "Nome/chave",
+        "fieldNamePlaceholder": "codigo_produto",
+        "fieldLabel": "Rótulo",
+        "fieldLabelPlaceholder": "Código do produto",
+        "fieldType": "Tipo",
+        "instructions": "Instruções",
+        "instructionsPlaceholder": "Texto de ajuda opcional para editores",
+        "required": "Obrigatório",
+        "options": "Opções",
+        "optionsHint": "Uma opção por linha: valor|Rótulo",
+        "addField": "Adicionar campo",
+        "removeField": "Remover",
+        "dragHint": "Arraste para reordenar",
+        "save": "Salvar grupo",
+        "cancel": "Cancelar",
+        "newFieldDefault": "Novo campo",
+        "saved": "Grupo de campos salvo.",
+        "deleted": "Grupo de campos excluído."
+      },
+      "actions": {
+        "delete": "Excluir",
+        "confirmDelete": "Excluir este grupo de campos?"
+      },
+      "loading": "Carregando campos personalizados…",
+      "loadError": "Não foi possível carregar os campos personalizados."
     }
+  },
+  "resources": {
+    "title": "Recursos de conteúdo",
+    "description": "Gerencie categorias, tags, menus e termos de taxonomias.",
+    "tabs": { "category": "Categorias", "tag": "Tags", "menu": "Menus" },
+    "new": "Novo recurso",
+    "name": "Nome",
+    "slug": "Slug",
+    "description": "Descrição",
+    "items": "Itens do menu (JSON)",
+    "saved": "Recurso salvo.",
+    "confirmDelete": "Excluir este recurso?",
+    "form": { "new": "Criar recurso", "edit": "Editar recurso" },
+    "terms": { "title": "Termos de taxonomia", "choose": "Escolha uma taxonomia", "new": "Novo termo" }
+  },
+  "access": {
+    "title": "Acesso",
+    "description": "Gerencie papéis, permissões e tenants.",
+    "roles": "Papéis",
+    "tenants": "Tenants",
+    "permissions": "Permissões (separadas por vírgula)",
+    "domain": "Domínio"
+  },
+  "operations": {
+    "title": "Operações",
+    "description": "Gerencie webhooks, builds, deployments e eventos.",
+    "webhooks": "Webhooks",
+    "events": "Eventos",
+    "secret": "Segredo",
+    "builds": "Builds",
+    "deployments": "Deployments",
+    "createBuild": "Criar build",
+    "deploy": "Publicar deploy"
+  },
+  "plugins": {
+    "title": "Plugins",
+    "description": "Gerencie os plugins instalados.",
+    "columns": { "name": "Nome", "version": "Versão", "status": "Status", "actions": "Ações" },
+    "status": { "active": "Ativo", "installed": "Instalado", "inactive": "Inativo" },
+    "activate": "Ativar",
+    "deactivate": "Desativar",
+    "install": "Instalar plugin",
+    "uninstall": "Desinstalar",
+    "confirmUninstall": "Desinstalar {name}?",
+    "name": "Nome do plugin",
+    "version": "Versão",
+    "manifest": "Manifesto (JSON)",
+    "loadError": "Não foi possível carregar os plugins.",
+    "activateError": "Não foi possível ativar o plugin.",
+    "deactivateError": "Não foi possível desativar o plugin.",
+    "installError": "Não foi possível instalar o plugin.",
+    "uninstallError": "Não foi possível desinstalar o plugin.",
+    "empty": "Nenhum plugin instalado."
+  },
+  "themes": {
+    "title": "Temas",
+    "description": "Gerencie os temas instalados.",
+    "version": "Versão",
+    "active": "Ativo",
+    "status": { "active": "Ativo", "installed": "Instalado", "inactive": "Inativo" },
+    "activate": "Ativar",
+    "deactivate": "Desativar",
+    "install": "Instalar tema",
+    "uninstall": "Desinstalar",
+    "confirmUninstall": "Desinstalar {name}?",
+    "name": "Nome do tema",
+    "manifest": "Manifesto (JSON)",
+    "loadError": "Não foi possível carregar os temas.",
+    "activateError": "Não foi possível ativar o tema.",
+    "deactivateError": "Não foi possível desativar o tema.",
+    "installError": "Não foi possível instalar o tema.",
+    "uninstallError": "Não foi possível desinstalar o tema.",
+    "empty": "Nenhum tema instalado."
   },
   "login": {
     "title": "Login",

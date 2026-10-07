@@ -7,7 +7,9 @@
       "content": "Contenido",
       "media": "Medios",
       "users": "Usuarios",
-      "settings": "Ajustes"
+      "settings": "Ajustes",
+      "plugins": "Plugins",
+      "themes": "Temas"
     },
     "actions": {
       "logout": "Salir",
