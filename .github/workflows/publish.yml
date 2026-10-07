@@ -68,11 +68,13 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
-          for dir in packages/* apps/*; do
-            [ -f "$dir/package.json" ] || continue
-            name=$(node -p "require('./$dir/package.json').name")
-            version=$(node -p "require('./$dir/package.json').version")
-            private=$(node -p "require('./$dir/package.json').private === true")
+          # Inclui root (cms CLI) + packages/* + apps/*
+          for dir in . packages/* apps/*; do
+            [ "$dir" = "." ] && pkg_path="package.json" || pkg_path="$dir/package.json"
+            [ -f "$pkg_path" ] || continue
+            name=$(node -p "require('./$pkg_path').name")
+            version=$(node -p "require('./$pkg_path').version")
+            private=$(node -p "require('./$pkg_path').private === true")
             if [ "$private" = "true" ]; then
               echo "• $name é privado — pulando"
               continue
@@ -82,17 +84,22 @@ jobs:
               continue
             fi
             echo "→ publicando $name@$version"
-            (cd "$dir" && npm publish --access public --provenance)
+            if [ "$dir" = "." ]; then
+              npm publish --access public --provenance
+            else
+              (cd "$dir" && npm publish --access public --provenance)
+            fi
           done
 
       - name: Verificação final (esperado vs latest)
         run: |
           set -euo pipefail
-          for dir in packages/* apps/*; do
-            [ -f "$dir/package.json" ] || continue
-            name=$(node -p "require('./$dir/package.json').name")
-            version=$(node -p "require('./$dir/package.json').version")
-            private=$(node -p "require('./$dir/package.json').private === true")
+          for dir in . packages/* apps/*; do
+            [ "$dir" = "." ] && pkg_path="package.json" || pkg_path="$dir/package.json"
+            [ -f "$pkg_path" ] || continue
+            name=$(node -p "require('./$pkg_path').name")
+            version=$(node -p "require('./$pkg_path').version")
+            private=$(node -p "require('./$pkg_path').private === true")
             [ "$private" = "true" ] && continue
             latest=$(npm view "$name" version 2>/dev/null || echo '?')
             if [ "$latest" = "$version" ]; then
