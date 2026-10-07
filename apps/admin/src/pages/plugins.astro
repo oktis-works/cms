@@ -1,0 +1,8 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { PluginManager } from '../components/apps/plugins/PluginManager';
+---
+
+<BaseLayout title="Plugins" description="Gerencie plugins do sistema">
+  <PluginManager client:load />
+</BaseLayout>

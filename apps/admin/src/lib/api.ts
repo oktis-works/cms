@@ -120,6 +120,24 @@ export interface ThemeInfo {
   } | null;
 }
 
+export interface PluginInfo {
+  id: string;
+  name: string;
+  version: string;
+  status: string;
+  manifest?: {
+    name: string;
+    version: string;
+    description?: string;
+    author?: string;
+    entrypoints?: {
+      server?: string;
+      admin?: string;
+    };
+    config?: Record<string, unknown>;
+  } | null;
+}
+
 class ApiClient {
   private baseUrl: string;
   private csrfToken: string | null = null;
@@ -541,6 +559,34 @@ class ApiClient {
       status: String(theme['status'] ?? 'INSTALLED'),
       manifest: (theme['manifest'] as ThemeInfo['manifest']) ?? null,
     }));
+  }
+
+  async activateTheme(id: string): Promise<ThemeInfo> {
+    return this.request('POST', `/api/v1/themes/${id}/activate`);
+  }
+
+  async deactivateTheme(id: string): Promise<ThemeInfo> {
+    return this.request('POST', `/api/v1/themes/${id}/deactivate`);
+  }
+
+  // Plugins
+  async getPlugins(): Promise<PluginInfo[]> {
+    const plugins = await this.request<Array<Record<string, unknown>>>('GET', '/api/v1/plugins');
+    return plugins.map((plugin) => ({
+      id: String(plugin['id'] ?? ''),
+      name: String(plugin['name'] ?? ''),
+      version: String(plugin['version'] ?? ''),
+      status: String(plugin['status'] ?? 'INSTALLED'),
+      manifest: (plugin['manifest'] as PluginInfo['manifest']) ?? null,
+    }));
+  }
+
+  async activatePlugin(id: string): Promise<PluginInfo> {
+    return this.request('POST', `/api/v1/plugins/${id}/activate`);
+  }
+
+  async deactivatePlugin(id: string): Promise<PluginInfo> {
+    return this.request('POST', `/api/v1/plugins/${id}/deactivate`);
   }
 }
 

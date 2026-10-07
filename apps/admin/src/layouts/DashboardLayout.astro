@@ -28,6 +28,8 @@ const navActive = {
   media: isActive('/media'),
   users: isActive('/users'),
   settings: isActive('/settings'),
+  plugins: isActive('/plugins'),
+  themes: isActive('/themes'),
 };
 
 const settingsChildren = [
@@ -36,14 +38,14 @@ const settingsChildren = [
   { href: '/settings/taxonomies', label: t('settings.taxonomies.title'), active: isActive('/settings/taxonomies') },
 ];
 
-// Painéis do "Screen Options" — ids casam com data-widget-panel dos widgets
+// Paineis do "Screen Options" — ids casam com data-widget-panel dos widgets
 const screenOptionsPanels = [
   { id: 'at-glance', label: t('dashboard.widgets.atGlance'), defaultOpen: true },
   { id: 'activity', label: t('dashboard.widgets.activity.title'), defaultOpen: true },
   { id: 'quick-draft', label: t('dashboard.widgets.quickDraft.title'), defaultOpen: true },
 ];
 
-// Abas de ajuda — rótulos e conteúdo via i18n
+// Abas de ajuda — rotulos e conteudo via i18n
 const helpTabs = [
   {
     id: 'overview',
@@ -64,11 +66,11 @@ const helpTabs = [
 ---
 
 <BaseLayout title={title} description={description}>
-  <!-- Top Admin Bar — busca a sessão real (/auth/me) no mount -->
+  <!-- Top Admin Bar — busca a sessao real (/auth/me) no mount -->
   <AdminBar client:load />
 
   <div class="layout">
-    <!-- Sidebar colapsável — o estado (body.sidebar-collapsed) é aplicado pelo script abaixo -->
+    <!-- Sidebar colapsavel — o estado (body.sidebar-collapsed) e aplicado pelo script abaixo -->
     <aside class="sidebar">
       <div class="sidebar-header">
         <h2 class="text-lg font-bold">{t('layout.appName')}</h2>
@@ -109,11 +111,30 @@ const helpTabs = [
         </a>
 
         <a href="/settings" class:list={['nav-item', { active: navActive.settings }]}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06-.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.82-.33l-.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0-2.83l-.06-.06a1.65 1.65 0 0 0-.33-1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
           <span class="nav-label">{t('layout.nav.settings')}</span>
         </a>
 
-        <!-- Submenu de configurações (CSS esconde quando a sidebar está colapsada) -->
+        <a href="/plugins" class:list={['nav-item', { active: navActive.plugins }]}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="20" height="20" rx="2" ry="2"></rect>
+            <path d="M15 7h4a2 2 0 0 1 2 2v4"></path>
+            <path d="M9 17H5a2 2 0 0 1-2-2V9"></path>
+            <line x1="8" y1="12" x2="16" y2="12"></line>
+          </svg>
+          <span class="nav-label">{t('layout.nav.plugins')}</span>
+        </a>
+
+        <a href="/themes" class:list={['nav-item', { active: navActive.themes }]}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+            <path d="M2 12h20"></path>
+          </svg>
+          <span class="nav-label">{t('layout.nav.themes')}</span>
+        </a>
+
+        <!-- Submenu de configuracoes (CSS esconde quando a sidebar esta colapsada) -->
         <div class="nav-submenu">
           {settingsChildren.map((child) => (
             <a href={child.href} class:list={['nav-subitem', { active: child.active }]}>
@@ -122,7 +143,7 @@ const helpTabs = [
           ))}
         </div>
 
-        <!-- D1: slots de extensão — páginas de menu declaradas por plugins ativos -->
+        <!-- D1: slots de extensao — paginas de menu declaradas por plugins ativos -->
         <PluginExtensionsSlot client:load />
       </nav>
     </aside>
@@ -168,39 +189,39 @@ const helpTabs = [
 <script>
   import { apiClient } from '../lib/api';
 
-  // Guarda de sessão: verifica /me com cookies HttpOnly (sem localStorage —
-  // o token vive em cookie HttpOnly inacessível ao JS)
+  // Guarda de sessao: verifica /me com cookies HttpOnly (sem localStorage -
+  // o token vive em cookie HttpOnly inacessivel ao JS)
   void (async () => {
     if (!(await apiClient.isLoggedIn())) {
       window.location.replace('/login');
     }
   })();
 
-  // Logout: encerra a sessão no backend (limpa cookies HttpOnly) e volta pro login
+  // Logout: encerra a sessao no backend (limpa cookies HttpOnly) e volta pro login
   document.getElementById('logout-btn')?.addEventListener('click', async () => {
     try {
       await apiClient.logout();
     } catch {
-      // sem rede/sessão expirada — seguimos para o login mesmo assim
+      // sem rede/sessao expirada - seguimos para o login mesmo assim
     }
     window.location.href = '/login';
   });
 
-  // Estado salvo da sidebar colapsada (o botão de toggle fica no AdminBar e
+  // Estado salvo da sidebar colapsada (o botao de toggle fica no AdminBar e
   // alterna body.sidebar-collapsed + persiste em localStorage)
   try {
     if (localStorage.getItem('sidebar-collapsed') === 'true') {
       document.body.classList.add('sidebar-collapsed');
     }
   } catch {
-    // storage indisponível — sidebar inicia expandida
+    // storage indisponivel - sidebar inicia expandida
   }
 
-  // Screen Options: aplica as preferências salvas aos widgets e reage ao
+  // Screen Options: aplica as preferencias salvas aos widgets e reage ao
   // evento disparado pelo painel (localStorage 'screen-options')
   type ScreenPrefs = Record<string, boolean>;
 
-  const applyScreenOptions = (prefs: ScreenPrefs | null) => {
+  const applyScreenOptions = (prefs: Record<string, boolean> | null) => {
     if (!prefs) return;
     for (const el of document.querySelectorAll('[data-widget-panel]')) {
       const id = el.getAttribute('data-widget-panel');
@@ -210,15 +231,15 @@ const helpTabs = [
     }
   };
 
-  let screenPrefs: ScreenPrefs | null = null;
+  let screenPrefs: Record<string, boolean> | null = null;
   try {
-    screenPrefs = JSON.parse(localStorage.getItem('screen-options') ?? 'null') as ScreenPrefs | null;
+    screenPrefs = JSON.parse(localStorage.getItem('screen-options') ?? 'null') as Record<string, boolean> | null;
   } catch {
     screenPrefs = null;
   }
   applyScreenOptions(screenPrefs);
   window.addEventListener('screen-options-change', (e) => {
-    applyScreenOptions((e as CustomEvent<ScreenPrefs>).detail);
+    applyScreenOptions((e as CustomEvent<Record<string, boolean>>).detail);
   });
 </script>
 
@@ -446,7 +467,7 @@ const helpTabs = [
 
   .version-badge {
     background: var(--color-primary-soft);
-    color: var(--color-primary-hover);
+    color: var(--color-primary);
     padding: 0.125rem 0.375rem;
     border-radius: var(--radius-sm);
     font-size: 0.6875rem;

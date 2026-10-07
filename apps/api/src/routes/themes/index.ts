@@ -42,6 +42,18 @@ themes.post('/:id/activate', requirePermission('update', 'theme'), async (c) => 
   }
 })
 
+themes.post('/:id/deactivate', requirePermission('update', 'theme'), async (c) => {
+  try {
+    const id = c.req.param('id') as string
+    const result = await themeService.deactivate(id)
+    if (!result) return c.json({ error: 'Theme not found' }, 404)
+    return c.json(result)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to deactivate theme'
+    return c.json({ error: message }, 400)
+  }
+})
+
 themes.delete('/:id', requirePermission('delete', 'theme'), async (c) => {
   try {
     const id = c.req.param('id') as string

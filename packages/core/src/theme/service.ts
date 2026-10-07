@@ -66,6 +66,29 @@ export class ThemeService {
     return (result[0] as unknown as Theme) ?? null;
   }
 
+  async deactivate(id: string): Promise<Theme | null> {
+    const sql = getConnection();
+
+    const existing = await this.getById(id);
+    if (!existing) return null;
+
+    const result = await sql.unsafe(
+      `UPDATE themes
+       SET status = $1, deactivated_at = NOW(), updated_at = NOW()
+       WHERE id = $2
+       RETURNING *`,
+      ['INACTIVE', id]
+    );
+
+    return (result[0] as unknown as Theme) ?? null;
+  }
+
+  async getActive(): Promise<Theme | null> {
+    const sql = getConnection();
+    const result = await sql.unsafe('SELECT * FROM themes WHERE status = $1 LIMIT 1', ['ACTIVE']);
+    return (result[0] as unknown as Theme) ?? null;
+  }
+
   async uninstall(id: string): Promise<boolean> {
     const sql = getConnection();
 
