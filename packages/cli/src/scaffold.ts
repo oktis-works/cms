@@ -151,6 +151,10 @@ PORT=${config.ports.api}
 ADMIN_PORT=${config.ports.admin}
 WEB_PORT=${config.ports.web}
 
+# Admin ↔ API communication (required for browser fetch)
+PUBLIC_API_URL=http://localhost:${config.ports.api}
+CORS_ORIGINS=http://localhost:${config.ports.admin},http://127.0.0.1:${config.ports.admin}
+
 # JWT
 JWT_SECRET=change-me
 
