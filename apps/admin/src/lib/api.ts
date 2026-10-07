@@ -115,6 +115,15 @@ export interface ThemeInfo {
   version?: string;
   status: string;
   manifest?: {
+    name: string;
+    version: string;
+    cmsVersion: string;
+    description?: string;
+    author?: string;
+    entrypoints: {
+      astro?: string;
+      config?: string;
+    };
     provides?: { layouts?: string[] };
     parent?: string;
   } | null;
