@@ -440,18 +440,18 @@ export const commands: Command[] = [
   },
   {
     name: 'update',
-    description: 'Update packages, then optionally deploy (blue/green, simple or PM2)',
+    description: 'Update packages, run migrations and deploy (blue/green, simple or PM2)',
     options: [
       {
         name: 'install',
         alias: 'i',
-        description: 'Download mode: apply the updates to node_modules',
+        description: 'Legacy alias; full update already installs packages',
         required: false,
       },
       {
         name: 'mode',
         alias: 'm',
-        description: 'Skip the menu: download (packages only) or deploy',
+        description: 'Optional: download (packages only) or deploy (default)',
         required: false,
       },
       {

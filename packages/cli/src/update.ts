@@ -3,16 +3,15 @@
 // Two paths, one command:
 //
 //   download  fetches/updates the @oktis-works packages on the host. This is
-//             the historical behaviour (`okcms update -i`) and stays the
-//             default outside a TTY — no script starts deploying by accident
-//             just because the CLI grew a menu.
+//             available explicitly with `okcms update --mode download`.
 //
 //   deploy    runs the application for the chosen target: blue/green lanes,
 //             the simple container stack, or PM2 on the host. The CLI always
 //             runs on the HOST (see assertHostOnly).
 //
-// The path comes from the TTY menu; outside a TTY `--mode` (and `--target`)
-// or the historical default decide.
+// The default path is deploy. In a TTY it ends with an explicit y/n
+// confirmation; outside a TTY an implicit deploy requires `--yes`. The
+// package-only path remains available through `--mode download`.
 //
 // History and rollback: every operation writes to `.deploy/update-history.json`
 // — `okcms rollback` lists it and can go back.
@@ -50,9 +49,9 @@ export interface ScanResult {
 
 export interface UpdateOptions {
   cwd?: string;
-  /** `--install`: applies the updates in download mode. */
+  /** Legacy `-i/--install` flag. Full updates install packages automatically. */
   install?: boolean;
-  /** `--mode download|deploy`; absent = menu/default. */
+  /** `--mode download|deploy`; absent = full deploy. */
   mode?: string;
   /** `--target blue-green|simple|pm2` (deploy mode only). */
   target?: string;
@@ -324,26 +323,10 @@ export async function runUpdate(opts: UpdateOptions = {}): Promise<number> {
         return 1;
       }
       mode = parsed;
-    } else if (prompt.interactive && opts.yes !== true) {
-      mode = await prompt.select<UpdateMode>(
-        'What should the update do?',
-        [
-          {
-            value: 'download',
-            label: 'Download packages only',
-            hint: 'node_modules updated · nothing starts in Docker',
-          },
-          {
-            value: 'deploy',
-            label: 'Deploy',
-            hint: 'packages · build · migrations · proxy swap',
-          },
-        ],
-        { defaultValue: 'download' }
-      );
     } else {
-      // non-TTY without --mode = historical behaviour, unchanged
-      mode = 'download';
+      // A normal `okcms update` is a complete update. `-i` is retained as a
+      // compatibility alias, but is no longer needed to apply packages.
+      mode = 'deploy';
     }
 
     // ---- 2. deploy target (validated before the scan prints anything) -----
@@ -363,6 +346,16 @@ export async function runUpdate(opts: UpdateOptions = {}): Promise<number> {
     const scan = await scanOutdated(cwd, (message) => prompt.write(`${message}\n`));
 
     if (mode === 'download') return await runDownload(scan, opts, prompt);
+
+    // A piped command cannot answer the safety question. Explicit deploy mode
+    // and --yes are intended for automation; an implicit deploy must stay
+    // opt-in instead of changing a production system silently.
+    const implicitDeploy = opts.mode === undefined;
+    if (implicitDeploy && !prompt.interactive && opts.yes !== true) {
+      prompt.warn('interactive confirmation required for the full update.');
+      prompt.info('Run `okcms update --yes` in scripts, or use `--mode download` for packages only.');
+      return 1;
+    }
 
     const target = resolved as DeployTarget;
 

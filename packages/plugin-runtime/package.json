@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/plugin-runtime",
-  "version": "0.4.24",
+  "version": "0.4.25",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",

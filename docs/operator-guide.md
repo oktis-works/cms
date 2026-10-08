@@ -200,8 +200,8 @@ npx okcms stop && npx okcms start
 ## Updating
 
 ```bash
-npx okcms update                     # with TTY: menu (download or deploy)
-npx okcms update -i                  # only downloads/applies the packages (classic behavior)
+npx okcms update                     # full update: asks y/n, then migrations + deploy
+npx okcms update --mode download     # packages only
 npx okcms update --mode deploy       # full Docker deploy — asks the target every run
 npx okcms update --mode deploy --target pm2 --yes # CI: no prompts, no menu
 ```
@@ -212,10 +212,10 @@ downtime) · `simple` (`docker-compose.app.yml`, brief restart) · `pm2`
 (processes on the host). `-t, --target` skips the menu, and the choice is
 remembered in `.deploy/state.json`.
 
-> **Non-TTY never deploys by accident.** Without `--mode`, the default in a script
-> is `download` — an `-i` in cron keeps doing exactly what it always did.
-> Without `--target`, a script reuses the saved target (blue/green on a project
-> that never deployed) instead of prompting.
+> **Non-TTY requires explicit confirmation.** Without `--mode`, scripts must
+> pass `--yes` to run the full update. Use `--mode download` for package-only
+> updates. Without `--target`, a script reuses the saved target (blue/green on
+> a new project) instead of prompting.
 
 ## Backup and recovery
 
@@ -238,7 +238,7 @@ deploy, but an off-server backup is the only one that survives losing the machin
 | `okcms doctor` | Full diagnostics (node, `.env`, database, config, docker, compose, lane, proxy) |
 | `okcms config` | `.env` wizard (`--list`, `--set`, `--section`, `--show-secrets`) |
 | `okcms deploy` | First deploy: target menu — `--target blue-green\|simple\|pm2` (`-t`) skips it |
-| `okcms update` | Packages only **or** deploy (blue/green · simple · PM2 — target asked every run) |
+| `okcms update` | Full update: packages + migrations + deploy, with `y/n` confirmation |
 | `okcms redeploy` | Applies a new plugin/theme: plugin migrations + theme build + deploy (`-T, --target`) |
 | `okcms db:migrate` · `db:rollback` · `db:status` | Migrations from `migrations/` (`--tenant` optional) |
 | `okcms db:backup` · `db:restore -f <arquivo>` | Postgres backup/restore |

@@ -287,8 +287,9 @@ os 6 passos acima na mão. Prefira o comando da CLI.
 | \`okcms theme:create -n <nome> --style css\\|scss\\|tailwind\` | Scaffold de tema — guia em [THEME.md](./THEME.md) |
 | \`okcms theme:install\` · \`theme:list\` · \`theme:search\` · \`theme:manage\` | Gestão de temas (\`--set-active\` define o ativo) |
 | \`okcms theme:build -n <nome>\` | Compila SCSS/Tailwind → \`dist/theme.css\` isolado |
-| \`okcms update\` | Wizard: **só baixar pacotes** ou **deploy Docker blue/green** (\`--mode download\\|deploy\`) |
-| \`okcms update -i\` | Só baixa/aplica os pacotes \`@oktis-works/*\` (comportamento clássico, não-TTY) |
+| \`okcms update\` | Atualização completa: pacotes → migrations → healthcheck → deploy, com confirmação \`y/n\` |
+| \`okcms update -i\` | Alias legado; a atualização completa já instala os pacotes |
+| \`okcms update --mode download\` | Apenas baixa/aplica os pacotes \`@oktis-works/*\`, sem iniciar Docker |
 | \`okcms update --mode deploy\` | Deploy blue/green completo: build → migrations → healthcheck → swap → worker |
 | \`okcms redeploy\` | Depois de instalar plugin/tema: SQL do plugin → \`migrations/\`, \`dist/theme.css\` do tema e deploy blue/green (\`--dry-run\` só mostra o plano) |
 | \`okcms seed\` | Semeia dados iniciais (roles + settings) — idempotente |
@@ -310,15 +311,15 @@ os 6 passos acima na mão. Prefira o comando da CLI.
 ## Atualizando
 
 \`\`\`bash
-okcms update        # com TTY: escolhe entre baixar pacotes ou deploy
-okcms update -i     # só baixa/aplica os pacotes (igual sempre foi)
+okcms update        # atualização completa: confirma y/n e executa pacotes + migrations + deploy
+okcms update --mode download  # só baixa/aplica os pacotes
 okcms update --mode deploy          # deploy blue/green completo
 okcms update --mode deploy --yes    # sem prompts (CI/CD)
 \`\`\`
 
-Em **não-TTY** (script/CI) o default continua sendo \`download\` — um \`-i\`
-em cron nunca passa a fazer deploy por acidente. Só \`--mode deploy\` aciona
-o Docker.
+Em **não-TTY** (script/CI), o update completo exige \`--yes\` para confirmar.
+Use \`--mode download\` quando quiser apenas atualizar pacotes. O update
+completo executa as migrations no host antes do deploy.
 
 Flags de deploy: \`--no-cache\` (rebuild limpo) · \`--remove-orphans\`
 (default) · \`--keep-orphans\` · \`--yes\` (sem prompts).
@@ -575,8 +576,9 @@ the 6 steps above to do by hand. Prefer the CLI command.
 | \`okcms theme:install\` · \`theme:list\` · \`theme:search\` · \`theme:manage\` | Theme management (\`--set-active\` sets the active one) |
 | \`okcms theme:build -n <name>\` | Compiles SCSS/Tailwind → isolated \`dist/theme.css\` |
 | \`okcms deploy\` | First deploy — target menu: blue/green, simple or pm2 (\`--target\`, \`--yes\`) |
-| \`okcms update\` | Wizard: **download packages only** or **deploy** (\`--mode download\\|deploy\`) |
-| \`okcms update -i\` | Only downloads/applies the \`@oktis-works/*\` packages (classic non-TTY behaviour) |
+| \`okcms update\` | Full update: packages → migrations → healthcheck → deploy, with a \`y/n\` confirmation |
+| \`okcms update -i\` | Legacy alias; the full update already installs packages |
+| \`okcms update --mode download\` | Packages only; it never starts Docker |
 | \`okcms update --mode deploy\` | Full deploy: build → migrations → healthcheck → swap (target: \`--target blue-green\\|simple\\|pm2\`) |
 | \`okcms redeploy\` | After installing a plugin/theme: plugin SQL → \`migrations/\`, theme \`dist/theme.css\` and deploy (\`--dry-run\` only shows the plan, \`--target\` picks the target) |
 | \`okcms seed\` | Seeds initial data (roles + settings) — idempotent |
@@ -598,15 +600,15 @@ the 6 steps above to do by hand. Prefer the CLI command.
 ## Updating
 
 \`\`\`bash
-okcms update        # with TTY: choose between downloading packages or deploying
-okcms update -i     # only downloads/applies the packages (as always)
+okcms update        # full update: asks y/n, then packages + migrations + deploy
+okcms update --mode download  # only downloads/applies the packages
 okcms update --mode deploy          # full blue/green deploy
 okcms update --mode deploy --yes    # no prompts (CI/CD)
 \`\`\`
 
-In **non-TTY** (script/CI) the default is still \`download\` — an \`-i\` in a
-cron job never starts deploying by accident. Only \`--mode deploy\` engages
-the Docker.
+In **non-TTY** (script/CI), the full update requires \`--yes\` for
+confirmation. Use \`--mode download\` for package-only updates. The full
+update runs migrations on the host before deployment.
 
 Deploy flags: \`--no-cache\` (clean rebuild) · \`--remove-orphans\`
 (default) · \`--keep-orphans\` · \`--yes\` (no prompts).

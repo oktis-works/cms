@@ -87,16 +87,17 @@ okcms config --section deploy -n      # programático, sem TTY
 | Comando | Opções | O que faz |
 |---|---|---|
 | `okcms deploy` | `-t, --target blue-green\|simple\|pm2` | **Primeiro deploy**: menu de setas (↑/↓ + Enter) escolhe o target; `--target` pula o menu |
-| `okcms update` | — | Menu: escolhe entre **só baixar pacotes** ou **deploy** — o target é perguntado de novo a cada execução |
-| `okcms update -i` | `-i, --install` | Modo download clássico: varre `node_modules/@oktis-works/*` e instala o que estiver atrás |
-| `okcms update --mode deploy` | `-m, --mode download\|deploy` · `-t, --target blue-green\|simple\|pm2` | Deploy completo do target escolhido (ver abaixo) |
+| `okcms update` | — | Atualização completa: pacotes → migrations → deploy, com confirmação `y/n` |
+| `okcms update -i` | `-i, --install` | Alias legado; a atualização completa já instala os pacotes |
+| `okcms update --mode download` | `-m, --mode download\|deploy` | Apenas pacotes; nunca inicia o Docker |
+| `okcms update --mode deploy` | `-t, --target blue-green\|simple\|pm2` | Deploy completo do target escolhido (ver abaixo) |
 | `okcms redeploy` | `-p, --plugin <n>` · `-t, --theme <n>` · `-M, --skip-migrations` · `-B, --skip-theme-build` · `-n, --dry-run` · `-T, --target blue-green\|simple\|pm2` | Aplica plugin/tema recém-instalado: SQL do plugin → `migrations/`, `dist/theme.css` do tema e deploy (ver abaixo) |
 | (flags de deploy) | `-c, --no-cache` · `-r, --remove-orphans` · `-k, --keep-orphans` · `-y, --yes` · `-F, --force` | `-c`/`-r`/`-k` valem só para `redeploy` e `update --mode deploy` — o primeiro `deploy` não os expõe, e as opções de órfãos só afetam o blue/green; `-y` e `-F` são para uso sem TTY |
 
 ```bash
 okcms deploy --target simple      # primeiro deploy: menu, ou --target para pular
-okcms update                     # com TTY: menu (download ou deploy)
-okcms update -i                  # não-TTY: só pacotes (comportamento original)
+okcms update                     # atualização completa: confirma y/n e executa pacotes + migrations + deploy
+okcms update --mode download     # apenas pacotes
 okcms update --mode deploy       # deploy: target do menu, --target ou salvo
 okcms update --mode deploy --target pm2 --yes # CI: sem prompts, defaults
 
@@ -105,9 +106,9 @@ okcms redeploy                  # stage + build + deploy (o que fazer depois de 
 okcms redeploy --dry-run        # só mostra o plano
 ```
 
-> **Não-TTY nunca faz deploy por acidente.** Sem `--mode`, o default em script
-> é `download` — um `-i` em cron continua fazendo exatamente o que sempre fez.
-> Sem `--target`, um script reutiliza o target salvo em `.deploy/state.json`
+> **Sem TTY exige confirmação explícita.** Sem `--mode`, scripts precisam de
+> `--yes` para executar a atualização completa. Use `--mode download` para
+> atualizar apenas pacotes. Sem `--target`, um script reutiliza o target salvo
 > (blue/green num projeto que nunca fez deploy) em vez de perguntar.
 
 **Banco de dados**

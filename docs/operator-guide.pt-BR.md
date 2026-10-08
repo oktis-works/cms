@@ -200,8 +200,8 @@ npx okcms stop && npx okcms start
 ## Atualização
 
 ```bash
-npx okcms update                     # com TTY: menu (download ou deploy)
-npx okcms update -i                  # só baixa/aplica os pacotes (comportamento clássico)
+npx okcms update                     # atualização completa: confirma y/n e executa migrations + deploy
+npx okcms update --mode download     # só baixa/aplica os pacotes
 npx okcms update --mode deploy       # deploy Docker completo — pergunta o target a cada execução
 npx okcms update --mode deploy --target pm2 --yes # CI: sem prompts, sem menu
 ```
@@ -212,10 +212,10 @@ Toda execução pergunta o **target de deploy** num menu de setas (navegue com
 `pm2` (processos no host). `-t, --target` pula o menu, e a escolha fica
 guardada em `.deploy/state.json`.
 
-> **Não-TTY nunca faz deploy por acidente.** Sem `--mode`, o default em script
-> é `download` — um `-i` em cron continua fazendo exatamente o que sempre fez.
-> Sem `--target`, um script reutiliza o target salvo (blue/green num projeto
-> que nunca fez deploy) em vez de perguntar.
+> **Sem TTY exige confirmação explícita.** Sem `--mode`, scripts precisam de
+> `--yes` para executar a atualização completa. Use `--mode download` para
+> atualizar apenas pacotes. Sem `--target`, um script reutiliza o target salvo
+> (blue/green num projeto novo) em vez de perguntar.
 
 ## Backup e recuperação
 
@@ -238,7 +238,7 @@ deploy, mas backup fora do servidor é o único que aguenta perda da máquina.
 | `okcms doctor` | Diagnóstico completo (node, `.env`, banco, config, docker, compose, lane, proxy) |
 | `okcms config` | Wizard do `.env` (`--list`, `--set`, `--section`, `--show-secrets`) |
 | `okcms deploy` | Primeiro deploy: menu de target — `--target blue-green\|simple\|pm2` (`-t`) pula o menu |
-| `okcms update` | Só pacotes **ou** deploy (blue/green · simple · PM2 — target perguntado a cada execução) |
+| `okcms update` | Atualização completa: pacotes + migrations + deploy, com confirmação `y/n` |
 | `okcms redeploy` | Aplica plugin/tema novo: migrations do plugin + build de tema + deploy (`-T, --target`) |
 | `okcms db:migrate` · `db:rollback` · `db:status` | Migrations de `migrations/` (`--tenant` opcional) |
 | `okcms db:backup` · `db:restore -f <arquivo>` | Backup/restore do Postgres |
@@ -279,4 +279,3 @@ deploy, mas backup fora do servidor é o único que aguenta perda da máquina.
 | 502 após deploy | `cat deploy/nginx/conf.d/00-upstreams.conf` + `docker ps --filter label=okcms.role=edge` |
 | Tema sem CSS em produção | `npx okcms redeploy` — `dist/theme.css` precisa ser buildado no host |
 | CLI recusa dentro de container | Esperado; rode no host ou use `--force` |
-

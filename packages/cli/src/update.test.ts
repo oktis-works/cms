@@ -1,9 +1,8 @@
 // @oktis-works/cms - `okcms update` (F3)
 //
-// O compromisso central testado aqui: em não-TTY, `okcms update -i` continua
-// fazendo EXATAMENTE o que fazia antes (varrer e instalar pacotes) e nunca
-// aciona um deploy. O deploy só acontece com `--mode deploy` explícito ou com
-// um humano escolhendo no menu.
+// O compromisso central testado aqui: `okcms update` é uma atualização
+// completa (pacotes + migrations + deploy) e pede confirmação em TTY. O modo
+// de pacotes apenas continua explícito em `--mode download`.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -178,10 +177,10 @@ describe('scanOutdated', () => {
 
 // ---------------------------------------------------------------------------
 
-describe('modo download (comportamento histórico)', () => {
-  it('não-TTY sem --mode = download, NUNCA docker', async () => {
+describe('modo download (explícito)', () => {
+  it('não-TTY com --mode download não inicia Docker', async () => {
     installPackage('api', '0.1.0');
-    const result = await run();
+    const result = await run({ mode: 'download' });
 
     expect(result.code).toBe(0);
     expect(result.calls).toEqual([]);
@@ -189,18 +188,18 @@ describe('modo download (comportamento histórico)', () => {
     expect(result.printed).toContain('--mode deploy');
   });
 
-  it('não-TTY com -i instala os pacotes desatualizados', async () => {
+  it('não-TTY com --mode download -i instala apenas os pacotes', async () => {
     installPackage('api', '0.1.0');
-    const result = await run({ install: true });
+    const result = await run({ mode: 'download', install: true });
 
     expect(result.code).toBe(0);
     expect(result.calls).toContain('bun add @oktis-works/api@latest');
     expect(result.calls.some((call) => call.includes('compose'))).toBe(false);
   });
 
-  it('TTY + Enter escolhe o default (download) — o menu existe mas não empurra deploy', async () => {
+  it('TTY + Enter confirma a atualização completa', async () => {
     installPackage('api', '0.1.0');
-    const prompt = ttyPrompt(['']);
+    const prompt = ttyPrompt(['', '', '', '']);
     const runner = makeRunner();
 
     const code = await runUpdate({
@@ -212,25 +211,27 @@ describe('modo download (comportamento histórico)', () => {
     });
 
     expect(code).toBe(0);
-    expect(runner.calls).toEqual([]);
-    expect(prompt.printed()).toContain('What should the update do?');
-    expect(prompt.printed()).toContain('Download packages only');
+    expect(runner.calls.some((call) => call.includes('docker-compose.infra.yml'))).toBe(true);
+    expect(runner.calls.some((call) => call.includes('db:migrate'))).toBe(true);
+    expect(prompt.printed()).toContain('Start the update?');
     prompt.close();
   });
 
-  it('sem node_modules: sai com 1 e não toca no registry', async () => {
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    try {
-      const result = await run();
-      expect(result.code).toBe(1);
-      expect(result.calls).toEqual([]);
-      expect(errorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('No @oktis-works/* package installed')
-      );
-      expect(vi.mocked(getLatestVersion)).not.toHaveBeenCalled();
-    } finally {
-      errorSpy.mockRestore();
-    }
+  it('sem --mode pede confirmação antes de uma atualização completa', async () => {
+    installPackage('api', '0.1.0');
+    const result = await run();
+
+    expect(result.code).toBe(1);
+    expect(result.calls).toEqual([]);
+    expect(result.printed).toContain('interactive confirmation required');
+  });
+
+  it('sem node_modules continua permitindo deploy completo com --yes', async () => {
+    const result = await run({ yes: true });
+
+    expect(result.code).toBe(0);
+    expect(result.calls.some((call) => call.includes('docker-compose.infra.yml'))).toBe(true);
+    expect(vi.mocked(getLatestVersion)).not.toHaveBeenCalled();
   });
 });
 
@@ -253,6 +254,16 @@ describe('modo deploy', () => {
     // escolhas fora de TTY: com cache de camadas e removendo órfãos (defaults)
     expect(result.calls.some((call) => call.includes('build --no-cache'))).toBe(false);
     expect(result.calls.some((call) => call.includes('down --remove-orphans'))).toBe(true);
+  });
+
+  it('não-TTY com -i mantém compatibilidade, mas executa o fluxo completo', async () => {
+    installPackage('api', '0.1.0');
+    const result = await run({ install: true, yes: true });
+
+    expect(result.code).toBe(0);
+    expect(result.calls).toContain('bun add @oktis-works/api@latest');
+    expect(result.calls.some((call) => call.includes('db:migrate'))).toBe(true);
+    expect(result.calls.some((call) => call.includes('docker-compose.infra.yml'))).toBe(true);
   });
 
   it('--no-cache + --keep-orphans vira build limpo e down sem órfãos', async () => {
@@ -300,8 +311,8 @@ describe('modo deploy', () => {
   });
 
   it('confirmação recusada no TTY não executa nada', async () => {
-    // 1) modo → deploy  2) alvo  3) cache  4) órfãos  5) confirmação = "n"
-    const prompt = ttyPrompt(['2', '', '', '', 'n']);
+    // 1) alvo  2) cache  3) órfãos  4) confirmação = "n"
+    const prompt = ttyPrompt(['1', '', '', 'n']);
     const runner = makeRunner();
 
     const code = await runUpdate({
@@ -331,7 +342,7 @@ describe('guarda de host', () => {
 
   it('--force é o escape consciente', async () => {
     installPackage('api', '0.1.0');
-    const result = await run({ probe: CONTAINER_PROBE, force: true, install: true });
+    const result = await run({ probe: CONTAINER_PROBE, force: true, install: true, yes: true });
 
     expect(result.code).toBe(0);
     expect(result.calls).toContain('bun add @oktis-works/api@latest');

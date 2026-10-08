@@ -235,4 +235,4 @@ bun run publish:all
 | Migrations no host, **antes** de qualquer tráfego | `bluegreen.ts`, passo 5 |
 | Worker drenado (SIGTERM + `stop_grace_period`) antes de subir o novo | `bluegreen.ts`, passo 8 |
 | `infrastructure/**` nunca editado à mão | `assets.test.ts` (sincronia) |
-| Sem TTY, `okcms update` nunca faz deploy por acidente | `update.ts` (default `download`) |
+| Sem TTY, `okcms update` exige confirmação explícita | `update.ts` (`--yes` para automação) |
