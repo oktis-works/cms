@@ -110,11 +110,19 @@ describe('filtros theme:data:* no modo contextual', () => {
 describe('getFlexibleLayouts contextual', () => {
   it('lê seções do campo flexible sem props', () => {
     const withFlex: ContentLike = {
-      body: { secoes: [{ layout: 'hero', data: { t: 1 } }, { layout: 'grid', data: {} }, 'inválido'] },
+      body: {
+        secoes: [
+          { fc_layout: 'hero', titulo: 'Olá' }, // formato real persistido
+          { layout: 'hero', data: { t: 1 } }, // formato legado
+          { layout: 'grid', data: {} },
+          'inválido',
+        ],
+      },
     };
 
     runWithCurrentContent(withFlex, () => {
       expect(getFlexibleLayouts('secoes')).toEqual([
+        { layout: 'hero', data: { titulo: 'Olá' } },
         { layout: 'hero', data: { t: 1 } },
         { layout: 'grid', data: {} },
       ]);

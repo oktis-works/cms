@@ -69,7 +69,9 @@ const existingRow = (overrides: Record<string, unknown> = {}) => ({
 describe('supports enforcement — payload filtrado pelo tipo', () => {
   it('create descarta excerpt de CPT sem suporte excerpt', async () => {
     store.contentTypes = [contentTypeRow('evento', ['title', 'editor'])];
-    store.rowsByCall.push([{ ...existingRow({ type: 'evento' }), version: 1 }]);
+    // [0] = SELECT dos field_groups da validação server-side (sem grupos → []);
+    // [1] = RETURNING do INSERT de content.
+    store.rowsByCall.push([], [{ ...existingRow({ type: 'evento' }), version: 1 }]);
 
     await new ContentService().create({
       type: 'evento',
@@ -85,6 +87,7 @@ describe('supports enforcement — payload filtrado pelo tipo', () => {
   });
 
   it('create mantém excerpt quando o tipo suporta (post core)', async () => {
+    // Sem body → validação de campos customizados não roda (mesmo gate do update).
     store.rowsByCall.push([{ ...existingRow() }]);
 
     await new ContentService().create({

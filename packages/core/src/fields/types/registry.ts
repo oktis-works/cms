@@ -27,6 +27,7 @@ const DEFINITIONS: FieldTypeDefinition[] = [
   { type: 'email', label: 'E-mail', category: 'basico', icon: 'mail', supportsConditions: true, isLayout: false },
   { type: 'url', label: 'URL', category: 'basico', icon: 'link-2', supportsConditions: true, isLayout: false },
   { type: 'password', label: 'Senha', category: 'basico', icon: 'lock', supportsConditions: true, isLayout: false },
+  { type: 'slug', label: 'Slug', category: 'basico', icon: 'tag', supportsConditions: true, isLayout: false },
 
   { type: 'wysiwyg', label: 'Editor WYSIWYG', category: 'conteudo', icon: 'file-text', supportsConditions: true, isLayout: false },
   { type: 'image', label: 'Imagem', category: 'conteudo', icon: 'image', supportsConditions: true, isLayout: false },

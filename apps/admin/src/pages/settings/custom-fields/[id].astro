@@ -1,0 +1,13 @@
+---
+import DashboardLayout from '../../../layouts/DashboardLayout.astro';
+import { FieldGroupEditor } from '../../../components/field-builder/FieldGroupEditor';
+
+const { t } = Astro.locals;
+const groupId = Astro.params.id ?? 'new';
+---
+
+<DashboardLayout title={t('settings.customFields.title')}>
+  <div class="settings-page">
+    <FieldGroupEditor groupId={groupId} client:load />
+  </div>
+</DashboardLayout>

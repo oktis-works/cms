@@ -1,4 +1,4 @@
-// @oktis-works/core - Clone Field Semantics (ACF parity)
+// @oktis-works/core - Clone Field Semantics
 
 import type { ValidatableField } from './structural.js';
 
@@ -14,7 +14,7 @@ export type CloneDisplay = 'seamless' | 'group';
  *   (valores aninhados em data[clone.name]).
  *
  * Referências inexistentes são ignoradas; clones de clones não são
- * resolvidos recursivamente (profundidade 1, como o modo básico do ACF).
+ * resolvidos recursivamente (profundidade 1).
  */
 export function expandCloneFields<T extends ValidatableField>(fields: T[]): T[] {
   const byName = new Map<string, T>();

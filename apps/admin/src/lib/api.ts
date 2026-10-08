@@ -422,6 +422,63 @@ class ApiClient {
     return response.json() as Promise<T>;
   }
 
+  /** Requisição genérica que retorna o Response bruto (para blobs, downloads, etc.). */
+  public async requestRaw(
+    method: string,
+    path: string,
+    body?: unknown,
+    headers?: Record<string, string>,
+    options?: { skipRefresh?: boolean; skipCsrfRecovery?: boolean }
+  ): Promise<Response> {
+    const url = `${this.baseUrl}${path}`;
+
+    const send = async (): Promise<Response> => {
+      const requestHeaders: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...headers,
+      };
+
+      if (!['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase())) {
+        const csrf = await this.ensureCsrfToken();
+        if (csrf) requestHeaders['x-csrf-token'] = csrf;
+      }
+
+      return fetch(url, {
+        method,
+        headers: requestHeaders,
+        credentials: 'include',
+        body: body ? JSON.stringify(body) : undefined,
+      });
+    };
+
+    let response = await send();
+
+    // Auto-refresh em 401 (exceto em /refresh e /logout)
+    if (response.status === 401 && !options?.skipRefresh && !path.includes('/auth/refresh') && !path.includes('/auth/logout')) {
+      await this.refreshTokens();
+      response = await send();
+    }
+
+    // Um token CSRF pode ter sido renovado por outra aba. Rebootstrapa e
+    // repete uma única vez; falha de Origin continua sendo rejeitada.
+    if (response.status === 403 && !options?.skipCsrfRecovery) {
+      let errorCode = '';
+      try {
+        const probe = typeof response.clone === 'function' ? response.clone() : response;
+        const data = await probe.json() as { error?: string };
+        errorCode = data.error ?? '';
+      } catch {
+        // resposta não JSON: segue para o erro original
+      }
+      if (errorCode === 'CSRF_TOKEN_INVALID') {
+        await this.ensureCsrfToken(true);
+        response = await send();
+      }
+    }
+
+    return response;
+  }
+
   /** Garante um token CSRF sincronizado com o cookie do browser. */
   private async ensureCsrfToken(force = false): Promise<string | null> {
     const cookieToken = this.readCsrfCookie();
@@ -629,6 +686,16 @@ class ApiClient {
 
   async getFieldGroup(id: string): Promise<FieldGroup> {
     return this.request('GET', `/api/v1/field-groups/${id}`);
+  }
+
+  async exportFieldGroup(id: string): Promise<Blob> {
+    const response = await this.requestRaw('GET', `/api/v1/field-groups/${id}/export`);
+    if (!response.ok) throw new Error(await response.text());
+    return response.blob();
+  }
+
+  async importFieldGroups(data: unknown): Promise<{ results: Array<{ key: string; success: boolean; action?: string; error?: string; id?: string }> }> {
+    return this.request('POST', '/api/v1/field-groups/import', data);
   }
 
   async createFieldGroup(data: Record<string, unknown>): Promise<FieldGroup> {
@@ -1067,7 +1134,7 @@ export interface FieldGroup {
   title: string;
   key: string;
   locationRules?: LocationRule[][];
-  position?: 'normal' | 'side' | 'acf_after_title';
+  position?: 'normal' | 'side' | 'after_title';
   displayStyle?: 'standard' | 'seamless' | 'grouped';
   active?: boolean;
   fields: FieldDefinition[];

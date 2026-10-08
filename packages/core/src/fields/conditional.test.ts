@@ -76,7 +76,7 @@ describe('evaluateConditionalLogic', () => {
     expect(evaluateConditionalLogic(anyLogic as never, { a: '', b: '' })).toBe(false);
   });
 
-  it('múltiplos grupos são OR entre si (ACF parity)', () => {
+  it('múltiplos grupos são OR entre si', () => {
     const logic = {
       groups: [
         { rules: [{ field: 'tipo', operator: 'eq', value: 'a' }] },

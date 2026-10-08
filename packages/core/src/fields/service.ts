@@ -7,6 +7,7 @@ import { matchLocationRules } from './location-rules.js';
 import { findConditionalIssues } from './conditional.js';
 import type { FieldRefLike } from './conditional.js';
 import type { ValidatableField } from './types/validators/structural.js';
+import { validateContentData } from './validation.js';
 
 export interface FlexibleLayoutInput {
   name: string;
@@ -36,7 +37,7 @@ export interface FieldGroupInput {
   title: string;
   key?: string;
   locationRules?: LocationRule[][];
-  position?: 'normal' | 'side' | 'acf_after_title';
+  position?: 'normal' | 'side' | 'after_title';
   displayStyle?: 'standard' | 'seamless' | 'grouped';
   active?: boolean;
   metadata?: Record<string, unknown>;
@@ -120,6 +121,17 @@ export class FieldGroupService {
     return this.rowToGroup(group, fields);
   }
 
+  async getByKey(key: string): Promise<FieldGroup | null> {
+    const sql = getConnection();
+    const rows = await sql.unsafe('SELECT * FROM field_groups WHERE key = $1', [key]);
+    const group = rows[0] as Record<string, unknown> | undefined;
+    if (!group) return null;
+
+    const fields = await this.getDefinitionTree(String(group['id']));
+
+    return this.rowToGroup(group, fields);
+  }
+
   async create(input: FieldGroupInput): Promise<FieldGroup> {
     const sql = getConnection();
 
@@ -144,9 +156,8 @@ export class FieldGroupService {
     );
 
     if (input.fields && input.fields.length > 0) {
-      for (const [index, field] of input.fields.entries()) {
-        await this.insertDefinition(id, field, null, null, index);
-      }
+      // Sync com preservação de ids (novos campos não têm id — todos inseridos).
+      await this.syncDefinitions(id, input.fields);
     }
 
     return (await this.getById(id))!;
@@ -181,10 +192,11 @@ export class FieldGroupService {
     );
 
     if (patch.fields !== undefined) {
-      await sql.unsafe('DELETE FROM field_definitions WHERE group_id = $1', [id]);
-      for (const [index, field] of patch.fields.entries()) {
-        await this.insertDefinition(id, field, null, null, index);
-      }
+      // Sync diff: preserva ids de campos que continuam existindo (e os
+      // field_values/lógicas condicionais vinculados), insere os novos,
+      // atualiza os existentes e remove os ausentes. Antes era DELETE+reinsert,
+      // o que regenerava ids e perdia os vínculos.
+      await this.syncDefinitions(id, patch.fields);
     }
 
     return this.getById(id);
@@ -222,6 +234,40 @@ export class FieldGroupService {
     }
 
     return fields;
+  }
+
+  /**
+   * Valida os valores de campos customizados contra as definições ativas para
+   * o contexto (usado pelo content service no create/update). Retorna as
+   * mensagens de erro (vazio = válido). Delega ao motor `validateContentData`,
+   * que já trata visibilidade condicional, tipos layout-only, required,
+   * repeaters, layouts, grupos e expansão de clone. Campos core (title/slug/…)
+   * são removidos antes: seus valores vivem em colunas próprias, não no body.
+   */
+  async validateValues(context: LocationContext, values: Record<string, unknown>): Promise<string[]> {
+    const groups = await this.resolveGroupsByLocation(context);
+    const fields = groups.flatMap((group) => this.stripCoreFields(group.fields));
+
+    const { errors } = validateContentData(
+      fields.map((field) => this.toValidatable(field)),
+      values
+    );
+
+    return errors.map((error) => error.message);
+  }
+
+  /** Remove campos core (recursivamente) — não são valores do body. */
+  private stripCoreFields(fields: ResolvedFieldDefinition[]): ResolvedFieldDefinition[] {
+    return fields
+      .filter((field) => !field.isCoreField)
+      .map((field) => ({
+        ...field,
+        subFields: this.stripCoreFields(field.subFields),
+        layouts: field.layouts.map((layout) => ({
+          ...layout,
+          subFields: this.stripCoreFields(layout.subFields),
+        })),
+      }));
   }
 
   private toValidatable(field: ResolvedFieldDefinition): ValidatableField {
@@ -291,7 +337,162 @@ export class FieldGroupService {
     return { ...group, fields };
   }
 
-  private async insertDefinition(
+  /**
+   * Sincroniza a árvore de `field_definitions` do grupo com o payload.
+   *
+   * - Campos persistidos que continuam no payload são ATUALIZADOS no lugar
+   *   (id preservado → field_values e referências de lógica condicional
+   *   continuam válidos);
+   * - Campos novos são inseridos; os ausentes são removidos (cascade limpa
+   *   filhos e values);
+   * - Sub-campos são persistidos para QUALQUER tipo que os envie (group,
+   *   repeater, tipos de plugin) — antes só `repeater|group` eram aceitos e
+   *   o resto era descartado em silêncio;
+   * - Layouts de `flexible_content` são casados por nome (update/insert/remoção).
+   */
+  private async syncDefinitions(groupId: string, inputs: FieldDefinitionInput[]): Promise<void> {
+    const sql = getConnection();
+
+    const existingRows = (await sql.unsafe('SELECT id FROM field_definitions WHERE group_id = $1', [
+      groupId,
+    ])) as unknown as Array<Record<string, unknown>>;
+
+    const existingIds = new Set(existingRows.map((row) => String(row['id'])));
+    const keptIds = new Set<string>();
+
+    const walk = async (
+      list: FieldDefinitionInput[],
+      parentFieldId: string | null,
+      layoutId: string | null
+    ): Promise<void> => {
+      for (const [index, input] of list.entries()) {
+        const claimedId = input.id ? String(input.id) : null;
+        // Ids só são reutilizados se pertencerem a este grupo e ainda não
+        // tiverem sido consumidos (protege contra payload duplicado).
+        const reusableId =
+          claimedId && existingIds.has(claimedId) && !keptIds.has(claimedId) ? claimedId : null;
+
+        const configValue = {
+          ...(input.config ?? {}),
+          ...(input.conditionalLogic ? { conditionalLogic: input.conditionalLogic } : {}),
+        };
+
+        let currentId: string;
+
+        if (reusableId) {
+          await sql.unsafe(
+            `UPDATE field_definitions SET
+               type = $1, name = $2, label = $3, instructions = $4, required = $5,
+               config = $6::jsonb, sort_order = $7, parent_field_id = $8, layout_id = $9,
+               updated_at = NOW()
+             WHERE id = $10 AND group_id = $11`,
+            [
+              input.type,
+              input.name,
+              input.label,
+              input.instructions ?? null,
+              input.required ?? false,
+              configValue,
+              index,
+              parentFieldId,
+              layoutId,
+              reusableId,
+              groupId,
+            ]
+          );
+          currentId = reusableId;
+        } else {
+          currentId = await this.insertRow(groupId, input, parentFieldId, layoutId, index);
+        }
+
+        keptIds.add(currentId);
+
+        if (input.subFields && input.subFields.length > 0) {
+          await walk(input.subFields, currentId, null);
+        }
+
+        if (input.type === 'flexible_content' && input.layouts && input.layouts.length > 0) {
+          const layoutRows = (await sql.unsafe(
+            'SELECT id, name FROM flexible_layouts WHERE field_id = $1',
+            [currentId]
+          )) as unknown as Array<Record<string, unknown>>;
+
+          const layoutIdByName = new Map(
+            layoutRows.map((row) => [String(row['name']), String(row['id'])])
+          );
+          const keptLayoutIds = new Set<string>();
+
+          for (const [layoutIndex, layout] of input.layouts.entries()) {
+            const existingLayoutId = layoutIdByName.get(layout.name) ?? null;
+            let currentLayoutId: string;
+
+            if (existingLayoutId) {
+              await sql.unsafe(
+                `UPDATE flexible_layouts
+                    SET label = $1, display = $2, min = $3, max = $4, sort_order = $5
+                  WHERE id = $6 AND field_id = $7`,
+                [
+                  layout.label,
+                  layout.display ?? 'block',
+                  layout.min ?? null,
+                  layout.max ?? null,
+                  layoutIndex,
+                  existingLayoutId,
+                  currentId,
+                ]
+              );
+              currentLayoutId = existingLayoutId;
+            } else {
+              currentLayoutId = randomUUID();
+              await sql.unsafe(
+                `INSERT INTO flexible_layouts (id, field_id, name, label, display, min, max, sort_order)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                [
+                  currentLayoutId,
+                  currentId,
+                  layout.name,
+                  layout.label,
+                  layout.display ?? 'block',
+                  layout.min ?? null,
+                  layout.max ?? null,
+                  layoutIndex,
+                ]
+              );
+            }
+
+            keptLayoutIds.add(currentLayoutId);
+            await walk(layout.subFields, null, currentLayoutId);
+          }
+
+          const staleLayoutIds = layoutRows
+            .map((row) => String(row['id']))
+            .filter((id) => !keptLayoutIds.has(id));
+          if (staleLayoutIds.length > 0) {
+            await sql.unsafe('DELETE FROM flexible_layouts WHERE id = ANY($1::uuid[])', [
+              staleLayoutIds,
+            ]);
+          }
+        }
+      }
+    };
+
+    await walk(inputs, null, null);
+
+    // Remoções por último: todos os updates/inserts já re-apontaram filhos
+    // mantidos, então o cascade só atinge linhas realmente removidas.
+    const staleIds = existingRows
+      .map((row) => String(row['id']))
+      .filter((id) => !keptIds.has(id));
+    if (staleIds.length > 0) {
+      await sql.unsafe(
+        'DELETE FROM field_definitions WHERE group_id = $1 AND id = ANY($2::uuid[])',
+        [groupId, staleIds]
+      );
+    }
+  }
+
+  /** Insere uma linha de field_definitions (sem recursão) com key única global. */
+  private async insertRow(
     groupId: string,
     input: FieldDefinitionInput,
     parentFieldId: string | null,
@@ -300,7 +501,13 @@ export class FieldGroupService {
   ): Promise<string> {
     const sql = getConnection();
     const id = randomUUID();
-    const key = input.key ?? `field_${slugifyKey(input.name)}_${Date.now().toString(36)}`;
+
+    // `key` é UNIQUE global: payloads podem repetir a mesma chave (campos
+    // novos com mesmo nome em grupos diferentes) — sufixa em caso de colisão.
+    let key = input.key ?? `field_${slugifyKey(input.name)}_${Date.now().toString(36)}`;
+    while ((await sql.unsafe('SELECT 1 FROM field_definitions WHERE key = $1', [key])).length > 0) {
+      key = `${key}_${randomUUID().slice(0, 8)}`;
+    }
 
     await sql.unsafe(
       `INSERT INTO field_definitions (id, group_id, parent_field_id, layout_id, type, name, key, label, instructions, required, config, sort_order)
@@ -316,32 +523,13 @@ export class FieldGroupService {
         input.label,
         input.instructions ?? null,
         input.required ?? false,
-        { ...(input.config ?? {}), ...(input.conditionalLogic ? { conditionalLogic: input.conditionalLogic } : {}) },
+        {
+          ...(input.config ?? {}),
+          ...(input.conditionalLogic ? { conditionalLogic: input.conditionalLogic } : {}),
+        },
         sortOrder,
       ]
     );
-
-    if (input.subFields && ['repeater', 'group'].includes(input.type)) {
-      for (const [index, sub] of input.subFields.entries()) {
-        await this.insertDefinition(groupId, sub, id, null, index);
-      }
-    }
-
-    if (input.type === 'flexible_content' && input.layouts) {
-      for (const [layoutIndex, layout] of input.layouts.entries()) {
-        const layoutIdNew = randomUUID();
-
-        await sql.unsafe(
-          `INSERT INTO flexible_layouts (id, field_id, name, label, display, min, max, sort_order)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-          [layoutIdNew, id, layout.name, layout.label, layout.display ?? 'block', layout.min ?? null, layout.max ?? null, layoutIndex]
-        );
-
-        for (const [index, sub] of layout.subFields.entries()) {
-          await this.insertDefinition(groupId, sub, null, layoutIdNew, index);
-        }
-      }
-    }
 
     return id;
   }

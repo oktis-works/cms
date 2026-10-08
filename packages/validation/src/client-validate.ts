@@ -1,6 +1,6 @@
 // @oktis-works/validation - Client-side Field Validation (inline, profissional para 100% drift)
 // Reestruturado inline para eliminar 4 imports relativos flagrados como frontend→backend
-// Mantém paridade ACF, mas sem dependências externas para cliente (manutenível, isolado)
+// Mantém a mesma semântica, mas sem dependências externas para cliente (manutenível, isolado)
 
 export interface FieldError {
   field: string;
@@ -233,6 +233,12 @@ export function validateFieldClient(
   checkRequired(value, field.required, field.label, errors);
   switch (field.type) {
     case 'text': case 'textarea': case 'password': validateTextLike(value, config, field.label, errors); break;
+    case 'slug':
+      validateTextLike(value, config, field.label, errors);
+      if (!isEmptyValue(value) && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(value))) {
+        errors.push({ field: field.label, code: 'INVALID_SLUG', message: `${field.label} deve ser um slug válido (a-z, 0-9 e hífens)` });
+      }
+      break;
     case 'email': validateEmail(value, field.label, errors); break;
     case 'url': case 'oembed': validateUrl(value, field.label, errors); break;
     case 'number': case 'range': validateNumber(value, config, field.label, errors); break;

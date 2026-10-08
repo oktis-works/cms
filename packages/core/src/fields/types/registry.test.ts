@@ -11,10 +11,10 @@ import {
 } from './registry.js';
 
 describe('FieldTypeCatalog', () => {
-  it('cataloga exatamente os 34 tipos de campos', () => {
+  it('cataloga exatamente os 35 tipos de campos', () => {
     const types = listFieldTypes().filter((type) => type.type !== 'plugin_custom_test');
-    expect(types).toHaveLength(34);
-    expect(new Set(types.map((type) => type.type)).size).toBe(34);
+    expect(types).toHaveLength(35);
+    expect(new Set(types.map((type) => type.type)).size).toBe(35);
   });
 
   it('expõe as 5 categorias com labels e ícones', () => {
@@ -29,14 +29,14 @@ describe('FieldTypeCatalog', () => {
   it('distribui os tipos entre as categorias esperadas', () => {
     const grouped = listFieldTypesByCategory();
 
-    expect(grouped['basico']).toHaveLength(7);
+    expect(grouped['basico']).toHaveLength(8);
     expect(grouped['conteudo']).toHaveLength(10);
     expect(grouped['escolha']).toHaveLength(4);
     expect(grouped['relacional']).toHaveLength(6);
     expect(grouped['estrutura']).toHaveLength(7);
 
     const total = Object.values(grouped).reduce((sum, list) => sum + list.length, 0);
-    expect(total).toBe(34);
+    expect(total).toBe(35);
   });
 
   it('marca message/tab/accordion como layout-only sem suporte a condições', () => {

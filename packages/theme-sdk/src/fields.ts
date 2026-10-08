@@ -158,14 +158,37 @@ export function getFlexibleLayouts(nameOrContent: string | ContentLike, maybeNam
 
   if (!Array.isArray(value)) return [];
 
-  return value
-    .filter((row): row is FlexibleRow => {
-      return typeof row === 'object' && row !== null && typeof (row as Partial<FlexibleRow>).layout === 'string';
-    })
-    .map((row) => ({
-      layout: row.layout,
-      data: applyDataFilter('getFlexibleLayouts', row.data ?? {}, { name, layout: row.layout }) as Record<string, unknown>,
-    }));
+  const rows: FlexibleRow[] = [];
+
+  for (const row of value) {
+    if (typeof row !== 'object' || row === null || Array.isArray(row)) continue;
+    const record = row as Record<string, unknown>;
+
+    // Formato real persistido: `{ fc_layout: 'hero', campo: valor, … }` (inline).
+    const fcLayout = typeof record['fc_layout'] === 'string' ? record['fc_layout'] : null;
+    // Formato legado: `{ layout: 'hero', data: { … } }` aninhado.
+    const legacyLayout = typeof record['layout'] === 'string' ? record['layout'] : null;
+    const layoutName = fcLayout ?? legacyLayout;
+    if (layoutName === null) continue;
+
+    let data: Record<string, unknown>;
+    if (fcLayout !== null) {
+      data = Object.fromEntries(Object.entries(record).filter(([key]) => key !== 'fc_layout'));
+    } else {
+      const legacyData = record['data'];
+      data =
+        typeof legacyData === 'object' && legacyData !== null && !Array.isArray(legacyData)
+          ? { ...(legacyData as Record<string, unknown>) }
+          : {};
+    }
+
+    rows.push({
+      layout: layoutName,
+      data: applyDataFilter('getFlexibleLayouts', data, { name, layout: layoutName }) as Record<string, unknown>,
+    });
+  }
+
+  return rows;
 }
 
 /**

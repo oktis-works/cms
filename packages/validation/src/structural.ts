@@ -1,4 +1,4 @@
-// @oktis-works/core - Structural Field Validators (ACF parity)
+// @oktis-works/core - Structural Field Validators
 
 import type { FieldError } from './basic.js';
 import { isEmptyValue } from './basic.js';
@@ -16,8 +16,12 @@ export interface ValidatableField {
 }
 
 export interface FlexibleRow {
-  layout: string;
-  data: Record<string, unknown>;
+  /** Chave real persistida (content.body / field_values). */
+  fc_layout?: string;
+  /** Formato legado (imports/tests antigos). */
+  layout?: string;
+  /** Dados aninhados apenas no formato legado. */
+  data?: Record<string, unknown>;
 }
 
 function checkRowsCount(
@@ -74,7 +78,7 @@ export function validateFlexible(
   for (const row of value) {
     const flexibleRow = row as Partial<FlexibleRow>;
 
-    if (!flexibleRow || typeof flexibleRow !== 'object' || typeof flexibleRow.layout !== 'string') {
+    if (!flexibleRow || typeof flexibleRow !== 'object') {
       errors.push({
         field,
         code: 'INVALID_LAYOUT_ROW',
@@ -83,11 +87,28 @@ export function validateFlexible(
       continue;
     }
 
-    if (knownLayouts.size > 0 && !knownLayouts.has(flexibleRow.layout)) {
+    // Chave real: `fc_layout` (dados inline); `layout` é o formato legado.
+    const layoutName =
+      typeof flexibleRow.fc_layout === 'string'
+        ? flexibleRow.fc_layout
+        : typeof flexibleRow.layout === 'string'
+          ? flexibleRow.layout
+          : null;
+
+    if (layoutName === null) {
+      errors.push({
+        field,
+        code: 'INVALID_LAYOUT_ROW',
+        message: `${field} contém uma seção sem layout definido`,
+      });
+      continue;
+    }
+
+    if (knownLayouts.size > 0 && !knownLayouts.has(layoutName)) {
       errors.push({
         field,
         code: 'UNKNOWN_LAYOUT',
-        message: `${field} referencia o layout desconhecido "${flexibleRow.layout}"`,
+        message: `${field} referencia o layout desconhecido "${layoutName}"`,
       });
     }
   }

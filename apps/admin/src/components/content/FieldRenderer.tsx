@@ -21,6 +21,16 @@ function isEmpty(value: unknown): boolean {
   );
 }
 
+/** Slug de URL: minúsculas, sem acentos, separado por hífens (mesmo do core). */
+function slugifyValue(input: string): string {
+  return input
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+}
+
 function looseEquals(a: unknown, b: unknown): boolean {
   if (typeof b === 'boolean') return Boolean(a) === b;
   const na = Number(a);
@@ -186,6 +196,17 @@ function FieldControl(props: FieldControlProps) {
       return <input type="url" class="input" placeholder="https://" onInput={(e) => props.onChange(e.currentTarget.value)} />;
     case 'password':
       return <input type="password" class="input" onInput={(e) => props.onChange(e.currentTarget.value)} />;
+    case 'slug':
+      return (
+        <input
+          type="text"
+          class="input"
+          value={(props.value ?? config()['defaultValue'] ?? '') as string}
+          placeholder={config()['placeholder'] as string | undefined}
+          onInput={(e) => props.onChange(slugifyValue(e.currentTarget.value))}
+          onBlur={(e) => props.onChange(slugifyValue(e.currentTarget.value.trim()))}
+        />
+      );
     case 'true_false':
       return (
         <input
@@ -385,12 +406,23 @@ function FieldControl(props: FieldControlProps) {
       );
     }
     case 'flexible_content': {
-      const layouts = () =>
-        ((config()['layouts'] as Array<{ name: string; label?: string; subFields?: ResolvedFieldDefinition[] }>) ?? []);
+      // As layouts resolvidas vivem em `field.layouts` (árvore do grupo);
+      // `config.layouts` é o fallback para dados legados.
+      const layouts = ():
+        Array<{ name: string; label?: string; subFields?: ResolvedFieldDefinition[] }> => {
+        if (props.field.layouts.length > 0) return props.field.layouts;
+        return (
+          (config()['layouts'] as Array<{
+            name: string;
+            label?: string;
+            subFields?: ResolvedFieldDefinition[];
+          }>) ?? []
+        );
+      };
       const rows = () => {
         const raw = Array.isArray(props.value) ? (props.value as Record<string, unknown>[]) : [];
         return raw.map((row) => ({
-          acf_fc_layout: String(row['acf_fc_layout'] ?? ''),
+          fc_layout: String(row['fc_layout'] ?? ''),
           data: row,
         }));
       };
@@ -399,9 +431,9 @@ function FieldControl(props: FieldControlProps) {
         <div class="field-renderer__rows">
           <For each={rows()}>
             {(row, index) => {
-              const layout = () => layouts().find((entry) => entry.name === row.acf_fc_layout);
+              const layout = () => layouts().find((entry) => entry.name === row.fc_layout);
               const rowData = (): Record<string, unknown> => {
-                const { acf_fc_layout: _layout, ...data } = row.data;
+                const { fc_layout: _layout, ...data } = row.data;
                 void _layout;
                 return data;
               };
@@ -410,7 +442,7 @@ function FieldControl(props: FieldControlProps) {
                 <div class="field-renderer__row">
                   <div class="field-renderer__row-header">
                     <span>
-                      {layout()?.label || row.acf_fc_layout || 'Linha'} {index() + 1}
+                      {layout()?.label || row.fc_layout || 'Linha'} {index() + 1}
                     </span>
                     <button
                       type="button"
@@ -445,7 +477,7 @@ function FieldControl(props: FieldControlProps) {
                     </button>
                   </div>
 
-                  <Show when={layout()} fallback={<p class="field-renderer__instructions">Layout "{row.acf_fc_layout}" não encontrado.</p>}>
+                  <Show when={layout()} fallback={<p class="field-renderer__instructions">Layout "{row.fc_layout}" não encontrado.</p>}>
                     <For each={layout()!.subFields ?? []}>
                       {(sub) => (
                         <FieldRenderer
@@ -470,7 +502,7 @@ function FieldControl(props: FieldControlProps) {
             value=""
             onChange={(e) => {
               if (!e.currentTarget.value) return;
-              props.onChange([...(Array.isArray(props.value) ? props.value : []), { acf_fc_layout: e.currentTarget.value }]);
+              props.onChange([...(Array.isArray(props.value) ? props.value : []), { fc_layout: e.currentTarget.value }]);
               e.currentTarget.value = '';
             }}
           >

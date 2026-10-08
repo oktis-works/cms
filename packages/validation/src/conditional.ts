@@ -1,4 +1,4 @@
-// @oktis-works/core - Conditional Logic Engine (ACF parity)
+// @oktis-works/core - Conditional Logic Engine
 
 export type ConditionOperator =
   | 'eq'
@@ -104,7 +104,7 @@ export function evaluateConditionalLogic(
   if (!logic || !logic.groups || logic.groups.length === 0) return true;
 
   const results = logic.groups.map((group) => evaluateGroup(group, values));
-  // ACF parity: grupos são combinados com OR; dentro do grupo vale group.match (default ALL).
+  // Grupos são combinados com OR; dentro do grupo vale group.match (default ALL).
   return (logic.match ?? 'ANY') === 'ANY' ? results.some(Boolean) : results.every(Boolean);
 }
 

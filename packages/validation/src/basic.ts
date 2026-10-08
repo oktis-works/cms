@@ -1,4 +1,4 @@
-// @oktis-works/core - Basic Field Validators (ACF parity)
+// @oktis-works/core - Basic Field Validators
 
 export interface FieldError {
   field: string;
@@ -58,6 +58,19 @@ export function validateTextLike(
       field,
       code: 'CHARACTER_LIMIT',
       message: `${field} excede o limite de ${characterLimit} caracteres`,
+    });
+  }
+}
+
+/** Slug de URL: minúsculas, dígitos e hífens (sem hífen nas pontas). */
+export function validateSlug(value: unknown, field: string, errors: FieldError[]): void {
+  if (isEmptyValue(value)) return;
+
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(value))) {
+    errors.push({
+      field,
+      code: 'INVALID_SLUG',
+      message: `${field} deve ser um slug válido (a-z, 0-9 e hífens)`,
     });
   }
 }

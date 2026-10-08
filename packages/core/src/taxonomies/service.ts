@@ -223,6 +223,14 @@ export class TaxonomyService {
     const taxonomy = await this.getBySlug(taxonomySlug);
     if (!taxonomy) return false;
     const result = await sql.unsafe('DELETE FROM taxonomy_terms WHERE id = $1 AND taxonomy_id = $2 RETURNING id', [termId, taxonomy.id]);
+    if (result.length > 0) {
+      // field_values é polimórfico (entity_id sem FK para terms) — sem esta
+      // limpeza, o delete duro do termo deixaria values órfãos para trás.
+      await sql.unsafe(
+        `DELETE FROM field_values WHERE entity_type = 'taxonomy_term' AND entity_id = $1`,
+        [termId]
+      );
+    }
     return result.length > 0;
   }
 

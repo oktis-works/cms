@@ -1,4 +1,4 @@
-// @oktis-works/core - Field Validation Engine (ACF parity)
+// @oktis-works/core - Field Validation Engine
 
 import { isVisibleField, type ConditionalLogic } from './conditional.js';
 import { expandCloneFields } from './clone.js';
@@ -6,6 +6,7 @@ import {
   checkRequired,
   validateEmail,
   validateNumber,
+  validateSlug,
   validateTextLike,
   validateUrl,
   type FieldError,
@@ -56,6 +57,10 @@ export function validateFieldValue(
     case 'textarea':
     case 'password':
       validateTextLike(value, config, field.label, errors);
+      break;
+    case 'slug':
+      validateTextLike(value, config, field.label, errors);
+      validateSlug(value, field.label, errors);
       break;
     case 'email':
       validateTextLike(value, config, field.label, errors);
@@ -135,13 +140,28 @@ export function validateFieldValue(
 
     if (Array.isArray(value) && Array.isArray(field.layouts)) {
       for (const row of value) {
-        const flexibleRow = row as { layout?: string; data?: Record<string, unknown> };
-        if (!flexibleRow || typeof flexibleRow.layout !== 'string' || typeof flexibleRow.data !== 'object') continue;
+        if (!row || typeof row !== 'object' || Array.isArray(row)) continue;
+        const rowObj = row as Record<string, unknown>;
 
-        const layout = field.layouts.find((entry) => entry.name === flexibleRow.layout);
-        if (layout && Array.isArray(layout.subFields)) {
-          validateFields(layout.subFields, flexibleRow.data ?? {}, errors, context);
-        }
+        // Formato real persistido: `{ fc_layout: 'hero', campo: valor, … }`
+        // (dados inline). `layout`+`data` é o formato legado de testes/imports.
+        const layoutName =
+          typeof rowObj['fc_layout'] === 'string'
+            ? (rowObj['fc_layout'] as string)
+            : typeof rowObj['layout'] === 'string'
+              ? (rowObj['layout'] as string)
+              : null;
+        if (layoutName === null) continue;
+
+        const layout = field.layouts.find((entry) => entry.name === layoutName);
+        if (!layout || !Array.isArray(layout.subFields)) continue;
+
+        const legacyData = rowObj['data'];
+        const scope =
+          typeof legacyData === 'object' && legacyData !== null && !Array.isArray(legacyData)
+            ? (legacyData as Record<string, unknown>)
+            : rowObj;
+        validateFields(layout.subFields, scope, errors, context);
       }
     }
   }
@@ -155,7 +175,7 @@ export function validateFields(
   errors: FieldError[],
   context?: FieldValidationContext
 ): void {
-  // Clones são expandidos antes da validação (ACF parity: seamless/group).
+  // Clones são expandidos antes da validação (seamless/group).
   const fields = expandCloneFields(rawFields);
 
   for (const field of fields) {

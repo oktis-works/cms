@@ -149,11 +149,9 @@ describe('validateContentData', () => {
       layouts: [{ name: 'hero', subFields: [] }],
     });
 
+    // Formato real persistido: chave `fc_layout` com dados inline.
     const result = validateContentData([flexibleField], {
-      secoes: [
-        { layout: 'hero', data: {} },
-        { layout: 'inexistente', data: {} },
-      ],
+      secoes: [{ fc_layout: 'hero' }, { fc_layout: 'inexistente' }],
     });
 
     expect(result.errors.some((e) => e.code === 'UNKNOWN_LAYOUT')).toBe(true);

@@ -8,6 +8,7 @@ import { getEventBus } from '../events/bus.js';
 import { getCache } from '../cache/index.js';
 import { HOOK_POINTS } from '../hooks/points.js';
 import { postTypeRegistry } from './post-types.js';
+import { fieldGroupService } from '../fields/service.js';
 
 export interface CreateContentInput {
   type: string;
@@ -65,6 +66,17 @@ async function typeSupports(type: string | undefined | null, support: string): P
   if (!type) return false;
   const definition = await postTypeRegistry.getBySlug(type);
   return definition?.supports?.includes(support as never) ?? false;
+}
+
+/** Valida os campos customizados do body contra os field groups ativos. */
+async function validateCustomFields(
+  context: { contentType: string; contentSlug?: string; postStatus?: string },
+  body: Record<string, unknown>
+): Promise<void> {
+  const issues = await fieldGroupService.validateValues(context, body);
+  if (issues.length > 0) {
+    throw new Error(`Validação de campos falhou: ${issues.join('; ')}`);
+  }
 }
 
 function generateSlug(title: string): string {
@@ -208,6 +220,20 @@ export class ContentService {
       { operation: 'create', title: input.title, slug: input.slug }
     )) as Record<string, unknown>;
 
+    // Validação server-side dos campos customizados (bugs: nunca rodava).
+    // Só quando o caller envia body (o editor sempre envia): criações parciais
+    // via API/seeds não são bloqueadas. Roda depois dos hooks, antes do insert.
+    if (input.body !== undefined) {
+      await validateCustomFields(
+        {
+          contentType: input.type,
+          contentSlug: input.slug,
+          postStatus: input.status ?? 'DRAFT',
+        },
+        filteredInput
+      );
+    }
+
     const id = randomUUID();
     const slug = input.slug ?? generateSlug(input.title);
     const status = input.status ?? 'DRAFT';
@@ -261,6 +287,17 @@ export class ContentService {
         input.body,
         { operation: 'update', title: input.title, slug: input.slug, id }
       )) as Record<string, unknown>;
+
+      // Validação server-side antes do snapshot e do UPDATE: uma falha não
+      // deve nem mesmo criar revisão. Contexto espelha o do editor.
+      await validateCustomFields(
+        {
+          contentType: existing.type,
+          contentSlug: input.slug ?? existing.slug,
+          postStatus: input.status ?? existing.status,
+        },
+        input.body
+      );
     }
 
     if (await typeSupports(existing.type, 'revisions')) {

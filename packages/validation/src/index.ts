@@ -1,4 +1,4 @@
-// @oktis-works/validation - Pure field validation (ACF parity), sem dependência de banco.
+// @oktis-works/validation - Pure field validation, sem dependência de banco.
 // Pacote UI-safe: pode ser importado por frontend (admin/themes) e backend (core/api).
 
 export * from './basic.js';

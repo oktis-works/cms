@@ -580,7 +580,7 @@ CREATE TABLE IF NOT EXISTS field_groups (
   title VARCHAR(255) NOT NULL,
   key VARCHAR(255) NOT NULL UNIQUE,
   location_rules JSONB NOT NULL DEFAULT '[]'::jsonb,
-  position VARCHAR(20) NOT NULL DEFAULT 'normal' CHECK (position IN ('normal', 'side', 'acf_after_title')),
+  position VARCHAR(20) NOT NULL DEFAULT 'normal' CHECK (position IN ('normal', 'side', 'after_title')),
   display_style VARCHAR(20) NOT NULL DEFAULT 'standard' CHECK (display_style IN ('standard', 'seamless', 'grouped')),
   active BOOLEAN NOT NULL DEFAULT true,
   metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -936,4 +936,120 @@ BEGIN
   ) THEN
     CREATE POLICY tenant_isolation_webhooks ON webhooks USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
   END IF;
+END $$;
+
+-- ============================================================
+-- Delta de dados (idempotente, best-effort): valor neutro para a
+-- posição do field group em bancos já existentes. Falhas viram
+-- WARNING e nunca bloqueiam o bootstrap.
+-- ============================================================
+DO $$
+BEGIN
+  ALTER TABLE field_groups DROP CONSTRAINT IF EXISTS field_groups_position_check;
+  UPDATE field_groups
+     SET position = 'after_title'
+   WHERE position NOT IN ('normal', 'side', 'after_title');
+  ALTER TABLE field_groups
+    ADD CONSTRAINT field_groups_position_check
+    CHECK (position IN ('normal', 'side', 'after_title'));
+EXCEPTION WHEN OTHERS THEN
+  RAISE WARNING 'okcms: delta de position do field_groups nao aplicado: %', SQLERRM;
+END $$;
+
+-- ============================================================
+-- Delta de dados (idempotente, best-effort): normaliza a chave de
+-- layout dos registros existentes para `fc_layout` (chaves legadas
+-- terminadas em `_fc_layout`), em content.body, content.data,
+-- content_versions.body e field_values.value. Varre tenant a
+-- tenant porque content tem FORCE ROW LEVEL SECURITY.
+-- ============================================================
+DO $$
+DECLARE
+  cur_tenant record;
+BEGIN
+  CREATE OR REPLACE FUNCTION okcms_normalize_layout_key(p jsonb) RETURNS jsonb
+  LANGUAGE plpgsql IMMUTABLE AS $fn$
+  BEGIN
+    IF p IS NULL THEN
+      RETURN NULL;
+    ELSIF jsonb_typeof(p) = 'object' THEN
+      RETURN (
+        SELECT COALESCE(jsonb_object_agg(
+          CASE WHEN key ~ '_fc_layout$' THEN 'fc_layout' ELSE key END,
+          okcms_normalize_layout_key(value)
+        ), '{}'::jsonb)
+        FROM jsonb_each(p)
+      );
+    ELSIF jsonb_typeof(p) = 'array' THEN
+      RETURN (
+        SELECT COALESCE(jsonb_agg(okcms_normalize_layout_key(value)), '[]'::jsonb)
+        FROM jsonb_array_elements(p)
+      );
+    END IF;
+    RETURN p;
+  END;
+  $fn$;
+
+  UPDATE field_values
+     SET value = okcms_normalize_layout_key(value)
+   WHERE strpos(value::text, '_fc_layout') > 0;
+
+  UPDATE content_versions
+     SET body = okcms_normalize_layout_key(body)
+   WHERE strpos(body::text, '_fc_layout') > 0;
+
+  FOR cur_tenant IN SELECT id FROM tenants LOOP
+    PERFORM set_config('app.current_tenant_id', cur_tenant.id::text, true);
+    UPDATE content
+       SET body = okcms_normalize_layout_key(body),
+           data = okcms_normalize_layout_key(data)
+     WHERE tenant_id = cur_tenant.id
+       AND (strpos(body::text, '_fc_layout') > 0
+            OR strpos(data::text, '_fc_layout') > 0);
+  END LOOP;
+
+  DROP FUNCTION okcms_normalize_layout_key(jsonb);
+EXCEPTION WHEN OTHERS THEN
+  RAISE WARNING 'okcms: normalizacao da chave de layout nao aplicada: %', SQLERRM;
+END $$;
+
+-- ============================================================
+-- Delta de dados (idempotente, best-effort): field_values não pode
+-- ficar órfã. 1) remove values cujo campo definição não existe mais;
+-- 2) remove values de termos apagados (taxonomy_terms é delete duro e
+--    entity_id é polimórfico, sem FK); 3) garante a FK ON DELETE CASCADE
+--    do campo (tabelas criadas por versões antigas do schema podem não
+--    tê-la — sem ela, apagar grupos/campos deixa values para trás).
+-- content é soft-delete (TRASHED), então nunca há órfãs do lado de
+-- content. Falhas viram WARNING e não bloqueiam o bootstrap.
+-- ============================================================
+DO $$
+BEGIN
+  DELETE FROM field_values fv
+   WHERE NOT EXISTS (SELECT 1 FROM field_definitions fd WHERE fd.id = fv.field_definition_id);
+
+  DELETE FROM field_values fv
+   WHERE fv.entity_type = 'taxonomy_term'
+     AND NOT EXISTS (SELECT 1 FROM taxonomy_terms t WHERE t.id = fv.entity_id);
+EXCEPTION WHEN OTHERS THEN
+  RAISE WARNING 'okcms: limpeza de field_values orfaos nao aplicada: %', SQLERRM;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+     WHERE conrelid = 'field_values'::regclass
+       AND contype = 'f'
+       AND conkey = ARRAY[(
+         SELECT attnum FROM pg_attribute
+          WHERE attrelid = 'field_values'::regclass AND attname = 'field_definition_id'
+       )]::smallint[]
+  ) THEN
+    ALTER TABLE field_values
+      ADD CONSTRAINT field_values_field_definition_id_fkey
+      FOREIGN KEY (field_definition_id) REFERENCES field_definitions(id) ON DELETE CASCADE;
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  RAISE WARNING 'okcms: FK de cascade de field_values nao aplicada: %', SQLERRM;
 END $$;

@@ -1,4 +1,4 @@
-// @oktis-works/core - Choice Field Validators (ACF parity)
+// @oktis-works/core - Choice Field Validators
 
 import type { FieldError } from './basic.js';
 import { isEmptyValue } from './basic.js';

@@ -20,9 +20,10 @@
   "dependencies": {
     "@astrojs/node": "11.1.6",
     "@astrojs/solid-js": "7.0.2",
+    "@dnd-kit/solid": "0.5.0",
     "@oktis-works/plugin-sdk": "^0.4.0",
     "@oktis-works/types": "^0.4.0",
-    "@oktis-works/ui": "^0.3.3",
+    "@oktis-works/ui": "^0.4.0",
     "@oktis-works/validation": "^0.4.0",
     "astro": "7.3.5",
     "lucide": "^1.52.0",

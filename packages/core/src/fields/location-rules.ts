@@ -1,4 +1,4 @@
-// @oktis-works/core - Field Group Location Rules (ACF parity)
+// @oktis-works/core - Field Group Location Rules
 
 export type LocationParam =
   | 'content_type'
