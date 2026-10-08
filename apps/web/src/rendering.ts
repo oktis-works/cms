@@ -1,6 +1,6 @@
 // @oktis-works/web - Runtime Rendering (catch-all SSR com hierarquia de templates)
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 import { getConnection } from '@oktis-works/database';
 import { getHookRegistry } from '@oktis-works/plugin-runtime';
@@ -14,6 +14,7 @@ import {
   buildThemeStyles,
   getThemeScopeAttribute,
 } from '@oktis-works/theme-runtime';
+import type { ThemeRenderData } from '@oktis-works/theme-sdk';
 
 export function createTemplateChecker(themesRoot: string, activeTheme: string): TemplateFileChecker {
   return {
@@ -48,6 +49,7 @@ export function loadTemplateSource(themesRoot: string, activeTheme: string, file
 export interface SiteSettings {
   siteTitle: string;
   siteDescription: string;
+  [key: string]: unknown;
 }
 
 /**
@@ -87,6 +89,7 @@ export interface ContentPageRenderInput {
   /** Itens de archive/home (conteúdo publicado recente do tipo). */
   items?: Array<Record<string, unknown>>;
   settings: SiteSettings;
+  themeData?: ThemeRenderData;
   activeTheme: string;
   themesRoot: string;
 }
@@ -125,7 +128,12 @@ export function renderContentPage(input: ContentPageRenderInput): string {
     content: { ...input.data, ...plainColumns(row) },
     fields: input.data,
     items: input.items ?? [],
-    settings: input.settings,
+    menus: input.themeData?.menus ?? { all: [], bySlug: {} },
+    contentTypes: input.themeData?.contentTypes ?? [],
+    taxonomies: input.themeData?.taxonomies ?? [],
+    terms: input.themeData?.terms ?? {},
+    settings: { ...(input.themeData?.settings ?? {}), ...input.settings },
+    themeData: input.themeData ?? { menus: { all: [], bySlug: {} }, contentTypes: [], taxonomies: [], terms: {}, settings: input.settings },
   };
 
   const body = themeRenderer.renderString(template, context, row);
@@ -208,15 +216,24 @@ export function escapeHtml(value: string): string {
 export function resolveThemeAssetPath(themesRoot: string, themeName: string, assetPath: string): string | null {
   if (!themeName || !/^[A-Za-z0-9_-]+$/.test(themeName)) return null;
 
-  const themeRoot = resolve(themesRoot, themeName);
-  const target = resolve(themeRoot, assetPath);
+  const lexicalThemeRoot = resolve(themesRoot, themeName);
+  const target = resolve(lexicalThemeRoot, assetPath);
 
   // resolve() já normalizou `..` — basta garantir que segue dentro do tema.
-  if (target !== themeRoot && !target.startsWith(themeRoot + sep)) {
+  if (target !== lexicalThemeRoot && !target.startsWith(lexicalThemeRoot + sep)) {
     return null;
   }
 
-  return target;
+  // resolve() não detecta symlink apontando para fora da raiz. Só devolve o
+  // caminho real quando o arquivo existe e continua dentro do tema.
+  try {
+    const themeRoot = realpathSync(lexicalThemeRoot);
+    const realTarget = realpathSync(target);
+    if (realTarget !== themeRoot && !realTarget.startsWith(themeRoot + sep)) return null;
+    return realTarget;
+  } catch {
+    return null;
+  }
 }
 
 const CONTENT_TYPE_BY_EXT: Record<string, string> = {

@@ -39,6 +39,7 @@ export interface FieldGroupInput {
   position?: 'normal' | 'side' | 'acf_after_title';
   displayStyle?: 'standard' | 'seamless' | 'grouped';
   active?: boolean;
+  metadata?: Record<string, unknown>;
   fields?: FieldDefinitionInput[];
 }
 
@@ -103,6 +104,7 @@ export class FieldGroupService {
       position: row['position'] as FieldGroup['position'],
       displayStyle: row['display_style'] as FieldGroup['displayStyle'],
       active: Boolean(row['active']),
+      metadata: (row['metadata'] as Record<string, unknown>) ?? {},
       fieldCount: Number(row['field_count'] ?? 0),
     }));
   }
@@ -127,8 +129,8 @@ export class FieldGroupService {
     const key = input.key ?? `group_${slugifyKey(input.title)}_${Date.now().toString(36)}`;
 
     await sql.unsafe(
-      `INSERT INTO field_groups (id, title, key, location_rules, position, display_style, active)
-       VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7)`,
+      `INSERT INTO field_groups (id, title, key, location_rules, position, display_style, active, metadata)
+       VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8::jsonb)`,
       [
         id,
         input.title,
@@ -137,6 +139,7 @@ export class FieldGroupService {
         input.position ?? 'normal',
         input.displayStyle ?? 'standard',
         input.active ?? true,
+        input.metadata ?? {},
       ]
     );
 
@@ -163,14 +166,16 @@ export class FieldGroupService {
          position = $3,
          display_style = $4,
          active = $5,
+         metadata = $6::jsonb,
          updated_at = NOW()
-       WHERE id = $6`,
+       WHERE id = $7`,
       [
         patch.title ?? existing.title,
         patch.locationRules ?? existing.locationRules ?? [],
         patch.position ?? existing.position ?? 'normal',
         patch.displayStyle ?? existing.displayStyle ?? 'standard',
         patch.active ?? existing.active ?? true,
+        patch.metadata ?? existing.metadata ?? {},
         id,
       ]
     );
@@ -454,6 +459,7 @@ export class FieldGroupService {
       position: row['position'] as FieldGroup['position'],
       displayStyle: row['display_style'] as FieldGroup['displayStyle'],
       active: Boolean(row['active']),
+      metadata: (row['metadata'] as Record<string, unknown>) ?? {},
       fields,
     };
   }

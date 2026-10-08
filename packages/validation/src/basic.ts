@@ -42,7 +42,16 @@ export function validateTextLike(
   if (isEmptyValue(value)) return;
 
   const str = String(value);
-  const characterLimit = config['characterLimit'] as number | undefined;
+  const minLength = (config['minLength'] ?? config['minimum']) as number | undefined;
+  const characterLimit = (config['characterLimit'] ?? config['maxLength']) as number | undefined;
+
+  if (minLength !== undefined && str.length < minLength) {
+    errors.push({
+      field,
+      code: 'MIN_LENGTH',
+      message: `${field} deve ter pelo menos ${minLength} caracteres`,
+    });
+  }
 
   if (characterLimit !== undefined && str.length > characterLimit) {
     errors.push({
@@ -95,8 +104,8 @@ export function validateNumber(
     return;
   }
 
-  const minValue = config['minValue'] as number | undefined;
-  const maxValue = config['maxValue'] as number | undefined;
+  const minValue = (config['minValue'] ?? config['min']) as number | undefined;
+  const maxValue = (config['maxValue'] ?? config['max']) as number | undefined;
   const step = config['step'] as number | undefined;
 
   if (minValue !== undefined && num < minValue) {

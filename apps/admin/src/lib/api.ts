@@ -55,12 +55,14 @@ export interface LoginResponse {
 export interface Media {
   id: string;
   filename: string;
+  title?: string | null;
   mime_type: string;
   size: number;
   path: string;
   url: string;
   alt?: string | null;
   caption?: string | null;
+  description?: string | null;
   metadata?: Record<string, unknown> | null;
   uploaded_by?: string | null;
   created_at?: string;
@@ -198,6 +200,18 @@ class ApiClient {
 
   constructor(baseUrl: string = API_BASE) {
     this.baseUrl = baseUrl;
+  }
+
+  /** Resolve a relative media URL against the API, not the Admin port. */
+  public mediaUrl(path: string): string {
+    if (/^(?:https?:)?\/\//i.test(path)) return path;
+    if (!this.baseUrl) return path;
+    try {
+      return new URL(path, `${this.baseUrl.replace(/\/$/, '')}/`).toString();
+    } catch {
+      // Relative PUBLIC_API_URL values are valid behind a reverse proxy.
+      return path;
+    }
   }
 
   /** Inicializa lendo CSRF do cookie (chamado no boot da app) */
@@ -723,8 +737,39 @@ class ApiClient {
     return response.json() as Promise<Media>;
   }
 
-  async updateMedia(id: string, data: { alt?: string; caption?: string }): Promise<Media> {
+  async updateMedia(id: string, data: { title?: string; alt?: string; caption?: string; description?: string }): Promise<Media> {
     return this.request('PUT', `/api/v1/media/${id}`, data);
+  }
+
+  async replaceMediaFile(id: string, file: File): Promise<Media> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const url = `${this.baseUrl}/api/v1/media/${id}/file`;
+
+    const send = async (): Promise<Response> => {
+      const csrf = await this.ensureCsrfToken();
+      const headers: Record<string, string> = {};
+      if (csrf) headers['x-csrf-token'] = csrf;
+      return fetch(url, { method: 'PUT', headers, credentials: 'include', body: formData });
+    };
+
+    let response = await send();
+    if (response.status === 401) {
+      await this.refreshTokens();
+      response = await send();
+    }
+    if (response.status === 403) {
+      const error = await response.clone().json().catch(() => ({})) as { error?: string };
+      if (error.error === 'CSRF_TOKEN_INVALID') {
+        await this.ensureCsrfToken(true);
+        response = await send();
+      }
+    }
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: `Replace failed: ${response.status}` }));
+      throw new Error(error.error ?? `Replace failed: ${response.status}`);
+    }
+    return response.json() as Promise<Media>;
   }
 
   async deleteMedia(id: string): Promise<void> {
@@ -942,11 +987,37 @@ export interface Tag {
   slug: string;
 }
 
+export type MenuItemType = 'custom' | 'home' | 'page' | 'post' | 'content' | 'archive' | 'taxonomy';
+
+export interface MenuItem {
+  id: string;
+  type?: MenuItemType;
+  label: string;
+  url?: string;
+  objectId?: string;
+  objectType?: string;
+  contentId?: string;
+  parentId?: string | null;
+  order: number;
+  target?: '_self' | '_blank';
+  attrTitle?: string;
+  cssClasses?: string;
+  xfn?: string;
+  description?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface MenuSettings {
+  autoAddNewPages?: boolean;
+  locations?: Record<string, boolean>;
+}
+
 export interface Menu {
   id?: string;
   name: string;
   slug: string;
-  items?: Record<string, unknown> | unknown[];
+  items?: MenuItem[];
+  settings?: MenuSettings;
 }
 
 export interface Webhook {
@@ -982,6 +1053,7 @@ export interface FieldGroupSummary {
   active: boolean;
   fieldCount: number;
   locationRules?: LocationRule[][];
+  metadata?: Record<string, unknown>;
 }
 
 export interface LocationRule {
@@ -999,6 +1071,7 @@ export interface FieldGroup {
   displayStyle?: 'standard' | 'seamless' | 'grouped';
   active?: boolean;
   fields: FieldDefinition[];
+  metadata?: Record<string, unknown>;
 }
 
 export interface FieldDefinition {

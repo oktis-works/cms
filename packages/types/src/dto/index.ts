@@ -164,11 +164,13 @@ export interface ContentResponse {
 export interface MediaResponse {
   id: UUID;
   filename: string;
+  title?: string;
   mimeType: string;
   size: number;
   url: string;
   alt?: string;
   caption?: string;
+  description?: string;
   uploadedBy: UUID;
   createdAt: Date;
 }
@@ -214,30 +216,34 @@ export interface TagResponse {
 // ============================================================
 
 export interface CreateMenuItemRequest {
+  type?: import('../entities/index.js').MenuItemType;
   label: string;
   url?: string;
+  objectId?: UUID;
+  objectType?: string;
   contentId?: UUID;
-  parentId?: UUID;
+  parentId?: UUID | null;
   order?: number;
+  target?: '_self' | '_blank';
+  attrTitle?: string;
+  cssClasses?: string;
+  xfn?: string;
+  description?: string;
 }
 
 export interface CreateMenuRequest {
   name: string;
   slug?: string;
   items?: CreateMenuItemRequest[];
+  settings?: import('../entities/index.js').MenuSettings;
 }
 
 export interface MenuResponse {
   id: UUID;
   name: string;
   slug: string;
-  items: Array<{
-    id: UUID;
-    label: string;
-    url?: string;
-    contentId?: UUID;
-    order: number;
-  }>;
+  items: Array<CreateMenuItemRequest & { id: UUID }>;
+  settings?: import('../entities/index.js').MenuSettings;
   createdAt: Date;
 }
 

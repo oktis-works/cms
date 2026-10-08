@@ -1,4 +1,4 @@
-import { For, Show, createSignal, onMount } from 'solid-js';
+import { For, Show, createSignal, onCleanup, onMount } from 'solid-js';
 import { apiClient, type Webhook, type WebhookEventOption } from '../../../lib/api';
 import { useTranslation } from '../../../i18n';
 
@@ -13,6 +13,27 @@ const emptyForm = (): WebhookForm => ({
   auth_type: 'hmac_sha256',
   auth_config: { signatureHeader: 'X-Webhook-Signature' },
 });
+
+function EventMultiSelect(props: {
+  options: WebhookEventOption[];
+  value: string[];
+  onChange: (value: string[]) => void;
+  placeholder: string;
+  searchPlaceholder: string;
+  empty: string;
+}) {
+  const [open, setOpen] = createSignal(false);
+  const [search, setSearch] = createSignal('');
+  let root: HTMLDivElement | undefined;
+  onMount(() => {
+    const close = (event: MouseEvent): void => { if (root && !root.contains(event.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', close);
+    onCleanup(() => document.removeEventListener('mousedown', close));
+  });
+  const filtered = (): WebhookEventOption[] => props.options.filter((option) => `${option.label} ${option.value}`.toLowerCase().includes(search().toLowerCase()));
+  const toggle = (value: string): void => props.onChange(props.value.includes(value) ? props.value.filter((entry) => entry !== value) : [...props.value, value]);
+  return <div class="webhook-event-select" ref={root}><button type="button" class="input webhook-event-select__trigger" aria-haspopup="listbox" aria-expanded={open()} onClick={() => setOpen(!open())}><span>{props.value.length > 0 ? `${props.value.length} selecionado(s)` : props.placeholder}</span><span aria-hidden="true">⌄</span></button><Show when={open()}><div class="webhook-event-select__dropdown" role="listbox"><input class="input" placeholder={props.searchPlaceholder} value={search()} onInput={(event) => setSearch(event.currentTarget.value)} /><div class="webhook-event-select__options"><Show when={filtered().length > 0} fallback={<span class="muted">{props.empty}</span>}><For each={filtered()}>{(option) => <label class="webhook-event-option"><input type="checkbox" checked={props.value.includes(option.value)} onChange={() => toggle(option.value)} /><span>{option.label}<small>{option.value}</small></span></label>}</For></Show></div></div></Show><div class="webhook-event-select__chips"><For each={props.value}>{(value) => <button type="button" class="webhook-event-chip" onClick={() => toggle(value)}>{props.options.find((option) => option.value === value)?.label ?? value} ×</button>}</For></div></div>;
+}
 
 export function WebhooksManager() {
   const { t } = useTranslation();
@@ -53,6 +74,10 @@ export function WebhooksManager() {
   const updateConfig = (key: keyof AuthConfig, value: string): void => {
     const current = form();
     if (!current) return;
+    if (!current.events || current.events.length === 0) {
+      setError(t('webhooks.eventsRequired'));
+      return;
+    }
     setForm({ ...current, auth_config: { ...current.auth_config, [key]: value } });
   };
 
@@ -80,7 +105,7 @@ export function WebhooksManager() {
         <h3>{current().id ? t('webhooks.edit') : t('webhooks.create')}</h3>
         <form class="resource-form" onSubmit={submit}>
           <label>{t('webhooks.url')}<input class="input" required type="url" value={current().url ?? ''} onInput={(event) => setForm({ ...current(), url: event.currentTarget.value })} /></label>
-          <label>{t('webhooks.events')}<select class="input" multiple required value={current().events ?? []} onChange={(event) => setForm({ ...current(), events: Array.from(event.currentTarget.selectedOptions, (option) => option.value) })}>{eventOptions().map((option) => <option value={option.value}>{option.label}</option>)}</select></label>
+          <label>{t('webhooks.events')}<EventMultiSelect options={eventOptions()} value={current().events ?? []} onChange={(events) => setForm({ ...current(), events })} placeholder={t('webhooks.selectEvents')} searchPlaceholder={t('webhooks.searchEvents')} empty={t('webhooks.noEvents')} /></label>
           <label>{t('webhooks.authentication')}<select class="input" value={current().auth_type} onChange={(event) => setForm({ ...current(), auth_type: event.currentTarget.value as AuthType, auth_config: {} })}>
             <option value="none">{t('webhooks.auth.none')}</option><option value="bearer">{t('webhooks.auth.bearer')}</option><option value="basic">{t('webhooks.auth.basic')}</option><option value="api_key">{t('webhooks.auth.apiKey')}</option><option value="hmac_sha256">{t('webhooks.auth.hmac')}</option>
           </select></label>
@@ -100,6 +125,7 @@ export function WebhooksManager() {
           </Show>
         </Show>
       </section>
+      <style>{`.webhook-event-select{position:relative}.webhook-event-select__trigger{width:100%;display:flex;justify-content:space-between;align-items:center;text-align:left;cursor:pointer}.webhook-event-select__dropdown{position:absolute;z-index:20;top:calc(100% + .25rem);left:0;right:0;background:var(--color-surface,#fff);border:1px solid var(--color-border,#dcdcde);box-shadow:0 8px 22px rgba(0,0,0,.14);padding:.6rem}.webhook-event-select__options{max-height:240px;overflow:auto;margin-top:.5rem;display:grid;gap:.2rem}.webhook-event-option{display:flex!important;align-items:flex-start;gap:.5rem!important;padding:.45rem;border-radius:4px;cursor:pointer}.webhook-event-option:hover{background:var(--color-surface-muted,#f5f5f5)}.webhook-event-option span{display:grid;gap:.12rem}.webhook-event-option small{color:var(--color-muted);font-size:.75rem}.webhook-event-select__chips{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.4rem}.webhook-event-chip{border:1px solid var(--color-border,#dcdcde);background:var(--color-surface-muted,#f5f5f5);border-radius:999px;padding:.2rem .55rem;cursor:pointer;font-size:.78rem}`}</style>
     </div>
   );
 }

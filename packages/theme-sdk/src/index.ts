@@ -26,6 +26,38 @@ export {
   runWithCurrentContent,
   getStandardFields,
 } from './fields.js';
+
+export {
+  getMenu,
+  getMenus,
+  getContent,
+  getContentById,
+  getContentBySlug,
+  getContentType,
+  getContentTypes,
+  getTaxonomy,
+  getTaxonomies,
+  getTaxonomyTerms,
+  getSettings,
+  getSetting,
+  setThemeDataProvider,
+  getThemeDataProvider,
+  runWithThemeDataProvider,
+} from './data.js';
+export type {
+  ThemeMenuItem,
+  ThemeMenu,
+  ThemeContentType,
+  ThemeTaxonomy,
+  ThemeTerm,
+  ThemeContentRecord,
+  ThemeContentQuery,
+  ThemeContentResult,
+  ThemeDataProvider,
+  ThemeRenderData,
+  ThemeContentOrderBy,
+  ThemeContentOrder,
+} from './data.js';
 export type {
   ThemeField,
   FlexibleRow,

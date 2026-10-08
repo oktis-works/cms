@@ -18,6 +18,7 @@ router.post('/', requirePermission('create', 'menu'), async (c) => {
       name: body.name,
       slug: body.slug,
       items: body.items,
+      settings: body.settings,
     });
     return c.json(result, 201);
   } catch (error) {
@@ -41,6 +42,7 @@ router.put('/:id', requirePermission('update', 'menu'), async (c) => {
       name: body.name,
       slug: body.slug,
       items: body.items,
+      settings: body.settings,
     });
     if (!result) return c.json({ error: 'Menu not found' }, 404);
     return c.json(result);

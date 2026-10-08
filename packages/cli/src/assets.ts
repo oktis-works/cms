@@ -43,6 +43,7 @@ export const DOCKERFILE = `# syntax=docker/dockerfile:1
 FROM oven/bun:1-alpine AS base
 WORKDIR /app
 ENV NODE_ENV=production
+ENV UPLOAD_DIR=/app/.data/storage
 
 # --- dependencies -----------------------------------------------------------
 # Manifest + lock first: changing just the code does not invalidate
@@ -329,6 +330,7 @@ x-app: &app
     NODE_ENV: production
     DB_HOST: postgres
     REDIS_HOST: redis
+    UPLOAD_DIR: /app/.data/storage
   volumes:
     - ./plugins:/app/plugins
     - ./themes:/app/themes
@@ -426,6 +428,7 @@ services:
       DB_HOST: postgres
       REDIS_HOST: redis
       PORT: \${ADMIN_PORT:-3011}
+      UPLOAD_DIR: /app/.data/storage
     labels:
       okcms.role: edge
       okcms.lane: blue
@@ -441,6 +444,7 @@ services:
       DB_HOST: postgres
       REDIS_HOST: redis
       PORT: \${ADMIN_PORT:-3011}
+      UPLOAD_DIR: /app/.data/storage
     labels:
       okcms.role: edge
       okcms.lane: green
@@ -594,6 +598,7 @@ services:
       DB_HOST: postgres
       REDIS_HOST: redis
       PORT: \${ADMIN_PORT:-3011}
+      UPLOAD_DIR: /app/.data/storage
     labels:
       okcms.role: edge
       okcms.service: admin

@@ -4,6 +4,7 @@
 // Para MySQL, usa mysql2/promise com mesma interface sql.unsafe(); para Postgres mantém 'postgres' lib.
 
 import postgres from 'postgres';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import type { DatabaseConfig } from '@oktis-works/config';
 
 /**
@@ -23,6 +24,7 @@ export type RepoSql = postgres.Sql & {
 let _sql: RepoSql | null = null;
 let _replicaSql: RepoSql | null = null;
 let _driver: DatabaseConfig['driver'] = 'postgres';
+const requestConnection = new AsyncLocalStorage<RepoSql>();
 
 export function createConnection(config: DatabaseConfig): RepoSql {
   if (_sql) return _sql;
@@ -66,12 +68,31 @@ export function createConnection(config: DatabaseConfig): RepoSql {
 
 export function getConnection(): RepoSql {
   if (!_sql) throw new Error('Database connection not initialized. Call createConnection() first.');
-  return _sql;
+  return requestConnection.getStore() ?? _sql;
 }
 
 /** Conexão de leitura — usa replica se configurada, senão primary (transparente). */
 export function getReadConnection(): RepoSql {
-  return _replicaSql ?? getConnection();
+  return requestConnection.getStore() ?? _replicaSql ?? getConnection();
+}
+
+/**
+ * Executa uma requisição dentro de uma transação e fixa o tenant com SET LOCAL.
+ * Todas as camadas que chamam getConnection() passam a usar a mesma conexão
+ * durante o callback, evitando vazamento de contexto entre conexões do pool.
+ */
+export async function runWithTenantTransaction<T>(tenantId: string, fn: () => Promise<T>): Promise<T> {
+  const sql = getConnection();
+  return sql.begin(async (transaction) => {
+    const tx = transaction as unknown as RepoSql;
+    await tx`SELECT set_config('app.current_tenant_id', ${tenantId}, true)`;
+    return requestConnection.run(tx, fn);
+  }) as Promise<T>;
+}
+
+/** Indica se a execução atual já está presa à transação de uma requisição. */
+export function isTenantTransactionActive(): boolean {
+  return Boolean(requestConnection.getStore());
 }
 
 export function getDriver(): DatabaseConfig['driver'] { return _driver; }

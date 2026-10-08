@@ -51,12 +51,14 @@ export class MediaService {
     /** UUID do tenant (NOT NULL em media) — a rota resolve a partir do JWT. */
     tenantId: string;
     filename: string;
+    title?: string;
     mimeType: string;
     size: number;
     path: string;
     url: string;
     alt?: string;
     caption?: string;
+    description?: string;
     metadata?: Record<string, unknown>;
     uploadedBy: string;
   }): Promise<Media> {
@@ -65,19 +67,21 @@ export class MediaService {
     const metadata = input.metadata ?? null;
 
     const result = await sql.unsafe(
-      `INSERT INTO media (id, tenant_id, filename, mime_type, size, path, url, alt, caption, metadata, uploaded_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11)
+      `INSERT INTO media (id, tenant_id, filename, title, mime_type, size, path, url, alt, caption, description, metadata, uploaded_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13)
        RETURNING *`,
       [
         id,
         input.tenantId,
         input.filename,
+        input.title ?? input.filename,
         input.mimeType,
         input.size,
         input.path,
         input.url,
         input.alt ?? null,
         input.caption ?? null,
+        input.description ?? null,
         metadata,
         input.uploadedBy,
       ]
@@ -89,8 +93,10 @@ export class MediaService {
   async update(
     id: string,
     input: {
+      title?: string;
       alt?: string;
       caption?: string;
+      description?: string;
       metadata?: Record<string, unknown>;
     }
   ): Promise<Media | null> {
@@ -102,6 +108,10 @@ export class MediaService {
     const setClauses: string[] = [];
     const setParams: unknown[] = [];
 
+    if (input.title !== undefined) {
+      setClauses.push(`title = $${setParams.length + 1}`);
+      setParams.push(input.title);
+    }
     if (input.alt !== undefined) {
       setClauses.push(`alt = $${setParams.length + 1}`);
       setParams.push(input.alt);
@@ -109,6 +119,10 @@ export class MediaService {
     if (input.caption !== undefined) {
       setClauses.push(`caption = $${setParams.length + 1}`);
       setParams.push(input.caption);
+    }
+    if (input.description !== undefined) {
+      setClauses.push(`description = $${setParams.length + 1}`);
+      setParams.push(input.description);
     }
     if (input.metadata !== undefined) {
       setClauses.push(`metadata = $${setParams.length + 1}::jsonb`);
@@ -123,6 +137,25 @@ export class MediaService {
     const result = await sql.unsafe(
       `UPDATE media SET ${setClauses.join(', ')} WHERE id = $${setParams.length} RETURNING *`,
       setParams
+    );
+
+    return (result[0] as unknown as Media) ?? null;
+  }
+
+  async replaceFile(
+    id: string,
+    input: { filename: string; mimeType: string; size: number; path: string; url: string }
+  ): Promise<Media | null> {
+    const sql = getConnection();
+    const existing = await this.getById(id);
+    if (!existing) return null;
+
+    const result = await sql.unsafe(
+      `UPDATE media
+       SET filename = $1, mime_type = $2, size = $3, path = $4, url = $5, updated_at = NOW()
+       WHERE id = $6
+       RETURNING *`,
+      [input.filename, input.mimeType, input.size, input.path, input.url, id]
     );
 
     return (result[0] as unknown as Media) ?? null;

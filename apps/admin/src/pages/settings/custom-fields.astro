@@ -290,6 +290,352 @@ const { t } = Astro.locals;
     margin-top: 1rem;
   }
 
+  .acf-list-header,
+  .acf-builder-header,
+  .acf-section-header,
+  .acf-field-header,
+  .acf-nested-heading,
+  .acf-list-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .acf-list-header {
+    margin-bottom: 1.25rem;
+  }
+
+  .acf-list-header h3,
+  .acf-builder-header h3,
+  .acf-section-header h4,
+  .acf-nested-heading h5,
+  .acf-settings-section h5 {
+    margin: 0;
+  }
+
+  .acf-eyebrow {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: var(--color-primary);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .acf-list-toolbar {
+    justify-content: flex-start;
+    margin-bottom: 1rem;
+  }
+
+  .acf-list-toolbar label {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+  }
+
+  .acf-list-toolbar .input:last-child {
+    min-width: 260px;
+  }
+
+  .acf-groups-card,
+  .acf-builder-section,
+  .acf-group-identity {
+    margin-bottom: 1rem;
+  }
+
+  .acf-groups-table {
+    display: grid;
+  }
+
+  .acf-groups-table__head,
+  .acf-group-list-row {
+    display: grid;
+    grid-template-columns: minmax(220px, 1.7fr) minmax(150px, 1fr) 80px 100px minmax(150px, auto);
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .acf-groups-table__head {
+    padding: 0 0.75rem 0.65rem;
+    color: var(--color-muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .acf-group-list-row {
+    min-height: 4.5rem;
+    padding: 0.8rem 0.75rem;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .acf-group-list-row > div:first-child {
+    display: grid;
+    gap: 0.2rem;
+  }
+
+  .acf-group-list-row small {
+    color: var(--color-muted);
+    font-size: 0.75rem;
+  }
+
+  .acf-group-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.4rem;
+  }
+
+  .acf-empty-groups,
+  .acf-empty-fields {
+    padding: 3rem 1.25rem;
+    text-align: center;
+  }
+
+  .acf-empty-icon {
+    margin-bottom: 0.5rem;
+    color: var(--color-primary);
+    font-size: 2.5rem;
+  }
+
+  .acf-builder-header {
+    margin-bottom: 1rem;
+  }
+
+  .acf-builder-header .editor-actions {
+    margin: 0;
+  }
+
+  .acf-group-identity {
+    padding: 1.25rem;
+  }
+
+  .acf-group-identity label,
+  .acf-settings-grid label,
+  .acf-field-type-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .acf-group-title {
+    max-width: 680px;
+    font-size: 1.2rem;
+  }
+
+  .acf-builder-section {
+    padding: 1.25rem;
+  }
+
+  .acf-section-header {
+    align-items: flex-start;
+    margin-bottom: 1rem;
+  }
+
+  .acf-section-header p {
+    margin: 0.35rem 0 0;
+  }
+
+  .acf-field-row {
+    margin-bottom: 0.65rem;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+  }
+
+  .acf-field-row.is-expanded {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px var(--color-primary-soft);
+  }
+
+  .acf-field-row.is-dragging {
+    opacity: 0.55;
+    border-style: dashed;
+  }
+
+  .acf-field-header {
+    min-height: 3.6rem;
+    padding: 0.45rem 0.65rem;
+    background: var(--color-surface-hover);
+  }
+
+  .acf-drag-handle {
+    flex: 0 0 1.25rem;
+    color: var(--color-muted);
+    cursor: grab;
+    font-size: 1.2rem;
+    letter-spacing: -0.35rem;
+    line-height: 1;
+    user-select: none;
+  }
+
+  .acf-drag-handle:active {
+    cursor: grabbing;
+  }
+
+  .acf-field-toggle {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    min-width: 0;
+    gap: 0.7rem;
+    padding: 0.25rem;
+    border: 0;
+    background: transparent;
+    color: var(--color-text);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .acf-field-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.65rem;
+    height: 1.65rem;
+    border-radius: 50%;
+    background: var(--color-primary-soft);
+    color: var(--color-primary);
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+
+  .acf-field-title {
+    display: grid;
+    min-width: 0;
+    gap: 0.15rem;
+  }
+
+  .acf-field-title strong,
+  .acf-field-title small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .acf-field-title small {
+    color: var(--color-muted);
+    font-size: 0.75rem;
+  }
+
+  .acf-field-chevron {
+    margin-left: auto;
+    color: var(--color-muted);
+  }
+
+  .acf-field-body {
+    display: grid;
+    gap: 1rem;
+    padding: 1rem;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .acf-field-type-row {
+    max-width: 360px;
+  }
+
+  .acf-field-settings,
+  .acf-settings-section {
+    display: grid;
+    gap: 0.85rem;
+  }
+
+  .acf-settings-section {
+    padding: 0.9rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-background);
+  }
+
+  .acf-settings-section h5 {
+    color: var(--color-text);
+    font-size: 0.82rem;
+  }
+
+  .acf-settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.8rem;
+  }
+
+  .acf-settings-wide {
+    grid-column: 1 / -1;
+  }
+
+  .acf-settings-grid textarea,
+  .acf-field-body textarea {
+    resize: vertical;
+  }
+
+  .acf-nested-fields,
+  .acf-layouts {
+    display: grid;
+    gap: 0.75rem;
+    padding: 0.85rem;
+    border-left: 3px solid var(--color-primary-soft);
+    background: var(--color-background);
+  }
+
+  .acf-nested-heading {
+    justify-content: space-between;
+  }
+
+  .acf-layout-card {
+    display: grid;
+    gap: 0.85rem;
+    padding: 0.85rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+  }
+
+  .acf-conditional {
+    display: grid;
+    gap: 0.65rem;
+    padding: 0.9rem;
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius-md);
+  }
+
+  .acf-settings-heading {
+    display: flex;
+    gap: 0.65rem;
+    align-items: baseline;
+    flex-wrap: wrap;
+  }
+
+  .acf-condition-group {
+    display: grid;
+    gap: 0.55rem;
+    padding: 0.65rem;
+    border-radius: var(--radius-sm);
+    background: var(--color-background);
+  }
+
+  .acf-condition-row {
+    display: grid;
+    grid-template-columns: minmax(150px, 1fr) minmax(140px, 0.8fr) minmax(150px, 1fr) auto;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .acf-hide-on-screen {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.7rem 1rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .acf-hide-on-screen > strong {
+    flex-basis: 100%;
+  }
+
   @media (max-width: 720px) {
     .acf-assignment {
       grid-template-columns: 1fr;
@@ -315,6 +661,45 @@ const { t } = Astro.locals;
     }
 
     .location-rule-row {
+      grid-template-columns: 1fr;
+    }
+
+    .acf-list-header,
+    .acf-builder-header,
+    .acf-section-header,
+    .acf-list-toolbar {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .acf-list-toolbar label {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .acf-list-toolbar .input:last-child {
+      min-width: 0;
+    }
+
+    .acf-groups-table__head {
+      display: none;
+    }
+
+    .acf-group-list-row {
+      grid-template-columns: 1fr 1fr;
+      gap: 0.55rem;
+    }
+
+    .acf-group-list-row > div:first-child,
+    .acf-group-actions {
+      grid-column: 1 / -1;
+    }
+
+    .acf-group-actions {
+      justify-content: flex-start;
+    }
+
+    .acf-condition-row {
       grid-template-columns: 1fr;
     }
   }

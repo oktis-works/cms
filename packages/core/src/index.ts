@@ -25,7 +25,7 @@ export { MemoryCache, createCache, getCache } from './cache/index.js';
 export type { CacheEntry } from './cache/index.js';
 
 // Tenant Context
-export { establishTenantContext, getCurrentContext, clearCurrentContext, requireTenantContext } from './tenant/context.js';
+export { establishTenantContext, runWithTenantContext, getCurrentContext, clearCurrentContext, requireTenantContext } from './tenant/context.js';
 export type { TenantContext } from './tenant/context.js';
 
 // Core Services

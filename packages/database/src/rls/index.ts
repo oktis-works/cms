@@ -6,6 +6,9 @@ export async function setTenantContext(tenantId: string): Promise<void> {
   const sql = getConnection();
   // `SET` do Postgres não aceita placeholder (syntax error 42601); set_config
   // parametriza com segurança — o tenantId pode vir do header X-Tenant-ID.
+  // A transação de requisição usa SET LOCAL diretamente no helper
+  // runWithTenantTransaction; este método preserva a API de contexto global
+  // usada por CLI/worker legados.
   await sql`SELECT set_config('app.current_tenant_id', ${tenantId}, false)`;
 }
 
@@ -25,11 +28,21 @@ export async function getCurrentTenantId(): Promise<string | null> {
 export async function enableRLS(): Promise<void> {
   const sql = getConnection();
   await sql`ALTER TABLE content ENABLE ROW LEVEL SECURITY`;
+  await sql`ALTER TABLE content FORCE ROW LEVEL SECURITY`;
   await sql`ALTER TABLE media ENABLE ROW LEVEL SECURITY`;
+  await sql`ALTER TABLE media FORCE ROW LEVEL SECURITY`;
   await sql`ALTER TABLE categories ENABLE ROW LEVEL SECURITY`;
   await sql`ALTER TABLE tags ENABLE ROW LEVEL SECURITY`;
   await sql`ALTER TABLE menus ENABLE ROW LEVEL SECURITY`;
+  await sql`ALTER TABLE menus FORCE ROW LEVEL SECURITY`;
   await sql`ALTER TABLE settings ENABLE ROW LEVEL SECURITY`;
+  await sql`ALTER TABLE settings FORCE ROW LEVEL SECURITY`;
+  await sql`ALTER TABLE taxonomies ENABLE ROW LEVEL SECURITY`;
+  await sql`ALTER TABLE taxonomies FORCE ROW LEVEL SECURITY`;
+  await sql`ALTER TABLE taxonomy_terms ENABLE ROW LEVEL SECURITY`;
+  await sql`ALTER TABLE taxonomy_terms FORCE ROW LEVEL SECURITY`;
+  await sql`ALTER TABLE content_taxonomy_terms ENABLE ROW LEVEL SECURITY`;
+  await sql`ALTER TABLE content_taxonomy_terms FORCE ROW LEVEL SECURITY`;
   await sql`ALTER TABLE plugins ENABLE ROW LEVEL SECURITY`;
   await sql`ALTER TABLE themes ENABLE ROW LEVEL SECURITY`;
   await sql`ALTER TABLE builds ENABLE ROW LEVEL SECURITY`;

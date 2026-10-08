@@ -1,7 +1,7 @@
 // @oktis-works/cms - Project Start (API + Admin + Web)
 
 import { spawn, type ChildProcess } from 'node:child_process';
-import { join } from 'node:path';
+import { isAbsolute, join, resolve } from 'node:path';
 import { loadEnvFile } from './env-file.js';
 import { loadProjectConfig } from './project-config.js';
 import { clearPids, recordPid } from './runtime-state.js';
@@ -56,11 +56,17 @@ export async function startProject(options: Record<string, string> = {}): Promis
   const includeWorker = defaultAll || options['worker'] !== undefined || options['all'] !== undefined;
 
   process.env['ACTIVE_THEME'] = config.activeTheme || process.env['ACTIVE_THEME'] || '';
+  const mediaEnv: Record<string, string> = {};
+  if (config.storage.driver === 'local') {
+    mediaEnv['UPLOAD_DIR'] = process.env['UPLOAD_DIR'] || (isAbsolute(config.storage.localPath ?? '')
+      ? config.storage.localPath!
+      : resolve(process.cwd(), config.storage.localPath ?? '.data/storage'));
+  }
 
   if (onlyApi) {
-    spawnApp('api', 'bunx', ['@oktis-works/api'], { PORT: String(config.ports.api) });
+    spawnApp('api', 'bunx', ['@oktis-works/api'], { PORT: String(config.ports.api), ...mediaEnv });
   } else {
-    spawnApp('api', 'bunx', ['@oktis-works/api'], { PORT: String(config.ports.api) });
+    spawnApp('api', 'bunx', ['@oktis-works/api'], { PORT: String(config.ports.api), ...mediaEnv });
 
     if (includeAdmin) {
       // Empty PUBLIC_API_URL must not make the Admin call itself on :3011.
@@ -77,7 +83,7 @@ export async function startProject(options: Record<string, string> = {}): Promis
     if (includeWorker) {
       // Filas/jobs (bullmq) — REDIS_* vem do .env do projeto. Sem Redis, o
       // worker só loga erros de conexão; os demais apps seguem rodando.
-      spawnApp('worker', 'bunx', ['@oktis-works/worker'], {});
+      spawnApp('worker', 'bunx', ['@oktis-works/worker'], mediaEnv);
     }
   }
 

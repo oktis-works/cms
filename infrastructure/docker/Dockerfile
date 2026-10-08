@@ -11,6 +11,7 @@
 FROM oven/bun:1-alpine AS base
 WORKDIR /app
 ENV NODE_ENV=production
+ENV UPLOAD_DIR=/app/.data/storage
 
 # --- dependencies -----------------------------------------------------------
 # Manifest + lock first: changing just the code does not invalidate

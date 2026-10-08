@@ -1,6 +1,14 @@
 // @oktis-works/database - Main Entry Point
 
-export { createConnection, getConnection, closeConnection, healthCheck } from './connection.js';
+export {
+  createConnection,
+  getConnection,
+  getReadConnection,
+  closeConnection,
+  healthCheck,
+  runWithTenantTransaction,
+  isTenantTransactionActive,
+} from './connection.js';
 export { setTenantContext, clearTenantContext, getCurrentTenantId, enableRLS } from './rls/index.js';
 export {
   loadMigrationsFromDir,

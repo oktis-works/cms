@@ -153,17 +153,25 @@ CREATE TABLE IF NOT EXISTS media (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   filename VARCHAR(500) NOT NULL,
+  title VARCHAR(500),
   mime_type VARCHAR(255) NOT NULL,
   size INTEGER NOT NULL,
   path VARCHAR(1000) NOT NULL,
   url VARCHAR(1000) NOT NULL,
   alt VARCHAR(500),
   caption TEXT,
+  description TEXT,
   metadata JSONB,
   uploaded_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
+
+-- Idempotent upgrade path for databases created before attachment titles and
+-- descriptions were added (CREATE TABLE IF NOT EXISTS does not alter them).
+ALTER TABLE media ADD COLUMN IF NOT EXISTS title VARCHAR(500);
+ALTER TABLE media ADD COLUMN IF NOT EXISTS description TEXT;
+UPDATE media SET title = filename WHERE title IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_media_tenant ON media(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_media_mime ON media(mime_type);
@@ -232,6 +240,7 @@ CREATE TABLE IF NOT EXISTS menus (
   name VARCHAR(255) NOT NULL,
   slug VARCHAR(255) NOT NULL,
   items JSONB NOT NULL DEFAULT '[]'::jsonb,
+  settings JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
@@ -717,17 +726,48 @@ CREATE TABLE IF NOT EXISTS content_taxonomy_terms (
 CREATE INDEX IF NOT EXISTS idx_content_terms_content ON content_taxonomy_terms(content_id);
 CREATE INDEX IF NOT EXISTS idx_content_terms_term ON content_taxonomy_terms(term_id);
 
+ALTER TABLE taxonomy_terms ENABLE ROW LEVEL SECURITY;
+ALTER TABLE taxonomy_terms FORCE ROW LEVEL SECURITY;
+ALTER TABLE content_taxonomy_terms ENABLE ROW LEVEL SECURITY;
+ALTER TABLE content_taxonomy_terms FORCE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE policyname = 'tenant_isolation_taxonomy_terms' AND tablename = 'taxonomy_terms'
+  ) THEN
+    CREATE POLICY tenant_isolation_taxonomy_terms ON taxonomy_terms
+      USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid OR tenant_id IS NULL);
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE policyname = 'tenant_isolation_content_taxonomy_terms' AND tablename = 'content_taxonomy_terms'
+  ) THEN
+    CREATE POLICY tenant_isolation_content_taxonomy_terms ON content_taxonomy_terms
+      USING (EXISTS (
+        SELECT 1 FROM content c
+        WHERE c.id = content_taxonomy_terms.content_id
+          AND c.tenant_id = current_setting('app.current_tenant_id', true)::uuid
+      ));
+  END IF;
+END $$;
+
 -- ============================================================
 -- Row Level Security Policies
 -- ============================================================
 
 -- Enable RLS on all tenant-scoped tables
 ALTER TABLE content ENABLE ROW LEVEL SECURITY;
+ALTER TABLE content FORCE ROW LEVEL SECURITY;
 ALTER TABLE media ENABLE ROW LEVEL SECURITY;
+ALTER TABLE media FORCE ROW LEVEL SECURITY;
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tags ENABLE ROW LEVEL SECURITY;
 ALTER TABLE menus ENABLE ROW LEVEL SECURITY;
+ALTER TABLE menus FORCE ROW LEVEL SECURITY;
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE settings FORCE ROW LEVEL SECURITY;
 ALTER TABLE plugins ENABLE ROW LEVEL SECURITY;
 ALTER TABLE themes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE builds ENABLE ROW LEVEL SECURITY;

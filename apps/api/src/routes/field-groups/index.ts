@@ -43,6 +43,7 @@ router.post('/', requirePermission('create', 'content'), async (c) => {
       position: body.position,
       displayStyle: body.displayStyle,
       active: body.active,
+      metadata: body.metadata,
       fields: body.fields,
     });
     return c.json(result, 201);
@@ -62,6 +63,7 @@ router.put('/:id', requirePermission('update', 'content'), async (c) => {
       position: body.position,
       displayStyle: body.displayStyle,
       active: body.active,
+      metadata: body.metadata,
       fields: body.fields,
     });
     if (!result) return c.json({ error: 'Field group not found' }, 404);

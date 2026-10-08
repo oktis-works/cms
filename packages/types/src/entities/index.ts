@@ -139,12 +139,14 @@ export interface Media extends Timestamps {
   id: UUID;
   tenantId: UUID;
   filename: string;
+  title?: string;
   mimeType: string;
   size: number;
   path: string;
   url: string;
   alt?: string;
   caption?: string;
+  description?: string;
   metadata?: Record<string, unknown>;
   uploadedBy: UUID;
 }
@@ -177,14 +179,29 @@ export interface Tag extends Timestamps {
 // Menu
 // ============================================================
 
+export type MenuItemType = 'custom' | 'home' | 'page' | 'post' | 'content' | 'archive' | 'taxonomy';
+
 export interface MenuItem {
   id: UUID;
+  type?: MenuItemType;
   label: string;
   url?: string;
+  objectId?: UUID;
+  objectType?: string;
   contentId?: UUID;
-  parentId?: UUID;
+  parentId?: UUID | null;
   order: number;
+  target?: '_self' | '_blank';
+  attrTitle?: string;
+  cssClasses?: string;
+  xfn?: string;
+  description?: string;
   metadata?: Record<string, unknown>;
+}
+
+export interface MenuSettings {
+  autoAddNewPages?: boolean;
+  locations?: Record<string, boolean>;
 }
 
 export interface Menu extends Timestamps {
@@ -193,6 +210,7 @@ export interface Menu extends Timestamps {
   name: string;
   slug: string;
   items: MenuItem[];
+  settings?: MenuSettings;
 }
 
 // ============================================================

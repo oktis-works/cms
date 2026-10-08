@@ -27,7 +27,11 @@ function checkRequired(value: unknown, required: boolean | undefined, field: str
 function validateTextLike(value: unknown, config: Record<string, unknown>, field: string, errors: FieldError[]): void {
   if (isEmptyValue(value)) return;
   const str = String(value);
-  const characterLimit = config['characterLimit'] as number | undefined;
+  const minLength = (config['minLength'] ?? config['minimum']) as number | undefined;
+  const characterLimit = (config['characterLimit'] ?? config['maxLength']) as number | undefined;
+  if (minLength !== undefined && str.length < minLength) {
+    errors.push({ field, code: 'MIN_LENGTH', message: `${field} deve ter pelo menos ${minLength} caracteres` });
+  }
   if (characterLimit !== undefined && str.length > characterLimit) {
     errors.push({ field, code: 'CHARACTER_LIMIT', message: `${field} excede o limite de ${characterLimit} caracteres` });
   }
@@ -58,8 +62,8 @@ function validateNumber(value: unknown, config: Record<string, unknown>, field: 
     errors.push({ field, code: 'NOT_A_NUMBER', message: `${field} deve ser um número` });
     return;
   }
-  const minValue = config['minValue'] as number | undefined;
-  const maxValue = config['maxValue'] as number | undefined;
+  const minValue = (config['minValue'] ?? config['min']) as number | undefined;
+  const maxValue = (config['maxValue'] ?? config['max']) as number | undefined;
   const step = config['step'] as number | undefined;
   if (minValue !== undefined && num < minValue) errors.push({ field, code: 'MIN_VALUE', message: `${field} deve ser maior ou igual a ${minValue}` });
   if (maxValue !== undefined && num > maxValue) errors.push({ field, code: 'MAX_VALUE', message: `${field} deve ser menor ou igual a ${maxValue}` });

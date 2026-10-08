@@ -37,6 +37,7 @@ x-app: &app
     NODE_ENV: production
     DB_HOST: postgres
     REDIS_HOST: redis
+    UPLOAD_DIR: /app/.data/storage
   volumes:
     - ./plugins:/app/plugins
     - ./themes:/app/themes
@@ -134,6 +135,7 @@ services:
       DB_HOST: postgres
       REDIS_HOST: redis
       PORT: ${ADMIN_PORT:-3011}
+      UPLOAD_DIR: /app/.data/storage
     labels:
       okcms.role: edge
       okcms.lane: blue
@@ -149,6 +151,7 @@ services:
       DB_HOST: postgres
       REDIS_HOST: redis
       PORT: ${ADMIN_PORT:-3011}
+      UPLOAD_DIR: /app/.data/storage
     labels:
       okcms.role: edge
       okcms.lane: green

@@ -7,8 +7,8 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { serve } from '@hono/node-server';
 import { bootstrap } from '@oktis-works/core';
-import { establishTenantContext } from '@oktis-works/core';
-import { getConnection } from '@oktis-works/database';
+import { runWithTenantContext } from '@oktis-works/core';
+import { getConnection, runWithTenantTransaction } from '@oktis-works/database';
 import {
   createRouter,
   wireThemeHooks,
@@ -17,8 +17,9 @@ import {
   resolveThemeAssetPath,
   contentTypeForAsset,
 } from './rendering.js';
+import { createDatabaseThemeDataProvider, loadThemeRenderData } from './theme-data.js';
 import { resolveTenantFromHost } from './tenant-resolver.js';
-import { setCurrentContent } from '@oktis-works/theme-sdk';
+import { runWithThemeDataProvider, setCurrentContent } from '@oktis-works/theme-sdk';
 
 type Variables = {
   tenant: Record<string, unknown>;
@@ -49,9 +50,13 @@ async function main() {
       return c.json({ error: 'Tenant not found' }, 404);
     }
 
-    await establishTenantContext(tenant['id'] as string);
-    c.set('tenant', tenant);
-    return next();
+    const tenantId = String(tenant['id']);
+    return runWithTenantTransaction(tenantId, () =>
+      runWithTenantContext({ tenantId }, () => {
+        c.set('tenant', tenant);
+        return next();
+      })
+    );
   });
 
   // Health check — verifica conexão com o banco (o web lê direto do Postgres)
@@ -146,14 +151,19 @@ async function main() {
       // B1 — título/meta das settings (fim do "OkCMS" hardcoded)
       const settings = await fetchSiteSettings(getConnection());
 
-      const html = renderContentPage({
-        resolution,
-        contentRow,
-        data,
-        items,
-        settings,
-        activeTheme,
-        themesRoot,
+      const provider = createDatabaseThemeDataProvider(getConnection(), String(c.get('tenant')['id']));
+      const html = await runWithThemeDataProvider(provider, async () => {
+        const themeData = await loadThemeRenderData(provider);
+        return renderContentPage({
+          resolution,
+          contentRow,
+          data,
+          items,
+          settings,
+          themeData,
+          activeTheme,
+          themesRoot,
+        });
       });
 
       return c.html(html);

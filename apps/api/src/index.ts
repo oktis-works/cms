@@ -6,7 +6,7 @@ import { logger } from 'hono/logger';
 import { cors } from 'hono/cors';
 import { prettyJSON } from 'hono/pretty-json';
 import { serve } from '@hono/node-server';
-import { bootstrap, getEventBus, registerEventAuditLog, establishTenantContext } from '@oktis-works/core';
+import { bootstrap, getEventBus, registerEventAuditLog } from '@oktis-works/core';
 import { CMS_VERSION } from '@oktis-works/validation';
 import { loadConfig } from '@oktis-works/config';
 import { traceMiddleware } from './middleware/trace.js';
@@ -68,17 +68,6 @@ async function main() {
   app.use('*', rateLimitMiddleware());
 
   app.use('/api/*', csrfMiddleware);
-
-  // Tenant context middleware
-  app.use('*', async (c, next) => {
-    const tenantId = c.req.header('X-Tenant-ID') ?? c.req.query('tenantId');
-
-    if (tenantId) {
-      await establishTenantContext(tenantId);
-    }
-
-    await next();
-  });
 
   app.use('/api/*', auditMiddleware);
 

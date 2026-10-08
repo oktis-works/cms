@@ -1,5 +1,6 @@
 // @oktis-works/core - Tenant Context
 
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { setTenantContext, clearTenantContext, getCurrentTenantId } from '@oktis-works/database';
 
 export interface TenantContext {
@@ -7,7 +8,8 @@ export interface TenantContext {
   userId?: string;
 }
 
-let _currentContext: TenantContext | null = null;
+const contextStorage = new AsyncLocalStorage<TenantContext>();
+let _fallbackContext: TenantContext | null = null;
 
 /**
  * O espelho para o RLS do Postgres é opcional: sem conexão inicializada
@@ -52,19 +54,29 @@ async function tryGetTenantId(): Promise<string | null> {
 export async function establishTenantContext(tenantId: string, userId?: string): Promise<TenantContext> {
   await trySetTenantContext(tenantId);
 
-  _currentContext = { tenantId, userId };
-  return _currentContext;
+  _fallbackContext = { tenantId, userId };
+  return _fallbackContext;
+}
+
+/** Mantém o tenant isolado por requisição quando o processo atende concorrência. */
+export function runWithTenantContext<T>(context: TenantContext, fn: () => T): T {
+  return contextStorage.run(context, fn);
 }
 
 export async function getCurrentContext(): Promise<TenantContext | null> {
-  if (_currentContext) {
-    return _currentContext;
+  const scopedContext = contextStorage.getStore();
+  if (scopedContext) {
+    return scopedContext;
+  }
+
+  if (_fallbackContext) {
+    return _fallbackContext;
   }
 
   const tenantId = await tryGetTenantId();
   if (tenantId) {
-    _currentContext = { tenantId };
-    return _currentContext;
+    _fallbackContext = { tenantId };
+    return _fallbackContext;
   }
 
   return null;
@@ -72,12 +84,13 @@ export async function getCurrentContext(): Promise<TenantContext | null> {
 
 export async function clearCurrentContext(): Promise<void> {
   await tryClearTenantContext();
-  _currentContext = null;
+  _fallbackContext = null;
 }
 
 export function requireTenantContext(): TenantContext {
-  if (!_currentContext) {
+  const context = contextStorage.getStore() ?? _fallbackContext;
+  if (!context) {
     throw new Error('Tenant context not established. Call establishTenantContext() first.');
   }
-  return _currentContext;
+  return context;
 }

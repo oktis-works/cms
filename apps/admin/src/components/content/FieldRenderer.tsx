@@ -141,7 +141,9 @@ function FieldControl(props: FieldControlProps) {
         <input
           type="text"
           class="input"
-          maxLength={(config()['characterLimit'] as number | undefined)}
+          value={(props.value ?? config()['defaultValue'] ?? '') as string}
+          placeholder={config()['placeholder'] as string | undefined}
+          maxLength={(config()['maxLength'] ?? config()['characterLimit']) as number | undefined}
           onInput={(e) => props.onChange(e.currentTarget.value)}
           onBlur={(e) => props.onChange(e.currentTarget.value.trim())}
         />
@@ -150,8 +152,10 @@ function FieldControl(props: FieldControlProps) {
       return (
         <textarea
           class="input"
-          rows={4}
-          maxLength={(config()['characterLimit'] as number | undefined)}
+          rows={(config()['rows'] as number | undefined) ?? 4}
+          value={(props.value ?? config()['defaultValue'] ?? '') as string}
+          placeholder={config()['placeholder'] as string | undefined}
+          maxLength={(config()['maxLength'] ?? config()['characterLimit']) as number | undefined}
           onInput={(e) => props.onChange(e.currentTarget.value)}
         />
       );
@@ -169,8 +173,9 @@ function FieldControl(props: FieldControlProps) {
         <input
           type="number"
           class="input"
-          min={config()['minValue'] as number | undefined}
-          max={config()['maxValue'] as number | undefined}
+          value={(props.value ?? config()['defaultValue'] ?? '') as string | number}
+          min={(config()['min'] ?? config()['minValue']) as number | undefined}
+          max={(config()['max'] ?? config()['maxValue']) as number | undefined}
           step={config()['step'] as number | undefined}
           onInput={(e) => props.onChange(e.currentTarget.value === '' ? undefined : Number(e.currentTarget.value))}
         />
