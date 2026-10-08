@@ -1,0 +1,15 @@
+{
+  "name": "cms-teste2",
+  "storage": {
+    "driver": "local",
+    "localPath": ".data/storage"
+  },
+  "themesDir": "themes",
+  "pluginsDir": "plugins",
+  "activeTheme": "",
+  "ports": {
+    "api": 3000,
+    "admin": 3011,
+    "web": 3001
+  }
+}

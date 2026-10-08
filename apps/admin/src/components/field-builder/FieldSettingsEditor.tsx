@@ -14,6 +14,8 @@ import {
 import { Tabs } from './primitives/Tabs';
 import { ConditionalLogicEditor } from './ConditionalLogicEditor';
 import { FieldTypePicker } from '../content/FieldTypePicker';
+import { SearchableSelect } from './primitives/SearchableSelect';
+import { Tooltip, InfoTooltip } from './primitives/Tooltip';
 
 type TFn = (key: string) => string;
 
@@ -87,9 +89,15 @@ export function FieldSettingsEditor(props: FieldSettingsEditorProps) {
       </Show>
       <Show when={field.type === 'link'}>
         <Field label={L('returnFormat')}>
-          <select class="input" value={cfg('returnFormat', 'array')} onChange={(e) => setCfg('returnFormat', e.currentTarget.value)}>
-            <option value="array">Array</option><option value="url">URL</option>
-          </select>
+          <SearchableSelect
+            value={cfg('returnFormat', 'array')}
+            options={[
+              { value: 'array', label: 'Array' },
+              { value: 'url', label: 'URL' },
+            ]}
+            onChange={(v) => setCfg('returnFormat', v)}
+            placeholder={L('returnFormat')}
+          />
         </Field>
       </Show>
       <Show when={field.type === 'wysiwyg'}>
@@ -108,9 +116,16 @@ export function FieldSettingsEditor(props: FieldSettingsEditorProps) {
       </Show>
       <Show when={hasSubFields(field.type)}>
         <Field label={L('layout')}>
-          <select class="input" value={cfg('layout', field.type === 'repeater' ? 'table' : 'block')} onChange={(e) => setCfg('layout', e.currentTarget.value)}>
-            <option value="block">Block</option><option value="table">Table</option><option value="row">Row</option>
-          </select>
+          <SearchableSelect
+            value={cfg('layout', field.type === 'repeater' ? 'table' : 'block')}
+            options={[
+              { value: 'block', label: 'Block' },
+              { value: 'table', label: 'Table' },
+              { value: 'row', label: 'Row' },
+            ]}
+            onChange={(v) => setCfg('layout', v)}
+            placeholder={L('layout')}
+          />
         </Field>
       </Show>
     </Show>
@@ -134,17 +149,29 @@ export function FieldSettingsEditor(props: FieldSettingsEditorProps) {
       </Show>
       <Show when={CHOICE_TYPES.has(field.type)}>
         <Field label={L('layout')}>
-          <select class="input" value={cfg('layout', 'vertical')} onChange={(e) => setCfg('layout', e.currentTarget.value)}>
-            <option value="vertical">{L('vertical')}</option><option value="horizontal">{L('horizontal')}</option>
-          </select>
+          <SearchableSelect
+            value={cfg('layout', 'vertical')}
+            options={[
+              { value: 'vertical', label: L('vertical') },
+              { value: 'horizontal', label: L('horizontal') },
+            ]}
+            onChange={(v) => setCfg('layout', v)}
+            placeholder={L('layout')}
+          />
         </Field>
       </Show>
       <Show when={MEDIA_TYPES.has(field.type)}>
         <Field label={L('previewSize')}><input class="input" value={cfg('previewSize', 'medium')} onInput={(e) => setCfg('previewSize', e.currentTarget.value)} /></Field>
         <Field label={L('library')}>
-          <select class="input" value={cfg('library', 'all')} onChange={(e) => setCfg('library', e.currentTarget.value)}>
-            <option value="all">{L('libraryAll')}</option><option value="uploadedToPost">{L('libraryUploaded')}</option>
-          </select>
+          <SearchableSelect
+            value={cfg('library', 'all')}
+            options={[
+              { value: 'all', label: L('libraryAll') },
+              { value: 'uploadedToPost', label: L('libraryUploaded') },
+            ]}
+            onChange={(v) => setCfg('library', v)}
+            placeholder={L('library')}
+          />
         </Field>
       </Show>
       <Show when={field.type === 'google_map'}>
@@ -165,9 +192,16 @@ export function FieldSettingsEditor(props: FieldSettingsEditorProps) {
     <>
       <Show when={RELATION_TYPES.has(field.type)}>
         <Field label={L('returnFormat')}>
-          <select class="input" value={cfg('returnFormat', 'id')} onChange={(e) => setCfg('returnFormat', e.currentTarget.value)}>
-            <option value="id">ID</option><option value="object">Object</option><option value="array">Array</option>
-          </select>
+          <SearchableSelect
+            value={cfg('returnFormat', 'id')}
+            options={[
+              { value: 'id', label: 'ID' },
+              { value: 'object', label: 'Object' },
+              { value: 'array', label: 'Array' },
+            ]}
+            onChange={(v) => setCfg('returnFormat', v)}
+            placeholder={L('returnFormat')}
+          />
         </Field>
         <Field label={L('multiple')} inline><input type="checkbox" checked={bool('multiple')} onChange={(e) => setCfg('multiple', e.currentTarget.checked)} /></Field>
         <Field label={L('allowNull')} inline><input type="checkbox" checked={bool('allowNull', true)} onChange={(e) => setCfg('allowNull', e.currentTarget.checked)} /></Field>
