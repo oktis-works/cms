@@ -154,10 +154,11 @@ const settingsChildren = [
           </div>
         )}
 
-        <!-- Footer -->
-        <Footer client:load />
       </div>
     </main>
+
+    <!-- Footer global: ocupa as duas colunas e fica fora do fluxo do conteúdo. -->
+    <Footer client:load />
   </div>
 </BaseLayout>
 
@@ -311,10 +312,15 @@ const settingsChildren = [
   .layout {
     display: grid;
     grid-template-columns: 260px 1fr;
-    min-height: 100vh;
-    padding-top: 46px; /* admin bar height */
+    grid-template-rows: minmax(0, 1fr) auto;
+    min-height: calc(100vh - 46px);
+    margin-top: 46px; /* admin bar fixed */
     box-sizing: border-box;
   }
+
+  .sidebar { grid-column: 1; grid-row: 1; }
+  .main-content { grid-column: 2; grid-row: 1; min-width: 0; min-height: 0; overflow: visible; }
+  .admin-footer { grid-column: 1 / -1; grid-row: 2; }
 
   /* Collapsed sidebar state */
   body.sidebar-collapsed .layout {
@@ -363,10 +369,10 @@ const settingsChildren = [
     background: var(--color-surface-dark);
     border-right: 1px solid var(--color-border);
     padding: 1.5rem 1rem;
-    height: calc(100vh - 46px);
+    height: auto;
     min-height: 0;
-    position: sticky;
-    top: 46px;
+    position: relative;
+    top: auto;
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-gutter: stable;
@@ -504,7 +510,8 @@ const settingsChildren = [
   .content-wrapper {
     padding: 1.5rem;
     background: var(--color-background);
-    min-height: calc(100vh - 46px);
+    min-height: 0;
+    height: 100%;
     display: flex;
     flex-direction: column;
   }
