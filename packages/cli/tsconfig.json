@@ -2,7 +2,11 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src"
+    "rootDir": "./src",
+    "baseUrl": ".",
+    "paths": {
+      "@oktis-works/*": ["../../packages/*/dist"]
+    }
   },
   "include": [
     "src/**/*.ts"
