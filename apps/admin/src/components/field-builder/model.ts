@@ -330,12 +330,12 @@ export function updateFieldInList(
 }
 
 /** Move `fromId` so it sits directly before/after `toId` within a flat list. */
-export function moveInList(
-  fields: EditableField[],
+export function moveInList<T extends { clientId: string }>(
+  fields: T[],
   fromId: string,
   toId: string,
   position: 'before' | 'after'
-): EditableField[] {
+): T[] {
   if (fromId === toId) return fields;
   const fromIndex = fields.findIndex((field) => field.clientId === fromId);
   if (fromIndex < 0) return fields;

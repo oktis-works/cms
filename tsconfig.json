@@ -21,7 +21,11 @@
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,
     "exactOptionalPropertyTypes": false,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@oktis-works/*": ["packages/*/dist"]
+    }
   },
   "exclude": ["node_modules", "dist", "**/*.astro"]
 }

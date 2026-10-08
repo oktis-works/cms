@@ -1,6 +1,7 @@
 import { For, Show, type JSX } from 'solid-js';
 import { DragDropProvider } from '@dnd-kit/solid';
 import { useSortable } from '@dnd-kit/solid/sortable';
+import type { DragEndEvent } from '@dnd-kit/abstract';
 import { moveInList } from '../model';
 
 interface SortableRenderContext<T> {
@@ -30,25 +31,20 @@ interface SortableFieldListProps<T extends { clientId: string }> {
  * computed deterministically from the drag source/target + pointer midpoint.
  */
 export function SortableFieldList<T extends { clientId: string }>(props: SortableFieldListProps<T>) {
-  const handleDragEnd = (event: { operation: { source: { id: string | number } | null; target: { id: string | number; element?: Element } | null; position: { x: number; y: number }; canceled: boolean } }): void => {
-    if (event.operation.canceled) return;
-    const { source, target, position } = event.operation;
-    if (!source || !target) return;
-    const fromId = String(source.id);
-    const toId = String(target.id);
-    if (fromId === toId) return;
+  const handleDragEnd = (event: DragEndEvent): void => {
+    const { operation } = event;
+    const { source, target } = operation;
+    if (!target || !source || source.id === target.id) return;
 
     // Decide before/after by comparing the pointer Y to the target's midpoint.
-    const targetEl =
-      target.element ??
-      (document.querySelector(`[data-sortable-id="${CSS.escape(toId)}"]`) as Element | null);
+    const overEl = document.querySelector(`[data-sortable-id="${CSS.escape(String(target.id))}"]`) as Element | null;
     let insertPosition: 'before' | 'after' = 'after';
-    if (targetEl) {
-      const rect = targetEl.getBoundingClientRect();
-      insertPosition = position.y < rect.top + rect.height / 2 ? 'before' : 'after';
+    if (overEl && source) {
+      const rect = overEl.getBoundingClientRect();
+      insertPosition = operation.position.current.y < rect.top + rect.height / 2 ? 'before' : 'after';
     }
 
-    const next = moveInList(props.items, fromId, toId, insertPosition);
+    const next = moveInList(props.items, String(source.id), String(target.id), insertPosition);
     props.onReorder(next);
   };
 
@@ -77,7 +73,7 @@ function SortableItemWrap<T extends { clientId: string }>(props: {
   handleLabel: string;
   children: (ctx: SortableRenderContext<T>) => JSX.Element;
 }) {
-  const { ref, handleRef, isDragging, isDropTarget } = useSortable({ id: props.item.clientId, group: props.group });
+  const { ref, handleRef, isDragging, isDropTarget } = useSortable({ id: props.item.clientId, group: props.group, index: props.index });
   return (
     <div
       ref={ref}
