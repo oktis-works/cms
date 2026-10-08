@@ -313,6 +313,7 @@ const settingsChildren = [
     grid-template-columns: 260px 1fr;
     min-height: 100vh;
     padding-top: 46px; /* admin bar height */
+    box-sizing: border-box;
   }
 
   /* Collapsed sidebar state */
@@ -363,9 +364,13 @@ const settingsChildren = [
     border-right: 1px solid var(--color-border);
     padding: 1.5rem 1rem;
     height: calc(100vh - 46px);
+    min-height: 0;
     position: sticky;
     top: 46px;
     overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-gutter: stable;
+    align-self: start;
     transition: width 0.2s ease, padding 0.2s ease;
     width: 260px;
     z-index: 100;
@@ -385,6 +390,7 @@ const settingsChildren = [
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
+    padding-bottom: 1.25rem;
   }
 
   .nav-item {
@@ -498,10 +504,12 @@ const settingsChildren = [
   .content-wrapper {
     padding: 1.5rem;
     background: var(--color-background);
-    min-height: calc(100vh - 46px - 48px); /* admin bar + footer */
+    min-height: calc(100vh - 46px);
+    display: flex;
+    flex-direction: column;
   }
 
-  .content { max-width: 1200px; margin: 0 auto; }
+  .content { max-width: 1200px; width: 100%; margin: 0 auto; flex: 1 0 auto; }
 
   /* Dashboard Widgets Area */
   .dashboard-widgets-area {
@@ -525,11 +533,11 @@ const settingsChildren = [
 
   /* Footer */
   .admin-footer {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 48px;
+    position: static;
+    width: 100%;
+    min-height: 48px;
+    height: auto;
+    flex-shrink: 0;
     background: var(--color-surface);
     border-top: 1px solid var(--color-border);
     padding: 0 1.5rem;

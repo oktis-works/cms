@@ -37,11 +37,11 @@ export function Footer() {
 
       <style>{`
         .admin-footer {
-          position: fixed;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          height: 48px;
+          position: static;
+          width: 100%;
+          min-height: 48px;
+          height: auto;
+          flex-shrink: 0;
           background: #2d2d2d;
           border-top: 1px solid #4a4a4a;
           padding: 0 1.5rem;
