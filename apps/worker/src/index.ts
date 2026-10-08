@@ -13,6 +13,7 @@ import {
   deploymentCreateHandler,
   webhookSendHandler,
   cleanupExpiredSessionsHandler,
+  cleanupExpiredAuditLogsHandler,
   cacheInvalidateHandler,
 } from './jobs/handlers.js';
 
@@ -41,6 +42,7 @@ async function main() {
   queueManager.registerHandler('deployment.create', deploymentCreateHandler);
   queueManager.registerHandler('webhook.send', webhookSendHandler);
   queueManager.registerHandler('cleanup.expired_sessions', cleanupExpiredSessionsHandler);
+  queueManager.registerHandler('cleanup.expired_audit_logs', cleanupExpiredAuditLogsHandler);
   queueManager.registerHandler('cache.invalidate', cacheInvalidateHandler);
 
   await queueManager.startWorker('content');
@@ -75,6 +77,12 @@ async function main() {
 
 async function scheduleRecurringJobs(queueManager: QueueManager) {
   await queueManager.addJob('system', 'cleanup.expired_sessions', {}, {
+    repeat: {
+      every: 60 * 60 * 1000,
+    },
+  } as any);
+
+  await queueManager.addJob('system', 'cleanup.expired_audit_logs', {}, {
     repeat: {
       every: 60 * 60 * 1000,
     },

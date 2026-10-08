@@ -1,8 +1,61 @@
 import { randomUUID } from 'node:crypto';
+import { readdir, readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { getConnection } from '@oktis-works/database';
 import type { Theme } from '@oktis-works/types';
+import { resolveExtensionDirectory } from '../extensions/project-directories.js';
 
 export class ThemeService {
+  /** Descobre temas presentes no diretório configurado do projeto. */
+  async syncFromDirectory(): Promise<Theme[]> {
+    const directory = resolveExtensionDirectory('theme');
+    let entries;
+    try {
+      entries = await readdir(directory, { withFileTypes: true });
+    } catch {
+      return [];
+    }
+
+    const discovered = new Set<string>();
+    const sql = getConnection();
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      let manifest: Record<string, unknown>;
+      try {
+        const raw = await readFile(join(directory, entry.name, 'theme.json'), 'utf8');
+        manifest = JSON.parse(raw) as Record<string, unknown>;
+      } catch {
+        // Um diretório sem theme.json válido não é um tema instalável.
+        continue;
+      }
+
+      const name = typeof manifest['name'] === 'string' ? manifest['name'].trim() : '';
+      const version = typeof manifest['version'] === 'string' ? manifest['version'].trim() : '';
+      if (!name || !version) continue;
+
+      discovered.add(name);
+      const existing = await this.getByName(name);
+      if (existing) {
+        const status = existing.status === 'INACTIVE' || existing.status === 'ACTIVE' ? existing.status : 'INSTALLED';
+        await sql.unsafe(
+          `UPDATE themes SET version = $1, manifest = $2::jsonb, status = $3 WHERE id = $4`,
+          [version, manifest, status, existing.id]
+        );
+      } else {
+        await sql.unsafe(
+          `INSERT INTO themes (id, name, version, status, manifest, config, installed_at)
+           VALUES ($1, $2, $3, 'INSTALLED', $4::jsonb, $5::jsonb, NOW())`,
+          [randomUUID(), name, version, manifest, {}]
+        );
+      }
+    }
+
+    if (discovered.size === 0) return [];
+    const rows = await this.list();
+    return rows.filter((theme) => discovered.has(theme.name));
+  }
+
   async list(): Promise<Theme[]> {
     const sql = getConnection();
     const result = await sql.unsafe('SELECT * FROM themes ORDER BY name ASC');

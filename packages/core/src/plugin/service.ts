@@ -1,10 +1,13 @@
 import { randomUUID } from 'node:crypto';
+import { readdir, readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { getConnection, runPluginMigrations, rollbackPluginMigrations, type MigrationFile } from '@oktis-works/database';
 import type { Plugin } from '@oktis-works/types';
 import { satisfies, validRange } from 'semver';
 import { CMS_VERSION } from '@oktis-works/validation';
 import { auditService } from '../observability/index.js';
 import { getEventBus } from '../events/bus.js';
+import { resolveExtensionDirectory } from '../extensions/project-directories.js';
 
 export interface PluginDependencyInput {
   name: string;
@@ -13,6 +16,63 @@ export interface PluginDependencyInput {
 }
 
 export class PluginService {
+  /**
+   * O filesystem é a fonte de verdade da instalação. Esta sincronização
+   * cadastra manifests que chegaram em plugins/ via CLI, Git ou deploy e
+   * nunca altera um plugin já ativado/desativado.
+   */
+  async syncFromDirectory(tenantId?: string): Promise<Plugin[]> {
+    const directory = resolveExtensionDirectory('plugin');
+    let entries;
+    try {
+      entries = await readdir(directory, { withFileTypes: true });
+    } catch {
+      return [];
+    }
+
+    const discovered = new Set<string>();
+    const sql = getConnection();
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      let manifest: Record<string, unknown>;
+      try {
+        const raw = await readFile(join(directory, entry.name, 'manifest.json'), 'utf8');
+        manifest = JSON.parse(raw) as Record<string, unknown>;
+      } catch {
+        // Um diretório sem manifest válido não é uma extensão instalável.
+        continue;
+      }
+
+      const name = typeof manifest['name'] === 'string' ? manifest['name'].trim() : '';
+      const version = typeof manifest['version'] === 'string' ? manifest['version'].trim() : '';
+      if (!name || !version) continue;
+
+      discovered.add(name);
+      const existing = await this.getByName(name);
+      const permissions = Array.isArray(manifest['permissions']) ? manifest['permissions'] : [];
+
+      if (existing) {
+        const status = existing.status === 'UNINSTALLED' ? 'INSTALLED' : existing.status;
+        await sql.unsafe(
+          `UPDATE plugins SET version = $1, manifest = $2::jsonb, permissions = $3::jsonb, status = $4, updated_at = NOW()
+           WHERE id = $5`,
+          [version, manifest, permissions, status, existing.id]
+        );
+      } else {
+        await sql.unsafe(
+          `INSERT INTO plugins (id, tenant_id, name, version, status, manifest, permissions, installed_at)
+           VALUES ($1, $2, $3, $4, 'INSTALLED', $5::jsonb, $6::jsonb, NOW())`,
+          [randomUUID(), tenantId ?? null, name, version, manifest, permissions]
+        );
+      }
+    }
+
+    if (discovered.size === 0) return [];
+    const rows = await this.list(tenantId);
+    return rows.filter((plugin) => discovered.has(plugin.name));
+  }
+
   /**
    * RULE-tenant-plugin-scope: retorna plugins platform (globais) + os do tenant informado.
    * Sem tenantId, retorna apenas os de escopo platform.

@@ -1,0 +1,9 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { LogsManager } from '../../components/apps/settings/LogsManager';
+const { t } = Astro.locals;
+---
+<DashboardLayout title={t('logs.title')}>
+  <div class="settings-page"><div class="page-header"><h2>{t('logs.title')}</h2><p>{t('logs.description')}</p></div><LogsManager client:load /></div>
+</DashboardLayout>
+<style>.settings-page .page-header { margin-bottom: 1rem; }</style>

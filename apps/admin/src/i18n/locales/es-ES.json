@@ -7,6 +7,7 @@
       "content": "Contenido",
       "media": "Medios",
       "users": "Usuarios",
+      "menus": "Menús",
       "settings": "Ajustes",
       "plugins": "Plugins",
       "themes": "Temas"
@@ -122,7 +123,25 @@
       "inspectTypes": "Inspeccionar tipos disponibles",
       "save": "Guardar",
       "saved": "Contenido guardado correctamente."
-    }
+    },
+    "taxonomy": { "editTerm": "Editar término" }
+  },
+  "menus": {
+    "title": "Menús",
+    "description": "Crea y gestiona los menús de navegación de tu sitio.",
+    "hint": "Los menús son independientes de los tipos de contenido y el tema puede mostrarlos.",
+    "new": "Nuevo menú",
+    "create": "Crear menú",
+    "edit": "Editar menú",
+    "name": "Nombre",
+    "slug": "Slug",
+    "items": "Elementos del menú (JSON)",
+    "itemsHint": "Usa una lista JSON de objetos de menú.",
+    "invalidItems": "Los elementos del menú deben ser una lista JSON válida.",
+    "saved": "Menú guardado.",
+    "deleted": "Menú eliminado.",
+    "empty": "Aún no hay menús.",
+    "confirmDelete": "¿Eliminar el menú \"{name}\"?"
   },
   "media": {
     "title": "Biblioteca de Medios",

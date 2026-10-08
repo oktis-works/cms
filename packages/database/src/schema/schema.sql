@@ -495,6 +495,14 @@ CREATE TABLE IF NOT EXISTS webhooks (
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
+-- Autenticação configurável para webhooks. Os campos antigos continuam sendo
+-- mantidos para que instalações existentes migrem sem perder seus segredos.
+ALTER TABLE webhooks ADD COLUMN IF NOT EXISTS auth_type VARCHAR(30) NOT NULL DEFAULT 'hmac_sha256';
+ALTER TABLE webhooks ADD COLUMN IF NOT EXISTS auth_config JSONB NOT NULL DEFAULT '{}'::jsonb;
+UPDATE webhooks
+SET auth_config = jsonb_build_object('secret', secret)
+WHERE auth_type = 'hmac_sha256' AND auth_config = '{}'::jsonb AND secret <> '';
+
 CREATE INDEX IF NOT EXISTS idx_webhooks_tenant ON webhooks(tenant_id);
 
 -- ============================================================

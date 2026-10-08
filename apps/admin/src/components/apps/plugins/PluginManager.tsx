@@ -1,4 +1,4 @@
-import { For, createSignal, onMount, Show } from 'solid-js';
+import { For, createSignal, onMount } from 'solid-js';
 import { useTranslation } from '../../../i18n';
 import { apiClient, PluginInfo } from '../../../lib/api';
 
@@ -8,8 +8,6 @@ export function PluginManager() {
   const [loading, setLoading] = createSignal(true);
   const [error, setError] = createSignal<string | null>(null);
   const [toggling, setToggling] = createSignal<string | null>(null);
-  const [installForm, setInstallForm] = createSignal({ name: '', version: '', manifest: '{}' });
-  const [showInstall, setShowInstall] = createSignal(false);
 
   onMount(async () => {
     await loadPlugins();
@@ -44,29 +42,6 @@ export function PluginManager() {
     }
   }
 
-  async function installPlugin(event: Event): Promise<void> {
-    event.preventDefault();
-    try {
-      const form = installForm();
-      await apiClient.installPlugin({ name: form.name, version: form.version, manifest: JSON.parse(form.manifest) });
-      setInstallForm({ name: '', version: '', manifest: '{}' });
-      setShowInstall(false);
-      await loadPlugins();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('plugins.installError'));
-    }
-  }
-
-  async function uninstallPlugin(plugin: PluginInfo): Promise<void> {
-    if (!confirm(t('plugins.confirmUninstall', { name: plugin.name }))) return;
-    try {
-      await apiClient.uninstallPlugin(plugin.id);
-      await loadPlugins();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('plugins.uninstallError'));
-    }
-  }
-
   const getStatusLabel = (status: string) => {
     switch (status) {
       case 'ACTIVE':
@@ -94,17 +69,8 @@ export function PluginManager() {
       <div class="page-header">
         <h2>{t('plugins.title')}</h2>
         <p class="page-description">{t('plugins.description')}</p>
-        <button class="btn btn-primary" type="button" onClick={() => setShowInstall(!showInstall())}>{t('plugins.install')}</button>
+        <p class="page-hint">{t('plugins.directoryHint')}</p>
       </div>
-
-      <Show when={showInstall()}>
-        <form class="card plugin-install-form" onSubmit={installPlugin}>
-          <input class="input" required placeholder={t('plugins.name')} value={installForm().name} onInput={(event) => setInstallForm({ ...installForm(), name: event.currentTarget.value })} />
-          <input class="input" required placeholder={t('plugins.version')} value={installForm().version} onInput={(event) => setInstallForm({ ...installForm(), version: event.currentTarget.value })} />
-          <textarea class="input" required rows={5} placeholder={t('plugins.manifest')} value={installForm().manifest} onInput={(event) => setInstallForm({ ...installForm(), manifest: event.currentTarget.value })} />
-          <button class="btn btn-primary" type="submit">{t('common.save')}</button>
-        </form>
-      </Show>
 
       {error() && <div class="alert alert-error">{error()}</div>}
 
@@ -148,7 +114,6 @@ export function PluginManager() {
                           ? t('plugins.deactivate')
                           : t('plugins.activate')}
                       </button>
-                      <button class="btn btn-sm btn-danger" type="button" onClick={() => void uninstallPlugin(plugin)}>{t('plugins.uninstall')}</button>
                     </td>
                   </tr>
                 )}
@@ -172,6 +137,11 @@ export function PluginManager() {
           margin: 0;
           color: var(--color-muted);
           font-size: 0.875rem;
+        }
+        .page-hint {
+          margin: 0.35rem 0 0;
+          color: var(--color-muted);
+          font-size: 0.75rem;
         }
         .plugins-table-container {
           overflow-x: auto;

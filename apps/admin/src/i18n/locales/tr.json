@@ -7,6 +7,7 @@
       "content": "İçerik",
       "media": "Medya",
       "users": "Kullanıcılar",
+      "menus": "Menüler",
       "settings": "Ayarlar",
       "plugins": "Eklentiler",
       "themes": "Temalar"
@@ -122,7 +123,25 @@
       "inspectTypes": "Mevcut türleri incele",
       "save": "Kaydet",
       "saved": "İçerik başarıyla kaydedildi."
-    }
+    },
+    "taxonomy": { "editTerm": "Terimi düzenle" }
+  },
+  "menus": {
+    "title": "Menüler",
+    "description": "Sitenizde kullanılan gezinme menülerini oluşturun ve yönetin.",
+    "hint": "Menüler içerik türlerinden bağımsızdır ve temanız tarafından görüntülenebilir.",
+    "new": "Yeni menü",
+    "create": "Menü oluştur",
+    "edit": "Menüyü düzenle",
+    "name": "Ad",
+    "slug": "Slug",
+    "items": "Menü öğeleri (JSON)",
+    "itemsHint": "Menü öğesi nesnelerinden oluşan bir JSON dizisi kullanın.",
+    "invalidItems": "Menü öğeleri geçerli bir JSON dizisi olmalıdır.",
+    "saved": "Menü kaydedildi.",
+    "deleted": "Menü silindi.",
+    "empty": "Henüz menü yok.",
+    "confirmDelete": "\"{name}\" menüsü silinsin mi?"
   },
   "media": {
     "title": "Medya Kütüphanesi",

@@ -7,6 +7,7 @@
       "content": "Treści",
       "media": "Media",
       "users": "Użytkownicy",
+      "menus": "Menu",
       "settings": "Ustawienia",
       "plugins": "Wtyczki",
       "themes": "Motywy"
@@ -122,7 +123,25 @@
       "inspectTypes": "Zbadaj dostępne typy",
       "save": "Zapisz",
       "saved": "Treść zapisana pomyślnie."
-    }
+    },
+    "taxonomy": { "editTerm": "Edytuj termin" }
+  },
+  "menus": {
+    "title": "Menu",
+    "description": "Twórz i zarządzaj menu nawigacyjnymi witryny.",
+    "hint": "Menu są niezależne od typów treści i mogą być wyświetlane przez motyw.",
+    "new": "Nowe menu",
+    "create": "Utwórz menu",
+    "edit": "Edytuj menu",
+    "name": "Nazwa",
+    "slug": "Slug",
+    "items": "Elementy menu (JSON)",
+    "itemsHint": "Użyj tablicy JSON obiektów elementów menu.",
+    "invalidItems": "Elementy menu muszą być prawidłową tablicą JSON.",
+    "saved": "Menu zapisane.",
+    "deleted": "Menu usunięte.",
+    "empty": "Brak menu.",
+    "confirmDelete": "Usunąć menu \"{name}\"?"
   },
   "media": {
     "title": "Biblioteka Multimedialna",

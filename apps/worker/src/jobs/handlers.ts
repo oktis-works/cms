@@ -1,13 +1,13 @@
 // @oktis-works/worker - Job Handlers
 
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, createHmac, randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import sharp from 'sharp';
 import { getConnection } from '@oktis-works/database';
-import { getCache } from '@oktis-works/core';
+import { getCache, auditService } from '@oktis-works/core';
 import { getEventBus, trackDeploymentProgress, contentPublisher } from '@oktis-works/core';
 import type { JobHandler, JobResult } from '../jobs/types.js';
 
@@ -366,15 +366,33 @@ export const webhookSendHandler: JobHandler = async (job): Promise<JobResult> =>
     return { success: true };
   }
 
+  const body = JSON.stringify({ event, data, timestamp: new Date().toISOString() });
+  const authType = String(webhook['auth_type'] ?? 'hmac_sha256');
+  const authConfig = (webhook['auth_config'] && typeof webhook['auth_config'] === 'object'
+    ? webhook['auth_config']
+    : {}) as Record<string, unknown>;
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'X-Webhook-Event': String(event),
+  };
+
+  if (authType === 'bearer' && authConfig['token']) {
+    headers['Authorization'] = `Bearer ${String(authConfig['token'])}`;
+  } else if (authType === 'basic' && authConfig['username'] && authConfig['password']) {
+    headers['Authorization'] = `Basic ${Buffer.from(`${String(authConfig['username'])}:${String(authConfig['password'])}`).toString('base64')}`;
+  } else if (authType === 'api_key' && authConfig['headerName'] && authConfig['value']) {
+    headers[String(authConfig['headerName'])] = String(authConfig['value']);
+  } else if (authType === 'hmac_sha256') {
+    const secret = String(authConfig['secret'] ?? webhook['secret'] ?? '');
+    const signatureHeader = String(authConfig['signatureHeader'] ?? 'X-Webhook-Signature');
+    headers[signatureHeader] = generateSignature(body, secret);
+  }
+
   try {
     const response = await fetch(webhook['url'] as string, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Webhook-Event': event as string,
-        'X-Webhook-Signature': generateSignature(JSON.stringify(data), webhook['secret'] as string),
-      },
-      body: JSON.stringify({ event, data, timestamp: new Date().toISOString() }),
+      headers,
+      body,
     });
 
     if (!response.ok) {
@@ -393,6 +411,18 @@ export const cleanupExpiredSessionsHandler: JobHandler = async (): Promise<JobRe
   const result = await sql.unsafe('DELETE FROM sessions WHERE expires_at < NOW()');
   console.log(`Cleaned up ${result.length} expired sessions`);
   return { success: true };
+};
+
+export const cleanupExpiredAuditLogsHandler: JobHandler = async (): Promise<JobResult> => {
+  const sql = getConnection();
+  const rows = await sql.unsafe('SELECT value FROM settings WHERE key = $1 ORDER BY updated_at DESC LIMIT 1', ['auditLogRetentionDays']);
+  const configured = rows[0] as { value?: unknown } | undefined;
+  const raw = configured?.value;
+  const value = typeof raw === 'number' ? raw : Number(raw);
+  const retentionDays = Number.isFinite(value) && value > 0 ? value : 90;
+  const deleted = await auditService.purgeExpired(retentionDays);
+  console.log(`Cleaned up ${deleted} expired audit logs`);
+  return { success: true, data: { deleted, retentionDays } };
 };
 
 export const cacheInvalidateHandler: JobHandler = async (job): Promise<JobResult> => {
@@ -494,5 +524,5 @@ async function rollbackPreviousDeployment(sql: { unsafe(q: string, v?: unknown[]
 }
 
 function generateSignature(payload: string, secret: string): string {
-  return `sha256=${Buffer.from(secret).toString('hex')}`;
+  return `sha256=${createHmac('sha256', secret).update(payload).digest('hex')}`;
 }

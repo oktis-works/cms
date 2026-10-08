@@ -1,4 +1,4 @@
-import { For, createSignal, onMount, Show } from 'solid-js';
+import { For, createSignal, onMount } from 'solid-js';
 import { useTranslation } from '../../../i18n';
 import { apiClient, ThemeInfo } from '../../../lib/api';
 
@@ -8,8 +8,6 @@ export function ThemeManager() {
   const [loading, setLoading] = createSignal(true);
   const [error, setError] = createSignal<string | null>(null);
   const [toggling, setToggling] = createSignal<string | null>(null);
-  const [installForm, setInstallForm] = createSignal({ name: '', version: '', manifest: '{}' });
-  const [showInstall, setShowInstall] = createSignal(false);
 
   onMount(async () => {
     await loadThemes();
@@ -42,29 +40,6 @@ export function ThemeManager() {
     }
   }
 
-  async function installTheme(event: Event): Promise<void> {
-    event.preventDefault();
-    try {
-      const form = installForm();
-      await apiClient.installTheme({ name: form.name, version: form.version, manifest: JSON.parse(form.manifest) });
-      setInstallForm({ name: '', version: '', manifest: '{}' });
-      setShowInstall(false);
-      await loadThemes();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('themes.installError'));
-    }
-  }
-
-  async function uninstallTheme(theme: ThemeInfo): Promise<void> {
-    if (!confirm(t('themes.confirmUninstall', { name: theme.name }))) return;
-    try {
-      await apiClient.uninstallTheme(theme.id);
-      await loadThemes();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('themes.uninstallError'));
-    }
-  }
-
   const getStatusLabel = (status: string) => {
     switch (status) {
       case 'ACTIVE': return t('themes.status.active');
@@ -88,17 +63,8 @@ export function ThemeManager() {
       <div class="page-header">
         <h2>{t('themes.title')}</h2>
         <p class="page-description">{t('themes.description')}</p>
-        <button class="btn btn-primary" type="button" onClick={() => setShowInstall(!showInstall())}>{t('themes.install')}</button>
+        <p class="page-hint">{t('themes.directoryHint')}</p>
       </div>
-
-      <Show when={showInstall()}>
-        <form class="card theme-install-form" onSubmit={installTheme}>
-          <input class="input" required placeholder={t('themes.name')} value={installForm().name} onInput={(event) => setInstallForm({ ...installForm(), name: event.currentTarget.value })} />
-          <input class="input" required placeholder={t('themes.version')} value={installForm().version} onInput={(event) => setInstallForm({ ...installForm(), version: event.currentTarget.value })} />
-          <textarea class="input" required rows={5} placeholder={t('themes.manifest')} value={installForm().manifest} onInput={(event) => setInstallForm({ ...installForm(), manifest: event.currentTarget.value })} />
-          <button class="btn btn-primary" type="submit">{t('common.save')}</button>
-        </form>
-      </Show>
 
       {error() && <div class="alert alert-error">{error()}</div>}
 
@@ -136,7 +102,6 @@ export function ThemeManager() {
                       ? t('themes.deactivate')
                       : t('themes.activate')}
                   </button>
-                  <button class="btn btn-danger" type="button" onClick={() => void uninstallTheme(theme)}>{t('themes.uninstall')}</button>
                 </div>
               </div>
             )}
@@ -159,10 +124,10 @@ export function ThemeManager() {
           color: var(--color-muted);
           font-size: 0.875rem;
         }
-        .theme-install-form {
-          display: grid;
-          gap: 0.75rem;
-          margin-bottom: 1.5rem;
+        .page-hint {
+          margin: 0.35rem 0 0;
+          color: var(--color-muted);
+          font-size: 0.75rem;
         }
         .themes-grid {
           display: grid;

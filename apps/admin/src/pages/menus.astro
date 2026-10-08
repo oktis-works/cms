@@ -1,0 +1,23 @@
+---
+import DashboardLayout from '../layouts/DashboardLayout.astro';
+import { MenuManager } from '../components/apps/menus/MenuManager';
+
+const { t } = Astro.locals;
+---
+
+<DashboardLayout title={t('menus.title')}>
+  <div class="menus-page">
+    <div class="page-header">
+      <h2>{t('menus.title')}</h2>
+      <p>{t('menus.description')}</p>
+    </div>
+    <MenuManager client:load />
+  </div>
+</DashboardLayout>
+
+<style>
+  .menus-page { max-width: 1100px; }
+  .page-header { margin-bottom: 1rem; }
+  .page-header h2 { margin: 0 0 0.5rem; }
+  .page-header p { margin: 0; color: var(--color-muted); }
+</style>

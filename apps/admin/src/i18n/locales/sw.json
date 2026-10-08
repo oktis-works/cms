@@ -7,6 +7,7 @@
       "content": "Maudhui",
       "media": "Media",
       "users": "Watumiaji",
+      "menus": "Menyu",
       "settings": "Mipangilio",
       "plugins": "Programu-jalizi",
       "themes": "Mandhari"
@@ -122,7 +123,25 @@
       "inspectTypes": "Chunguza Aina Zinazopatikana",
       "save": "Hifadhi",
       "saved": "Maudhui yamehifadhiwa kwa mafanikio."
-    }
+    },
+    "taxonomy": { "editTerm": "Hariri neno" }
+  },
+  "menus": {
+    "title": "Menyu",
+    "description": "Unda na udhibiti menyu za urambazaji za tovuti yako.",
+    "hint": "Menyu ziko huru kutoka aina za maudhui na zinaweza kuonyeshwa na mandhari.",
+    "new": "Menyu mpya",
+    "create": "Unda menyu",
+    "edit": "Hariri menyu",
+    "name": "Jina",
+    "slug": "Slug",
+    "items": "Vipengee vya menyu (JSON)",
+    "itemsHint": "Tumia safu ya JSON ya vitu vya menyu.",
+    "invalidItems": "Vipengee vya menyu lazima viwe safu halali ya JSON.",
+    "saved": "Menyu imehifadhiwa.",
+    "deleted": "Menyu imefutwa.",
+    "empty": "Hakuna menyu bado.",
+    "confirmDelete": "Futa menyu \"{name}\"?"
   },
   "media": {
     "title": "Maktaba ya Media",

@@ -14,6 +14,7 @@ export interface AuditEntry {
   changes?: Record<string, unknown>;
   ipAddress?: string;
   userAgent?: string;
+  createdAt?: string | Date;
 }
 
 export interface AuditFilter {
@@ -26,6 +27,7 @@ export interface AuditFilter {
 }
 
 export class AuditService {
+  static readonly DEFAULT_RETENTION_DAYS = 90;
   /** Registra uma ação de forma append-only; falha de auditoria é logada, nunca bloqueia a operação. */
   async record(entry: AuditEntry): Promise<void> {
     const sql = getConnection();
@@ -93,6 +95,19 @@ export class AuditService {
       values
     );
     return result as unknown as AuditEntry[];
+  }
+
+  /** Remove registros que ultrapassaram a retenção configurada. */
+  async purgeExpired(retentionDays = AuditService.DEFAULT_RETENTION_DAYS): Promise<number> {
+    const sql = getConnection();
+    const days = Math.min(Math.max(Math.floor(Number(retentionDays) || AuditService.DEFAULT_RETENTION_DAYS), 1), 3650);
+    const result = await sql.unsafe(
+      `DELETE FROM audit_logs
+       WHERE created_at < NOW() - ($1::int * INTERVAL '1 day')
+       RETURNING id`,
+      [days]
+    );
+    return result.length;
   }
 }
 

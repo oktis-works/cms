@@ -8,7 +8,7 @@ plugins.use('*', authMiddleware)
 
 plugins.get('/', requirePermission('read', 'plugin'), async (c) => {
   try {
-    const result = await pluginService.list(c.get('tenantId' as never) as string | undefined)
+    const result = await pluginService.syncFromDirectory(c.get('tenantId' as never) as string | undefined)
     return c.json(result)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to list plugins'

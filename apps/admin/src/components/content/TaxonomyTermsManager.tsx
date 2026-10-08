@@ -16,6 +16,7 @@ export function TaxonomyTermsManager(props: Props) {
   const [name, setName] = createSignal('');
   const [slug, setSlug] = createSignal('');
   const [description, setDescription] = createSignal('');
+  const [editingId, setEditingId] = createSignal<string | null>(null);
   const [error, setError] = createSignal('');
   const [saving, setSaving] = createSignal(false);
 
@@ -35,19 +36,37 @@ export function TaxonomyTermsManager(props: Props) {
 
   onMount(load);
 
-  const createTerm = async (event: Event): Promise<void> => {
+  const resetForm = (): void => {
+    setEditingId(null);
+    setName('');
+    setSlug('');
+    setDescription('');
+  };
+
+  const startEdit = (term: TaxonomyTerm): void => {
+    setEditingId(term.id ?? null);
+    setName(term.name);
+    setSlug(term.slug);
+    setDescription(term.description ?? '');
+    setError('');
+  };
+
+  const saveTerm = async (event: Event): Promise<void> => {
     event.preventDefault();
     setError('');
     setSaving(true);
     try {
-      await apiClient.createTaxonomyTerm(props.taxonomySlug, {
+      const payload = {
         name: name(),
         slug: slug() || undefined,
         description: description() || undefined,
-      });
-      setName('');
-      setSlug('');
-      setDescription('');
+      };
+      if (editingId()) {
+        await apiClient.updateTaxonomyTerm(props.taxonomySlug, editingId()!, payload);
+      } else {
+        await apiClient.createTaxonomyTerm(props.taxonomySlug, payload);
+      }
+      resetForm();
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -73,8 +92,8 @@ export function TaxonomyTermsManager(props: Props) {
         <div class="notice notice--error">{t('content.taxonomy.notFound')}</div>
       </Show>
       <Show when={taxonomy()}>
-        <form class="card term-form" onSubmit={createTerm}>
-          <h3>{t('content.taxonomy.addTerm')}</h3>
+        <form class="card term-form" onSubmit={saveTerm}>
+          <h3>{editingId() ? t('content.taxonomy.editTerm') : t('content.taxonomy.addTerm')}</h3>
           <label>
             {t('content.taxonomy.name')}
             <input class="input" required value={name()} onInput={(event) => setName(event.currentTarget.value)} />
@@ -87,7 +106,10 @@ export function TaxonomyTermsManager(props: Props) {
             {t('content.taxonomy.description')}
             <textarea class="input" rows={3} value={description()} onInput={(event) => setDescription(event.currentTarget.value)} />
           </label>
-          <button class="btn btn-primary" type="submit" disabled={saving()}>{t('content.taxonomy.add')}</button>
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit" disabled={saving()}>{editingId() ? t('common.save') : t('content.taxonomy.add')}</button>
+            <Show when={editingId()}><button class="btn" type="button" onClick={resetForm}>{t('common.cancel')}</button></Show>
+          </div>
         </form>
 
         <div class="card">
@@ -103,7 +125,7 @@ export function TaxonomyTermsManager(props: Props) {
               <thead><tr><th>{t('content.taxonomy.name')}</th><th>{t('content.taxonomy.slug')}</th><th /></tr></thead>
               <tbody>
                 <For each={terms()}>
-                  {(term) => <tr><td>{term.name}</td><td>{term.slug}</td><td><button class="btn btn-danger btn-sm" type="button" onClick={() => void removeTerm(term)}>{t('content.taxonomy.delete')}</button></td></tr>}
+                  {(term) => <tr><td>{term.name}</td><td>{term.slug}</td><td><button class="btn btn-secondary btn-sm" type="button" onClick={() => startEdit(term)}>{t('common.edit')}</button>{' '}<button class="btn btn-danger btn-sm" type="button" onClick={() => void removeTerm(term)}>{t('content.taxonomy.delete')}</button></td></tr>}
                 </For>
               </tbody>
             </table>

@@ -8,7 +8,7 @@ themes.use('*', authMiddleware)
 
 themes.get('/', requirePermission('read', 'theme'), async (c) => {
   try {
-    const result = await themeService.list()
+    const result = await themeService.syncFromDirectory()
     return c.json(result)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to list themes'

@@ -17,7 +17,8 @@ export type JobType =
   | 'deployment.create'
   | 'webhook.send'
   | 'cache.invalidate'
-  | 'cleanup.expired_sessions';
+  | 'cleanup.expired_sessions'
+  | 'cleanup.expired_audit_logs';
 
 /** jobType → fila BullMQ (o worker registra um worker por fila). */
 const QUEUE_BY_JOB_TYPE: Record<JobType, string> = {
@@ -29,6 +30,7 @@ const QUEUE_BY_JOB_TYPE: Record<JobType, string> = {
   'webhook.send': 'webhooks',
   'cache.invalidate': 'system',
   'cleanup.expired_sessions': 'system',
+  'cleanup.expired_audit_logs': 'system',
 };
 
 export interface EnqueueOptions {

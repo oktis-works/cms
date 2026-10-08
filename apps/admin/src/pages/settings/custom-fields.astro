@@ -70,6 +70,23 @@ const { t } = Astro.locals;
     margin-bottom: 1rem;
   }
 
+  .acf-assignment {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 0.7fr);
+    gap: 1rem;
+    align-items: end;
+    margin: 1rem 0;
+    padding: 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-hover);
+  }
+
+  .acf-assignment h4,
+  .acf-assignment p {
+    margin: 0;
+  }
+
   .section-heading {
     margin-bottom: 1rem;
   }
@@ -213,6 +230,20 @@ const { t } = Astro.locals;
     text-align: left;
   }
 
+  :global(.field-type-picker__selected) {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+
+  :global(.field-type-picker__selected svg),
+  :global(.field-type-picker__group-label svg),
+  :global(.field-type-picker__option svg) {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 auto;
+  }
+
   :global(.field-type-picker__panel) {
     position: absolute;
     z-index: 20;
@@ -260,6 +291,10 @@ const { t } = Astro.locals;
   }
 
   @media (max-width: 720px) {
+    .acf-assignment {
+      grid-template-columns: 1fr;
+    }
+
     .custom-fields-toolbar,
     .group-row {
       align-items: stretch;

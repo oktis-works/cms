@@ -7,6 +7,7 @@
       "content": "Conteúdo",
       "media": "Mídia",
       "users": "Usuários",
+      "menus": "Menus",
       "settings": "Configurações",
       "plugins": "Plugins",
       "themes": "Temas"
@@ -145,6 +146,7 @@
       "choose": "Escolha uma taxonomia no menu de conteúdo.",
       "notFound": "Taxonomia não encontrada.",
       "addTerm": "Adicionar novo termo",
+      "editTerm": "Editar termo",
       "name": "Nome",
       "slug": "Slug",
       "description": "Descrição",
@@ -397,6 +399,8 @@
         "new": "Novo grupo de campos",
         "empty": "Ainda não há grupos de campos personalizados.",
         "fields": "campos",
+        "appliesTo": "Aplicado a",
+        "allContentTypes": "Todos os tipos de conteúdo",
         "edit": "Editar",
         "active": "Ativo",
         "inactive": "Inativo"
@@ -406,6 +410,9 @@
         "editTitle": "Editar grupo de campos",
         "title": "Nome do grupo",
         "titlePlaceholder": "Ex.: Detalhes do produto",
+        "assignTitle": "Localização",
+        "assignDescription": "Escolha o content type onde este grupo de campos estará disponível.",
+        "contentType": "Content type",
         "position": "Posição",
         "positions": {
           "normal": "Normal",
@@ -446,6 +453,23 @@
       "loadError": "Não foi possível carregar os campos personalizados."
     }
   },
+  "menus": {
+    "title": "Menus",
+    "description": "Crie e gerencie os menus de navegação usados pelo seu site.",
+    "hint": "Os menus são independentes dos content types e podem ser renderizados pelo seu tema.",
+    "new": "Novo menu",
+    "create": "Criar menu",
+    "edit": "Editar menu",
+    "name": "Nome",
+    "slug": "Slug",
+    "items": "Itens do menu (JSON)",
+    "itemsHint": "Use uma lista JSON de objetos de menu. O tema controla como eles serão exibidos.",
+    "invalidItems": "Os itens do menu precisam ser uma lista JSON válida.",
+    "saved": "Menu salvo.",
+    "deleted": "Menu excluído.",
+    "empty": "Ainda não há menus.",
+    "confirmDelete": "Excluir o menu \"{name}\"?"
+  },
   "resources": {
     "title": "Recursos de conteúdo",
     "description": "Gerencie categorias, tags, menus e termos de taxonomias.",
@@ -468,20 +492,48 @@
     "permissions": "Permissões (separadas por vírgula)",
     "domain": "Domínio"
   },
-  "operations": {
-    "title": "Operações",
-    "description": "Gerencie webhooks, builds, deployments e eventos.",
-    "webhooks": "Webhooks",
+  "logs": {
+    "title": "Logs",
+    "description": "Histórico completo das ações realizadas dentro do CMS.",
+    "retentionTitle": "Retenção dos logs",
+    "retentionDescription": "Logs mais antigos que este período serão removidos automaticamente.",
+    "retentionDays": "Manter logs por (dias)",
+    "retentionSaved": "Retenção dos logs atualizada.",
+    "historyTitle": "Histórico de auditoria",
+    "actionFilter": "Filtrar por ação",
+    "resourceFilter": "Filtrar por recurso",
+    "loading": "Carregando logs…",
+    "empty": "Nenhuma ação registrada ainda.",
+    "system": "Sistema",
+    "columns": { "date": "Data", "action": "Ação", "resource": "Recurso", "user": "Usuário", "status": "Status", "ip": "IP" }
+  },
+  "webhooks": {
+    "title": "Webhooks",
+    "description": "Envie eventos do CMS para serviços externos com autenticação configurável.",
+    "listTitle": "Webhooks configurados",
+    "new": "Novo webhook",
+    "create": "Criar webhook",
+    "edit": "Editar webhook",
+    "url": "URL do endpoint",
     "events": "Eventos",
-    "secret": "Segredo",
-    "builds": "Builds",
-    "deployments": "Deployments",
-    "createBuild": "Criar build",
-    "deploy": "Publicar deploy"
+    "authentication": "Autenticação",
+    "active": "Ativo",
+    "token": "Token Bearer",
+    "username": "Usuário",
+    "password": "Senha",
+    "headerName": "Nome do header",
+    "apiKeyValue": "Valor da API key",
+    "secret": "Segredo HMAC",
+    "signatureHeader": "Header da assinatura",
+    "keepExisting": "Deixe em branco para manter o valor atual",
+    "loading": "Carregando webhooks…",
+    "empty": "Nenhum webhook configurado.",
+    "auth": { "none": "Nenhuma", "bearer": "Token Bearer", "basic": "Autenticação básica", "apiKey": "API key", "hmac_sha256": "HMAC SHA-256" }
   },
   "plugins": {
     "title": "Plugins",
     "description": "Gerencie os plugins instalados.",
+    "directoryHint": "Detectados automaticamente no diretório plugins/ do projeto. Use a CLI ou o deploy para adicionar extensões.",
     "columns": { "name": "Nome", "version": "Versão", "status": "Status", "actions": "Ações" },
     "status": { "active": "Ativo", "installed": "Instalado", "inactive": "Inativo" },
     "activate": "Ativar",
@@ -502,6 +554,7 @@
   "themes": {
     "title": "Temas",
     "description": "Gerencie os temas instalados.",
+    "directoryHint": "Detectados automaticamente no diretório themes/ do projeto. Use a CLI ou o deploy para adicionar temas.",
     "version": "Versão",
     "active": "Ativo",
     "status": { "active": "Ativo", "installed": "Instalado", "inactive": "Inativo" },
@@ -563,7 +616,9 @@
       "archived": "Arquivado",
       "locked": "Bloqueado"
     },
-    "language": "Idioma"
+    "language": "Idioma",
+    "refresh": "Atualizar",
+    "actions": "Ações"
   },
   "activity": {
     "justNow": "agora mesmo",

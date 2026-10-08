@@ -12,6 +12,7 @@ import { loadConfig } from '@oktis-works/config';
 import { traceMiddleware } from './middleware/trace.js';
 import { rateLimitMiddleware } from './middleware/rate-limit.js';
 import { csrfMiddleware } from './middleware/csrf.js';
+import { auditMiddleware } from './middleware/audit.js';
 import authRouter from './routes/auth/index.js';
 import contentRouter from './routes/content/index.js';
 import postsRouter from './routes/posts/index.js';
@@ -27,9 +28,7 @@ import menusRouter from './routes/menus/index.js';
 import settingsRouter from './routes/settings/index.js';
 import pluginsRouter from './routes/plugins/index.js';
 import themesRouter from './routes/themes/index.js';
-import deploymentsRouter from './routes/deployments/index.js';
 import buildsRouter from './routes/builds/index.js';
-import eventsRouter from './routes/events/index.js';
 import webhooksRouter from './routes/webhooks/index.js';
 import contentTypesRouter from './routes/content-types/index.js';
 import taxonomiesRouter from './routes/taxonomies/index.js';
@@ -81,6 +80,8 @@ async function main() {
     await next();
   });
 
+  app.use('/api/*', auditMiddleware);
+
   // Health routes (no auth required)
   app.route('/health', healthRouter);
 
@@ -100,9 +101,7 @@ async function main() {
   app.route('/api/v1/settings', settingsRouter);
   app.route('/api/v1/plugins', pluginsRouter);
   app.route('/api/v1/themes', themesRouter);
-  app.route('/api/v1/deployments', deploymentsRouter);
   app.route('/api/v1/builds', buildsRouter);
-  app.route('/api/v1/events', eventsRouter);
   app.route('/api/v1/webhooks', webhooksRouter);
   app.route('/api/v1/content-types', contentTypesRouter);
   app.route('/api/v1/taxonomies', taxonomiesRouter);
@@ -135,9 +134,7 @@ async function main() {
         settings: '/api/v1/settings',
         plugins: '/api/v1/plugins',
         themes: '/api/v1/themes',
-        deployments: '/api/v1/deployments',
         builds: '/api/v1/builds',
-        events: '/api/v1/events',
         webhooks: '/api/v1/webhooks',
         contentTypes: '/api/v1/content-types',
         taxonomies: '/api/v1/taxonomies',

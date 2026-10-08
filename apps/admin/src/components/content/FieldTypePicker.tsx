@@ -1,6 +1,7 @@
 // @oktis-works/admin - FieldTypePicker (dropdown agrupado por categoria com ícones)
 
-import { For, Show, createSignal } from 'solid-js';
+import { For, Show, createSignal, onMount } from 'solid-js';
+import { createIcons, icons } from 'lucide';
 import type { FieldCategoryInfo, FieldTypeInfo } from '../../lib/api';
 
 export interface FieldTypePickerProps {
@@ -23,15 +24,27 @@ export function FieldTypePicker(props: FieldTypePickerProps) {
       : props.types;
   };
 
+  const refreshIcons = (): void => {
+    queueMicrotask(() => createIcons({ icons }));
+  };
+
+  onMount(refreshIcons);
+
   return (
     <div class="field-type-picker">
       <button
         type="button"
         class="field-type-picker__trigger"
-        onClick={() => setOpen(!open())}
+        onClick={() => {
+          setOpen(!open());
+          refreshIcons();
+        }}
         aria-expanded={open()}
       >
-        <span>{selected()?.icon ?? ' '} {selected()?.label ?? 'Selecione o tipo'}</span>
+        <span class="field-type-picker__selected">
+          <i data-lucide={selected()?.icon ?? 'box'} aria-hidden="true"></i>
+          {selected()?.label ?? 'Selecione o tipo'}
+        </span>
         <span aria-hidden="true">{open() ? '▴' : '▾'}</span>
       </button>
 
@@ -42,7 +55,10 @@ export function FieldTypePicker(props: FieldTypePickerProps) {
             class="field-type-picker__search"
             placeholder="Buscar tipo de campo..."
             value={query()}
-            onInput={(e) => setQuery(e.currentTarget.value)}
+            onInput={(e) => {
+              setQuery(e.currentTarget.value);
+              refreshIcons();
+            }}
           />
 
           <For each={props.categories}>
@@ -52,7 +68,8 @@ export function FieldTypePicker(props: FieldTypePickerProps) {
                 <Show when={categoryTypes.length > 0}>
                   <div class="field-type-picker__group">
                     <div class="field-type-picker__group-label">
-                      {category.icon} {category.label}
+                      <i data-lucide={category.icon} aria-hidden="true"></i>
+                      {category.label}
                     </div>
                     <For each={categoryTypes}>
                       {(type) => (
@@ -68,9 +85,10 @@ export function FieldTypePicker(props: FieldTypePickerProps) {
                             props.onChange(type.type);
                             setOpen(false);
                             setQuery('');
+                            refreshIcons();
                           }}
                         >
-                          <span>{type.icon}</span>
+                          <i data-lucide={type.icon} aria-hidden="true"></i>
                           <span>{type.label}</span>
                           <Show when={!type.supportsConditions}>
                             <span class="field-type-picker__hint">sem lógica condicional</span>

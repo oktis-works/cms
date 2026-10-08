@@ -21,9 +21,9 @@ const isActive = (href: string): boolean =>
 
 const navActive = {
   dashboard: isActive('/'),
-  content: isActive('/content'),
   media: isActive('/media'),
   users: isActive('/users'),
+  menus: isActive('/menus'),
   settings: isActive('/settings'),
   plugins: isActive('/plugins'),
   themes: isActive('/themes'),
@@ -34,9 +34,9 @@ const settingsChildren = [
   { href: '/settings/post-types', key: 'settings.postTypes.title', active: isActive('/settings/post-types') },
   { href: '/settings/custom-fields', key: 'settings.customFields.title', active: isActive('/settings/custom-fields') },
   { href: '/settings/taxonomies', key: 'settings.taxonomies.title', active: isActive('/settings/taxonomies') },
-  { href: '/settings/resources', key: 'resources.title', active: isActive('/settings/resources') },
   { href: '/settings/access', key: 'access.title', active: isActive('/settings/access') },
-  { href: '/settings/operations', key: 'operations.title', active: isActive('/settings/operations') },
+  { href: '/settings/logs', key: 'logs.title', active: isActive('/settings/logs') },
+  { href: '/settings/webhooks', key: 'webhooks.title', active: isActive('/settings/webhooks') },
 ];
 
 ---
@@ -69,18 +69,7 @@ const settingsChildren = [
           <span class="nav-label" data-sidebar-i18n="layout.nav.dashboard">{t('layout.nav.dashboard')}</span>
         </a>
 
-        <div class:list={['nav-group', { open: navActive.content }]} data-nav-group="content">
-          <div class="nav-group-header">
-            <div class:list={['nav-item', { active: navActive.content }]}>
-              <i data-lucide="file-text" aria-hidden="true"></i>
-              <span class="nav-label" data-sidebar-i18n="layout.nav.content">{t('layout.nav.content')}</span>
-            </div>
-            <button class="nav-group-toggle" type="button" aria-expanded={navActive.content ? 'true' : 'false'} aria-label="Toggle content menu">⌄</button>
-          </div>
-          <div class="nav-submenu">
-            <div data-post-types-menu></div>
-          </div>
-        </div>
+        <div data-post-types-menu></div>
 
         <a href="/media" class:list={['nav-item', { active: navActive.media }]}>
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
@@ -92,15 +81,26 @@ const settingsChildren = [
           <span class="nav-label" data-sidebar-i18n="layout.nav.users">{t('layout.nav.users')}</span>
         </a>
 
+        <a href="/menus" class:list={['nav-item', { active: navActive.menus }]}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="8" y1="6" x2="21" y2="6"></line>
+            <line x1="8" y1="12" x2="21" y2="12"></line>
+            <line x1="8" y1="18" x2="21" y2="18"></line>
+            <line x1="3" y1="6" x2="3.01" y2="6"></line>
+            <line x1="3" y1="12" x2="3.01" y2="12"></line>
+            <line x1="3" y1="18" x2="3.01" y2="18"></line>
+          </svg>
+          <span class="nav-label" data-sidebar-i18n="layout.nav.menus">{t('layout.nav.menus')}</span>
+        </a>
+
         <div class:list={['nav-group', { open: navActive.settings }]} data-nav-group="settings">
           <div class="nav-group-header">
-        <a href="/settings" class:list={['nav-item', { active: navActive.settings }]}>
+        <a href="/settings/general" class:list={['nav-item', { active: navActive.settings }]}>
           <svg class="settings-nav-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 0-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06-.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.82-.33l-.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0-2.83l-.06-.06a1.65 1.65 0 0 0-.33-1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
           <span class="nav-label" data-sidebar-i18n="layout.nav.settings">{t('layout.nav.settings')}</span>
         </a>
 
-            <button class="nav-group-toggle" type="button" aria-expanded={navActive.settings ? 'true' : 'false'} aria-label="Toggle settings menu">⌄</button>
           </div>
 
         <!-- Submenu de configurações fica agrupado diretamente sob Settings. -->
@@ -198,7 +198,7 @@ const settingsChildren = [
     });
   };
 
-  const createSidebarLink = (label: string, href: string, className = 'nav-subitem', translationKey?: string): HTMLAnchorElement => {
+  const createSidebarLink = (label: string, href: string, className = 'nav-item', translationKey?: string): HTMLAnchorElement => {
     const link = document.createElement('a');
     link.className = className;
     link.href = href;
@@ -228,17 +228,15 @@ const settingsChildren = [
         const typeLink = createSidebarLink(
           type.pluralLabel || type.name,
           `/content/${encodeURIComponent(type.slug)}`,
-          'nav-subitem nav-type-link'
+          'nav-item nav-type-link'
         );
+        typeLink.classList.toggle('active', window.location.pathname.startsWith(`/content/${type.slug}`));
         const typeIcon = document.createElement('i');
         typeIcon.dataset.lucide = type.menuIcon || 'box';
         typeIcon.className = 'nav-type-icon';
         typeIcon.setAttribute('aria-hidden', 'true');
         typeLink.prepend(typeIcon);
         row.append(typeLink);
-        if (!type.singleton) {
-          row.append(createSidebarLink('+ Add new', `/content/${encodeURIComponent(type.slug)}/new`, 'nav-subitem nav-subitem-add', 'content.list.addNew'));
-        }
 
         const attached = taxonomies.filter((taxonomy) => taxonomy.attachTo?.includes(type.slug));
         if (attached.length > 0) {
@@ -263,13 +261,17 @@ const settingsChildren = [
 
           for (const taxonomy of attached) {
             const label = taxonomy.labels?.['plural_name'] ?? taxonomy.labels?.['name'] ?? taxonomy.name;
-            taxonomyMenu.append(
-              createSidebarLink(
-                label,
-                `/content/${encodeURIComponent(type.slug)}/taxonomy?taxonomy=${encodeURIComponent(taxonomy.slug)}`,
-                'nav-subitem nav-taxonomy-item'
-              )
+            const taxonomyLink = createSidebarLink(
+              label,
+              `/content/${encodeURIComponent(type.slug)}/taxonomy?taxonomy=${encodeURIComponent(taxonomy.slug)}`,
+              'nav-subitem nav-taxonomy-item'
             );
+            const taxonomyUrl = new URL(taxonomyLink.href, window.location.origin);
+            taxonomyLink.classList.toggle(
+              'active',
+              window.location.pathname === taxonomyUrl.pathname && currentParams.get('taxonomy') === taxonomy.slug
+            );
+            taxonomyMenu.append(taxonomyLink);
           }
           entry.append(taxonomyMenu);
         } else {
@@ -464,7 +466,7 @@ const settingsChildren = [
   .nav-type-link { display: flex; align-items: center; gap: 0.5rem; }
   .nav-type-icon { width: 16px; height: 16px; color: var(--color-primary); }
 
-  .nav-item[href="/settings"] > svg:not(.settings-nav-icon) { display: none; }
+  .nav-item[href="/settings/general"] > svg:not(.settings-nav-icon) { display: none; }
 
   .nav-submenu {
     margin: 0.25rem 0 0.5rem 1.5rem;

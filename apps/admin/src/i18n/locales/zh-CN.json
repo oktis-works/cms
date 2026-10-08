@@ -7,6 +7,7 @@
       "content": "内容",
       "media": "媒体库",
       "users": "用户",
+      "menus": "菜单",
       "settings": "设置",
       "plugins": "插件",
       "themes": "主题"
@@ -122,7 +123,25 @@
       "inspectTypes": "查看可用类型",
       "save": "保存",
       "saved": "内容保存成功。"
-    }
+    },
+    "taxonomy": { "editTerm": "编辑术语" }
+  },
+  "menus": {
+    "title": "菜单",
+    "description": "创建和管理网站使用的导航菜单。",
+    "hint": "菜单独立于内容类型，可由主题进行渲染。",
+    "new": "新建菜单",
+    "create": "创建菜单",
+    "edit": "编辑菜单",
+    "name": "名称",
+    "slug": "别名",
+    "items": "菜单项 (JSON)",
+    "itemsHint": "使用菜单项对象组成的 JSON 数组。",
+    "invalidItems": "菜单项必须是有效的 JSON 数组。",
+    "saved": "菜单已保存。",
+    "deleted": "菜单已删除。",
+    "empty": "暂无菜单。",
+    "confirmDelete": "删除菜单“{name}”？"
   },
   "media": {
     "title": "媒体库",

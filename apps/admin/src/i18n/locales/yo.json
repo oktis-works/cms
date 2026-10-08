@@ -7,6 +7,7 @@
       "content": "Ọrọ̀",
       "media": "Mídia",
       "users": "Onítójú",
+      "menus": "Àwọn Àkójọ",
       "settings": "Ẹ̀tọ́",
       "plugins": "Àfikún",
       "themes": "Àwọn àkòrí"
@@ -122,7 +123,25 @@
       "inspectTypes": "Wó Àwọn Eya Tí WòŃpàtí",
       "save": "Fifipamọ́",
       "saved": "Ọrọ̀ ti fifipamọ́ lóríire."
-    }
+    },
+    "taxonomy": { "editTerm": "Ṣàtúnṣe ọ̀rọ̀" }
+  },
+  "menus": {
+    "title": "Àwọn Àkójọ",
+    "description": "Ṣẹ̀dá àti ṣàkóso àwọn àkójọ ìrìnàjò ojúlé rẹ.",
+    "hint": "Àwọn àkójọ yàtọ̀ sí irú akoonu, ó sì lè jẹ́ afihàn nipasẹ akori.",
+    "new": "Àkójọ tuntun",
+    "create": "Ṣẹ̀dá àkójọ",
+    "edit": "Ṣàtúnṣe àkójọ",
+    "name": "Orúkọ",
+    "slug": "Slug",
+    "items": "Àwọn ohun àkójọ (JSON)",
+    "itemsHint": "Lo àkójọpọ̀ JSON ti àwọn ohun àkójọ.",
+    "invalidItems": "Àwọn ohun àkójọ gbọ́dọ̀ jẹ́ àkójọpọ̀ JSON tó tọ́.",
+    "saved": "A ti fipamọ́ àkójọ.",
+    "deleted": "A ti pa àkójọ rẹ́.",
+    "empty": "Kò sí àkójọ sibẹ̀.",
+    "confirmDelete": "Pa àkójọ \"{name}\" rẹ́?"
   },
   "media": {
     "title": "Ìwé Mídia",

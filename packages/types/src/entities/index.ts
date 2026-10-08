@@ -440,9 +440,24 @@ export interface Webhook {
   tenantId: UUID;
   url: string;
   events: string[];
-  secret: string;
+  authType: WebhookAuthType;
+  authConfig: WebhookAuthConfig;
+  /** Campo legado mantido para compatibilidade com instalações anteriores. */
+  secret?: string;
   active: boolean;
   createdAt: Date;
+}
+
+export type WebhookAuthType = 'none' | 'bearer' | 'basic' | 'api_key' | 'hmac_sha256';
+
+export interface WebhookAuthConfig {
+  token?: string;
+  username?: string;
+  password?: string;
+  headerName?: string;
+  value?: string;
+  secret?: string;
+  signatureHeader?: string;
 }
 
 // ============================================================

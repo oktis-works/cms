@@ -134,6 +134,9 @@ authRouter.post('/register', async (c: Context) => {
       userAgent: c.req.header('user-agent'),
     });
 
+    c.set('tenantId', result.tenantId);
+    c.set('userId', (result.user as { id?: string }).id);
+
     setAuthCookies(c, result.accessToken, result.refreshToken);
     setCsrfCookie(c);
 
@@ -164,6 +167,7 @@ authRouter.post('/login', async (c: Context) => {
     }
 
     await establishTenantContext(tenant.id);
+    c.set('tenantId', tenant.id);
 
     const result = await authService.login({
       email,
@@ -172,6 +176,8 @@ authRouter.post('/login', async (c: Context) => {
       ipAddress: c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip'),
       userAgent: c.req.header('user-agent'),
     });
+
+    c.set('userId', (result.user as { id?: string }).id);
 
     setAuthCookies(c, result.accessToken, result.refreshToken);
     setCsrfCookie(c);

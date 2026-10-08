@@ -75,6 +75,11 @@ export interface CleanupExpiredSessionsJob extends JobData {
   payload: Record<string, never>;
 }
 
+export interface CleanupExpiredAuditLogsJob extends JobData {
+  type: 'cleanup.expired_audit_logs';
+  payload: Record<string, never>;
+}
+
 export interface CacheInvalidateJob extends JobData {
   type: 'cache.invalidate';
   payload: {
@@ -90,4 +95,5 @@ export type AnyJob =
   | DeploymentCreateJob
   | WebhookSendJob
   | CleanupExpiredSessionsJob
+  | CleanupExpiredAuditLogsJob
   | CacheInvalidateJob;

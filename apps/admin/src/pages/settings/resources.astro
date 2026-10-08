@@ -1,9 +1,0 @@
----
-import DashboardLayout from '../../layouts/DashboardLayout.astro';
-import { ContentResourcesManager } from '../../components/apps/settings/ResourceHubs';
-const { t } = Astro.locals;
----
-<DashboardLayout title={t('resources.title')}>
-  <div class="settings-page"><div class="page-header"><h2>{t('resources.title')}</h2><p>{t('resources.description')}</p></div><ContentResourcesManager client:load /></div>
-</DashboardLayout>
-<style>.settings-page .page-header { margin-bottom: 1rem; }</style>

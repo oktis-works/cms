@@ -3,3 +3,4 @@
 export * from './entities/index.js';
 export * from './dto/index.js';
 export * from './common/index.js';
+export * from './webhooks.js';

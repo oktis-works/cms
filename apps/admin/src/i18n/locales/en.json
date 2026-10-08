@@ -7,6 +7,7 @@
       "content": "Content",
       "media": "Media",
       "users": "Users",
+      "menus": "Menus",
       "settings": "Settings",
       "plugins": "Plugins",
       "themes": "Themes"
@@ -145,6 +146,7 @@
       "choose": "Choose a taxonomy from the content menu.",
       "notFound": "Taxonomy not found.",
       "addTerm": "Add new term",
+      "editTerm": "Edit term",
       "name": "Name",
       "slug": "Slug",
       "description": "Description",
@@ -397,6 +399,8 @@
         "new": "New field group",
         "empty": "No custom field groups yet.",
         "fields": "fields",
+        "appliesTo": "Applies to",
+        "allContentTypes": "All content types",
         "edit": "Edit",
         "active": "Active",
         "inactive": "Inactive"
@@ -406,6 +410,9 @@
         "editTitle": "Edit field group",
         "title": "Group name",
         "titlePlaceholder": "Example: Product details",
+        "assignTitle": "Location",
+        "assignDescription": "Choose the content type where this field group will be available.",
+        "contentType": "Content type",
         "position": "Position",
         "positions": {
           "normal": "Normal",
@@ -446,6 +453,23 @@
       "loadError": "Could not load custom fields."
     }
   },
+  "menus": {
+    "title": "Menus",
+    "description": "Create and manage the navigation menus used by your site.",
+    "hint": "Menus are independent from content types and can be rendered by your theme.",
+    "new": "New menu",
+    "create": "Create menu",
+    "edit": "Edit menu",
+    "name": "Name",
+    "slug": "Slug",
+    "items": "Menu items (JSON)",
+    "itemsHint": "Use an array of menu item objects. Your theme controls how they are rendered.",
+    "invalidItems": "Menu items must be a valid JSON array.",
+    "saved": "Menu saved.",
+    "deleted": "Menu deleted.",
+    "empty": "No menus yet.",
+    "confirmDelete": "Delete menu \"{name}\"?"
+  },
   "resources": {
     "title": "Content Resources",
     "description": "Manage categories, tags, menus and taxonomy terms.",
@@ -468,20 +492,48 @@
     "permissions": "Permissions (comma separated)",
     "domain": "Domain"
   },
-  "operations": {
-    "title": "Operations",
-    "description": "Manage webhooks, builds, deployments and events.",
-    "webhooks": "Webhooks",
+  "logs": {
+    "title": "Logs",
+    "description": "Complete audit history of actions performed in the CMS.",
+    "retentionTitle": "Log retention",
+    "retentionDescription": "Logs older than this period are removed automatically.",
+    "retentionDays": "Keep logs for (days)",
+    "retentionSaved": "Log retention updated.",
+    "historyTitle": "Audit history",
+    "actionFilter": "Filter by action",
+    "resourceFilter": "Filter by resource",
+    "loading": "Loading logs…",
+    "empty": "No actions recorded yet.",
+    "system": "System",
+    "columns": { "date": "Date", "action": "Action", "resource": "Resource", "user": "User", "status": "Status", "ip": "IP" }
+  },
+  "webhooks": {
+    "title": "Webhooks",
+    "description": "Send CMS events to external services with configurable authentication.",
+    "listTitle": "Configured webhooks",
+    "new": "New webhook",
+    "create": "Create webhook",
+    "edit": "Edit webhook",
+    "url": "Endpoint URL",
     "events": "Events",
-    "secret": "Secret",
-    "builds": "Builds",
-    "deployments": "Deployments",
-    "createBuild": "Create build",
-    "deploy": "Deploy"
+    "authentication": "Authentication",
+    "active": "Active",
+    "token": "Bearer token",
+    "username": "Username",
+    "password": "Password",
+    "headerName": "Header name",
+    "apiKeyValue": "API key value",
+    "secret": "HMAC secret",
+    "signatureHeader": "Signature header",
+    "keepExisting": "Leave blank to keep current value",
+    "loading": "Loading webhooks…",
+    "empty": "No webhooks configured.",
+    "auth": { "none": "None", "bearer": "Bearer token", "basic": "Basic authentication", "apiKey": "API key", "hmac_sha256": "HMAC SHA-256" }
   },
   "plugins": {
     "title": "Plugins",
     "description": "Manage installed plugins.",
+    "directoryHint": "Detected automatically from the project's plugins/ directory. Use the CLI or deploy files to add extensions.",
     "columns": {
       "name": "Name",
       "version": "Version",
@@ -511,6 +563,7 @@
   "themes": {
     "title": "Themes",
     "description": "Manage installed themes.",
+    "directoryHint": "Detected automatically from the project's themes/ directory. Use the CLI or deploy files to add themes.",
     "version": "Version",
     "active": "Active",
     "status": {
@@ -576,7 +629,9 @@
       "archived": "Archived",
       "locked": "Locked"
     },
-    "language": "Language"
+    "language": "Language",
+    "refresh": "Refresh",
+    "actions": "Actions"
   },
   "activity": {
     "justNow": "just now",

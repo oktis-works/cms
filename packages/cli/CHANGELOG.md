@@ -1,5 +1,13 @@
 # @oktis-works/cms
 
+## 0.4.21
+
+### Minor Changes
+
+- Replaced Operations with audit Logs and configurable log retention.
+- Added a dedicated Webhooks manager with multi-event selection and configurable authentication.
+- Removed unused Events and Deployments admin API routes from the pre-release surface.
+
 ## 0.4.20
 
 ### Minor Changes

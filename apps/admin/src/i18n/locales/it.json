@@ -7,6 +7,7 @@
       "content": "Contenuti",
       "media": "Media",
       "users": "Utenti",
+      "menus": "Menu",
       "settings": "Impostazioni",
       "plugins": "Plugin",
       "themes": "Temi"
@@ -122,7 +123,25 @@
       "inspectTypes": "Ispeziona tipi disponibili",
       "save": "Salva",
       "saved": "Contenuto salvato con successo."
-    }
+    },
+    "taxonomy": { "editTerm": "Modifica termine" }
+  },
+  "menus": {
+    "title": "Menu",
+    "description": "Crea e gestisci i menu di navigazione del sito.",
+    "hint": "I menu sono indipendenti dai tipi di contenuto e possono essere visualizzati dal tema.",
+    "new": "Nuovo menu",
+    "create": "Crea menu",
+    "edit": "Modifica menu",
+    "name": "Nome",
+    "slug": "Slug",
+    "items": "Elementi del menu (JSON)",
+    "itemsHint": "Usa un array JSON di oggetti menu.",
+    "invalidItems": "Gli elementi del menu devono essere un array JSON valido.",
+    "saved": "Menu salvato.",
+    "deleted": "Menu eliminato.",
+    "empty": "Nessun menu ancora.",
+    "confirmDelete": "Eliminare il menu \"{name}\"?"
   },
   "media": {
     "title": "Libreria Media",

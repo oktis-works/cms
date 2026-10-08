@@ -117,6 +117,9 @@ export interface AuditLogEntry {
   action: string;
   resourceType: string;
   resourceId?: string | null;
+  changes?: Record<string, unknown> | null;
+  ipAddress?: string | null;
+  userAgent?: string | null;
   created_at?: string;
 }
 
@@ -249,6 +252,22 @@ class ApiClient {
   /** Auditoria recente — notificações reais do sino no admin bar */
   async getAuditLogs(limit = 8): Promise<{ data: AuditLogEntry[]; count: number }> {
     return this.request('GET', `/api/v1/audit-logs?limit=${limit}`);
+  }
+
+  async getAuditLogConfig(): Promise<{ retentionDays: number }> {
+    return this.request('GET', '/api/v1/audit-logs/config');
+  }
+
+  async updateAuditLogConfig(retentionDays: number): Promise<{ retentionDays: number; deleted: number }> {
+    return this.request('PUT', '/api/v1/audit-logs/config', { retentionDays });
+  }
+
+  async listAuditLogs(options?: { limit?: number; action?: string; resourceType?: string }): Promise<{ data: AuditLogEntry[]; count: number }> {
+    const params = new URLSearchParams();
+    if (options?.limit) params.set('limit', String(options.limit));
+    if (options?.action) params.set('action', options.action);
+    if (options?.resourceType) params.set('resourceType', options.resourceType);
+    return this.request('GET', `/api/v1/audit-logs?${params.toString()}`);
   }
 
   /** Login — o backend seta cookies HttpOnly e CSRF; retorna user + tenantId */
@@ -619,6 +638,11 @@ class ApiClient {
     return this.request('GET', '/api/v1/webhooks');
   }
 
+  async getWebhookEvents(): Promise<WebhookEventOption[]> {
+    const response = await this.request<{ data: WebhookEventOption[] }>('GET', '/api/v1/webhooks/events');
+    return response.data;
+  }
+
   async createWebhook(data: Partial<Webhook>): Promise<Webhook> {
     return this.request('POST', '/api/v1/webhooks', data);
   }
@@ -629,42 +653,6 @@ class ApiClient {
 
   async deleteWebhook(id: string): Promise<void> {
     await this.request('DELETE', `/api/v1/webhooks/${id}`);
-  }
-
-  async getBuilds(options?: { page?: number; limit?: number; status?: string }): Promise<PaginatedResponse<Build>> {
-    const params = new URLSearchParams();
-    if (options?.page) params.set('page', String(options.page));
-    if (options?.limit) params.set('limit', String(options.limit));
-    if (options?.status) params.set('status', options.status);
-    return this.request('GET', `/api/v1/builds?${params.toString()}`);
-  }
-
-  async createBuild(data: Partial<Build>): Promise<Build & { queued?: boolean }> {
-    return this.request('POST', '/api/v1/builds', data);
-  }
-
-  async getDeployments(options?: { page?: number; limit?: number; status?: string }): Promise<PaginatedResponse<Deployment>> {
-    const params = new URLSearchParams();
-    if (options?.page) params.set('page', String(options.page));
-    if (options?.limit) params.set('limit', String(options.limit));
-    if (options?.status) params.set('status', options.status);
-    return this.request('GET', `/api/v1/deployments?${params.toString()}`);
-  }
-
-  async createDeployment(data: Partial<Deployment>): Promise<Deployment> {
-    return this.request('POST', '/api/v1/deployments', data);
-  }
-
-  async rollbackDeployment(id: string, rollbackToId: string): Promise<Deployment> {
-    return this.request('POST', `/api/v1/deployments/${id}/rollback`, { rollbackToId });
-  }
-
-  async getEvents(options?: { page?: number; limit?: number; type?: string }): Promise<PaginatedResponse<Record<string, unknown>>> {
-    const params = new URLSearchParams();
-    if (options?.page) params.set('page', String(options.page));
-    if (options?.limit) params.set('limit', String(options.limit));
-    if (options?.type) params.set('type', options.type);
-    return this.request('GET', `/api/v1/events?${params.toString()}`);
   }
 
   // Media (upload real: multipart → disco → URL pública)
@@ -965,40 +953,26 @@ export interface Webhook {
   id?: string;
   url: string;
   events?: string[];
+  auth_type?: 'none' | 'bearer' | 'basic' | 'api_key' | 'hmac_sha256';
+  auth_config?: {
+    username?: string;
+    headerName?: string;
+    signatureHeader?: string;
+    token?: string;
+    password?: string;
+    value?: string;
+    secret?: string;
+  };
+  auth_configured?: boolean;
   secret?: string;
   active?: boolean;
   created_at?: string;
   updated_at?: string;
 }
 
-export interface Build {
-  id?: string;
-  status?: string;
-  core_version?: string;
-  coreVersion?: string;
-  plugins?: Record<string, string>;
-  theme?: { name: string; version: string };
-  docker_image?: string | null;
-  checksum?: string | null;
-  build_log?: string | null;
-  error?: string | null;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface Deployment {
-  id?: string;
-  status?: string;
-  build_id?: string;
-  buildId?: string;
-  core_version?: string;
-  theme_version?: string;
-  plugin_versions?: Record<string, string>;
-  checksum?: string;
-  health_check_status?: string | null;
-  rollback_to_id?: string | null;
-  created_at?: string;
-  updated_at?: string;
+export interface WebhookEventOption {
+  value: string;
+  label: string;
 }
 
 export interface FieldGroupSummary {

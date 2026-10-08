@@ -1094,12 +1094,21 @@ select.input {
   /* Scrollbar stays on the left in RTL */
 }
 
-/* Resource, access and operations hubs */
+/* Resource, access, logs and webhook hubs */
 .resource-hub { display: grid; gap: 1rem; }
 .resource-tabs, .resource-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .resource-form, .term-form { display: grid; gap: 0.75rem; margin: 1rem 0; }
 .resource-form label { display: grid; gap: 0.35rem; }
 .resource-form textarea, .term-form { width: 100%; }
+.card-header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.card-header-row p { margin: 0.35rem 0 0; color: var(--color-muted); }
+.logs-retention-form { display: flex; align-items: end; flex-wrap: wrap; gap: 0.75rem; }
+.logs-retention-form label { min-width: 220px; }
+.logs-filters { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0; }
+.logs-filters .input { min-width: 200px; }
+.table-scroll { overflow-x: auto; }
+.webhooks-manager select[multiple] { min-height: 9rem; }
+.webhooks-manager .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
 .access-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1rem; }
 .table { width: 100%; border-collapse: collapse; }
 .table th, .table td { padding: 0.65rem; border-bottom: 1px solid var(--color-border); text-align: left; vertical-align: middle; }

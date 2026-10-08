@@ -114,7 +114,17 @@ export function CustomFieldsManager() {
 
   const selectedContentType = createMemo(() => contentTypes().find((type) => type.slug === selectedType()));
   const coreGroup = createMemo(() => groups().find((group) => group.key === `core-fields-${selectedType()}`));
-  const customGroups = createMemo(() => groups().filter((group) => !group.key.startsWith('core-fields-')));
+  const groupContentTypes = (group: FieldGroup): string[] => [...new Set(
+    (group.locationRules ?? [])
+      .flat()
+      .filter((rule) => rule.param === 'content_type' && rule.operator === 'eq' && rule.value)
+      .map((rule) => rule.value)
+  )];
+  const customGroups = createMemo(() => groups().filter((group) => {
+    if (group.key.startsWith('core-fields-')) return false;
+    const targets = groupContentTypes(group);
+    return targets.length === 0 || targets.includes(selectedType());
+  }));
 
   const standardFields = createMemo(() => STANDARD_FIELD_KEYS.map((key) => {
     const definition = coreGroup()?.fields.find((field) => field.coreFieldKey === key || field.name === key);
@@ -247,6 +257,33 @@ export function CustomFieldsManager() {
       ...current,
       fields: [...current.fields, emptyField(current.fields.length, t('settings.customFields.form.newFieldDefault'))],
     } : current);
+  };
+
+  const draftContentType = (rules: LocationRule[][]): string =>
+    rules.flat().find((rule) => rule.param === 'content_type' && rule.operator === 'eq')?.value ?? selectedType();
+
+  const updateDraftContentType = (contentType: string): void => {
+    setDraft((current) => {
+      if (!current) return current;
+      const locationRules = current.locationRules.length > 0
+        ? current.locationRules.map((group) => [...group])
+        : [[emptyLocationRule(contentType)]];
+      const firstGroup = locationRules[0] ?? [];
+      const existingIndex = firstGroup.findIndex((rule) => rule.param === 'content_type');
+      if (existingIndex >= 0) {
+        firstGroup[existingIndex] = { ...firstGroup[existingIndex]!, operator: 'eq', value: contentType };
+      } else {
+        firstGroup.unshift(emptyLocationRule(contentType));
+      }
+      locationRules[0] = firstGroup;
+      return { ...current, locationRules };
+    });
+  };
+
+  const locationSummary = (group: FieldGroup): string => {
+    const targets = groupContentTypes(group);
+    if (targets.length === 0) return t('settings.customFields.groups.allContentTypes');
+    return targets.map((slug) => contentTypes().find((type) => type.slug === slug)?.pluralLabel ?? slug).join(', ');
   };
 
   const removeField = (index: number): void => {
@@ -454,6 +491,19 @@ export function CustomFieldsManager() {
                   </label>
                 </div>
 
+                <div class="acf-assignment">
+                  <div>
+                    <h4>{t('settings.customFields.form.assignTitle')}</h4>
+                    <p class="muted">{t('settings.customFields.form.assignDescription')}</p>
+                  </div>
+                  <label>
+                    {t('settings.customFields.form.contentType')}
+                    <select class="input" value={draftContentType(current().locationRules)} onChange={(event) => updateDraftContentType(event.currentTarget.value)}>
+                      <For each={contentTypes()}>{(type) => <option value={type.slug}>{type.pluralLabel} ({type.slug})</option>}</For>
+                    </select>
+                  </label>
+                </div>
+
                 <div class="location-rules-editor">
                   <div class="fields-editor-heading">
                     <div>
@@ -602,6 +652,7 @@ export function CustomFieldsManager() {
                     <div>
                       <strong>{group.title}</strong>
                       <small>{group.key} · {group.fields.length} {t('settings.customFields.groups.fields')}</small>
+                      <small>{t('settings.customFields.groups.appliesTo')}: {locationSummary(group)}</small>
                     </div>
                     <div class="group-row__actions">
                       <span class="badge" classList={{ 'badge-success': group.active !== false, 'badge-secondary': group.active === false }}>

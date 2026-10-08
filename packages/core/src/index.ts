@@ -86,5 +86,6 @@ export { categoryService, CategoryService } from './category/service.js';
 export { tagService, TagService } from './tag/service.js';
 export { pluginService, PluginService } from './plugin/service.js';
 export { themeService, ThemeService } from './theme/service.js';
+export { resolveExtensionDirectory } from './extensions/project-directories.js';
 export { buildService, BuildService } from './build/service.js';
 export { deploymentService, DeploymentService } from './deployment/service.js';

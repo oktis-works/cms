@@ -1,9 +1,0 @@
----
-import DashboardLayout from '../../layouts/DashboardLayout.astro';
-import { OperationsManager } from '../../components/apps/settings/ResourceHubs';
-const { t } = Astro.locals;
----
-<DashboardLayout title={t('operations.title')}>
-  <div class="settings-page"><div class="page-header"><h2>{t('operations.title')}</h2><p>{t('operations.description')}</p></div><OperationsManager client:load /></div>
-</DashboardLayout>
-<style>.settings-page .page-header { margin-bottom: 1rem; }</style>

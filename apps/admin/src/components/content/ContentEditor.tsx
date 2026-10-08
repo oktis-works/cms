@@ -3,9 +3,8 @@
 import { For, Show, createSignal, onMount } from 'solid-js';
 import { expandCloneFields } from '../../lib/validation';
 import { sanitizeHtml } from '../../lib/sanitize';
-import { apiClient, type ThemeInfo, type ContentType, type FieldTypeInfo, type FieldCategoryInfo } from '../../lib/api';
+import { apiClient, type ThemeInfo, type ContentType } from '../../lib/api';
 import { FieldRenderer } from './FieldRenderer';
-import { FieldTypePicker } from './FieldTypePicker';
 import type { ResolvedFieldDefinition } from './types';
 import { useTranslation } from '../../i18n';
 
@@ -28,8 +27,6 @@ interface Props {
 export function ContentEditor(props: Props) {
   const { t } = useTranslation();
   const [types, setTypes] = createSignal<ContentType[]>([]);
-  const [fieldTypes, setFieldTypes] = createSignal<FieldTypeInfo[]>([]);
-  const [categories, setCategories] = createSignal<FieldCategoryInfo[]>([]);
   const [groups, setGroups] = createSignal<ResolvedFieldDefinition[]>([]);
   const [themes, setThemes] = createSignal<ThemeInfo[]>([]);
   const [data, setData] = createSignal<Record<string, unknown>>({});
@@ -79,15 +76,12 @@ export function ContentEditor(props: Props) {
   onMount(async () => {
     let typeList: ContentType[] = [];
     try {
-      const [typeCatalog, fieldTypeCatalog, themeList] = await Promise.all([
+      const [typeCatalog, themeList] = await Promise.all([
         apiClient.getContentTypes(),
-        apiClient.getFieldTypes(),
         apiClient.getThemes().catch(() => [] as ThemeInfo[]),
       ]);
       typeList = typeCatalog;
       setTypes(typeCatalog);
-      setFieldTypes(fieldTypeCatalog.types);
-      setCategories(fieldTypeCatalog.categories);
       setThemes(themeList);
     } catch (err) {
       setErrors([err instanceof Error ? err.message : String(err)]);
@@ -240,14 +234,10 @@ export function ContentEditor(props: Props) {
             </Show>
           </section>
 
-          <Show when={groups().length > 0 || fieldTypes().length > 0}>
+          <Show when={groups().length > 0}>
             <section class="card custom-fields">
               <h3>{t('content.editor.customFields')}</h3>
               <For each={groups()}>{(field) => <FieldRenderer field={field} values={data()} onChange={(name, value) => setData({ ...data(), [name]: value })} />}</For>
-              <details>
-                <summary>{t('content.editor.inspectTypes')}</summary>
-                <FieldTypePicker categories={categories()} types={fieldTypes()} value="" onChange={() => undefined} />
-              </details>
             </section>
           </Show>
         </main>
