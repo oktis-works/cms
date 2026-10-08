@@ -310,15 +310,34 @@ const settingsChildren = [
 </script>
 
 <style>
+  /* The whole page must never scroll: only the sidebar and the main content do.
+     The fixed AdminBar (46px) sits outside the flow, so we lock the document to
+     the viewport and let .layout fill exactly the remaining height below it.
+     This removes the extra ~46px that used to make body scroll and leave a blank
+     strip under the footer. Scoped to DashboardLayout so the login page (BaseLayout)
+     keeps its normal scrolling behavior. */
+  :global(html), :global(body) {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+    /* Padding (not margin) reserves the fixed AdminBar height so it never
+       collapses/propagates to the root and pushes the footer off-screen. */
+    padding-top: 46px;
+    box-sizing: border-box;
+  }
+
   /* Layout with admin bar offset */
   .layout {
     display: flex;
     flex-direction: column;
     width: 100%;
     height: calc(100vh - 46px);
-    min-height: calc(100vh - 46px);
-    margin-top: 46px; /* admin bar fixed */
+    min-height: 0;
+    margin: 0; /* offset handled by body padding-top (no margin collapse) */
     box-sizing: border-box;
+    overflow: hidden;
   }
 
   .dashboard-body {
