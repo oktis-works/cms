@@ -1,5 +1,11 @@
 # @oktis-works/cms
 
+## 0.4.22
+
+### Patch Changes
+
+- Updated the Bun workspace lockfile so frozen installs work in the npm publishing workflow.
+
 ## 0.4.21
 
 ### Minor Changes
