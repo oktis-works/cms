@@ -111,6 +111,11 @@ okcms redeploy --dry-run        # só mostra o plano
 > atualizar apenas pacotes. Sem `--target`, um script reutiliza o target salvo
 > (blue/green num projeto que nunca fez deploy) em vez de perguntar.
 
+Na atualização completa, responder `y` instala os pacotes, faz o build da nova
+versão, aplica as migrations pendentes no host e depois executa o deploy do
+target escolhido. Responder `n` sai antes de alterar pacotes, migrations,
+Docker ou PM2.
+
 **Banco de dados**
 
 | Comando | Opções | O que faz |

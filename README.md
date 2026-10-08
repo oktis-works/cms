@@ -111,6 +111,11 @@ okcms redeploy --dry-run        # only shows the plan
 > updates. Without `--target`, a script reuses the target saved in `.deploy/state.json`
 > (blue/green on a project that never deployed) instead of prompting.
 
+For a full update, answering `y` runs the package installation, builds the new
+version, applies pending database migrations on the host, and then deploys the
+selected target. Answering `n` exits before packages, migrations, Docker, or
+PM2 are changed.
+
 **Database**
 
 | Command | Options | What it does |
