@@ -6,16 +6,17 @@ name: Publish to npm
 #     Organization/user: oktis-works | Repository: cms | Workflow filename: publish.yml
 #     e permitir EXPLICITAMENTE a ação "npm publish"
 #     (configs criadas após 03/09/2026 vêm só com "npm stage publish").
-# A tag da release (vX.Y.Z) é validada contra o sistema de versionamento
-# (grupo "fixed" do changesets, versão raiz, CMS_VERSION) por
-# scripts/prepare-publish.mjs.
+# Disparado pelo CI via repository_dispatch ao passar em tag vX.Y.Z.
 
 on:
-  release:
-    types: [published]
-  push:
-    tags: ['v*']
+  repository_dispatch:
+    types: [publish-release]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag da release (ex: v0.6.1)'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -30,8 +31,8 @@ jobs:
     name: Publish workspaces (OIDC)
     runs-on: ubuntu-latest
     env:
-      # Tag do release (vazia em workflow_dispatch; tag vX.Y.Z em release/push de tag)
-      RELEASE_TAG: ${{ github.event.release.tag_name || (github.event_name == 'push' && github.ref_name) || '' }}
+      # Tag vem do repository_dispatch (CI) ou workflow_dispatch (manual)
+      RELEASE_TAG: ${{ github.event.client_payload.tag || github.event.inputs.tag || '' }}
     steps:
       - uses: actions/checkout@v4
 

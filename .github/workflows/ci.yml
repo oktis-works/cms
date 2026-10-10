@@ -3,11 +3,12 @@ name: CI/CD Pipeline
 on:
   push:
     branches: [main, develop]
+    tags: ['v*']
   pull_request:
     branches: [main, develop]
 
 permissions:
-  contents: read
+  contents: write  # needed for repository-dispatch trigger
 
 jobs:
   # ============================================================
@@ -86,7 +87,7 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     needs: [typecheck, lint, security]
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/tags/v')
     steps:
       - uses: actions/checkout@v4
 
@@ -95,6 +96,20 @@ jobs:
       - name: Build all packages
         run: bun run build
 
-  # Deploy/Docker saem de cena até existir infraestrutura real de deploy
-  # (a imagem Docker continua disponível via apps/api/Dockerfile para quem
-  # quiser construir localmente; ver histórico para os jobs removidos).
+  # ============================================================
+  # Step 6: Trigger Publish on tag push success
+  # ============================================================
+  trigger-publish:
+    name: Trigger Publish
+    runs-on: ubuntu-latest
+    needs: [test, typecheck, lint, security, build]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - name: Trigger publish workflow
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          event-type: publish-release
+          client-payload: '{"tag": "${{ github.ref_name }}", "sha": "${{ github.sha }}"}'
