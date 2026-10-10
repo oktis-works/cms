@@ -1,5 +1,4 @@
-import { splitProps } from 'solid-js';
-import { FbIcon } from '../field-builder/primitives/FbIcon';
+import type { JSX } from 'solid-js';
 
 export interface PageHeaderProps {
   /** Eyebrow text (small uppercase label above title) */
