@@ -110,29 +110,32 @@ const csConfigPath = join(ROOT, '.changeset', 'config.json');
 if (existsSync(csConfigPath)) {
   const csConfig = readJson(csConfigPath);
   fixedNames = Array.isArray(csConfig.fixed) ? csConfig.fixed.flat() : [];
-  const missing = fixedNames.filter((n) => !byName.has(n) || byName.get(n).private);
-  if (missing.length) {
-    errors.push(`changesets "fixed" cita pacotes inexistentes ou privados: ${missing.join(', ')}`);
+  // Se fixed estiver vazio, pula validação de lockstep
+  if (fixedNames.length > 0) {
+    const missing = fixedNames.filter((n) => !byName.has(n) || byName.get(n).private);
+    if (missing.length) {
+      errors.push(`changesets "fixed" cita pacotes inexistentes ou privados: ${missing.join(', ')}`);
+    }
+    const versions = new Map();
+    for (const name of fixedNames) {
+      const w = byName.get(name);
+      if (w && !w.private) versions.set(name, w.version);
+    }
+    const distinct = [...new Set(versions.values())];
+    if (distinct.length > 1) {
+      errors.push(
+        `grupo "fixed" do changesets desalinhado (deve ser lockstep): ` +
+          [...versions].map(([n, v]) => `${n}@${v}`).join(', '),
+      );
+    }
+    if (distinct.length === 1) fixedVersion = distinct[0];
   }
-  const versions = new Map();
-  for (const name of fixedNames) {
-    const w = byName.get(name);
-    if (w && !w.private) versions.set(name, w.version);
-  }
-  const distinct = [...new Set(versions.values())];
-  if (distinct.length > 1) {
-    errors.push(
-      `grupo "fixed" do changesets desalinhado (deve ser lockstep): ` +
-        [...versions].map(([n, v]) => `${n}@${v}`).join(', '),
-    );
-  }
-  if (distinct.length === 1) fixedVersion = distinct[0];
 } else {
   warnings.push('.changeset/config.json não encontrado — validação do grupo "fixed" pulada');
 }
 
 // ---------------------------------------------------------------------------
-// 3. raiz === versão do grupo fixed
+// 3. raiz === versão do grupo fixed (só se fixed não vazio)
 // ---------------------------------------------------------------------------
 if (fixedVersion && rootPkg.version !== fixedVersion) {
   errors.push(

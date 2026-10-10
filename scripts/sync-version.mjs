@@ -96,19 +96,20 @@ if (existsSync(csConfigPath)) {
 }
 
 // ---------------------------------------------------------------------------
-// 1. fixed group === raiz
+// 1. fixed group === raiz (só valida se houver pacotes no fixed)
 // ---------------------------------------------------------------------------
-for (const n of fixedNames) {
-  if (errors.some((e) => e.includes(n))) continue;
-  const w = byName.get(n);
-  if (w.json.version !== version) {
-    if (write) {
-      w.json.version = version;
-      writes.push({ path: w.jsonPath, label: n, detail: `${w.json.version} → ${version}` });
-      // reflete no objeto para validação em tempo real
-      w.json.version = version;
-    } else {
-      errors.push(`${n}: ${w.json.version} (esperado ${version})`);
+if (fixedNames.length > 0) {
+  for (const n of fixedNames) {
+    if (errors.some((e) => e.includes(n))) continue;
+    const w = byName.get(n);
+    if (w.json.version !== version) {
+      if (write) {
+        w.json.version = version;
+        writes.push({ path: w.jsonPath, label: n, detail: `${w.json.version} → ${version}` });
+        w.json.version = version;
+      } else {
+        errors.push(`${n}: ${w.json.version} (esperado ${version})`);
+      }
     }
   }
 }
