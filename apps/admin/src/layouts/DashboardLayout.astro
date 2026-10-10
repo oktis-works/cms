@@ -650,6 +650,9 @@ const settingsChildren = [
   .footer-powered { font-size: 0.6875rem; color: var(--color-muted); }
 
   @media (max-width: 768px) {
+    /* Rodapé vira coluna (altura auto, ~2 linhas) — o modal precisa saber
+       disso: .modal-overlay usa --admin-footer-h para não ser cortado. */
+    :global(:root) { --admin-footer-h: 104px; }
     .admin-footer { flex-direction: column; height: auto; padding: 0.75rem 1rem; gap: 0.5rem; }
     .footer-content { flex-direction: column; gap: 0.5rem; }
     .footer-links { flex-wrap: wrap; justify-content: center; }

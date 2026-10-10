@@ -1,6 +1,12 @@
 /* OkCMS Admin - Global Styles (WordPress-inspired with custom palette) */
 
 :root {
+  /* === Chrome do dashboard ===
+     Alturas usadas pelo .modal-overlay para enquadrar o modal em
+     viewport − barra preta (AdminBar fixa) − rodapé, com folga. */
+  --admin-bar-h: 46px;
+  --admin-footer-h: 48px;
+
   /* === Paleta principal === */
   --color-primary: #D8B45E;        /* Dourado da logo - Ações principais, links, foco */
   --color-primary-hover: #B99542;  /* Dourado escuro - Hover/active */
@@ -311,13 +317,20 @@ select.input {
 /* === Modal styles === */
 .modal-overlay {
   position: fixed;
-  inset: 0;
+  /* Enquadrado no chrome do dashboard: viewport − AdminBar − rodapé.
+     O padding de 1rem é a folga extra em cima e embaixo; o overlay não
+     sobrepõe a barra preta nem o rodapé (ambos seguem interativos). */
+  top: var(--admin-bar-h, 46px);
+  bottom: var(--admin-footer-h, 48px);
+  left: 0;
+  right: 0;
   background: rgba(10, 10, 10, 0.6);
   backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  /* acima do rodapé (1000) e da sidebar (100); abaixo dos dropdowns da AdminBar (2100) */
+  z-index: 1500;
   padding: 1rem;
 }
 
@@ -328,7 +341,8 @@ select.input {
   padding: 1.5rem;
   max-width: 560px;
   width: 100%;
-  max-height: 90vh;
+  /* limitado ao overlay (já descontados header/rodapé/folga) — rola o conteúdo */
+  max-height: 100%;
   overflow-y: auto;
   box-shadow: var(--shadow-xl);
 }

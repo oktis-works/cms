@@ -1,5 +1,11 @@
 # @oktis-works/admin
 
+## 0.6.3
+
+### Patch Changes
+
+- Modal agora se enquadra na viewport menos a barra preta e o rodapé (com folga), em vez de ser cortado por eles; altura máxima ajustável via CSS vars (--admin-bar-h / --admin-footer-h)
+
 ## 0.6.2
 
 ### Patch Changes
