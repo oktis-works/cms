@@ -1,13 +1,17 @@
 ---
 import DashboardLayout from '../../../layouts/DashboardLayout.astro';
 import { FieldGroupEditor } from '../../../components/field-builder/FieldGroupEditor';
+import { PageHeader } from '../../../components/shared/PageHeader';
 
 const { t } = Astro.locals;
 const groupId = Astro.params.id ?? 'new';
+const isNew = groupId === 'new';
 ---
 
-<DashboardLayout title={t('settings.customFields.title')}>
-  <div class="settings-page">
-    <FieldGroupEditor groupId={groupId} client:load />
-  </div>
+<DashboardLayout title={isNew ? t('settings.customFields.groups.new') : t('settings.customFields.title')}>
+  <PageHeader
+    title={isNew ? t('settings.customFields.groups.new') : t('settings.customFields.title')}
+    description={isNew ? t('settings.customFields.groups.newHint') : t('settings.customFields.description')}
+  />
+  <FieldGroupEditor groupId={groupId} client:load />
 </DashboardLayout>

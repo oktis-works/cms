@@ -1,5 +1,6 @@
 ---
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { PageHeader } from '../../components/shared/PageHeader';
 
 // D1 — página de plugin renderizada declarativamente: o shell fornece o
 // contêiner isolado [data-plugin] e o runtime de componentes do plugin
@@ -9,14 +10,13 @@ const pluginSlug = String(slug ?? '').split('/')[0] ?? '';
 const pageTitle = String(slug ?? 'Plugin');
 ---
 
-<DashboardLayout title={pageTitle} description={`Página de extensão do plugin ${pluginSlug}`}>
+<DashboardLayout title={pageTitle}>
+  <PageHeader
+    title={pageTitle}
+    description={`Página de extensão do plugin ${pluginSlug}`}
+  />
   <div class="plugin-page" data-plugin={pluginSlug} data-plugin-page={slug}>
     <div class="card plugin-page__container">
-      <h2>{pageTitle}</h2>
-      <p class="muted">
-        Conteúdo renderizado pelo runtime de componentes do plugin — isolado via
-        <code>data-plugin="{pluginSlug}"</code>.
-      </p>
       <div class="plugin-page__mount" data-plugin-component={`page:${slug}`} data-plugin={pluginSlug}>
         <!-- Componente do plugin (declarativo, sem injeção de DOM direta — DECI-027) -->
       </div>
@@ -25,10 +25,6 @@ const pageTitle = String(slug ?? 'Plugin');
 </DashboardLayout>
 
 <style>
-  .plugin-page__container h2 {
-    margin-bottom: 0.5rem;
-  }
-
   .plugin-page__mount {
     margin-top: 1rem;
     min-height: 8rem;

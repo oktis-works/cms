@@ -1,24 +1,20 @@
 ---
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
 import { PostTypesManager } from '../../components/apps/settings/PostTypesManager';
+import { PageHeader } from '../../components/shared/PageHeader';
 
 const { t } = Astro.locals;
 ---
 
 <DashboardLayout title={t('settings.postTypes.title')}>
-  <div class="settings-page">
-    <div class="page-header">
-      <h2>{t('settings.postTypes.title')}</h2>
-      <p>{t('settings.postTypes.description')}</p>
-    </div>
-    <PostTypesManager client:load />
-  </div>
+  <PageHeader
+    title={t('settings.postTypes.title')}
+    description={t('settings.postTypes.description')}
+  />
+  <PostTypesManager client:load />
 </DashboardLayout>
 
 <style>
-  .settings-page .page-header {
-    margin-bottom: 1rem;
-  }
   .form-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

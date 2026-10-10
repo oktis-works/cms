@@ -1,10 +1,15 @@
 ---
 import DashboardLayout from '../layouts/DashboardLayout.astro';
 import { ThemeManager } from '../components/apps/themes/ThemeManager';
+import { PageHeader } from '../components/shared/PageHeader';
 
 const { t } = Astro.locals;
 ---
 
-<DashboardLayout title={t('themes.title')} description={t('themes.description')}>
+<DashboardLayout title={t('themes.title')}>
+  <PageHeader
+    title={t('themes.title')}
+    description={t('themes.description')}
+  />
   <ThemeManager client:load />
 </DashboardLayout>

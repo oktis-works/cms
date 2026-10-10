@@ -1,17 +1,16 @@
 ---
 import DashboardLayout from '../../../layouts/DashboardLayout.astro';
 import { ContentEditor } from '../../../components/content/ContentEditor';
+import { PageHeader } from '../../../components/shared/PageHeader';
 
 const { t } = Astro.locals;
 const contentType = Astro.params.type ?? 'post';
 ---
 
 <DashboardLayout title={t('content.editor.save')}>
-  <div class="editor-page">
-    <ContentEditor client:load initialType={contentType} />
-  </div>
+  <PageHeader
+    title={t('content.editor.save')}
+    eyebrow={contentType}
+  />
+  <ContentEditor client:load initialType={contentType} />
 </DashboardLayout>
-
-<style>
-  .editor-page { max-width: 1200px; }
-</style>

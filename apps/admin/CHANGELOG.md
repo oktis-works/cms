@@ -1,5 +1,18 @@
 # @oktis-works/admin
 
+## 0.6.0
+
+### Minor Changes
+
+- Unify admin page layouts to match /settings/custom-fields pattern
+  
+  ## Changes
+  - Created shared `PageHeader` component with consistent layout (eyebrow, title, description, actions, toolbar)
+  - Applied PageHeader to all settings pages, users, media, content, plugins, themes pages
+  - Removed white background bar between header and sidebar by making main-content transparent
+  - Moved content padding from .content-wrapper to .content for cleaner layout
+  - All pages now follow the same visual pattern as /settings/custom-fields
+
 ## 0.5.5
 
 ### Patch Changes

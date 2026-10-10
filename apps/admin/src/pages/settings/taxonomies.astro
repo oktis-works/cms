@@ -1,24 +1,20 @@
 ---
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
 import { TaxonomiesManager } from '../../components/apps/settings/TaxonomiesManager';
+import { PageHeader } from '../../components/shared/PageHeader';
 
 const { t } = Astro.locals;
 ---
 
 <DashboardLayout title={t('settings.taxonomies.title')}>
-  <div class="settings-page">
-    <div class="page-header">
-      <h2>{t('settings.taxonomies.title')}</h2>
-      <p>{t('settings.taxonomies.description')}</p>
-    </div>
-    <TaxonomiesManager client:load />
-  </div>
+  <PageHeader
+    title={t('settings.taxonomies.title')}
+    description={t('settings.taxonomies.description')}
+  />
+  <TaxonomiesManager client:load />
 </DashboardLayout>
 
 <style>
-  .settings-page .page-header {
-    margin-bottom: 1rem;
-  }
   .form-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

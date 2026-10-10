@@ -1,9 +1,13 @@
 ---
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
 import { WebhooksManager } from '../../components/apps/settings/WebhooksManager';
+import { PageHeader } from '../../components/shared/PageHeader';
 const { t } = Astro.locals;
 ---
 <DashboardLayout title={t('webhooks.title')}>
-  <div class="settings-page"><div class="page-header"><h2>{t('webhooks.title')}</h2><p>{t('webhooks.description')}</p></div><WebhooksManager client:load /></div>
+  <PageHeader
+    title={t('webhooks.title')}
+    description={t('webhooks.description')}
+  />
+  <WebhooksManager client:load />
 </DashboardLayout>
-<style>.settings-page .page-header { margin-bottom: 1rem; }</style>

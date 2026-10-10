@@ -1,22 +1,15 @@
 ---
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
 import { UsersManager } from '../../components/apps/users/UsersManager';
+import { PageHeader } from '../../components/shared/PageHeader';
 
 const { t } = Astro.locals;
 ---
 
 <DashboardLayout title={t('users.title')}>
-  <div class="users-page">
-    <div class="page-header">
-      <h2>{t('users.title')}</h2>
-      <p>{t('users.description')}</p>
-    </div>
-    <UsersManager client:load />
-  </div>
+  <PageHeader
+    title={t('users.title')}
+    description={t('users.description')}
+  />
+  <UsersManager client:load />
 </DashboardLayout>
-
-<style>
-  .users-page .page-header {
-    margin-bottom: 1rem;
-  }
-</style>

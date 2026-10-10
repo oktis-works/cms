@@ -1,22 +1,15 @@
 ---
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
 import { UserCreateForm } from '../../components/apps/users/UserCreateForm';
+import { PageHeader } from '../../components/shared/PageHeader';
 
 const { t } = Astro.locals;
 ---
 
 <DashboardLayout title={t('users.new')}>
-  <div class="users-page">
-    <div class="page-header">
-      <h2>{t('users.new')}</h2>
-      <p>{t('users.description')}</p>
-    </div>
-    <UserCreateForm client:load />
-  </div>
+  <PageHeader
+    title={t('users.new')}
+    description={t('users.description')}
+  />
+  <UserCreateForm client:load />
 </DashboardLayout>
-
-<style>
-  .users-page .page-header {
-    margin-bottom: 1rem;
-  }
-</style>

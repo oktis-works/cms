@@ -1,6 +1,7 @@
 ---
 import DashboardLayout from '../../../layouts/DashboardLayout.astro';
 import { TaxonomyTermsManager } from '../../../components/content/TaxonomyTermsManager';
+import { PageHeader } from '../../../components/shared/PageHeader';
 
 const { t } = Astro.locals;
 const contentType = Astro.params.type ?? '';
@@ -8,16 +9,11 @@ const taxonomySlug = Astro.url.searchParams.get('taxonomy') ?? '';
 ---
 
 <DashboardLayout title={t('content.taxonomy.title')}>
-  <div class="taxonomy-page">
-    <div class="page-header">
-      <a href={`/content/${encodeURIComponent(contentType)}`} class="back-link">{t('content.taxonomy.back')}</a>
-      <h2>{t('content.taxonomy.title')}</h2>
-      <p>{taxonomySlug || t('content.taxonomy.choose')}</p>
-    </div>
-    <TaxonomyTermsManager client:load taxonomySlug={taxonomySlug} contentType={contentType} />
-  </div>
+  <PageHeader
+    title={t('content.taxonomy.title')}
+    description={taxonomySlug || t('content.taxonomy.choose')}
+    eyebrow={contentType}
+    actions={<a class="fb-back-link" href={`/content/${encodeURIComponent(contentType)}`}>{t('content.taxonomy.back')}</a>}
+  />
+  <TaxonomyTermsManager client:load taxonomySlug={taxonomySlug} contentType={contentType} />
 </DashboardLayout>
-
-<style>
-  .taxonomy-page { max-width: 960px; }
-</style>

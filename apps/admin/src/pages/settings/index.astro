@@ -1,37 +1,49 @@
 ---
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { PageHeader } from '../../components/shared/PageHeader';
 
 const { t } = Astro.locals;
 ---
 
 <DashboardLayout title={t('settings.general.title')}>
-  <div class="settings-page">
-    <div class="page-header">
-      <h2>{t('settings.general.title')}</h2>
-      <p>{t('settings.general.description')}</p>
-    </div>
+  <PageHeader
+    title={t('settings.general.title')}
+    description={t('settings.general.description')}
+  />
 
-    <div class="settings-cards">
-      <a class="card settings-card" href="/settings/general">
-        <h3>{t('settings.general.title')}</h3>
-        <p class="muted">{t('settings.general.fields.siteTitle')}, {t('settings.general.fields.siteDescription')}, {t('settings.general.fields.language')} e {t('settings.general.fields.timezone')} do site.</p>
-      </a>
-      <a class="card settings-card" href="/settings/post-types">
-        <h3>{t('settings.postTypes.title')}</h3>
-        <p class="muted">{t('settings.postTypes.description')}</p>
-      </a>
-      <a class="card settings-card" href="/settings/taxonomies">
-        <h3>{t('settings.taxonomies.title')}</h3>
-        <p class="muted">{t('settings.taxonomies.description')}</p>
-      </a>
-    </div>
+  <div class="settings-cards">
+    <a class="card settings-card" href="/settings/general">
+      <h3>{t('settings.general.title')}</h3>
+      <p class="muted">{t('settings.general.fields.siteTitle')}, {t('settings.general.fields.siteDescription')}, {t('settings.general.fields.language')} e {t('settings.general.fields.timezone')} do site.</p>
+    </a>
+    <a class="card settings-card" href="/settings/post-types">
+      <h3>{t('settings.postTypes.title')}</h3>
+      <p class="muted">{t('settings.postTypes.description')}</p>
+    </a>
+    <a class="card settings-card" href="/settings/taxonomies">
+      <h3>{t('settings.taxonomies.title')}</h3>
+      <p class="muted">{t('settings.taxonomies.description')}</p>
+    </a>
+    <a class="card settings-card" href="/settings/custom-fields">
+      <h3>{t('settings.customFields.title')}</h3>
+      <p class="muted">{t('settings.customFields.description')}</p>
+    </a>
+    <a class="card settings-card" href="/settings/access">
+      <h3>{t('access.title')}</h3>
+      <p class="muted">{t('access.description')}</p>
+    </a>
+    <a class="card settings-card" href="/settings/logs">
+      <h3>{t('logs.title')}</h3>
+      <p class="muted">{t('logs.description')}</p>
+    </a>
+    <a class="card settings-card" href="/settings/webhooks">
+      <h3>{t('webhooks.title')}</h3>
+      <p class="muted">{t('webhooks.description')}</p>
+    </a>
   </div>
 </DashboardLayout>
 
 <style>
-  .settings-page .page-header {
-    margin-bottom: 1rem;
-  }
   .settings-cards {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -42,8 +54,15 @@ const { t } = Astro.locals;
     text-decoration: none;
     color: inherit;
     transition: border-color 0.15s ease;
+    padding: 1.5rem;
   }
   .settings-card:hover {
     border-color: var(--color-primary);
   }
+  .settings-card h3 {
+    margin: 0 0 0.5rem;
+    color: var(--color-ink);
+    font-size: 1.1rem;
+  }
+  .settings-card p { margin: 0; font-size: 0.875rem; }
 </style>

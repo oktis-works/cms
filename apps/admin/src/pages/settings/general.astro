@@ -1,23 +1,15 @@
 ---
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
 import { GeneralSettings } from '../../components/apps/settings/GeneralSettings';
+import { PageHeader } from '../../components/shared/PageHeader';
 
 const { t } = Astro.locals;
 ---
 
 <DashboardLayout title={t('settings.general.title')}>
-  <div class="settings-page">
-    <div class="page-header">
-      <h2>{t('settings.general.title')}</h2>
-      <p>{t('settings.general.description')}</p>
-      <p><a href="/settings">{t('settings.general.back')}</a></p>
-    </div>
-    <GeneralSettings client:load />
-  </div>
+  <PageHeader
+    title={t('settings.general.title')}
+    description={t('settings.general.description')}
+  />
+  <GeneralSettings client:load />
 </DashboardLayout>
-
-<style>
-  .settings-page .page-header {
-    margin-bottom: 1rem;
-  }
-</style>
