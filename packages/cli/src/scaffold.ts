@@ -153,16 +153,47 @@ ADMIN_PORT=${config.ports.admin}
 WEB_PORT=${config.ports.web}
 
 # Admin ↔ API communication (required for browser fetch)
-PUBLIC_API_URL=http://localhost:${config.ports.api}
+# DEV: use lvh.me (resolves to 127.0.0.1) for cross-port cookie sharing.
+# Add to /etc/hosts: 127.0.0.1 api.lvh.me admin.lvh.me web.lvh.me
+# Then use: PUBLIC_API_URL=http://api.lvh.me:${config.ports.api}
+#          CORS_ORIGINS=http://admin.lvh.me:${config.ports.admin},http://web.lvh.me:${config.ports.web}
+# PROD: use your real domain
+#
+# DEV with Vite proxy (simpler, no /etc/hosts needed):
+#   Uncomment the two lines below and comment out the three lines above.
+#   The admin will proxy /api requests to the API, making cookies work cross-port.
+PUBLIC_API_URL=/api
 CORS_ORIGINS=http://localhost:${config.ports.admin},http://127.0.0.1:${config.ports.admin}
 TRUSTED_ORIGINS=http://localhost:${config.ports.admin},http://127.0.0.1:${config.ports.admin}
+# PUBLIC_API_URL=http://localhost:${config.ports.api}
+# CORS_ORIGINS=http://localhost:${config.ports.admin},http://127.0.0.1:${config.ports.admin}
+# TRUSTED_ORIGINS=http://localhost:${config.ports.admin},http://127.0.0.1:${config.ports.admin}
 
-# Auth cookies (development over HTTP)
+# Admin API proxy (DEV only) — forwards /api requests from admin (port ${config.ports.admin}) to API (port ${config.ports.api})
+# This avoids cross-port cookie issues with SameSite=lax on fetch requests.
+ADMIN_API_PROXY_TARGET=http://localhost:${config.ports.api}
+
+# Auth cookies
+# DEV with lvh.me: AUTH_COOKIE_DOMAIN=.lvh.me  AUTH_COOKIE_SAMESITE=lax  AUTH_COOKIE_SECURE=false
+# DEV without lvh.me (cross-port): cookies blocked by SameSite=lax on fetch — use a proxy or lvh.me
+# PROD: AUTH_COOKIE_DOMAIN=.yourdomain.com  AUTH_COOKIE_SAMESITE=none  AUTH_COOKIE_SECURE=true
+AUTH_COOKIE_DOMAIN=
 AUTH_COOKIE_SAMESITE=lax
 AUTH_COOKIE_SECURE=false
+AUTH_COOKIE_ACCESS_MAXAGE=900
+AUTH_COOKIE_REFRESH_MAXAGE=2592000
 
-# JWT
-JWT_SECRET=change-me
+# JWT (access token) — short lived (15m default)
+JWT_EXPIRES_IN=15m
+# Refresh token — long lived (7d default)
+REFRESH_TOKEN_EXPIRES_IN=7d
+JWT_SECRET=change-me-in-production
+BCRYPT_ROUNDS=12
+
+# CSRF (double-submit cookie)
+AUTH_CSRF_ENABLED=true
+AUTH_CSRF_HEADER=x-csrf-token
+AUTH_CSRF_COOKIE=csrf_token
 
 # Active theme
 ACTIVE_THEME=default

@@ -8,14 +8,24 @@
  * receber o valor definido pelo `okcms start` depois que o processo inicia.
  * O BaseLayout injeta esse valor em um meta tag no SSR; o fallback relativo
  * mantém deployments atrás de proxy na mesma origem funcionando.
+ *
+ * Se PUBLIC_API_URL começar com '/', é tratado como path relativo (proxy local).
+ * Ex.: '/api' → fetch('/api/v1/auth/login') via Vite proxy em dev.
  */
 function resolveApiBase(): string {
   const buildTimeUrl = import.meta.env.PUBLIC_API_URL?.trim();
-  if (buildTimeUrl) return buildTimeUrl.replace(/\/$/, '');
+  if (buildTimeUrl) {
+    // Path relativo (ex.: '/api') → usa path relativo para proxy local
+    if (buildTimeUrl.startsWith('/')) return buildTimeUrl.replace(/\/$/, '');
+    return buildTimeUrl.replace(/\/$/, '');
+  }
 
   if (typeof document !== 'undefined') {
     const runtimeUrl = document.querySelector('meta[name="okcms-api-url"]')?.getAttribute('content')?.trim();
-    if (runtimeUrl) return runtimeUrl.replace(/\/$/, '');
+    if (runtimeUrl) {
+      if (runtimeUrl.startsWith('/')) return runtimeUrl.replace(/\/$/, '');
+      return runtimeUrl.replace(/\/$/, '');
+    }
   }
 
   // Desenvolvimento local sem PUBLIC_API_URL: API padrão do CLI.

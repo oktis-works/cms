@@ -1,5 +1,17 @@
 # @oktis-works/api
 
+## 0.5.5
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @oktis-works/config@0.5.5
+  - @oktis-works/core@0.5.5
+  - @oktis-works/auth@0.5.5
+  - @oktis-works/database@0.5.5
+  - @oktis-works/types@0.5.5
+  - @oktis-works/validation@0.5.5
+
 ## 0.3.3
 
 ### Patch Changes

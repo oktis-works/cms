@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/ui",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -19,7 +19,7 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo"
   },
   "dependencies": {
-    "@oktis-works/validation": "^0.4.0",
+    "@oktis-works/validation": "^0.5.5",
     "solid-js": "1.9.15"
   },
   "devDependencies": {
