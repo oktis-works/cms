@@ -56,7 +56,11 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # Testes/typecheck/lint/build rodam só no ci.yml (gate via repository_dispatch)
+      # dist/ é obrigatório no tarball (files: ["dist"]) — o CI gate não publica nada
+      - name: Build
+        run: bun run build
+
+      # Testes/typecheck/lint rodam só no ci.yml (gate via repository_dispatch)
       - name: Preparar manifests (workspace:* → versão concreta)
         run: node scripts/prepare-publish.mjs --tag "$RELEASE_TAG"
 
