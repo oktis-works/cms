@@ -164,20 +164,24 @@ bun scripts/sync-docs.ts
 
 ## Versioning and publishing
 
-The repository uses **Changesets** with a `fixed` group (lockstep): `core`,
-`api-client`, `auth`, `cms` (the CLI), `config`, `database`, `plugin-runtime`,
-`plugin-sdk`, `theme-runtime`, `theme-sdk` and `types` publish **on the same
-version**. `admin` and `web` are in `ignore` and are versioned by hand; `ui`,
-`validation`, `api` and `worker` are independent.
+Every package is **independent** (Changesets with no `fixed` group): each one
+gets its own bump — `bun run changeset` on each PR and
+`bun run version-packages` before tagging.
 
-Four anchors must line up — `scripts/prepare-publish.mjs` blocks the
-publish if they don't:
+Two anchors are blocking — `scripts/prepare-publish.mjs` fails if they don't
+line up:
 
 1. every publishable manifest version is semver `X.Y.Z`;
-2. all packages in the `fixed` group on the **same** version;
-3. the **root** version (`package.json`) === the `fixed` group version;
-4. `CMS_VERSION` (`packages/validation/src/compatibility.ts`) === root version
-   — that's the version the plugins/themes `compatibility.okcms` compares.
+2. `CMS_VERSION` (`packages/validation/src/compatibility.ts` plus the root
+   `CMS_VERSION` file) === the version of `@oktis-works/validation` — that's
+   the version plugins/themes `compatibility.okcms` compares against.
+   Sync with `bun run sync-version --write` (`bun run version-packages`
+   already does it).
+
+The **`vX.Y.Z` tag is only the release trigger**: it doesn't need to match
+any package version. CI runs on the tag and, if it passes, dispatches
+`publish.yml` (tests/typecheck/lint run once, in CI; publish only builds and
+publishes what's missing from the registry).
 
 ### Release flow
 
@@ -185,22 +189,16 @@ publish if they don't:
 # 1. record what changed (before the merge, in each PR)
 bun run changeset
 
-# 2. bump the group + CHANGELOG
+# 2. bump versions + CHANGELOG + sync CMS_VERSION
 bun run version-packages
 
-# 3. manual bump of what is outside changesets (admin, web, worker, api)
-#    — editing the "version" of each package.json
-
-# 4. full validation (never publish with a red gate)
+# 3. full validation (never publish with a red gate)
 bun run test:run && bun run typecheck && bun run lint && bun run build
-node scripts/prepare-publish.mjs --check --tag v0.2.0
+node scripts/prepare-publish.mjs --check
 
-# 5. commit + tag + release on GitHub
-git commit -am 'chore(release): v0.2.0'
-git tag v0.2.0 && git push --follow-tags
-gh release create v0.2.0 --title v0.2.0 --notes '…'
-
-# 6. publish: the publish.yml workflow fires on the release (OIDC, no token)
+# 4. commit + tag (any vX.Y.Z) + push — the tag triggers CI → publish
+git commit -am 'chore(release)'
+git tag vX.Y.Z && git push --follow-tags
 ```
 
 `prepare-publish.mjs` **rewrites** `workspace:*` → `^version` before

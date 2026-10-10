@@ -6,24 +6,22 @@
  * para `npm publish`.
  *
  * Sistema de versionamento deste repositório:
- *   1. Changesets (.changeset/):
- *      - grupo `fixed` (lockstep) — todos os pacotes do grupo na MESMA versão;
- *      - `ignore` (admin/web) — versionados manualmente;
- *      - independentes (ui, validation, api, worker) — bump próprio.
- *   2. CMS_VERSION em packages/validation/src/compatibility.ts — versão do
- *      produto usada na compatibilidade de plugins/temas (`compatibility.okcms`).
- *   3. Versão na raiz (package.json) — âncora da release.
- *   4. Tag `vX.Y.Z` do GitHub Release (evento `release`) ou push de tag.
+ *   1. Changesets (.changeset/): todos os pacotes são INDEPENDENTES — cada
+ *      um tem bump próprio (`bun run changeset` + `bun run version-packages`).
+ *   2. CMS_VERSION (packages/validation/src/compatibility.ts) === versão de
+ *      @oktis-works/validation — versão do produto usada na compatibilidade
+ *      de plugins/temas (`compatibility.okcms`). Sincronize com
+ *      `bun run sync-version --write`.
+ *   3. Tag `vX.Y.Z`: é só o GATILHO do release (CI → publish). Não precisa
+ *      bater com a versão de nenhum pacote.
  *
  * Regras BLOQUEANTES (exit 1):
  *   - toda versão de manifest publicável é semver `X.Y.Z`;
- *   - todos os pacotes do grupo `fixed` compartilham a MESMA versão;
- *   - versão da raiz === versão do grupo `fixed`;
- *   - CMS_VERSION === versão da raiz;
- *   - com `--tag`: a tag é `vX.Y.Z` e `X.Y.Z` === versão da raiz.
+ *   - todos os pacotes do grupo `fixed` (se houver) compartilham a MESMA versão;
+ *   - CMS_VERSION (const e arquivo) === versão de @oktis-works/validation;
+ *   - com `--tag`: a tag é `vX.Y.Z` (formato apenas — é um gatilho).
  *
  * AVISOS (não bloqueiam):
- *   - pacotes fora do grupo `fixed` com versão diferente da raiz;
  *   - changesets pendentes em .changeset/*.md (valem para a PRÓXIMA release).
  *
  * REESCRIA (a menos que `--check`):
@@ -135,69 +133,52 @@ if (existsSync(csConfigPath)) {
 }
 
 // ---------------------------------------------------------------------------
-// 3. raiz === versão do grupo fixed (só se fixed não vazio)
+// 3. CMS_VERSION (const e arquivo) === versão de @oktis-works/validation
 // ---------------------------------------------------------------------------
-if (fixedVersion && rootPkg.version !== fixedVersion) {
-  errors.push(
-    `raiz (${rootPkg.version}) desalinhada com o grupo "fixed" (${fixedVersion}) — ` +
-      `atualize a versão na raiz junto do "bun run version-packages"`,
-  );
-}
-
-// ---------------------------------------------------------------------------
-// 4. CMS_VERSION em compatibility.ts === versão da raiz
-// ---------------------------------------------------------------------------
-const compatPath = join(ROOT, 'packages', 'validation', 'src', 'compatibility.ts');
-if (existsSync(compatPath)) {
-  const match = readFileSync(compatPath, 'utf8').match(/CMS_VERSION\s*=\s*'([^']+)'/);
-  if (!match) {
-    errors.push('CMS_VERSION não encontrado em packages/validation/src/compatibility.ts');
-  } else if (match[1] !== rootPkg.version) {
-    errors.push(
-      `CMS_VERSION (${match[1]}) diverge da raiz (${rootPkg.version}) — ` +
-        `rode \`bun run sync-version --write\` para propagar`,
-    );
-  }
+const validationVersion = byName.get('@oktis-works/validation')?.version ?? null;
+if (!validationVersion) {
+  errors.push('@oktis-works/validation não encontrado nos workspaces');
 } else {
-  errors.push('packages/validation/src/compatibility.ts não encontrado');
-}
-
-// 4b. arquivo CMS_VERSION na raiz === versão da raiz
-const cmsVersionPath = join(ROOT, 'CMS_VERSION');
-if (existsSync(cmsVersionPath)) {
-  const current = readFileSync(cmsVersionPath, 'utf8').trim();
-  if (current !== String(rootPkg.version)) {
-    errors.push(
-      `arquivo CMS_VERSION (${current}) diverge da raiz (${rootPkg.version}) — ` +
-        `rode \`bun run sync-version --write\` para propagar`,
-    );
+  const compatPath = join(ROOT, 'packages', 'validation', 'src', 'compatibility.ts');
+  if (existsSync(compatPath)) {
+    const match = readFileSync(compatPath, 'utf8').match(/CMS_VERSION\s*=\s*'([^']+)'/);
+    if (!match) {
+      errors.push('CMS_VERSION não encontrado em packages/validation/src/compatibility.ts');
+    } else if (match[1] !== validationVersion) {
+      errors.push(
+        `CMS_VERSION (${match[1]}) diverge de @oktis-works/validation (${validationVersion}) — ` +
+          `rode \`bun run sync-version --write\` para propagar`,
+      );
+    }
+  } else {
+    errors.push('packages/validation/src/compatibility.ts não encontrado');
   }
-} else {
-  warnings.push('arquivo CMS_VERSION não encontrado na raiz — pulando validação 4b');
-}
 
-// ---------------------------------------------------------------------------
-// 5. tag da release === versão da raiz
-// ---------------------------------------------------------------------------
-if (tag) {
-  const match = /^v?(\d+\.\d+\.\d+)$/.exec(tag);
-  if (!match) {
-    errors.push(`tag "${tag}" fora do padrão vX.Y.Z — a release precisa ser tagada como vX.Y.Z`);
-  } else if (match[1] !== rootPkg.version) {
-    errors.push(`tag ${tag} não bate com a versão da raiz (${rootPkg.version}) — release errada?`);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// 6. avisos (não bloqueiam)
-// ---------------------------------------------------------------------------
-for (const w of published) {
-  if (!fixedNames.includes(w.name) && w.version !== rootPkg.version) {
-    warnings.push(
-      `${w.name} (${w.version}) difere da raiz (${rootPkg.version}) — pacote independente; publicará ${w.version}`,
-    );
+  // 3b. arquivo CMS_VERSION na raiz === versão do validation
+  const cmsVersionPath = join(ROOT, 'CMS_VERSION');
+  if (existsSync(cmsVersionPath)) {
+    const current = readFileSync(cmsVersionPath, 'utf8').trim();
+    if (current !== validationVersion) {
+      errors.push(
+        `arquivo CMS_VERSION (${current}) diverge de @oktis-works/validation (${validationVersion}) — ` +
+          `rode \`bun run sync-version --write\` para propagar`,
+      );
+    }
+  } else {
+    warnings.push('arquivo CMS_VERSION não encontrado na raiz — pulando validação 3b');
   }
 }
+
+// ---------------------------------------------------------------------------
+// 4. tag da release — só o formato vX.Y.Z (a tag é o gatilho do CI)
+// ---------------------------------------------------------------------------
+if (tag && !/^v\d+\.\d+\.\d+$/.test(tag)) {
+  errors.push(`tag "${tag}" fora do padrão vX.Y.Z — a release precisa ser tagada como vX.Y.Z`);
+}
+
+// ---------------------------------------------------------------------------
+// 5. avisos (não bloqueiam)
+// ---------------------------------------------------------------------------
 const csDir = join(ROOT, '.changeset');
 if (existsSync(csDir)) {
   const pending = readdirSync(csDir).filter((f) => f.endsWith('.md') && f !== 'README.md');
@@ -219,9 +200,10 @@ if (errors.length) {
 }
 for (const w of warnings) console.log(`⚠️  ${w}`);
 console.log(
-  `✓ versionamento válido — raiz ${rootPkg.version}` +
+  `✓ versionamento válido` +
     (fixedVersion ? ` | grupo fixed ${fixedVersion}` : '') +
-    (tag ? ` | tag ${tag}` : '') +
+    (validationVersion ? ` | CMS_VERSION ${validationVersion}` : '') +
+    (tag ? ` | tag ${tag} (gatilho)` : '') +
     ` | ${published.length} pacotes publicáveis`,
 );
 
