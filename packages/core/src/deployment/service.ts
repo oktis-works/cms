@@ -16,9 +16,9 @@ export class DeploymentService {
     let whereClause = 'WHERE 1=1';
     const params: string[] = [];
 
-    if (status) {
+    if (options.status) {
       whereClause += ` AND status = $${params.length + 1}`;
-      params.push(status);
+      params.push(options.status);
     }
 
     const dataResult = await sql.unsafe(

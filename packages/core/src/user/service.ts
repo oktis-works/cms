@@ -183,7 +183,8 @@ export class UserService {
   async getRoleById(roleId: string): Promise<{ id: string; name: string; slug: string } | null> {
     const sql = getConnection();
     const rows = await sql.unsafe('SELECT id, name, slug FROM roles WHERE id = $1', [roleId]);
-    return (rows[0] as { id: string; name: string; slug: string } | undefined) ?? null;
+    const row = rows[0] as unknown;
+    return (row as { id: string; name: string; slug: string } | undefined) ?? null;
   }
 
   /** Slugs dos papéis do usuário no tenant. */

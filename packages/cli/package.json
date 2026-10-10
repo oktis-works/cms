@@ -19,12 +19,12 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo"
   },
   "dependencies": {
-    "@oktis-works/auth": "^0.4.0",
-    "@oktis-works/config": "^0.4.0",
-    "@oktis-works/core": "^0.4.0",
-    "@oktis-works/database": "^0.4.0",
-    "@oktis-works/validation": "^0.4.0",
-    "@oktis-works/theme-runtime": "^0.4.0"
+    "@oktis-works/auth": "workspace:*",
+    "@oktis-works/config": "workspace:*",
+    "@oktis-works/core": "workspace:*",
+    "@oktis-works/database": "workspace:*",
+    "@oktis-works/validation": "workspace:*",
+    "@oktis-works/theme-runtime": "workspace:*"
   },
   "devDependencies": {
     "typescript": "5.7.3"
