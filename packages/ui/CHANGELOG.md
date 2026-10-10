@@ -1,5 +1,11 @@
 # @oktis-works/ui
 
+## 0.5.6
+
+### Patch Changes
+
+- Fix SSR crash "document is not defined" on Modal cleanup during server render
+
 ## 0.5.5
 
 ### Patch Changes

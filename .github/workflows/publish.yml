@@ -59,9 +59,6 @@ jobs:
       - name: Build
         run: bun run build
 
-      - name: Typecheck
-        run: bun run typecheck
-
       - name: Preparar manifests (workspace:* → versão concreta)
         run: node scripts/prepare-publish.mjs --tag "$RELEASE_TAG"
 

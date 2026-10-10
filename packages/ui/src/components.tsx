@@ -213,7 +213,9 @@ export function Modal(props: ModalProps & { children?: JSX.Element }): JSX.Eleme
     if (event.key === 'Escape') props.onClose();
   };
 
+  // SSR: document não existe no servidor — guarda ambos os acessos
   createEffect(() => {
+    if (typeof document === 'undefined') return;
     if (props.open) {
       document.addEventListener('keydown', handleKeyDown);
     } else {
@@ -221,7 +223,9 @@ export function Modal(props: ModalProps & { children?: JSX.Element }): JSX.Eleme
     }
   });
 
-  onCleanup(() => document.removeEventListener('keydown', handleKeyDown));
+  onCleanup(() => {
+    if (typeof document !== 'undefined') document.removeEventListener('keydown', handleKeyDown);
+  });
 
   return (
     <Show when={props.open}>

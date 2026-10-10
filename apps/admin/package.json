@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/admin",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "type": "module",
   "bin": {
     "okcms-admin": "./bin/admin.js"
@@ -23,7 +23,7 @@
     "@dnd-kit/solid": "0.5.0",
     "@oktis-works/plugin-sdk": "^0.5.5",
     "@oktis-works/types": "^0.5.5",
-    "@oktis-works/ui": "^0.5.5",
+    "@oktis-works/ui": "^0.5.6",
     "@oktis-works/validation": "^0.5.5",
     "astro": "7.3.5",
     "lucide": "^1.52.0",
