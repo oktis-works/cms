@@ -142,18 +142,18 @@ const settingsChildren = [
       <div class="content-wrapper">
         <div class="content">
           <slot />
-        </div>
 
-        <!-- Dashboard Widgets (only on dashboard page) -->
-        {pathname === '/' && (
-          <div class="dashboard-widgets-area">
-            <div class="dashboard-widgets-grid">
-              <AtGlanceWidget client:load />
-              <QuickDraftWidget client:load />
-              <ActivityWidget client:load />
+          <!-- Dashboard Widgets (only on dashboard page) -->
+          {pathname === '/' && (
+            <div class="dashboard-widgets-area">
+              <div class="dashboard-widgets-grid">
+                <AtGlanceWidget client:load />
+                <QuickDraftWidget client:load />
+                <ActivityWidget client:load />
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
       </div>
     </main>
@@ -520,8 +520,8 @@ const settingsChildren = [
   }
 
   .nav-item svg, .nav-item i { flex-shrink: 0; width: 20px; height: 20px; }
-  .nav-type-link { display: flex; align-items: center; gap: 0.5rem; }
-  .nav-type-icon { width: 16px; height: 16px; color: var(--color-primary); }
+  .nav-type-link { display: flex; align-items: center; }
+  .nav-type-icon { color: inherit; }
 
   .nav-item[href="/settings/general"] > svg:not(.settings-nav-icon) { display: none; }
 
@@ -575,12 +575,12 @@ const settingsChildren = [
 
   .dashboard-widgets-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 1.5rem;
   }
 
   @media (max-width: 1200px) {
-    .dashboard-widgets-grid { grid-template-columns: repeat(2, 1fr); }
+    .dashboard-widgets-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
 
   @media (max-width: 768px) {

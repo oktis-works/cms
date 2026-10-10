@@ -99,7 +99,7 @@ export function WebhooksManager() {
   return (
     <div class="resource-hub webhooks-manager">
       <Show when={error()}><div class="notice notice--error">{error()}</div></Show>
-      <div class="card-header-row"><div><h3>{t('webhooks.listTitle')}</h3><p>{t('webhooks.description')}</p></div><button class="btn btn-primary" type="button" onClick={() => edit()}>{t('webhooks.new')}</button></div>
+      <div class="card-header-row"><div><h3>{t('webhooks.listTitle')}</h3></div><button class="btn btn-primary" type="button" onClick={() => edit()}>{t('webhooks.new')}</button></div>
 
       <Show when={form()}>{(current) => <section class="card">
         <h3>{current().id ? t('webhooks.edit') : t('webhooks.create')}</h3>

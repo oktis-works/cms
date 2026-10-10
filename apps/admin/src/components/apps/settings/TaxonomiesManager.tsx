@@ -110,7 +110,7 @@ export function TaxonomiesManager() {
               onInput={(e) => setForm({ ...form(), slug: e.currentTarget.value })}
             />
           </label>
-          <label>
+          <label class="checkbox-label">
             <input
               type="checkbox"
               checked={form().hierarchical}
@@ -150,11 +150,12 @@ export function TaxonomiesManager() {
         </button>
       </form>
 
-      <table class="table">
-        <thead>
-          <tr>
-            <th>{t('settings.taxonomies.table.taxonomy')}</th>
-            <th>{t('settings.taxonomies.table.hierarchical')}</th>
+      <div class="card settings-table-card">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>{t('settings.taxonomies.table.taxonomy')}</th>
+              <th>{t('settings.taxonomies.table.hierarchical')}</th>
             <th>{t('settings.taxonomies.table.attachedTypes')}</th>
             <th />
           </tr>
@@ -191,7 +192,8 @@ export function TaxonomiesManager() {
             )}
           </For>
         </tbody>
-      </table>
+        </table>
+      </div>
     </div>
   );
 }

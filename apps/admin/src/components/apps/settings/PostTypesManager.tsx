@@ -191,11 +191,12 @@ export function PostTypesManager() {
         </Show>
       </form>
 
-      <table class="table">
-        <thead>
-          <tr>
-            <th>{t('settings.postTypes.table.slug')}</th>
-            <th>{t('settings.postTypes.table.singular')}</th>
+      <div class="card settings-table-card">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>{t('settings.postTypes.table.slug')}</th>
+              <th>{t('settings.postTypes.table.singular')}</th>
             <th>{t('settings.postTypes.table.plural')}</th>
             <th>{t('settings.postTypes.table.source')}</th>
             <th>{t('settings.postTypes.table.supports')}</th>
@@ -231,7 +232,8 @@ export function PostTypesManager() {
             )}
           </For>
         </tbody>
-      </table>
+        </table>
+      </div>
     </div>
   );
 }

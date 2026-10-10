@@ -80,7 +80,6 @@ export function GeneralSettings() {
       <Show when={loaded()} fallback={<p class="muted">{t('settings.general.loading')}</p>}>
         <Card>
           <form onSubmit={submit}>
-            <h3>{t('settings.general.title')}</h3>
             <div class="form-grid">
               {fields().map((field) =>
                 field.type === 'select' ? (

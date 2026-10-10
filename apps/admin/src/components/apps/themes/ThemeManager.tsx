@@ -60,11 +60,7 @@ export function ThemeManager() {
 
   return (
     <div class="theme-manager">
-      <div class="page-header">
-        <h2>{t('themes.title')}</h2>
-        <p class="page-description">{t('themes.description')}</p>
-        <p class="page-hint">{t('themes.directoryHint')}</p>
-      </div>
+      <p class="page-hint">{t('themes.directoryHint')}</p>
 
       {error() && <div class="alert alert-error">{error()}</div>}
 
@@ -111,23 +107,10 @@ export function ThemeManager() {
       )}
 
       <style>{`
-        .page-header {
-          margin-bottom: 1.5rem;
-        }
-        .page-header h2 {
-          margin: 0 0 0.5rem;
-          font-size: 1.5rem;
-          font-weight: 600;
-        }
-        .page-description {
-          margin: 0;
-          color: var(--color-muted);
-          font-size: 0.875rem;
-        }
         .page-hint {
-          margin: 0.35rem 0 0;
+          margin: 0 0 1.25rem;
           color: var(--color-muted);
-          font-size: 0.75rem;
+          font-size: 0.8125rem;
         }
         .themes-grid {
           display: grid;

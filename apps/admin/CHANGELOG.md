@@ -1,5 +1,11 @@
 # @oktis-works/admin
 
+## 0.6.4
+
+### Patch Changes
+
+- Fixes de layout/estilização: links de content-types na sidebar iguais aos demais; grid de formulários global (post-types, taxonomies e webhooks agora renderizam corretamente dentro das ilhas Solid); layout formulário-esquerda/tabela-direita em post-types e taxonomies com tabelas em card; checkbox de Active dos webhooks corrigido; seletor de tipo de campo (field-type-picker) estilizado; títulos duplicados removidos em /themes e /plugins; widgets do dashboard alinhados ao container dos cards; h3 duplicado removido em Settings → General.
+
 ## 0.6.3
 
 ### Patch Changes
