@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/api-client",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
