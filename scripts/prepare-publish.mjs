@@ -142,7 +142,7 @@ if (fixedVersion && rootPkg.version !== fixedVersion) {
 }
 
 // ---------------------------------------------------------------------------
-// 4. CMS_VERSION === versão da raiz
+// 4. CMS_VERSION em compatibility.ts === versão da raiz
 // ---------------------------------------------------------------------------
 const compatPath = join(ROOT, 'packages', 'validation', 'src', 'compatibility.ts');
 if (existsSync(compatPath)) {
@@ -152,11 +152,25 @@ if (existsSync(compatPath)) {
   } else if (match[1] !== rootPkg.version) {
     errors.push(
       `CMS_VERSION (${match[1]}) diverge da raiz (${rootPkg.version}) — ` +
-        `bump em packages/validation/src/compatibility.ts`,
+        `rode \`bun run sync-version --write\` para propagar`,
     );
   }
 } else {
   errors.push('packages/validation/src/compatibility.ts não encontrado');
+}
+
+// 4b. arquivo CMS_VERSION na raiz === versão da raiz
+const cmsVersionPath = join(ROOT, 'CMS_VERSION');
+if (existsSync(cmsVersionPath)) {
+  const current = readFileSync(cmsVersionPath, 'utf8').trim();
+  if (current !== String(rootPkg.version)) {
+    errors.push(
+      `arquivo CMS_VERSION (${current}) diverge da raiz (${rootPkg.version}) — ` +
+        `rode \`bun run sync-version --write\` para propagar`,
+    );
+  }
+} else {
+  warnings.push('arquivo CMS_VERSION não encontrado na raiz — pulando validação 4b');
 }
 
 // ---------------------------------------------------------------------------

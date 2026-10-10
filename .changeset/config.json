@@ -2,10 +2,27 @@
   "$schema": "https://unpkg.com/@changesets/config@3.0.0/schema.json",
   "changelog": ["@changesets/changelog-github", { "repo": "oktis-works/cms" }],
   "commit": false,
-  "fixed": [["@oktis-works/core", "@oktis-works/api-client", "@oktis-works/auth", "@oktis-works/cms", "@oktis-works/config", "@oktis-works/database", "@oktis-works/plugin-runtime", "@oktis-works/plugin-sdk", "@oktis-works/theme-runtime", "@oktis-works/theme-sdk", "@oktis-works/types"]],
+  "fixed": [[
+    "@oktis-works/core",
+    "@oktis-works/api-client",
+    "@oktis-works/auth",
+    "@oktis-works/cms",
+    "@oktis-works/config",
+    "@oktis-works/database",
+    "@oktis-works/plugin-runtime",
+    "@oktis-works/plugin-sdk",
+    "@oktis-works/theme-runtime",
+    "@oktis-works/theme-sdk",
+    "@oktis-works/types",
+    "@oktis-works/ui",
+    "@oktis-works/validation",
+    "@oktis-works/api",
+    "@oktis-works/worker",
+    "@oktis-works/admin",
+    "@oktis-works/web"
+  ]],
   "linked": [],
   "access": "public",
   "baseBranch": "main",
-  "updateInternalDependencies": "patch",
-  "ignore": ["@oktis-works/admin", "@oktis-works/web"]
+  "updateInternalDependencies": "patch"
 }
