@@ -322,10 +322,14 @@ const settingsChildren = [
     overflow: hidden;
     margin: 0;
     padding: 0;
-    /* Padding (not margin) reserves the fixed AdminBar height so it never
-       collapses/propagates to the root and pushes the footer off-screen. */
-    padding-top: 46px;
     box-sizing: border-box;
+  }
+  /* Padding-top SÓ no <html>: ele é propagado ao viewport e reserva a
+     AdminBar fixa (46px, border-box com a borda). Aplicar também no body
+     empilhava MAIS 46px de fundo branco logo abaixo da barra — era a
+     barra branca sob o header preto. */
+  :global(html) {
+    padding-top: 46px;
   }
 
   /* Layout with admin bar offset */

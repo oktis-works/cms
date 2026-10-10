@@ -1,5 +1,11 @@
 # @oktis-works/admin
 
+## 0.6.2
+
+### Patch Changes
+
+- Fix white bar below the black nav header: body padding-top was stacking on top of the viewport-propagated html padding (double 46px offset)
+
 ## 0.6.1
 
 ### Patch Changes
