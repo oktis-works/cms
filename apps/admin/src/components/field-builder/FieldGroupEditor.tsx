@@ -22,8 +22,6 @@ import {
   type FieldGroupDraft,
 } from './model';
 
-type TFn = (key: string) => string;
-
 interface FieldGroupEditorProps {
   groupId: string;
 }

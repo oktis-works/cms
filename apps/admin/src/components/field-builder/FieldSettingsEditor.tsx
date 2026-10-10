@@ -1,8 +1,7 @@
-import { For, Show, createMemo, createSignal, type JSX } from 'solid-js';
+import { Show, createMemo, createSignal, type JSX } from 'solid-js';
 import type { FieldCategoryInfo, FieldTypeInfo } from '../../lib/api';
 import {
   CHOICE_TYPES,
-  CONTAINER_TYPES,
   DATE_TYPES,
   MEDIA_TYPES,
   RELATION_TYPES,
@@ -15,7 +14,6 @@ import { Tabs } from './primitives/Tabs';
 import { ConditionalLogicEditor } from './ConditionalLogicEditor';
 import { FieldTypePicker } from '../content/FieldTypePicker';
 import { SearchableSelect } from './primitives/SearchableSelect';
-import { Tooltip, InfoTooltip } from './primitives/Tooltip';
 
 type TFn = (key: string) => string;
 
@@ -44,10 +42,6 @@ export function FieldSettingsEditor(props: FieldSettingsEditorProps) {
   const { t, field } = props;
 
   const cfg = (key: string, fallback = ''): string => String(props.field.config[key] ?? fallback);
-  const num = (key: string): number | undefined => {
-    const value = props.field.config[key];
-    return value === undefined || value === '' || value === null ? undefined : Number(value);
-  };
   const bool = (key: string, fallback = false): boolean => {
     const value = props.field.config[key];
     return value === undefined ? fallback : value === true;

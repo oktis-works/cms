@@ -1,12 +1,4 @@
-import { createSignal, createMemo, type JSX } from 'solid-js';
-import { FbIcon } from './FbIcon';
-
-interface SearchableSelectOption {
-  value: string;
-  label: string;
-  icon?: string;
-  disabled?: boolean;
-}
+import type { JSX } from 'solid-js';
 
 interface SearchableSelectProps {
   value: string;

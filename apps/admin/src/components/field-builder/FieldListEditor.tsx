@@ -1,4 +1,4 @@
-import { For, Show, createSignal, type JSX } from 'solid-js';
+import { Show, createSignal, type JSX } from 'solid-js';
 import type { FieldCategoryInfo, FieldTypeInfo } from '../../lib/api';
 import { SortableFieldList } from './primitives/SortableFieldList';
 import { FbIcon } from './primitives/FbIcon';

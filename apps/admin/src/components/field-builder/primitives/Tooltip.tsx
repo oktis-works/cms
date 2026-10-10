@@ -1,4 +1,4 @@
-import { createSignal, onCleanup, Show, type JSX } from 'solid-js';
+import { createSignal, Show, type JSX } from 'solid-js';
 import { FbIcon } from './FbIcon';
 
 interface TooltipProps {
@@ -11,22 +11,18 @@ interface TooltipProps {
 
 export function Tooltip(props: TooltipProps): JSX.Element {
   const [visible, setVisible] = createSignal(false);
-  let hideTimer: ReturnType<typeof setTimeout> | null = null;
   let showTimer: ReturnType<typeof setTimeout> | null = null;
 
   const show = () => {
-    if (hideTimer) clearTimeout(hideTimer);
     showTimer = setTimeout(() => setVisible(true), props.delay ?? 200);
   };
 
   const hide = () => {
-    if (showTimer) clearTimeout(showTimer);
-    hideTimer = setTimeout(() => setVisible(false), props.delay ?? 100);
-  };
-
-  const cleanup = () => {
-    if (showTimer) clearTimeout(showTimer);
-    if (hideTimer) clearTimeout(hideTimer);
+    if (showTimer) {
+      clearTimeout(showTimer);
+      showTimer = null;
+    }
+    setVisible(false);
   };
 
   return (
