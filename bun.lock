@@ -26,7 +26,7 @@
     },
     "apps/admin": {
       "name": "@oktis-works/admin",
-      "version": "0.4.30",
+      "version": "0.5.4",
       "bin": {
         "okcms-admin": "./bin/admin.js",
       },
@@ -49,7 +49,7 @@
     },
     "apps/api": {
       "name": "@oktis-works/api",
-      "version": "0.4.28",
+      "version": "0.5.4",
       "bin": {
         "okcms-api": "./dist/index.js",
       },
@@ -71,7 +71,7 @@
     },
     "apps/web": {
       "name": "@oktis-works/web",
-      "version": "0.4.28",
+      "version": "0.5.4",
       "bin": {
         "okcms-web": "./dist/index.js",
       },
@@ -94,7 +94,7 @@
     },
     "apps/worker": {
       "name": "@oktis-works/worker",
-      "version": "0.4.28",
+      "version": "0.5.4",
       "bin": {
         "okcms-worker": "./dist/index.js",
       },
@@ -115,7 +115,7 @@
     },
     "packages/api-client": {
       "name": "@oktis-works/api-client",
-      "version": "0.5.0",
+      "version": "0.5.4",
       "dependencies": {
         "@oktis-works/types": "^0.4.0",
       },
@@ -125,7 +125,7 @@
     },
     "packages/auth": {
       "name": "@oktis-works/auth",
-      "version": "0.5.0",
+      "version": "0.5.4",
       "dependencies": {
         "@oktis-works/config": "^0.4.0",
         "@oktis-works/core": "^0.4.0",
@@ -139,7 +139,7 @@
     },
     "packages/config": {
       "name": "@oktis-works/config",
-      "version": "0.5.0",
+      "version": "0.5.4",
       "dependencies": {
         "@oktis-works/types": "^0.4.0",
       },
@@ -149,7 +149,7 @@
     },
     "packages/core": {
       "name": "@oktis-works/core",
-      "version": "0.5.0",
+      "version": "0.5.4",
       "dependencies": {
         "@aws-sdk/client-s3": "3.700.0",
         "@oktis-works/config": "^0.4.0",
@@ -167,7 +167,7 @@
     },
     "packages/database": {
       "name": "@oktis-works/database",
-      "version": "0.5.0",
+      "version": "0.5.4",
       "dependencies": {
         "@oktis-works/config": "^0.4.0",
         "@oktis-works/types": "^0.4.0",
@@ -180,7 +180,7 @@
     },
     "packages/plugin-runtime": {
       "name": "@oktis-works/plugin-runtime",
-      "version": "0.5.0",
+      "version": "0.5.4",
       "dependencies": {
         "@oktis-works/plugin-sdk": "^0.4.0",
         "@oktis-works/types": "^0.4.0",
@@ -193,7 +193,7 @@
     },
     "packages/plugin-sdk": {
       "name": "@oktis-works/plugin-sdk",
-      "version": "0.5.0",
+      "version": "0.5.4",
       "dependencies": {
         "@oktis-works/types": "^0.4.0",
       },
@@ -204,7 +204,7 @@
     },
     "packages/theme-runtime": {
       "name": "@oktis-works/theme-runtime",
-      "version": "0.5.0",
+      "version": "0.5.4",
       "dependencies": {
         "@oktis-works/theme-sdk": "^0.4.0",
         "@oktis-works/types": "^0.4.0",
@@ -227,14 +227,14 @@
     },
     "packages/theme-sdk": {
       "name": "@oktis-works/theme-sdk",
-      "version": "0.5.0",
+      "version": "0.5.4",
       "devDependencies": {
         "typescript": "5.7.3",
       },
     },
     "packages/types": {
       "name": "@oktis-works/types",
-      "version": "0.5.0",
+      "version": "0.5.4",
       "dependencies": {
         "@oktis-works/validation": "^0.4.0",
       },
@@ -244,7 +244,7 @@
     },
     "packages/ui": {
       "name": "@oktis-works/ui",
-      "version": "0.4.28",
+      "version": "0.5.4",
       "dependencies": {
         "@oktis-works/validation": "^0.4.0",
         "solid-js": "1.9.15",
@@ -257,7 +257,7 @@
     },
     "packages/validation": {
       "name": "@oktis-works/validation",
-      "version": "0.4.28",
+      "version": "0.5.4",
       "dependencies": {
         "semver": "7",
       },
@@ -1763,6 +1763,10 @@
 
     "@oktis-works/admin/@oktis-works/types": ["@oktis-works/types@0.4.30", "", { "dependencies": { "@oktis-works/validation": "^0.4.0" } }, "sha512-bswTGfERj5fV4tPmhYW7arnYi+dfuuWhDbD2QmleWDwel84A0ThVqQrfcJptuOhfln0cfWozaLMcQetKmVpyNA=="],
 
+    "@oktis-works/admin/@oktis-works/ui": ["@oktis-works/ui@0.4.28", "", { "dependencies": { "@oktis-works/validation": "^0.4.0", "solid-js": "1.9.15" } }, "sha512-8ILWB9DUOcMpY3tkAu6rItA4IIDrHA4e6FBXTvEpMdr9hw/rA/0nVRjeoogLe05tvmbsQy5AIXLCt3hO+h0Q4g=="],
+
+    "@oktis-works/admin/@oktis-works/validation": ["@oktis-works/validation@0.4.28", "", { "dependencies": { "semver": "7" } }, "sha512-TbodIOyaFiFyhJ2gRrcNIk9JDBqi6fj23RBVS4hZaxvxdxntZ33JGXeuBrcESJBaQ37eVkoL+lAduRj2IO1RxA=="],
+
     "@oktis-works/api/@oktis-works/auth": ["@oktis-works/auth@0.4.30", "", { "dependencies": { "@oktis-works/config": "^0.4.0", "@oktis-works/core": "^0.4.0", "@oktis-works/database": "^0.4.0", "@oktis-works/types": "^0.4.0" } }, "sha512-iP32NJfAS9+AhmCqFqwamQ2q56anFYq1nikVdFZGeNp4gdawVR6fp7PBDGlgEgvw0/fTAZgLqcEW8i/AUbS5fQ=="],
 
     "@oktis-works/api/@oktis-works/config": ["@oktis-works/config@0.4.30", "", { "dependencies": { "@oktis-works/types": "^0.4.0" } }, "sha512-uOl8hj/LDMUHVMyeMMttdcYXIBcy3LEvdugdalkO0iC70scpdjV9jAeDvUmeuCn4pRvrASB08WxweO1l4ZtHlQ=="],
@@ -1772,6 +1776,8 @@
     "@oktis-works/api/@oktis-works/database": ["@oktis-works/database@0.4.30", "", { "dependencies": { "@oktis-works/config": "^0.4.0", "@oktis-works/types": "^0.4.0", "postgres": "3.4.0" } }, "sha512-EgD8GrJsp7YVLrZLLNR2LbxBP0DgBgr71TlY3GnHE0enAoxQ/0/+xQl0U5wS6Grk/5wm6kXhlKVY9OUUUuTm9A=="],
 
     "@oktis-works/api/@oktis-works/types": ["@oktis-works/types@0.4.30", "", { "dependencies": { "@oktis-works/validation": "^0.4.0" } }, "sha512-bswTGfERj5fV4tPmhYW7arnYi+dfuuWhDbD2QmleWDwel84A0ThVqQrfcJptuOhfln0cfWozaLMcQetKmVpyNA=="],
+
+    "@oktis-works/api/@oktis-works/validation": ["@oktis-works/validation@0.4.28", "", { "dependencies": { "semver": "7" } }, "sha512-TbodIOyaFiFyhJ2gRrcNIk9JDBqi6fj23RBVS4hZaxvxdxntZ33JGXeuBrcESJBaQ37eVkoL+lAduRj2IO1RxA=="],
 
     "@oktis-works/api/@types/node": ["@types/node@20.11.0", "", { "dependencies": { "undici-types": "~5.26.4" } }, "sha512-o9bjXmDNcF7GbM4CNQpmi+TutCgap/K3w1JyKgxAjqx41zp9qlIAVFi0IhCNsJcXolEqLWhbFbEeL0PvYm4pcQ=="],
 
@@ -1805,6 +1811,8 @@
 
     "@oktis-works/core/@oktis-works/types": ["@oktis-works/types@0.4.30", "", { "dependencies": { "@oktis-works/validation": "^0.4.0" } }, "sha512-bswTGfERj5fV4tPmhYW7arnYi+dfuuWhDbD2QmleWDwel84A0ThVqQrfcJptuOhfln0cfWozaLMcQetKmVpyNA=="],
 
+    "@oktis-works/core/@oktis-works/validation": ["@oktis-works/validation@0.4.28", "", { "dependencies": { "semver": "7" } }, "sha512-TbodIOyaFiFyhJ2gRrcNIk9JDBqi6fj23RBVS4hZaxvxdxntZ33JGXeuBrcESJBaQ37eVkoL+lAduRj2IO1RxA=="],
+
     "@oktis-works/database/@oktis-works/config": ["@oktis-works/config@0.4.30", "", { "dependencies": { "@oktis-works/types": "^0.4.0" } }, "sha512-uOl8hj/LDMUHVMyeMMttdcYXIBcy3LEvdugdalkO0iC70scpdjV9jAeDvUmeuCn4pRvrASB08WxweO1l4ZtHlQ=="],
 
     "@oktis-works/database/@oktis-works/types": ["@oktis-works/types@0.4.30", "", { "dependencies": { "@oktis-works/validation": "^0.4.0" } }, "sha512-bswTGfERj5fV4tPmhYW7arnYi+dfuuWhDbD2QmleWDwel84A0ThVqQrfcJptuOhfln0cfWozaLMcQetKmVpyNA=="],
@@ -1813,6 +1821,8 @@
 
     "@oktis-works/plugin-runtime/@oktis-works/types": ["@oktis-works/types@0.4.30", "", { "dependencies": { "@oktis-works/validation": "^0.4.0" } }, "sha512-bswTGfERj5fV4tPmhYW7arnYi+dfuuWhDbD2QmleWDwel84A0ThVqQrfcJptuOhfln0cfWozaLMcQetKmVpyNA=="],
 
+    "@oktis-works/plugin-runtime/@oktis-works/validation": ["@oktis-works/validation@0.4.28", "", { "dependencies": { "semver": "7" } }, "sha512-TbodIOyaFiFyhJ2gRrcNIk9JDBqi6fj23RBVS4hZaxvxdxntZ33JGXeuBrcESJBaQ37eVkoL+lAduRj2IO1RxA=="],
+
     "@oktis-works/plugin-sdk/@oktis-works/plugin-runtime": ["@oktis-works/plugin-runtime@0.4.30", "", { "dependencies": { "@oktis-works/plugin-sdk": "^0.4.0", "@oktis-works/types": "^0.4.0", "@oktis-works/validation": "^0.4.0", "semver": "7" } }, "sha512-YenSUy7qzKmGbfmMhHvR3WbuCLTZzP3rLreV3/HPwLDX4S+frPxh2HSaGrSwpguT6wlUPWKiepOsTUK4CUR1Ew=="],
 
     "@oktis-works/plugin-sdk/@oktis-works/types": ["@oktis-works/types@0.4.30", "", { "dependencies": { "@oktis-works/validation": "^0.4.0" } }, "sha512-bswTGfERj5fV4tPmhYW7arnYi+dfuuWhDbD2QmleWDwel84A0ThVqQrfcJptuOhfln0cfWozaLMcQetKmVpyNA=="],
@@ -1820,6 +1830,10 @@
     "@oktis-works/theme-runtime/@oktis-works/theme-sdk": ["@oktis-works/theme-sdk@0.4.30", "", {}, "sha512-NyvKl3Df8moqgBM7LZ1DT0Q6ySLPwdhIrWtYyUgr8hB2aeChkMCLBkWb7uit0qrVZOm/Aq7bwd98lN7Jed+qcg=="],
 
     "@oktis-works/theme-runtime/@oktis-works/types": ["@oktis-works/types@0.4.30", "", { "dependencies": { "@oktis-works/validation": "^0.4.0" } }, "sha512-bswTGfERj5fV4tPmhYW7arnYi+dfuuWhDbD2QmleWDwel84A0ThVqQrfcJptuOhfln0cfWozaLMcQetKmVpyNA=="],
+
+    "@oktis-works/types/@oktis-works/validation": ["@oktis-works/validation@0.4.28", "", { "dependencies": { "semver": "7" } }, "sha512-TbodIOyaFiFyhJ2gRrcNIk9JDBqi6fj23RBVS4hZaxvxdxntZ33JGXeuBrcESJBaQ37eVkoL+lAduRj2IO1RxA=="],
+
+    "@oktis-works/ui/@oktis-works/validation": ["@oktis-works/validation@0.4.28", "", { "dependencies": { "semver": "7" } }, "sha512-TbodIOyaFiFyhJ2gRrcNIk9JDBqi6fj23RBVS4hZaxvxdxntZ33JGXeuBrcESJBaQ37eVkoL+lAduRj2IO1RxA=="],
 
     "@oktis-works/web/@oktis-works/config": ["@oktis-works/config@0.4.30", "", { "dependencies": { "@oktis-works/types": "^0.4.0" } }, "sha512-uOl8hj/LDMUHVMyeMMttdcYXIBcy3LEvdugdalkO0iC70scpdjV9jAeDvUmeuCn4pRvrASB08WxweO1l4ZtHlQ=="],
 
@@ -1939,7 +1953,13 @@
 
     "@bruits/satteri-wasm32-wasi/@emnapi/core/@emnapi/wasi-threads": ["@emnapi/wasi-threads@1.2.2", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-c95qOXkHdydNKhscBTebqEC1CVAZpyqOfVfBzQ1qgzyl3gfeldUjIggDbIZgDKsHLgnsM+igH7TJ/eAasaVuMA=="],
 
+    "@oktis-works/admin/@oktis-works/types/@oktis-works/validation": ["@oktis-works/validation@workspace:packages/validation"],
+
     "@oktis-works/api/@oktis-works/core/@oktis-works/plugin-runtime": ["@oktis-works/plugin-runtime@0.4.30", "", { "dependencies": { "@oktis-works/plugin-sdk": "^0.4.0", "@oktis-works/types": "^0.4.0", "@oktis-works/validation": "^0.4.0", "semver": "7" } }, "sha512-YenSUy7qzKmGbfmMhHvR3WbuCLTZzP3rLreV3/HPwLDX4S+frPxh2HSaGrSwpguT6wlUPWKiepOsTUK4CUR1Ew=="],
+
+    "@oktis-works/api/@oktis-works/core/@oktis-works/validation": ["@oktis-works/validation@workspace:packages/validation"],
+
+    "@oktis-works/api/@oktis-works/types/@oktis-works/validation": ["@oktis-works/validation@workspace:packages/validation"],
 
     "@oktis-works/api/@types/node/undici-types": ["undici-types@5.26.5", "", {}, "sha512-JlCMO+ehdEIKqlFxk6IfVoAUVmgz7cU7zD/h9XZ0qzeosSHmUJVOzSQvvYSYWXkFXC+IfLKSIffhv0sVZup6pA=="],
 
@@ -1960,6 +1980,12 @@
     "@oktis-works/cms/@oktis-works/theme-runtime/@oktis-works/types": ["@oktis-works/types@0.4.30", "", { "dependencies": { "@oktis-works/validation": "^0.4.0" } }, "sha512-bswTGfERj5fV4tPmhYW7arnYi+dfuuWhDbD2QmleWDwel84A0ThVqQrfcJptuOhfln0cfWozaLMcQetKmVpyNA=="],
 
     "@oktis-works/core/@oktis-works/plugin-runtime/@oktis-works/plugin-sdk": ["@oktis-works/plugin-sdk@0.4.30", "", { "dependencies": { "@oktis-works/types": "^0.4.0" } }, "sha512-9I4Zkt3rEJ9ht8yErlYb2lP4NA4R2M1uTry/JmYZItB0wZi2e+Kf2yl6lWPk9MOiizm3KmhmDaCmrGx6NXTNxw=="],
+
+    "@oktis-works/core/@oktis-works/plugin-runtime/@oktis-works/validation": ["@oktis-works/validation@workspace:packages/validation"],
+
+    "@oktis-works/core/@oktis-works/types/@oktis-works/validation": ["@oktis-works/validation@workspace:packages/validation"],
+
+    "@oktis-works/plugin-runtime/@oktis-works/types/@oktis-works/validation": ["@oktis-works/validation@workspace:packages/validation"],
 
     "@oktis-works/plugin-sdk/@oktis-works/plugin-runtime/@oktis-works/plugin-sdk": ["@oktis-works/plugin-sdk@0.4.30", "", { "dependencies": { "@oktis-works/types": "^0.4.0" } }, "sha512-9I4Zkt3rEJ9ht8yErlYb2lP4NA4R2M1uTry/JmYZItB0wZi2e+Kf2yl6lWPk9MOiizm3KmhmDaCmrGx6NXTNxw=="],
 
