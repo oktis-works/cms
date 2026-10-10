@@ -1,5 +1,17 @@
 # @oktis-works/cms
 
+## 0.6.0
+
+### Minor Changes
+
+- Fix scaffold .env template with complete auth configuration
+  
+  ## Changes
+  - Added all missing auth config vars to scaffold `.env`: `AUTH_COOKIE_*`, `JWT_EXPIRES_IN=15m`, `REFRESH_TOKEN_EXPIRES_IN=7d`, `BCRYPT_ROUNDS`, `AUTH_CSRF_*`
+  - Added Vite proxy support via `ADMIN_API_PROXY_TARGET` and `PUBLIC_API_URL=/api`
+  - Fixed JWT expiry confusion (was 7d for access token, now 15m)
+  - Enables cross-port cookie sharing in local dev without lvh.me
+
 ## 0.5.5
 
 ### Patch Changes

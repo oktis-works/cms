@@ -29,7 +29,7 @@
     "publish:all": "node scripts/prepare-publish.mjs && for pkg in packages/* apps/api apps/admin apps/web apps/worker; do [ -f \"$pkg/package.json\" ] || continue; echo \"→ publishing $pkg\"; (cd \"$pkg\" && npm publish --access public) || exit 1; done"
   },
   "devDependencies": {
-    "@oktis-works/cms": "^0.5.5",
+    "@oktis-works/cms": "^0.6.0",
     "@changesets/changelog-github": "^1.0.1",
     "@changesets/cli": "^3.0.3",
     "@types/node": "22.0.0",
