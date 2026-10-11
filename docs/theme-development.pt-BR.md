@@ -51,8 +51,8 @@ Sintaxe de template com variáveis e laços:
 <main class="site">
   {{#each posts}}
     <article>
-      <h2>{{this.title}}</h2>
-      <p>{{this.excerpt}}</p>
+      <h2>{{title}}</h2>
+      <p>{{excerpt}}</p>
     </article>
   {{/each}}
 </main>

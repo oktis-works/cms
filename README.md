@@ -87,16 +87,16 @@ okcms config --section deploy -n      # programmatic, no TTY
 | Command | Options | What it does |
 |---|---|---|
 | `okcms deploy` | `-t, --target blue-green\|simple\|pm2` | **First deploy**: arrow-key menu (↑/↓ + Enter) picks the target; `--target` skips the menu |
-| `okcms update` | — | Full update: packages → migrations → deployment, with a `y/n` confirmation |
+| `okcms update` | — | Update wizard: y/n per step — packages → migrations (syncs `./migrations`) → deployment |
 | `okcms update -i` | `-i, --install` | Legacy alias; the full update already installs packages |
-| `okcms update --mode download` | `-m, --mode download\|deploy` | Package-only mode; it never starts Docker |
+| `okcms update --mode download` | `-m, --mode download\|deploy` | Packages + migrations sync; it never starts Docker |
 | `okcms update --mode deploy` | `-t, --target blue-green\|simple\|pm2` | Full deployment for the chosen target (see below) |
 | `okcms redeploy` | `-p, --plugin <n>` · `-t, --theme <n>` · `-M, --skip-migrations` · `-B, --skip-theme-build` · `-n, --dry-run` · `-T, --target blue-green\|simple\|pm2` | Applies a newly installed plugin/theme: plugin SQL → `migrations/`, theme `dist/theme.css` and deployment (see below) |
 | (deploy flags) | `-c, --no-cache` · `-r, --remove-orphans` · `-k, --keep-orphans` · `-y, --yes` · `-F, --force` | `-c`/`-r`/`-k` belong to `redeploy` and `update --mode deploy` only — the first `deploy` does not expose them, and the orphan options only affect blue/green; `-y` and `-F` are for use without TTY |
 
 ```bash
 okcms deploy --target simple      # first deploy: menu, or --target to skip it
-okcms update                     # full update: asks y/n, then packages + migrations + deploy
+okcms update                     # wizard: y/n on packages → migrations → deploy
 okcms update --mode download     # packages only
 okcms update --mode deploy       # deployment: target from menu, --target or saved
 okcms update --mode deploy --target pm2 --yes # CI: no prompts, defaults
@@ -111,10 +111,14 @@ okcms redeploy --dry-run        # only shows the plan
 > updates. Without `--target`, a script reuses the target saved in `.deploy/state.json`
 > (blue/green on a project that never deployed) instead of prompting.
 
-For a full update, answering `y` runs the package installation, builds the new
-version, applies pending database migrations on the host, and then deploys the
-selected target. Answering `n` exits before packages, migrations, Docker, or
-PM2 are changed.
+`okcms update` asks step by step: install the `@oktis-works/*` packages on
+the host? download the pending migrations into `./migrations`? deploy now?
+Each `n` skips that step — `n` on deploy exits without touching Docker or
+PM2. The migrations ship inside the CLI package and are synced without
+destroying anything: only missing files are copied; a locally edited file is
+kept and the conflict is reported. On `y` to deploy, the update builds the
+new version, applies the migrations on the host and deploys the chosen
+target.
 
 **Database**
 

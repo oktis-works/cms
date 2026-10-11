@@ -287,9 +287,9 @@ os 6 passos acima na mão. Prefira o comando da CLI.
 | \`okcms theme:create -n <nome> --style css\\|scss\\|tailwind\` | Scaffold de tema — guia em [THEME.md](./THEME.md) |
 | \`okcms theme:install\` · \`theme:list\` · \`theme:search\` · \`theme:manage\` | Gestão de temas (\`--set-active\` define o ativo) |
 | \`okcms theme:build -n <nome>\` | Compila SCSS/Tailwind → \`dist/theme.css\` isolado |
-| \`okcms update\` | Atualização completa: pacotes → migrations → healthcheck → deploy, com confirmação \`y/n\` |
+| \`okcms update\` | Assistente de atualização: y/n por etapa — pacotes → migrations (sincroniza \`./migrations\`) → healthcheck → deploy |
 | \`okcms update -i\` | Alias legado; a atualização completa já instala os pacotes |
-| \`okcms update --mode download\` | Apenas baixa/aplica os pacotes \`@oktis-works/*\`, sem iniciar Docker |
+| \`okcms update --mode download\` | Baixa/aplica os pacotes \`@oktis-works/*\` + sincroniza \`./migrations\`, sem iniciar Docker |
 | \`okcms update --mode deploy\` | Deploy blue/green completo: build → migrations → healthcheck → swap → worker |
 | \`okcms redeploy\` | Depois de instalar plugin/tema: SQL do plugin → \`migrations/\`, \`dist/theme.css\` do tema e deploy blue/green (\`--dry-run\` só mostra o plano) |
 | \`okcms seed\` | Semeia dados iniciais (roles + settings) — idempotente |
@@ -311,15 +311,20 @@ os 6 passos acima na mão. Prefira o comando da CLI.
 ## Atualizando
 
 \`\`\`bash
-okcms update        # atualização completa: confirma y/n e executa pacotes + migrations + deploy
+okcms update        # assistente: y/n em pacotes → migrations → deploy
 okcms update --mode download  # só baixa/aplica os pacotes
 okcms update --mode deploy          # deploy blue/green completo
 okcms update --mode deploy --yes    # sem prompts (CI/CD)
 \`\`\`
 
-Em **não-TTY** (script/CI), o update completo exige \`--yes\` para confirmar.
-Use \`--mode download\` quando quiser apenas atualizar pacotes. O update
-completo executa as migrations no host antes do deploy.
+O \`okcms update\` pergunta etapa por etapa: instalar os pacotes
+\`@oktis-works/*\` no host? baixar as migrations pendentes para
+\`./migrations\`? fazer o deploy agora? Cada \`n\` pula a etapa. As migrations
+vêm embutidas no CLI e são copiadas sem destruir: só entra o que falta e
+arquivo local diferente é mantido (o conflito é reportado). Em **não-TTY**
+(script/CI), o update completo exige \`--yes\`; \`--mode deploy\` sincroniza as
+migrations em silêncio antes do pipeline. Use \`--mode download\` para
+atualizar só pacotes + migrations.
 
 Flags de deploy: \`--no-cache\` (rebuild limpo) · \`--remove-orphans\`
 (default) · \`--keep-orphans\` · \`--yes\` (sem prompts).
@@ -576,9 +581,9 @@ the 6 steps above to do by hand. Prefer the CLI command.
 | \`okcms theme:install\` · \`theme:list\` · \`theme:search\` · \`theme:manage\` | Theme management (\`--set-active\` sets the active one) |
 | \`okcms theme:build -n <name>\` | Compiles SCSS/Tailwind → isolated \`dist/theme.css\` |
 | \`okcms deploy\` | First deploy — target menu: blue/green, simple or pm2 (\`--target\`, \`--yes\`) |
-| \`okcms update\` | Full update: packages → migrations → healthcheck → deploy, with a \`y/n\` confirmation |
+| \`okcms update\` | Update wizard: y/n per step — packages → migrations (syncs \`./migrations\`) → healthcheck → deploy |
 | \`okcms update -i\` | Legacy alias; the full update already installs packages |
-| \`okcms update --mode download\` | Packages only; it never starts Docker |
+| \`okcms update --mode download\` | Applies the \`@oktis-works/*\` packages + syncs \`./migrations\`; it never starts Docker |
 | \`okcms update --mode deploy\` | Full deploy: build → migrations → healthcheck → swap (target: \`--target blue-green\\|simple\\|pm2\`) |
 | \`okcms redeploy\` | After installing a plugin/theme: plugin SQL → \`migrations/\`, theme \`dist/theme.css\` and deploy (\`--dry-run\` only shows the plan, \`--target\` picks the target) |
 | \`okcms seed\` | Seeds initial data (roles + settings) — idempotent |
@@ -600,15 +605,19 @@ the 6 steps above to do by hand. Prefer the CLI command.
 ## Updating
 
 \`\`\`bash
-okcms update        # full update: asks y/n, then packages + migrations + deploy
+okcms update        # wizard: y/n on packages → migrations → deploy
 okcms update --mode download  # only downloads/applies the packages
 okcms update --mode deploy          # full blue/green deploy
 okcms update --mode deploy --yes    # no prompts (CI/CD)
 \`\`\`
 
-In **non-TTY** (script/CI), the full update requires \`--yes\` for
-confirmation. Use \`--mode download\` for package-only updates. The full
-update runs migrations on the host before deployment.
+\`okcms update\` asks step by step: install the \`@oktis-works/*\` packages on
+the host? download the pending migrations into \`./migrations\`? deploy now?
+Each \`n\` skips that step. The migrations ship inside the CLI and are copied
+without destroying anything: only missing files are added; a locally edited
+file is kept (the conflict is reported). In **non-TTY** (script/CI) the full
+update requires \`--yes\`; \`--mode deploy\` syncs the migrations silently before
+the pipeline. Use \`--mode download\` for packages + migrations only.
 
 Deploy flags: \`--no-cache\` (clean rebuild) · \`--remove-orphans\`
 (default) · \`--keep-orphans\` · \`--yes\` (no prompts).
@@ -817,8 +826,8 @@ Sintaxe de template com variáveis e laços:
 <main class="site">
   {{#each posts}}
     <article>
-      <h2>{{this.title}}</h2>
-      <p>{{this.excerpt}}</p>
+      <h2>{{title}}</h2>
+      <p>{{excerpt}}</p>
     </article>
   {{/each}}
 </main>
@@ -1059,8 +1068,8 @@ Template syntax with variables and loops:
 <main class="site">
   {{#each posts}}
     <article>
-      <h2>{{this.title}}</h2>
-      <p>{{this.excerpt}}</p>
+      <h2>{{title}}</h2>
+      <p>{{excerpt}}</p>
     </article>
   {{/each}}
 </main>

@@ -1,5 +1,11 @@
 # @oktis-works/cms
 
+## 0.6.3
+
+### Patch Changes
+
+- Docs atualizados: o README do projeto (PT/EN) descreve agora o assistente `okcms update` por etapa (y/n em pacotes → migrations → deploy) e as migrations embutidas no pacote sincronizadas em `./migrations` sem destruir; `--mode download` documentado como pacotes + sync de migrations. THEME.md (PT/EN): exemplo de template corrigido — `{{this.title}}`/`{{this.excerpt}}` não existem no engine; a sintaxe real é `{{title}}`/`{{excerpt}}` (o `{{#each}}` espalha o item no contexto).
+
 ## 0.6.2
 
 ### Patch Changes
