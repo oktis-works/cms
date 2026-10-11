@@ -49,8 +49,8 @@ const CORE_TYPES: ContentTypeDefinition[] = [
   {
     name: 'page',
     slug: 'page',
-    pluralLabel: 'Páginas',
-    singularLabel: 'Página',
+    pluralLabel: 'Pages',
+    singularLabel: 'Page',
     source: 'CORE',
     supports: ['title', 'editor', 'thumbnail', 'revisions'],
     hasArchive: false,

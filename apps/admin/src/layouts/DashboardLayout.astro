@@ -309,8 +309,9 @@ const settingsChildren = [
 
 </script>
 
-<style>
-  /* The whole page must never scroll: only the sidebar and the main content do.
+<style is:global>
+  /* is:global: os links dinâmicos de content-types (criados por JS) não
+      recebem data-astro-cid — precisam casar com estas regras.
      The fixed AdminBar (46px) sits outside the flow, so we lock the document to
      the viewport and let .layout fill exactly the remaining height below it.
      This removes the extra ~46px that used to make body scroll and leave a blank

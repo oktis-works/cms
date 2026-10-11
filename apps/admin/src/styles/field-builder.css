@@ -292,12 +292,12 @@
 .fb-rule-add-group { justify-self: start; }
 
 /* --- Browse fields modal -------------------------------------------------- */
-.fb-modal-backdrop { position: fixed; z-index: 1000; inset: 0; display: grid; place-items: center; padding: 1rem; background: rgb(10 10 10 / 0.5); }
+.fb-modal-backdrop { position: fixed; z-index: 1000; top: var(--admin-bar-h, 46px); bottom: var(--admin-footer-h, 48px); left: 0; right: 0; display: grid; place-items: center; padding: 1rem; background: rgb(10 10 10 / 0.5); }
 .fb-browse-modal {
   display: grid;
   grid-template-rows: auto auto auto 1fr auto;
   width: min(920px, 100%);
-  max-height: min(720px, calc(100vh - 2rem));
+  max-height: 100%;
   overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: 0.55rem;
@@ -442,7 +442,9 @@
 
 .fb-modal {
   width: min(560px, 100%);
-  max-height: calc(100vh - 2rem);
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--color-border);
   border-radius: 0.55rem;
   background: var(--color-surface);
@@ -464,7 +466,7 @@
   border-radius: var(--radius-sm); cursor: pointer;
 }
 .fb-modal__close:hover { background: var(--color-primary-soft); color: var(--color-primary-hover); }
-.fb-modal__body { padding: 1.35rem; }
+.fb-modal__body { padding: 1.35rem; overflow-y: auto; min-height: 0; }
 .fb-import-dropzone {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   min-height: 140px; gap: 0.75rem;

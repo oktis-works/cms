@@ -1,5 +1,12 @@
 # @oktis-works/cms
 
+## 0.6.1
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @oktis-works/core@0.5.6
+
 ## 0.6.0
 
 ### Minor Changes
