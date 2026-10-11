@@ -1,5 +1,11 @@
 # @oktis-works/cms
 
+## 0.6.2
+
+### Patch Changes
+
+- `okcms update` simplificado com assistente sim/não por etapa: atualizar pacotes `@oktis-works/*` no host? baixar migrations pendentes para `./migrations`? fazer o deploy agora? — cada "não" pula a etapa. O pacote agora embute todas as `migrations/*.sql` do repositório (copiadas no build) e as sincroniza com `./migrations` do projeto de forma não destrutiva: só copia o que falta, pula idênticas e mantém o arquivo local diante de conflito (reportando-o). `--mode deploy` (automação) sincroniza as migrations em silêncio antes do pipeline — o `db:migrate` lê exatamente essa pasta.
+
 ## 0.6.1
 
 ### Patch Changes

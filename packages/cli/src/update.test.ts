@@ -1,8 +1,9 @@
 // @oktis-works/cms - `okcms update` (F3)
 //
-// O compromisso central testado aqui: `okcms update` é uma atualização
-// completa (pacotes + migrations + deploy) e pede confirmação em TTY. O modo
-// de pacotes apenas continua explícito em `--mode download`.
+// O compromisso central testado aqui: `okcms update` é um assistente com
+// sim/não por etapa (pacotes → migrations → deploy) e pede confirmação em
+// TTY. O modo de pacotes apenas continua explícito em `--mode download`, e
+// `--mode deploy` segue sem assistente (automação).
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -198,8 +199,10 @@ describe('modo download (explícito)', () => {
   });
 
   it('TTY + Enter confirma a atualização completa', async () => {
+    // assistente: pacotes → migrations → deploy → alvo → cache → órfãos →
+    // resumo; EOF depois das linhas cai nos defaults (todos "sim").
     installPackage('api', '0.1.0');
-    const prompt = ttyPrompt(['', '', '', '']);
+    const prompt = ttyPrompt(['', '', '']);
     const runner = makeRunner();
 
     const code = await runUpdate({
@@ -211,6 +214,7 @@ describe('modo download (explícito)', () => {
     });
 
     expect(code).toBe(0);
+    expect(runner.calls).toContain('bun add @oktis-works/api@latest');
     expect(runner.calls.some((call) => call.includes('docker-compose.infra.yml'))).toBe(true);
     expect(runner.calls.some((call) => call.includes('db:migrate'))).toBe(true);
     expect(prompt.printed()).toContain('Start the update?');
@@ -311,8 +315,9 @@ describe('modo deploy', () => {
   });
 
   it('confirmação recusada no TTY não executa nada', async () => {
-    // 1) alvo  2) cache  3) órfãos  4) confirmação = "n"
-    const prompt = ttyPrompt(['1', '', '', 'n']);
+    // 1) pacotes n  2) migrations y  3) deploy y  4) alvo  5) cache
+    // 6) órfãos  7) confirmação = "n"
+    const prompt = ttyPrompt(['n', '', '', '1', '', '', 'n']);
     const runner = makeRunner();
 
     const code = await runUpdate({
@@ -326,6 +331,50 @@ describe('modo deploy', () => {
     expect(code).toBe(0);
     expect(runner.calls).toEqual([]);
     expect(prompt.printed()).toContain('cancelled — nothing was executed');
+    prompt.close();
+  });
+});
+
+describe('assistente do update implícito (sim/não por etapa)', () => {
+  it('"n" no deploy encerra depois das migrations, sem tocar no Docker', async () => {
+    installPackage('api', '0.1.0');
+    // 1) pacotes n  2) migrations y  3) deploy n
+    const prompt = ttyPrompt(['n', '', 'n']);
+    const runner = makeRunner();
+
+    const code = await runUpdate({
+      cwd: dir,
+      runner,
+      prompt,
+      probe: HOST_PROBE,
+      log: (m) => out.push(m),
+    });
+
+    expect(code).toBe(0);
+    expect(runner.calls).toEqual([]);
+    expect(prompt.printed()).toContain('no deploy was started');
+    prompt.close();
+  });
+
+  it('"n" nos pacotes não instala nada, mas migrations e deploy seguem', async () => {
+    installPackage('api', '0.1.0');
+    // 1) pacotes n  2) migrations y  3) deploy y (+ defaults no EOF)
+    const prompt = ttyPrompt(['n', '', '']);
+    const runner = makeRunner();
+
+    const code = await runUpdate({
+      cwd: dir,
+      runner,
+      prompt,
+      probe: HOST_PROBE,
+      log: (m) => out.push(m),
+    });
+
+    expect(code).toBe(0);
+    // a pergunta de pacotes foi feita (e respondida "n" para o host);
+    // o deploy mesmo assim segue — ele instala os pacotes nas lanes dele
+    expect(prompt.printed()).toContain('Update @oktis-works/* packages on the host?');
+    expect(runner.calls.some((call) => call.includes('db:migrate'))).toBe(true);
     prompt.close();
   });
 });

@@ -440,7 +440,8 @@ export const commands: Command[] = [
   },
   {
     name: 'update',
-    description: 'Update packages, run migrations and deploy (blue/green, simple or PM2)',
+    description:
+      'Update packages and migrations, then deploy (blue/green, simple or PM2) — y/n wizard',
     options: [
       {
         name: 'install',

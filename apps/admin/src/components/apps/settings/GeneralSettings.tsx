@@ -1,25 +1,50 @@
 // @oktis-works/admin - Settings → General (grupo "general")
 // Migrada para o design-system @oktis-works/ui (Input/Select/Card/Button).
+//
+// Idioma: lista TODOS os locales suportados pelo admin (config.ts) e, ao
+// salvar, aplica de verdade — escreve o cookie `admin_locale` (prioridade
+// máxima no middleware i18n) e recarrega a página nas traduções novas.
+// Timezone: dropdown buscável no formato do WordPress —
+// `(UTC-03:00) America/Sao_Paulo` — salvando o id IANA.
 
 import { Show, createMemo, createSignal, onMount } from '@oktis-works/ui';
 import { Card, Input, Select, Button } from '@oktis-works/ui';
 import { apiClient } from '../../../lib/api';
 import { useTranslation } from '../../../i18n';
+import { LOCALE_FLAGS, LOCALE_LABELS, SUPPORTED_LOCALES, isValidLocale } from '../../../i18n/config';
+import { setCookieLocale } from '../../../i18n/locale';
+import { TimezoneSelect } from './TimezoneSelect';
+
+interface FieldDef {
+  key: string;
+  label: string;
+  type: 'text' | 'select' | 'timezone';
+  placeholder?: string;
+  options?: Array<{ value: string; label: string }>;
+}
 
 export function GeneralSettings() {
   const { t } = useTranslation();
   const [values, setValues] = createSignal<Record<string, string>>({});
+  const [loadedLanguage, setLoadedLanguage] = createSignal('');
   const [loaded, setLoaded] = createSignal(false);
   const [error, setError] = createSignal('');
   const [info, setInfo] = createSignal('');
   const [saving, setSaving] = createSignal(false);
 
-  const fields = createMemo(() => [
+  const languageOptions = createMemo(() =>
+    SUPPORTED_LOCALES.map((locale) => ({
+      value: locale,
+      label: `${LOCALE_FLAGS[locale]} ${LOCALE_LABELS[locale]}`,
+    }))
+  );
+
+  const fields = createMemo<FieldDef[]>(() => [
     { key: 'siteTitle', label: t('settings.general.fields.siteTitle'), type: 'text', placeholder: t('settings.general.fields.siteTitlePlaceholder') },
     { key: 'siteDescription', label: t('settings.general.fields.siteDescription'), type: 'text', placeholder: t('settings.general.fields.siteDescriptionPlaceholder') },
-    { key: 'language', label: t('settings.general.fields.language'), type: 'select', options: ['pt-BR', 'en-US', 'es-ES'] },
-    { key: 'timezone', label: t('settings.general.fields.timezone'), type: 'text', placeholder: t('settings.general.fields.timezonePlaceholder') },
-  ] as const);
+    { key: 'language', label: t('settings.general.fields.language'), type: 'select', options: languageOptions() },
+    { key: 'timezone', label: t('settings.general.fields.timezone'), type: 'timezone', placeholder: t('settings.general.fields.timezonePlaceholder') },
+  ]);
 
   onMount(async () => {
     try {
@@ -32,6 +57,17 @@ export function GeneralSettings() {
       for (const field of fields()) {
         if (map[field.key] === undefined) map[field.key] = '';
       }
+      // timezone vazio: pré-preenche com o fuso do navegador (valor só vai
+      // para o banco no Save, como no WordPress)
+      if (!map['timezone']) {
+        try {
+          map['timezone'] = Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
+        } catch {
+          map['timezone'] = 'UTC';
+        }
+      }
+      // idioma vazio: deixa em branco para o select mostrar o placeholder
+      setLoadedLanguage(map['language'] ?? '');
       setValues(map);
       setLoaded(true);
     } catch (err) {
@@ -60,6 +96,16 @@ export function GeneralSettings() {
           };
         })
       );
+
+      // Aplica o idioma na hora: o middleware prioriza o cookie admin_locale,
+      // então recarregar já rende a UI na tradução escolhida.
+      const nextLanguage = values()['language'] ?? '';
+      if (isValidLocale(nextLanguage) && nextLanguage !== loadedLanguage()) {
+        setCookieLocale(nextLanguage);
+        window.location.reload();
+        return;
+      }
+
       setInfo(t('settings.general.saved'));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -87,9 +133,19 @@ export function GeneralSettings() {
                     name={field.key}
                     label={field.label}
                     value={values()[field.key] ?? ''}
-                    options={'options' in field ? field.options.map((option) => ({ value: option, label: option })) : []}
+                    options={field.options ?? []}
                     onChange={(value) => setValues({ ...values(), [field.key]: value })}
                   />
+                ) : field.type === 'timezone' ? (
+                  <label class="general-settings__tz">
+                    {field.label}
+                    <TimezoneSelect
+                      value={values()[field.key] ?? ''}
+                      placeholder={field.placeholder ?? ''}
+                      searchPlaceholder={field.placeholder ?? ''}
+                      onChange={(value) => setValues({ ...values(), [field.key]: value })}
+                    />
+                  </label>
                 ) : (
                   <Input
                     name={field.key}

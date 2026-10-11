@@ -29,6 +29,13 @@ interface FieldSettingsEditorProps {
 
 type TabId = 'general' | 'validation' | 'presentation' | 'conditional_logic' | 'advanced';
 
+/**
+ * Memória de aba por field: o patch de settings recria o objeto do field e o
+ * `<For>` remonta a linha — sem isso a aba voltava para General a cada clique
+ * (ex.: marcar "required" na aba Validation). Chaveada por clientId.
+ */
+const tabMemory = new Map<string, TabId>();
+
 const CONDITIONAL_OPERATORS = ['eq', 'neq', 'gt', 'lt', 'pattern_matches', 'contains', 'has_any_value', 'has_no_value'] as const;
 
 /**
@@ -38,7 +45,11 @@ const CONDITIONAL_OPERATORS = ['eq', 'neq', 'gt', 'lt', 'pattern_matches', 'cont
  * the backend field model.
  */
 export function FieldSettingsEditor(props: FieldSettingsEditorProps) {
-  const [tab, setTab] = createSignal<TabId>('general');
+  const [tab, setTab] = createSignal<TabId>(tabMemory.get(props.field.clientId) ?? 'general');
+  const selectTab = (id: string): void => {
+    tabMemory.set(props.field.clientId, id as TabId);
+    setTab(id as TabId);
+  };
   const { t, field } = props;
 
   const cfg = (key: string, fallback = ''): string => String(props.field.config[key] ?? fallback);
@@ -230,7 +241,7 @@ export function FieldSettingsEditor(props: FieldSettingsEditorProps) {
       <Tabs
         ariaLabel={t('settings.customFields.fieldSettings.ariaLabel')}
         active={tab()}
-        onChange={(id) => setTab(id as TabId)}
+        onChange={selectTab}
         tabs={[
           { id: 'general', label: L('general') },
           { id: 'validation', label: L('validation') },

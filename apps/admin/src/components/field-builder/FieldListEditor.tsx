@@ -44,16 +44,27 @@ export function FieldListEditor(props: FieldListEditorProps) {
   const [modalOpen, setModalOpen] = createSignal(false);
 
   const patchField = (id: string, patch: Partial<EditableField>): void => {
-    const walk = (fields: EditableField[]): EditableField[] =>
-      fields.map((field) =>
-        field.clientId === id
-          ? { ...field, ...patch }
-          : {
-              ...field,
-              subFields: walk(field.subFields),
-              layouts: field.layouts.map((layout) => ({ ...layout, subFields: walk(layout.subFields) })),
-            }
-      );
+    // Preserva a referência dos fields não alterados: o <For> é keyado por
+    // identidade e recriar todos os objetos remontava TODAS as linhas (perda
+    // de aba aberta, foco e estado de UI das demais).
+    const walk = (fields: EditableField[]): EditableField[] => {
+      let changed = false;
+      const next = fields.map((field) => {
+        if (field.clientId === id) {
+          changed = true;
+          return { ...field, ...patch };
+        }
+        const subFields = walk(field.subFields);
+        const layouts = field.layouts.map((layout) => {
+          const layoutSubFields = walk(layout.subFields);
+          return layoutSubFields === layout.subFields ? layout : { ...layout, subFields: layoutSubFields };
+        });
+        if (subFields === field.subFields && layouts === field.layouts) return field;
+        changed = true;
+        return { ...field, subFields, layouts };
+      });
+      return changed ? next : fields;
+    };
     props.onChange(walk(props.fields));
   };
 

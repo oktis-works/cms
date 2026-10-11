@@ -1,5 +1,11 @@
 # @oktis-works/admin
 
+## 0.6.6
+
+### Patch Changes
+
+- Settings → General: idioma agora lista TODOS os locales suportados (18) com bandeiras, e ao salvar aplica de verdade — grava o cookie `admin_locale` e recarrega a página nas traduções novas; timezone virou dropdown buscável estilo WordPress `(UTC-03:00) America/Sao_Paulo` (zonas IANA completas, ordenadas por offset, salva o id IANA, pré-preenche com o fuso do navegador). Field builder: as abas de configuração do campo (General/Validation/Presentation/…) não voltam mais para General a cada interação — memória de aba por field + `patchField` preservando referências (sem remontar linhas irmãs).
+
 ## 0.6.5
 
 ### Patch Changes

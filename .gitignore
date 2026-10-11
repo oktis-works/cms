@@ -52,3 +52,6 @@ temp/
 # Estado local da ferramenta SDD (não versionar)
 .sdd/
 uploads/*
+
+# Migrations embutidas no pacote CLI (geradas no build)
+packages/cli/migrations/

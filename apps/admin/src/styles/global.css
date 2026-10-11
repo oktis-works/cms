@@ -1250,6 +1250,59 @@ label.checkbox-label {
 .field-type-picker__group-label i { width: 13px; height: 13px; vertical-align: -2px; margin-right: 0.25rem; }
 .field-type-picker__hint { margin-left: auto; font-size: 0.7rem; color: var(--color-muted); white-space: nowrap; }
 
+/* Timezone select (estilo WordPress: busca + offset + zona IANA) */
+.general-settings__tz { display: grid; gap: 0.35rem; align-content: start; }
+.tz-select { position: relative; }
+.tz-select__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  text-align: left;
+  cursor: pointer;
+}
+.tz-select__value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.tz-select__panel {
+  position: absolute;
+  z-index: 1200;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  right: 0;
+  min-width: 300px;
+  padding: 0.5rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 32px rgba(15, 15, 15, 0.18);
+  display: grid;
+  gap: 0.5rem;
+}
+.tz-select__search { width: 100%; }
+.tz-select__options {
+  max-height: 280px;
+  overflow-y: auto;
+  display: grid;
+  gap: 0.1rem;
+}
+.tz-select__option {
+  padding: 0.4rem 0.6rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-align: left;
+}
+.tz-select__option:hover { background: var(--color-bg-tertiary); }
+.tz-select__option.is-selected { background: rgba(216, 180, 94, 0.16); color: #8a6d1d; font-weight: 600; }
+.tz-select__empty { margin: 0; padding: 0.5rem 0.6rem; color: var(--color-muted); font-size: 0.85rem; }
+
 /* Content workspace — classic editor layout */
 .content-list__heading,
 .classic-editor__topbar {

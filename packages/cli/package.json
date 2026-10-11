@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/cms",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -15,8 +15,9 @@
     }
   },
   "scripts": {
-    "build": "tsc",
-    "clean": "rm -rf dist tsconfig.tsbuildinfo"
+    "build": "tsc && node scripts/copy-migrations.mjs",
+    "prepack": "node scripts/copy-migrations.mjs",
+    "clean": "rm -rf dist migrations tsconfig.tsbuildinfo"
   },
   "dependencies": {
     "@oktis-works/auth": "workspace:*",
@@ -30,7 +31,8 @@
     "typescript": "5.7.3"
   },
   "files": [
-    "dist"
+    "dist",
+    "migrations"
   ],
   "publishConfig": {
     "access": "public",

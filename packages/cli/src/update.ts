@@ -1,20 +1,22 @@
 // @oktis-works/cms - `okcms update` (F3)
 //
-// Two paths, one command:
+// Um comando, um assistente interativo:
 //
-//   download  fetches/updates the @oktis-works packages on the host. This is
-//             available explicitly with `okcms update --mode download`.
+//   `okcms update` (TTY) pergunta, uma por uma: atualizar os pacotes
+//   @oktis-works/* no host? baixar as migrations pendentes para
+//   ./migrations? fazer o deploy agora? Cada "não" pula a etapa; o deploy,
+//   quando segue, mantém o fluxo existente (alvo, cache, órfãos, resumo).
 //
-//   deploy    runs the application for the chosen target: blue/green lanes,
-//             the simple container stack, or PM2 on the host. The CLI always
-//             runs on the HOST (see assertHostOnly).
+//   `--mode download` continua sendo o caminho explícito só de pacotes
+//   (+ migrations na mesma pergunta). `--mode deploy` é o caminho de
+//   automação: sem assistente, migrations sincronizadas em silêncio antes
+//   do deploy (o `db:migrate` lê exatamente essa pasta).
 //
-// The default path is deploy. In a TTY it ends with an explicit y/n
-// confirmation; outside a TTY an implicit deploy requires `--yes`. The
-// package-only path remains available through `--mode download`.
+// Fora de TTY o deploy implícito exige `--yes`; fora disso os flags
+// (`--mode`, `--target`, `--install`…) seguem decidindo sozinhos.
 //
-// History and rollback: every operation writes to `.deploy/update-history.json`
-// — `okcms rollback` lists it and can go back.
+// History e rollback: toda operação grava em `.deploy/update-history.json`
+// — `okcms rollback` lista e pode voltar.
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -29,6 +31,7 @@ import { getLatestVersion } from './npm-registry.js';
 import { Prompt, style, symbol } from './prompt.js';
 import { addHistoryEntry } from './history.js';
 import { updateProjectDocs } from './docs-updater.js';
+import { syncMigrations } from './migrations-sync.js';
 
 export type UpdateMode = 'download' | 'deploy';
 
@@ -235,45 +238,23 @@ async function recordDeployAndDocs(
   return updateProjectDocs(cwd);
 }
 
-export async function runDownload(
+/** Instala os pacotes desatualizados no host: bun add, npm como fallback. */
+async function installOutdatedPackages(
   scan: ScanResult,
   opts: UpdateOptions,
   prompt: Prompt
-): Promise<number> {
+): Promise<boolean> {
   const cwd = opts.cwd ?? process.cwd();
   const runner = opts.runner ?? defaultRunner;
-
-  if (!scan.installed) {
-    console.error('No @oktis-works/* package installed in node_modules.');
-    console.error('Run `bun install` (or `okcms init`) before updating.');
-    return 1;
-  }
-
-  if (scan.outdated.length === 0) {
-    prompt.success('All packages are up to date.');
-    return 0;
-  }
-
-  if (opts.install !== true) {
-    prompt.info('Use --install to apply the updates now.');
-    prompt.info('Or --mode deploy for a full Docker deploy.');
-    return 0;
-  }
-
-  prompt.write('\nUpdating...\n');
   const specs = scan.outdated.map((entry) => `${entry.pkg}@latest`);
+
+  prompt.write('\nUpdating packages...\n');
   const result = runner('bun', ['add', ...specs], {
     cwd,
     inherit: true,
     timeoutMs: 600_000,
   });
-  if (result.ok) {
-    const updatedDocs = await recordUpdateAndDocs(cwd, scan);
-    if (updatedDocs.length > 0) {
-      prompt.success(`Project docs updated: ${updatedDocs.join(', ')}`);
-    }
-    return 0;
-  }
+  if (result.ok) return true;
 
   // host without bun: npm does the same job, only slower
   const npm = runner('npm', ['install', ...specs], {
@@ -281,14 +262,68 @@ export async function runDownload(
     inherit: true,
     timeoutMs: 600_000,
   });
-  if (npm.ok) {
+  return npm.ok;
+}
+
+export async function runDownload(
+  scan: ScanResult,
+  opts: UpdateOptions,
+  prompt: Prompt
+): Promise<number> {
+  const cwd = opts.cwd ?? process.cwd();
+  const interactive = prompt.interactive && opts.yes !== true;
+
+  if (!scan.installed) {
+    console.error('No @oktis-works/* package installed in node_modules.');
+    console.error('Run `bun install` (or `okcms init`) before updating.');
+    return 1;
+  }
+
+  if (scan.outdated.length > 0) {
+    // --install/--yes (automação) decidem sozinhos; TTY pergunta sim/não.
+    let wantPackages = opts.install === true || opts.yes === true;
+    if (interactive && !wantPackages) {
+      wantPackages = await prompt.confirm('Update @oktis-works/* packages now?', {
+        defaultValue: true,
+      });
+    }
+    if (!wantPackages) {
+      prompt.info('Use --install to apply the updates now.');
+      prompt.info('Or --mode deploy for a full Docker deploy.');
+      return 0;
+    }
+
+    if (!(await installOutdatedPackages(scan, opts, prompt))) return 1;
+
     const updatedDocs = await recordUpdateAndDocs(cwd, scan);
     if (updatedDocs.length > 0) {
       prompt.success(`Project docs updated: ${updatedDocs.join(', ')}`);
     }
+  } else if (interactive) {
+    prompt.success('All packages are up to date.');
+  } else if (opts.yes !== true && opts.install !== true) {
+    prompt.success('All packages are up to date.');
     return 0;
   }
-  return 1;
+
+  // Migrations: o db:migrate do deploy lê ./migrations do projeto — manter em
+  // dia é parte da atualização. --yes/--install respondem "sim" implicitamente.
+  let wantMigrations = opts.yes === true || opts.install === true;
+  if (interactive) {
+    wantMigrations = await prompt.confirm('Download pending migrations to ./migrations?', {
+      defaultValue: true,
+    });
+  }
+  if (wantMigrations) {
+    const result = syncMigrations(cwd, { log: (message) => prompt.write(`${message}\n`) });
+    if (result.conflicts.length > 0) {
+      prompt.warn(
+        `${result.conflicts.length} migration file(s) differ from the bundled ones — local files kept.`
+      );
+    }
+  }
+
+  return 0;
 }
 
 export async function runUpdate(opts: UpdateOptions = {}): Promise<number> {
@@ -329,11 +364,12 @@ export async function runUpdate(opts: UpdateOptions = {}): Promise<number> {
       mode = 'deploy';
     }
 
-    // ---- 2. deploy target (validated before the scan prints anything) -----
+    // ---- 2. deploy target (explícito: validado antes do scan) -------------
     prompt.heading(`OkCMS update — mode ${mode}`);
 
+    const implicit = opts.mode === undefined;
     let resolved: DeployTarget | undefined;
-    if (mode === 'deploy') {
+    if (mode === 'deploy' && !implicit) {
       try {
         resolved = await resolveTarget({ cwd, target: opts.target, yes: opts.yes }, prompt);
       } catch (error) {
@@ -350,11 +386,71 @@ export async function runUpdate(opts: UpdateOptions = {}): Promise<number> {
     // A piped command cannot answer the safety question. Explicit deploy mode
     // and --yes are intended for automation; an implicit deploy must stay
     // opt-in instead of changing a production system silently.
-    const implicitDeploy = opts.mode === undefined;
-    if (implicitDeploy && !prompt.interactive && opts.yes !== true) {
+    if (implicit && !prompt.interactive && opts.yes !== true) {
       prompt.warn('interactive confirmation required for the full update.');
       prompt.info('Run `okcms update --yes` in scripts, or use `--mode download` for packages only.');
       return 1;
+    }
+
+    // ---- 3b. assistente interativo do `okcms update` simples ---------------
+    // Sim/não por etapa: pacotes no host → migrations em ./migrations →
+    // deploy. Fora de TTY (com --yes) tudo responde "sim" por determinação.
+    if (implicit) {
+      const wizard = prompt.interactive && opts.yes !== true;
+      const hasUpdates = scan.installed && scan.outdated.length > 0;
+
+      let wantPackages = opts.yes === true;
+      if (wizard && hasUpdates) {
+        wantPackages = await prompt.confirm('Update @oktis-works/* packages on the host?', {
+          defaultValue: true,
+        });
+      }
+      if (wantPackages && hasUpdates) {
+        if (!(await installOutdatedPackages(scan, opts, prompt))) return 1;
+        const updatedDocs = await recordUpdateAndDocs(cwd, scan);
+        if (updatedDocs.length > 0) {
+          prompt.success(`Project docs updated: ${updatedDocs.join(', ')}`);
+        }
+      }
+
+      let wantMigrations = true;
+      if (wizard) {
+        wantMigrations = await prompt.confirm('Download pending migrations to ./migrations?', {
+          defaultValue: true,
+        });
+      }
+      if (wantMigrations) {
+        const result = syncMigrations(cwd, { log: (message) => prompt.write(`${message}\n`) });
+        if (result.conflicts.length > 0) {
+          prompt.warn(
+            `${result.conflicts.length} migration file(s) differ from the bundled ones — local files kept.`
+          );
+        }
+      }
+
+      if (wizard) {
+        const wantDeploy = await prompt.confirm('Deploy the stack now?', { defaultValue: true });
+        if (!wantDeploy) {
+          prompt.success('Update finished — no deploy was started.');
+          return 0;
+        }
+      }
+    }
+
+    // ---- 3c. target (implícito: pergunta aqui, depois do assistente) ------
+    if (resolved === undefined) {
+      try {
+        resolved = await resolveTarget({ cwd, target: opts.target, yes: opts.yes }, prompt);
+      } catch (error) {
+        prompt.error(error instanceof Error ? error.message : String(error));
+        return 1;
+      }
+    }
+
+    // Deploy explícito: sincroniza migrations em silêncio antes — o db:migrate
+    // do pipeline lê ./migrations e precisa das SQL novas.
+    if (!implicit) {
+      syncMigrations(cwd, { log: (message) => prompt.write(`${message}\n`) });
     }
 
     const target = resolved as DeployTarget;
