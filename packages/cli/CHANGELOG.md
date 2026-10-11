@@ -1,5 +1,11 @@
 # @oktis-works/cms
 
+## 0.6.4
+
+### Patch Changes
+
+- Novo comando `okcms dev`: setup + run de desenvolvimento num comando só — completa o `.env` (gera segredos que faltam, nunca sobrescreve valores existentes, respeita `DATABASE_URL`), sobe a infra do projeto via compose (a mesma que os alvos de `okcms deploy` reutilizam; sem Docker avisa e segue sem gravar workarounds), aplica schema + seed + migrations, cria o primeiro admin `SUPER_ADMIN` quando o banco está vazio (mesmo caminho do `user:create`) e sobe os apps (`start`). Reexecutável (depois de `docker compose down -v` recria tudo), recusa rodar em container (host-only, `--force` é o escape), exige `--yes` fora de TTY com `--email/--name/--password` para o primeiro usuário, e lembra no fim o ponto de colisão com o deploy: `okcms stop` antes de `okcms deploy` (os processos do dev ocupam as portas dos containers). Flags: `--yes`, `--skip-start`, `--no-infra`, `--email`, `--name`, `--password`, `--force`. README (raiz + gerado, EN/PT) documenta o comando e o caminho dev → deploy.
+
 ## 0.6.3
 
 ### Patch Changes

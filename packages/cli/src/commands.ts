@@ -1,5 +1,7 @@
-import { basename, join, resolve } from 'node:path';
+import { basename, resolve } from 'node:path';
 import { initDb } from './db-init.js';
+import { getMigrationsDir, prepareDb } from './db-prepare.js';
+import { VALID_ROLES, createUserAccount } from './users.js';
 import type { DocsLang } from './scaffold-docs.js';
 import { style } from './prompt.js';
 
@@ -22,44 +24,6 @@ export interface Command {
   description: string;
   options: Option[];
   handler: (args: string[], options: Record<string, string>) => Promise<void>;
-}
-
-function getMigrationsDir(options: Record<string, string>): string {
-  return options['dir'] ?? join(process.cwd(), 'migrations');
-}
-
-function getTenantId(options: Record<string, string>): string {
-  return options['tenant'] ?? 'default';
-}
-
-/** Papéis canônicos da política RBAC (slugs em MAIÚSCULAS). */
-const VALID_ROLES = ['SUPER_ADMIN', 'TENANT_ADMIN', 'EDITOR', 'AUTHOR', 'VIEWER'] as const;
-
-/**
- * Prepara o banco para os comandos db:* em QUALQUER estado — inclusive um
- * banco vazio recém-criado pelo docker compose (sem nem a tabela de controle
- * de migrations, que sequer existe sem o schema core): aplica o schema se
- * faltar, resolve o slug do --tenant para o UUID real de tenants.slug e
- * devolve esse UUID.
- */
-async function prepareDb(options: Record<string, string>): Promise<string> {
-  await initDb();
-  const { ensureCoreSchema, resolveTenantId, seedCoreData } = await import('@oktis-works/database');
-  const applied = await ensureCoreSchema();
-  if (applied) {
-    console.log('✓ core schema applied (database initialized)');
-  }
-  // Seed idempotente (roles da política + settings gerais): roda em qualquer
-  // banco — sem ele, o primeiro usuário registra e cai em 403 em tudo.
-  try {
-    const seeded = await seedCoreData();
-    if (seeded.roles > 0 || seeded.settings > 0) {
-      console.log(`✓ seed: ${seeded.roles} roles, ${seeded.settings} settings created`);
-    }
-  } catch (error) {
-    console.warn('⚠ default data seed failed:', error instanceof Error ? error.message : error);
-  }
-  return resolveTenantId(getTenantId(options));
 }
 
 export const commands: Command[] = [
@@ -231,6 +195,48 @@ export const commands: Command[] = [
       for (const proc of processes) {
         console.log(`  ${proc.alive ? '●' : '○'} ${proc.label.padEnd(6)} pid=${proc.pid} started=${proc.startedAt}`);
       }
+    },
+  },
+  {
+    name: 'dev',
+    description:
+      'One-shot dev setup + run: complete .env → infra → migrations → first admin → start apps',
+    options: [
+      { name: 'yes', alias: 'y', description: 'No prompts: take every default', required: false },
+      {
+        name: 'skip-start',
+        alias: 's',
+        description: 'Prepare everything (env, infra, db, user) but do not start the apps',
+        required: false,
+      },
+      {
+        name: 'no-infra',
+        alias: 'n',
+        description: 'Do not start the Docker infrastructure (external Postgres)',
+        required: false,
+      },
+      { name: 'email', alias: 'e', description: 'First admin email (required in non-TTY)', required: false },
+      { name: 'name', alias: 'N', description: 'First admin name (required in non-TTY)', required: false },
+      { name: 'password', alias: 'p', description: 'First admin password (required in non-TTY)', required: false },
+      {
+        name: 'force',
+        alias: 'F',
+        description: 'Allow running inside a container (not recommended)',
+        required: false,
+      },
+    ],
+    handler: async (_args, options) => {
+      const { runDev } = await import('./dev.js');
+      const code = await runDev({
+        yes: options['yes'] !== undefined,
+        skipStart: options['skip-start'] !== undefined,
+        noInfra: options['no-infra'] !== undefined,
+        force: options['force'] !== undefined,
+        email: options['email'] ? String(options['email']) : undefined,
+        name: options['name'] ? String(options['name']) : undefined,
+        password: options['password'] ? String(options['password']) : undefined,
+      });
+      if (code !== 0) process.exitCode = code;
     },
   },
   {
@@ -963,60 +969,19 @@ export const commands: Command[] = [
     handler: async (_args, options) => {
       // A política RBAC usa slugs em maiúsculas: `--role editor` → EDITOR.
       const roleSlug = String(options['role'] ?? 'EDITOR').toUpperCase();
-      if (!(VALID_ROLES as readonly string[]).includes(roleSlug)) {
-        console.error(`Invalid role: ${options['role']} — use one of: ${VALID_ROLES.join(', ')}`);
+      try {
+        await createUserAccount({
+          email: String(options['email']),
+          name: String(options['name']),
+          password: String(options['password']),
+          role: roleSlug,
+          tenant: String(options['tenant'] ?? 'default'),
+        });
+        console.log(`✓ user created: ${options['email']} (role ${roleSlug})`);
+      } catch (error) {
+        console.error(error instanceof Error ? error.message : String(error));
         process.exitCode = 1;
-        return;
       }
-
-      await initDb();
-      const { ensureCoreSchema, resolveTenantId, seedDefaultRoles, getConnection } = await import('@oktis-works/database');
-      const { hashPassword } = await import('@oktis-works/auth');
-      const { randomUUID } = await import('node:crypto');
-
-      await ensureCoreSchema();
-      await seedDefaultRoles();
-
-      const sql = getConnection();
-      const email = String(options['email']);
-      const existing = await sql.unsafe('SELECT id FROM users WHERE email = $1', [email]);
-      if (existing.length > 0) {
-        console.error(`User already exists: ${email}`);
-        process.exitCode = 1;
-        return;
-      }
-
-      const passwordHash = await hashPassword(String(options['password']));
-      const userId = randomUUID();
-      await sql.unsafe(
-        `INSERT INTO users (id, email, name, password_hash, status)
-         VALUES ($1, $2, $3, $4, 'ACTIVE')`,
-        [userId, email, String(options['name']), passwordHash]
-      );
-
-      const tenantId = await resolveTenantId(String(options['tenant'] ?? 'default'));
-      const roles = await sql.unsafe(
-        `SELECT id FROM roles
-         WHERE slug = $1 AND (tenant_id IS NULL OR tenant_id = $2)
-         ORDER BY tenant_id NULLS LAST
-         LIMIT 1`,
-        [roleSlug, tenantId]
-      );
-      if (roles.length === 0) {
-        console.error(`Role "${roleSlug}" not found after seeding.`);
-        process.exitCode = 1;
-        return;
-      }
-
-      await sql.unsafe(
-        `INSERT INTO tenant_users (tenant_id, user_id, role_id, status)
-         VALUES ($1, $2, $3, 'ACTIVE')
-         ON CONFLICT (tenant_id, user_id)
-         DO UPDATE SET role_id = EXCLUDED.role_id, status = 'ACTIVE'`,
-        [tenantId, userId, roles[0]!['id'] as string]
-      );
-
-      console.log(`✓ user created: ${email} (role ${roleSlug})`);
     },
   },
   {

@@ -48,6 +48,24 @@ okcms start                  # api + admin + web + worker
 okcms doctor                 # se algo falhar
 ```
 
+Ou faça a sequência inteira em um comando com o **`okcms dev`**: ele completa
+o `.env` (gera os segredos que faltam, mantém os valores existentes), sobe a
+infra do projeto (o MESMO compose que o `okcms deploy` reutiliza), aplica
+schema + seed + migrations, cria o primeiro admin (`SUPER_ADMIN`) quando o
+banco está vazio e sobe os apps. É reexecutável — depois de um
+`docker compose down -v` tudo é recriado na próxima rodada — e fora de TTY
+exige `--yes` (com `--email/--name/--password` para o primeiro usuário).
+
+> **Dev → deploy.** O `okcms dev` prepara o MESMO estado que o
+> `okcms deploy` consome (`.env` do projeto, compose de infra compartilhado,
+> migrations versionadas, seed idempotente, o usuário admin) — nada é jogado
+> fora. A única colisão: os processos do `start` ocupam as mesmas portas que
+> os containers precisam, então rode `okcms stop` antes do `okcms deploy`.
+> Sem Docker o passo de infra é pulado com dica (aponte para um Postgres
+> seu); o `okcms dev` nunca grava workarounds "de dev" como
+> `REDIS_HOST=disabled` no `.env` — valores existentes nunca são
+> sobrescritos.
+
 O `init` pergunta em que língua escrever as docs (`README.md`, `PLUGIN.md`,
 `THEME.md`): **inglês** ou **português**. Em script/CI (sem TTY) ele não
 pergunta e o default é inglês — force com `--lang en` ou `--lang pt`. Só os
@@ -69,6 +87,7 @@ mostra a versão real de cada pacote conforme instala; sem bun, ele cai para o
 | `okcms start` | `-A, --all` (default) · `-a, --api` · `-m, --admin` · `-w, --web` · `-W, --worker` | Sobe os apps como processos do host (pidfiles em `.data/`) |
 | `okcms stop` | — | Para o que `start` subiu (pidfile + detecção) |
 | `okcms status` | — | Estado dos processos + resumo do projeto |
+| `okcms dev` | `-y, --yes` · `-s, --skip-start` · `-n, --no-infra` · `-e, --email` · `-N, --name` · `-p, --password` · `-F, --force` | Setup + run de dev num comando: completa `.env` → infra → schema/seed/migrations → primeiro admin → `start` (reexecutável; sem TTY exige `--yes`) |
 | `okcms doctor` | — | Diagnóstico: node, `.env`, banco (`DB_*` ou `DATABASE_URL`), config, **docker, compose v2, lane, proxy** |
 | `okcms config` | `-s, --set K=V` (repetível) · `-l, --list` · `-S, --show-secrets` · `-n, --non-interactive` · `-x, --section <s>` · `-F, --force` | Wizard de edição do `.env` — Enter mantém, Ctrl+C descarta tudo (exit 130) |
 

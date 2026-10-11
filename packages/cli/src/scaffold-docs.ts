@@ -111,6 +111,16 @@ Pré-requisitos: **Node 20+** ou **Bun 1.3+** · **PostgreSQL 16+** (obrigatóri
 > \`okcms\`. Para o bootstrap sem instalação global, use
 > \`npx @oktis-works/cms@latest init\` ou \`bunx @oktis-works/cms@latest init\`.
 
+Atalho — \`okcms dev\` faz tudo em um comando: completa o \`.env\` (gera os
+segredos que faltam, mantém os existentes), sobe a infra (o MESMO compose
+que o \`okcms deploy\` reutiliza), aplica schema + seed + migrations, cria o
+primeiro admin (\`SUPER_ADMIN\`) se o banco estiver vazio e sobe os apps.
+É reexecutável; sem TTY exige \`--yes\` (com \`--email/--name/--password\`).
+Indo para produção: \`okcms stop\` antes de \`okcms deploy\` — os processos
+do dev ocupam as mesmas portas que os containers.
+
+O passo a passo manual:
+
 \`\`\`bash
 # 1. Banco no .env — escolha UM formato:
 #    (a) variáveis separadas (default)
@@ -403,6 +413,17 @@ Prerequisites: **Node 20+** or **Bun 1.3+** · **PostgreSQL 16+** (required) ·
 > **Project CLI:** after installation, commands run directly with \`okcms\`.
 > For bootstrap without a global install, use
 > \`npx @oktis-works/cms@latest init\` or \`bunx @oktis-works/cms@latest init\`.
+
+Shortcut — \`okcms dev\` does everything in one command: completes \`.env\`
+(generating missing secrets, keeping existing values), starts the infra
+(the SAME compose \`okcms deploy\` reuses), applies schema + seed +
+migrations, creates the first admin (\`SUPER_ADMIN\`) when the database is
+empty, and starts the apps. Re-runnable; non-TTY requires \`--yes\` (with
+\`--email/--name/--password\`). Going to production: \`okcms stop\` before
+\`okcms deploy\` — the dev processes hold the same ports the containers
+need.
+
+The manual step by step:
 
 \`\`\`bash
 # 1. Database in .env — pick ONE format:
