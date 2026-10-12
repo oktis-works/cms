@@ -1,5 +1,11 @@
 # @oktis-works/cms
 
+## 0.7.0
+
+### Minor Changes
+
+- Wizard interativo completo: rodar `okcms` sem argumentos num TTY abre o menu guiado com todos os comandos do CLI (agrupados por área, destrutivos marcados com ⚠ e confirmação extra, cada execução imprimindo primeiro o espelho `$ okcms …`), 5 fluxos guiados (`init`, `dev`, `deploy` blue-green/simple/pm2, `update`) com pré-checagens de projeto/docker/portas e menu de falha (doctor · retry · menu), entrevista dos 47 campos do `.env` (explicação por campo, valor atual com segredos mascarados, Enter mantém, nada gravado até a confirmação única do resumo, Ctrl+C descarta o plano), status adaptativo (docker · infra · apps · `.env`) com sugestão do próximo passo, troca de idioma en/pt em sessão (sintaxe de comandos/flags nunca traduzida) e Ctrl+C durante processos longos retornando ao menu em vez de matar o assistente. Fora de TTY o comando puro continua imprimindo o help estático (automação intacta) e `okcms menu` é o alias explícito. Corrigido loop infinito de `secret`/`ask` do `prompt.ts` em EOF (Ctrl+D ou pipe fechado).
+
 ## 0.6.5
 
 ### Patch Changes
