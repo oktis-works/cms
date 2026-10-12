@@ -1,5 +1,11 @@
 # @oktis-works/web
 
+## 0.6.0
+
+### Minor Changes
+
+- Bump to 0.7.0 for monorepo sync with CLI 0.7.0 (interactive wizard release).
+
 ## 0.5.5
 
 ### Patch Changes
