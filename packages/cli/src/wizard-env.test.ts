@@ -63,6 +63,20 @@ function answersFor(overrides: Record<string, string>, finalConfirm?: 'y' | 'n')
   }
   const lines: string[] = [];
   for (const section of ENV_SECTIONS) {
+    // seção de banco: antes dos campos, pergunta o modo de conexão
+    if (section.id === 'database') {
+      // default 'individual' = opção 2 no menu numerado
+      const mode = overrides['DB_MODE'] ?? '2';
+      lines.push(mode);
+      if (mode === '1') {
+        // modo connection string: DATABASE_URL será perguntado, DB_PASSWORD gerado auto
+        // sobrescreve record para que o when dos DB_* pule
+        record['DATABASE_URL'] = overrides['DATABASE_URL'] ?? 'postgresql://user:pass@host:5432/db';
+      } else {
+        // modo individual: campos DB_* normais
+      }
+    }
+
     for (const field of ENV_FIELDS) {
       if (field.section !== section.id) continue;
       if (field.when && !field.when(record)) continue;

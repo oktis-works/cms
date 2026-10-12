@@ -85,6 +85,37 @@ export async function runEnvInterview(
     for (const section of ENV_SECTIONS) {
       if (interrupted.value) break;
 
+      // seção de banco: antes de tudo, pergunta o modo de conexão
+      if (section.id === 'database') {
+        const mode = await prompt.select<'connectionString' | 'individual'>(
+          catalog.envDbModeChoose,
+          [
+            { value: 'connectionString', label: catalog.envDbModeConnectionString, hint: catalog.envDbModeConnectionStringHint },
+            { value: 'individual', label: catalog.envDbModeIndividual, hint: catalog.envDbModeIndividualHint },
+          ],
+          { defaultValue: 'individual' }
+        );
+
+        if (mode === 'connectionString') {
+          // modo string de conexão: pergunta DATABASE_URL + garante DB_PASSWORD para a infra
+          const dbUrlField = ENV_FIELDS.find((f) => f.key === 'DATABASE_URL')!;
+          await askField(prompt, catalog, env, changed, dbUrlField, record);
+
+          // DB_PASSWORD é necessário para a infra local (POSTGRES_PASSWORD do compose)
+          // mesmo quando usando DATABASE_URL externo — gera se não existir
+          const pwdField = ENV_FIELDS.find((f) => f.key === 'DB_PASSWORD')!;
+          const currentPwd = env.get('DB_PASSWORD') ?? '';
+          if (!currentPwd || !looksLikeSecret(currentPwd)) {
+            const secret = generateSecret(24);
+            env.set('DB_PASSWORD', secret);
+            changed.add('DB_PASSWORD');
+            prompt.success(`DB_PASSWORD gerado para a infra local: ${maskValue(secret)}`);
+          }
+          continue; // pula os campos DB_* individuais
+        }
+        // modo individual: segue o fluxo normal (campos DB_* com when)
+      }
+
       const fields = fieldsForSection(section.id, record());
       if (fields.length === 0) continue;
 

@@ -1,5 +1,16 @@
 # @oktis-works/cms
 
+## 0.7.2
+
+### Patch Changes
+
+- Wizard: seção de banco agora pergunta o modo de conexão antes dos campos.
+  
+  - **Connection string (DATABASE_URL)**: usuário informa a URL única; `DB_PASSWORD` é gerado automaticamente para a infra local (o compose precisa dele para `POSTGRES_PASSWORD`).
+  - **Valores individuais (DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD)**: fluxo original campo a campo.
+  
+  Corrige o erro "required variable DB_PASSWORD is missing a value" ao subir a infra quando o usuário escolhia connection string.
+
 ## 0.7.1
 
 ### Patch Changes
