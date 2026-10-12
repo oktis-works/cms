@@ -522,12 +522,14 @@ export function validateField(field: EnvField, value: string): string | null {
       return null;
     }
     case 'url': {
+      // aceita URL completa (http/https) OU caminho relativo iniciando com /
+      if (trimmed.startsWith('/')) return null;
       try {
         const parsed = new URL(trimmed);
         if (!['http:', 'https:'].includes(parsed.protocol)) return 'use http:// or https://';
         return null;
       } catch {
-        return 'invalid URL';
+        return 'invalid URL (use https://... or /path)';
       }
     }
     case 'database-url': {

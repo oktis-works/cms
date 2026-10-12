@@ -1,5 +1,11 @@
 # @oktis-works/cms
 
+## 0.7.1
+
+### Patch Changes
+
+- Fix: validação de `PUBLIC_API_URL` aceita agora caminhos relativos (`/api`, `/api/v1`) além de URLs completas (`https://...`). O default do scaffold `/api` era rejeitado incorretamente.
+
 ## 0.7.0
 
 ### Minor Changes
