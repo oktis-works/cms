@@ -37,6 +37,39 @@ npx @oktis-works/cms@latest --help
 okcms doctor
 ```
 
+### Assistente interativo
+
+Rode `okcms` **sem argumentos num terminal** e o assistente guiado abre —
+todos os comandos, fluxos e campos da CLI, navegados com as setas (e
+atalhos `1`-`9`):
+
+```bash
+okcms            # comando puro em TTY → o assistente
+okcms menu       # alias explícito do mesmo assistente
+```
+
+- **Fluxos guiados** — `init`, `dev`, `deploy` (blue-green · simple · pm2) e
+  `update`, com pré-cheagens (projeto, docker, portas ocupadas pelos apps
+  locais) e escolha de doctor / retry / menu quando uma etapa falha.
+- **Todos os comandos do CLI**, agrupados por área. Os destrutivos
+  (`db:restore`, `db:rollback`, `rollback`, `update`) ganham ⚠ e uma confirmação
+  extra além da normal. Cada execução imprime primeiro a linha exata
+  `$ okcms …`, então tudo que foi feito na tela pode ser scriptado depois.
+- **Entrevista do `.env`** — o schema completo (47 campos), cada um com uma
+  explicação curta, o valor atual (segredos mascarados) e Enter mantendo-o.
+  Nada é gravado até o resumo final ser confirmado uma única vez; Ctrl+C em
+  qualquer ponto descarta o plano inteiro.
+- **Status adaptativo** — o menu sonda docker, serviços do compose, apps
+  rodando e `.env`, e sugere o próximo passo
+  (init → env → infra → apps → deploy).
+- **Idioma** — a UI começa em inglês e pode ser trocada para português (ou
+  de volta) pelo menu; nomes de comandos e flags nunca são traduzidos.
+  Durante um filho longo (`dev`, `start`) o Ctrl+C para o filho e volta ao
+  menu em vez de matar o assistente.
+
+Fora de um TTY (pipes, scripts, CI), `okcms` puro imprime o help estático —
+o comportamento de automação nunca muda.
+
 ### Primeiros passos
 
 ```bash
@@ -91,6 +124,7 @@ mostra a versão real de cada pacote conforme instala; sem bun, ele cai para o
 | Comando | Opções | O que faz |
 |---|---|---|
 | `okcms init <dir> [nome]` | `-d, --dir` · `-l, --lang en\|pt` · `-n, --no-install` | Cria o projeto: configs, `.env`, compose, arquivos de deploy Docker, docs (em inglês ou português) e a instalação das dependências (bun, ou npm) |
+| `okcms menu` | — | Abre o assistente interativo (igual a rodar `okcms` puro num terminal) |
 | `okcms start` | `-A, --all` (default) · `-a, --api` · `-m, --admin` · `-w, --web` · `-W, --worker` | Sobe os apps como processos do host (pidfiles em `.data/`) |
 | `okcms stop` | — | Para o que `start` subiu (pidfile + detecção) |
 | `okcms status` | — | Estado dos processos + resumo do projeto |

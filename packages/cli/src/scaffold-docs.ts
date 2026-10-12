@@ -289,6 +289,7 @@ os 6 passos acima na mão. Prefira o comando da CLI.
 | Comando | O que faz |
 |---|---|
 | \`okcms init <dir>\` | Cria o projeto (arquivos + docs em \`--lang en\\|pt\`) e instala as dependências |
+| \`okcms menu\` | Abre o assistente interativo (igual a rodar \`okcms\` puro num terminal) |
 | \`okcms start [--api\\|--admin\\|--web\\|--worker\\|--all]\` | Sobe os apps (default: todos) |
 | \`okcms stop\` / \`okcms status\` | Para / mostra os processos (pidfiles) |
 | \`okcms doctor\` | Diagnóstico: node, \`.env\`, database (\`DB_*\` ou \`DATABASE_URL\`), config, docker, compose, lane e proxy |
@@ -596,6 +597,7 @@ the 6 steps above to do by hand. Prefer the CLI command.
 | Command | What it does |
 |---|---|
 | \`okcms init <dir>\` | Creates the project (files + docs in \`--lang en\\|pt\`) and installs dependencies |
+| \`okcms menu\` | Opens the interactive wizard (same as running bare \`okcms\` in a terminal) |
 | \`okcms start [--api\\|--admin\\|--web\\|--worker\\|--all]\` | Starts the apps (default: all) |
 | \`okcms stop\` / \`okcms status\` | Stops / shows the processes (pidfiles) |
 | \`okcms doctor\` | Diagnostics: node, \`.env\`, database (\`DB_*\` or \`DATABASE_URL\`), config, docker, compose, lane and proxy |

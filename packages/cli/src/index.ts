@@ -19,6 +19,15 @@ async function main(): Promise<void> {
   }
 
   if (!parsed.command) {
+    // `okcms` sem argumentos: em TTY abre o wizard interativo; fora de TTY
+    // (CI, pipe, redirecionamento) segue o help estático — automação nunca
+    // cai num menu interativo.
+    const isTty = Boolean(process.stdin.isTTY && process.stdout.isTTY);
+    if (isTty) {
+      const { runWizard } = await import('./wizard.js');
+      const code = await runWizard();
+      process.exit(code);
+    }
     console.log(generateHelp());
     process.exit(0);
   }

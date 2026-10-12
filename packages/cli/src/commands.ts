@@ -240,6 +240,16 @@ export const commands: Command[] = [
     },
   },
   {
+    name: 'menu',
+    description: 'Open the interactive wizard (same as running `okcms` with no args in a TTY)',
+    options: [],
+    handler: async () => {
+      const { runWizard } = await import('./wizard.js');
+      const code = await runWizard();
+      if (code !== 0) process.exitCode = code;
+    },
+  },
+  {
     name: 'doctor',
     description: 'Environment diagnostics: node, .env, database, config, docker/compose/lane/proxy',
     options: [],

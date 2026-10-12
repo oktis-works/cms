@@ -60,12 +60,20 @@ export function parseArgs(argv: string[]): ParsedArgs {
 }
 
 const commandGroups: Array<[string, string[]]> = [
-  ['Project', ['init', 'start', 'stop', 'status', 'doctor', 'config']],
+  ['Project', ['init', 'menu', 'start', 'stop', 'status', 'doctor', 'config']],
   ['Database', ['db:migrate', 'db:rollback', 'db:status', 'db:backup', 'db:restore', 'seed', 'user:create']],
   ['Extensions', ['plugin:create', 'plugin:install', 'plugin:list', 'plugin:search', 'plugin:manage', 'theme:create', 'theme:install', 'theme:list', 'theme:search', 'theme:manage', 'theme:build']],
   ['Deploy', ['build', 'update', 'redeploy', 'rollback', 'deploy']],
   ['System', ['prerender', 'media:migrate', 'system:status']],
 ];
+
+/**
+ * Grupos do help, como pares [nome, comandos]. O wizard navega o catálogo por
+ * aqui — mesma fonte do `okcms --help`, nunca uma lista paralela.
+ */
+export function commandGroupNames(): Array<[string, string[]]> {
+  return commandGroups.map(([group, names]) => [group, [...names]]);
+}
 
 function commandByName(name: string): (typeof commands)[number] | undefined {
   return commands.find((cmd) => cmd.name === name);

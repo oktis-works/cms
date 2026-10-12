@@ -37,6 +37,39 @@ npx @oktis-works/cms@latest --help
 okcms doctor
 ```
 
+### Interactive wizard
+
+Run `okcms` **with no arguments in a terminal** and it opens the guided
+wizard — every command, flow and field of the CLI, navigated with arrow keys
+(and `1`-`9` shortcuts):
+
+```bash
+okcms            # bare command in a TTY → the wizard
+okcms menu       # explicit alias for the same wizard
+```
+
+- **Guided flows** — `init`, `dev`, `deploy` (blue-green · simple · pm2) and
+  `update`, with prechecks (project, docker, ports held by local apps) and a
+  doctor / retry / menu choice when a step fails.
+- **Every CLI command**, grouped by area. Destructive ones (`db:restore`,
+  `db:rollback`, `rollback`, `update`) are marked ⚠ and demand an extra
+  confirmation on top of the normal one. Each run first prints the exact
+  `$ okcms …` line, so anything done interactively can be scripted later.
+- **`.env` interview** — the full schema (47 fields), each with a short
+  explanation, the current value (secrets masked) and Enter keeping it.
+  Nothing is written until the final summary is confirmed once; Ctrl+C at
+  any point discards the whole plan.
+- **Adaptive status** — the menu probes docker, the compose services, the
+  running apps and `.env`, then suggests the next step
+  (init → env → infra → apps → deploy).
+- **Language** — the UI starts in English and can be switched to Português
+  (or back) from the menu; command names and flags are never translated.
+  During a long-running child (`dev`, `start`) Ctrl+C stops the child and
+  returns to the menu instead of killing the wizard.
+
+Outside a TTY (pipes, scripts, CI), bare `okcms` prints the static help —
+automation behavior never changes.
+
 ### First steps
 
 ```bash
@@ -90,6 +123,7 @@ shows each package's real version as it lands; without bun it falls back to
 | Command | Options | What it does |
 |---|---|---|
 | `okcms init <dir> [nome]` | `-d, --dir` · `-l, --lang en\|pt` · `-n, --no-install` | Creates the project: configs, `.env`, compose, Docker deploy files, docs (English or Portuguese) and the dependency install (bun, or npm) |
+| `okcms menu` | — | Opens the interactive wizard (same as running bare `okcms` in a terminal) |
 | `okcms start` | `-A, --all` (default) · `-a, --api` · `-m, --admin` · `-w, --web` · `-W, --worker` | Starts the apps as host processes (pidfiles in `.data/`) |
 | `okcms stop` | — | Stops what `start` started (pidfile + detection) |
 | `okcms status` | — | Process state + project summary |

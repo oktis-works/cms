@@ -294,13 +294,14 @@ class BufferedInput {
   /**
    * Reads a secret. No echo on a TTY (raw mode + `*`); without a TTY the input
    * IS the pipe — `echo password | okcms config` is a real flow — and the
-   * default covers a closed stdin in CI.
+   * default covers a closed stdin in CI. Returns `null` at EOF so the caller
+   * can distinguish "stream ended" from "user submitted an empty value".
    */
-  async readSecret(): Promise<string> {
+  async readSecret(): Promise<string | null> {
     const queued = this.queue.shift();
     if (queued !== undefined) return queued;
-    if (this.ended) return '';
-    if (!this.canRaw) return (await this.readLine()) ?? '';
+    if (this.ended) return null;
+    if (!this.canRaw) return this.readLine();
 
     return new Promise((resolve) => {
       this.rawValue = '';
@@ -642,7 +643,20 @@ export class Prompt {
       const suffix =
         opts.default !== undefined && !opts.placeholder ? style.dim(`[${opts.default}]`) : '';
       const raw = await this.askLine(`  ${symbol.ask} ${title}${shown}${suffix} `);
-      const blank = raw === null || raw.trim() === '';
+
+      // EOF (pipe fechado / Ctrl+D): não há mais linha para ler. Re-perguntar
+      // aqui seria loop infinito (readLine devolve null para sempre). Usa o
+      // fallback se houver; senão devolve vazio e deixa o chamador decidir.
+      if (raw === null) {
+        const problem0 = opts.validate?.(fallback);
+        if (problem0) {
+          this.write(`  ${style.red(symbol.fail)} ${problem0}\n`);
+          return '';
+        }
+        return fallback;
+      }
+
+      const blank = raw.trim() === '';
       const value = blank ? fallback : raw.trim();
 
       const problem = opts.validate?.(value);
@@ -660,9 +674,9 @@ export class Prompt {
 
     if (!this.io.isTTY) {
       // sem TTY o stdin É o pipe: `echo senha | okcms config` é fluxo real.
-      // Sem nada chegando, cai no default (stdin fechado em CI).
+      // Sem nada chegando (EOF), cai no default (stdin fechado em CI).
       const piped = await this.input.readSecret();
-      const value = piped.trim() === '' ? fallback : piped.trim();
+      const value = !piped || piped.trim() === '' ? fallback : piped.trim();
       const problem = opts.validate?.(value);
       if (problem) throw new Error(problem);
       return value;
@@ -674,15 +688,23 @@ export class Prompt {
     for (;;) {
       const suffix = opts.default !== undefined ? style.dim('[enter = keep]') : '';
       this.write(`  ${symbol.ask} ${title}${shown}${suffix} `);
-      const value = await this.input.readSecret();
+      const raw = await this.input.readSecret();
       this.write('\n');
 
-      const problem = opts.validate?.(value);
+      // EOF (pipe fechado / Ctrl+D): sem linha nova não há o que validar —
+      // devolve o default em vez de re-perguntar para sempre.
+      if (raw === null) return fallback;
+
+      // Enter com default disponível = manter o valor atual, sem validar de novo
+      // (o valor atual já foi aceito antes; re-validar só repete o prompt à toa)
+      if (raw === '' && fallback !== '') return fallback;
+
+      const problem = opts.validate?.(raw);
       if (problem) {
         this.write(`  ${style.red(symbol.fail)} ${problem}\n`);
         continue;
       }
-      return value === '' ? fallback : value;
+      return raw;
     }
   }
 
