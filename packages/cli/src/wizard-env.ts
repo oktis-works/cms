@@ -85,8 +85,26 @@ export async function runEnvInterview(
     for (const section of ENV_SECTIONS) {
       if (interrupted.value) break;
 
-      // seção de banco: antes de tudo, pergunta o modo de conexão
+      // seção de banco: antes de tudo, pergunta o engine, depois o modo de conexão
       if (section.id === 'database') {
+        // 1. Escolha do engine
+        const engine = await prompt.select<'postgres' | 'mysql' | 'mariadb'>(
+          catalog.envDbEngineChoose,
+          [
+            { value: 'postgres', label: catalog.envDbEnginePostgres, hint: catalog.envDbEnginePostgresHint },
+            { value: 'mysql', label: catalog.envDbEngineMysql, hint: catalog.envDbEngineMysqlHint },
+            { value: 'mariadb', label: catalog.envDbEngineMariadb, hint: catalog.envDbEngineMariadbHint },
+          ],
+          { defaultValue: 'postgres' }
+        );
+
+        // salva o engine no env para usar no default dinâmico do DB_PORT
+        if (!env.get('DB_ENGINE') || env.get('DB_ENGINE') !== engine) {
+          env.set('DB_ENGINE', engine);
+          changed.add('DB_ENGINE');
+        }
+
+        // 2. Modo de conexão
         const mode = await prompt.select<'connectionString' | 'individual'>(
           catalog.envDbModeChoose,
           [
@@ -101,7 +119,7 @@ export async function runEnvInterview(
           const dbUrlField = ENV_FIELDS.find((f) => f.key === 'DATABASE_URL')!;
           await askField(prompt, catalog, env, changed, dbUrlField, record);
 
-          // DB_PASSWORD é necessário para a infra local (POSTGRES_PASSWORD do compose)
+          // DB_PASSWORD é necessário para a infra local (compose precisa)
           // mesmo quando usando DATABASE_URL externo — gera se não existir
           const currentPwd = env.get('DB_PASSWORD') ?? '';
           if (!currentPwd || !looksLikeSecret(currentPwd)) {
@@ -214,13 +232,19 @@ async function askField(
       validate,
     });
   } else {
-    const fallback = current || field.default || '';
+    // default dinâmico para DB_PORT baseado no DB_ENGINE já escolhido
+    let effectiveDefault = field.default || '';
+    if (field.key === 'DB_PORT') {
+      const engine = env.get('DB_ENGINE') ?? 'postgres';
+      effectiveDefault = engine === 'postgres' ? '5432' : '3306';
+    }
+    const fallback = current || effectiveDefault || '';
     value = await prompt.ask(`${field.key} — ${field.label}`, {
       default: fallback,
       placeholder: current
         ? `${catalog.envKeepHint}: ${current}`
-        : field.default
-          ? `${field.default} (default)`
+        : effectiveDefault
+          ? `${effectiveDefault} (default)`
           : undefined,
       validate,
     });
@@ -230,7 +254,12 @@ async function askField(
 
   // aceitar o default de uma chave AUSENTE não materializa a chave — o app já
   // aplica esse default; gravar tudo a cada Enter enche o .env de ruído
-  const acceptedDefault = current === '' && value === (field.default ?? '');
+  let effectiveDefault = field.default ?? '';
+  if (field.key === 'DB_PORT') {
+    const engine = env.get('DB_ENGINE') ?? 'postgres';
+    effectiveDefault = engine === 'postgres' ? '5432' : '3306';
+  }
+  const acceptedDefault = current === '' && value === effectiveDefault;
   if (acceptedDefault) {
     prompt.info(catalog.envDefaultApplies(value));
     return;

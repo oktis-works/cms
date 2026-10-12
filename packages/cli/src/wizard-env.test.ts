@@ -63,9 +63,14 @@ function answersFor(overrides: Record<string, string>, finalConfirm?: 'y' | 'n')
   }
   const lines: string[] = [];
   for (const section of ENV_SECTIONS) {
-    // seção de banco: antes dos campos, pergunta o modo de conexão
+    // seção de banco: antes dos campos, pergunta o engine, depois o modo de conexão
     if (section.id === 'database') {
-      // default 'individual' = opção 2 no menu numerado
+      // 1. DB_ENGINE: default 'postgres' = opção 1 no menu numerado
+      const engine = overrides['DB_ENGINE'] ?? '1';
+      lines.push(engine);
+      record['DB_ENGINE'] = engine === '1' ? 'postgres' : engine === '2' ? 'mysql' : 'mariadb';
+
+      // 2. DB_MODE: default 'individual' = opção 2 no menu numerado
       const mode = overrides['DB_MODE'] ?? '2';
       lines.push(mode);
       if (mode === '1') {
@@ -117,9 +122,9 @@ describe('catalog completeness', () => {
   });
 });
 
-describe('ENV_FIELDS sizing (wizard promises all 47)', () => {
-  it('has 47 fields across 10 sections', () => {
-    expect(ENV_FIELDS.length).toBe(47);
+describe('ENV_FIELDS sizing (wizard promises all fields)', () => {
+  it('has 48 fields across 10 sections (DB_ENGINE added)', () => {
+    expect(ENV_FIELDS.length).toBe(48);
     expect(ENV_SECTIONS.length).toBe(10);
   });
 });
@@ -145,6 +150,7 @@ describe('runEnvInterview', () => {
       [
         'NODE_ENV=development',
         'DB_PASSWORD=postgres',
+        'DB_ENGINE=postgres',
         'JWT_SECRET=uma-chave-segura-de-32-bytes-bem-longa',
         '',
       ].join('\n')
@@ -165,6 +171,7 @@ describe('runEnvInterview', () => {
         'NODE_ENV=development',
         'PORT=3000',
         'DB_PASSWORD=postgres',
+        'DB_ENGINE=postgres',
         'JWT_SECRET=uma-chave-segura-de-32-bytes-bem-longa',
         '',
       ].join('\n')
@@ -186,6 +193,7 @@ describe('runEnvInterview', () => {
         'NODE_ENV=development',
         'PORT=3000',
         'DB_PASSWORD=postgres',
+        'DB_ENGINE=postgres',
         'JWT_SECRET=uma-chave-segura-de-32-bytes-bem-longa',
         '',
       ].join('\n')
@@ -206,6 +214,7 @@ describe('runEnvInterview', () => {
       [
         'NODE_ENV=development',
         'DB_PASSWORD=postgres-antiga',
+        'DB_ENGINE=postgres',
         'JWT_SECRET=uma-chave-segura-de-32-bytes-bem-longa',
         '',
       ].join('\n')
@@ -232,6 +241,7 @@ describe('runEnvInterview', () => {
       [
         'NODE_ENV=development',
         'DB_PASSWORD=postgres',
+        'DB_ENGINE=postgres',
         'JWT_SECRET=uma-chave-segura-de-32-bytes-bem-longa',
         '',
       ].join('\n')
@@ -249,7 +259,7 @@ describe('runEnvInterview', () => {
   it('runs from a missing .env without crashing (starts empty)', async () => {
     // sem .env: respondemos os 2 obrigatórios e descartamos no fim
     const io = fakeIO(
-      answersFor({ DB_PASSWORD: 'senha-forte-qualquer-123', JWT_SECRET: 'jwt-seguro-bem-longo-32-bytes-xxxx' }, 'n')
+      answersFor({ DB_ENGINE: '1', DB_PASSWORD: 'senha-forte-qualquer-123', JWT_SECRET: 'jwt-seguro-bem-longo-32-bytes-xxxx' }, 'n')
     );
     const prompt = new Prompt(io);
 

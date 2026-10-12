@@ -4,15 +4,14 @@
 //
 //   1. `.env`      completa o que falta (segredos gerados, valores existentes
 //                  NUNCA são tocados);
-//   2. infra      sobe o compose de infra do projeto (postgres + redis) —
+//   2. infra      sobe o compose de infra do projeto (Postgres/MySQL/MariaDB + redis) —
 //                  a MESMA infra que os alvos de `okcms deploy` reutilizam —
-//                  e ESPERA o postgres aceitar conexões (pg_isready) antes
-//                  de qualquer migration. O compose de infra não publica o
-//                  redis no host (por design de produção); para os apps de
-//                  HOST funcionarem, o dev escreve um override SOLO de dev
-//                  em `.data/dev-infra.override.yml` que publica
-//                  `127.0.0.1:6379` — o deploy recria o serviço sem ele
-//                  (a porta some sozinha, o volume fica intacto);
+//                  e ESPERA o banco aceitar conexões antes de qualquer migration.
+//                  O compose de infra não publica o redis no host (por design de
+//                  produção); para os apps de HOST funcionarem, o dev escreve
+//                  um override SOLO de dev em `.data/dev-infra.override.yml`
+//                  que publica `127.0.0.1:6379` — o deploy recria o serviço
+//                  sem ele (a porta some sozinha, o volume fica intacto);
 //   3. banco      schema core + seed idempotente + migrations de `./migrations`
 //                  (o mesmo caminho do `okcms db:migrate`);
 //   4. usuário    se não existe NINGUÉM no banco, cria o primeiro admin
@@ -43,11 +42,10 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { connect } from 'node:net';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 
 import {
   COMPOSE_INFRA_FILE,
-  INFRA_PROJECT,
   composeAvailable,
   defaultRunner,
   dockerAvailable,
@@ -59,6 +57,7 @@ import { ENV_FIELDS } from './env-schema.js';
 import { assertHostOnly, generateSecret, type ContainerProbe } from './guards.js';
 import { loadProjectConfig } from './project-config.js';
 import { Prompt } from './prompt.js';
+import { getInfraComposePath } from './assets.js';
 
 export interface DevUserInput {
   email: string;
@@ -89,7 +88,7 @@ export interface DevOptions {
   yes?: boolean;
   /** `--skip-start`: prepara tudo e não sobe os apps. */
   skipStart?: boolean;
-  /** `--no-infra`: não sobe o compose de infra (Postgres externo). */
+  /** `--no-infra`: não sobe o compose de infra (banco externo). */
   noInfra?: boolean;
   /** `--force`: roda mesmo dentro de container (não recomendado). */
   force?: boolean;
@@ -118,7 +117,7 @@ const min8 = (value: string): string | null =>
 const defaultSleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
-/** TCP reachável? Usado para esperar o postgres e checar o redis do host. */
+/** TCP reachável? Usado para esperar o banco e checar o redis do host. */
 export const defaultTcpProbe = (
   host: string,
   port: number,
@@ -138,7 +137,7 @@ export const defaultTcpProbe = (
 export interface InfraWaitOptions {
   tcpProbe?: (host: string, port: number, timeoutMs?: number) => Promise<boolean>;
   sleep?: (ms: number) => Promise<void>;
-  /** Timeout do postgres (ms). Default 60s — primeiro boot do volume é lento. */
+  /** Timeout do banco (ms). Default 60s — primeiro boot do volume é lento. */
   postgresWaitMs?: number;
   /** Timeout do redis no host (ms). Default 30s. */
   redisWaitMs?: number;
@@ -151,12 +150,12 @@ export interface InfraWaitOptions {
 }
 
 /**
- * Espera o Postgres do compose aceitar conexões — `pg_isready` no container
- * (TCP connect não basta: durante o startup o socket aceita e o Postgres
- * responde "the database system is starting up"). Se o container não existe
- * (Postgres externo), cai no probe TCP do host.
+ * Espera o banco (Postgres/MySQL/MariaDB) do compose aceitar conexões.
+ * - Postgres: usa `pg_isready` no container
+ * - MySQL/MariaDB: usa `mysqladmin ping` no container
+ * Se o container não existe (banco externo), cai no probe TCP do host.
  */
-export async function waitForPostgresReady(
+export async function waitForDatabaseReady(
   runner: Runner,
   record: Record<string, string>,
   opts: InfraWaitOptions = {}
@@ -165,16 +164,28 @@ export async function waitForPostgresReady(
   const probe = opts.tcpProbe ?? defaultTcpProbe;
   const timeoutMs = opts.postgresWaitMs ?? 60_000;
   const deadline = Date.now() + timeoutMs;
-  const user = record['DB_USER'] || 'postgres';
+  const engine = record['DB_ENGINE'] ?? 'postgres';
+  const user = record['DB_USER'] || (engine === 'postgres' ? 'postgres' : 'okcms');
   const db = record['DB_NAME'] || 'okcms';
-  const hostPort = Number(record['DB_HOST_PORT'] || record['DB_PORT'] || 5432);
+  const hostPort = Number(record['DB_HOST_PORT'] || record['DB_PORT'] || (engine === 'postgres' ? 5432 : 3306));
+  const containerName = engine === 'postgres' ? 'okcms-postgres' : engine === 'mysql' ? 'okcms-mysql' : 'okcms-mariadb';
 
   for (;;) {
-    const result = runner(
-      'docker',
-      ['exec', 'okcms-postgres', 'pg_isready', '-U', user, '-d', db],
-      { timeoutMs: 5_000 }
-    );
+    let result;
+    if (engine === 'postgres') {
+      result = runner(
+        'docker',
+        ['exec', containerName, 'pg_isready', '-U', user, '-d', db],
+        { timeoutMs: 5_000 }
+      );
+    } else {
+      // MySQL/MariaDB
+      result = runner(
+        'docker',
+        ['exec', containerName, 'mysqladmin', 'ping', '-h', 'localhost', '-u', user, `-p${record['DB_PASSWORD'] || ''}`],
+        { timeoutMs: 5_000 }
+      );
+    }
     if (result.ok) return true;
     if (/No such container/i.test(result.stderr)) {
       return probe('127.0.0.1', hostPort);
@@ -213,86 +224,58 @@ export async function ensureRedisOnHost(
 ): Promise<void> {
   const host = (record['REDIS_HOST'] ?? 'localhost').trim() || 'localhost';
   if (host === 'disabled') return;
-  if (!['localhost', '127.0.0.1', '::1'].includes(host)) return; // redis externo
+  if (!['localhost', '127.0.0.1', '::1'].includes(host)) return; // external redis
 
   const port = Number(record['REDIS_PORT'] || 6379);
-  const probe = opts.tcpProbe ?? defaultTcpProbe;
+  const tcpProbe = opts.tcpProbe ?? defaultTcpProbe;
   const sleep = opts.sleep ?? defaultSleep;
   const timeoutMs = opts.redisWaitMs ?? 30_000;
+  const deadline = Date.now() + timeoutMs;
 
-  if (await probe(host, port)) return; // já alcançável (compose novo ou override anterior)
+  if (await tcpProbe('127.0.0.1', port)) return; // already reachable (new compose or previous override)
+
+  if (!opts.apply) {
+    prompt.warn('Redis not reachable on host — run `okcms dev` and accept the infra step, or use REDIS_HOST=disabled (dev only).');
+    return;
+  }
 
   const composeFile = join(cwd, COMPOSE_INFRA_FILE);
   if (
-    opts.apply === false ||
     !dockerAvailable(runner) ||
     !composeAvailable(runner).ok ||
     !existsSync(composeFile)
   ) {
-    prompt.warn(`redis not reachable at ${host}:${port} — worker queues will not connect`);
+    prompt.warn('Redis not reachable on host — worker queues will not connect');
     prompt.info('start the infrastructure (`okcms dev` → Yes), or set REDIS_HOST=disabled to run without queues (dev only)');
     return;
   }
 
-  prompt.info(`redis not published on the host — applying dev override (127.0.0.1:${port})`);
-  const overridePath = join('.data', 'dev-infra.override.yml');
-  mkdirSync(join(cwd, '.data'), { recursive: true });
-  writeFileSync(join(cwd, overridePath), DEV_INFRA_OVERRIDE, 'utf-8');
+  prompt.write('\nRedis not reachable on host — publishing port 6379 on loopback via dev override...\n');
 
-  const result = runner(
-    'docker',
-    [
-      'compose', '-p', INFRA_PROJECT,
-      '-f', COMPOSE_INFRA_FILE,
-      '-f', overridePath,
-      'up', '-d', 'redis',
-    ],
-    { cwd, inherit: true, timeoutMs: 120_000 }
-  );
+  const overridePath = join(cwd, '.data', 'dev-infra.override.yml');
+  mkdirSync(dirname(overridePath), { recursive: true });
+  writeFileSync(overridePath, DEV_INFRA_OVERRIDE);
+
+  const runnerWithOverride = (args: string[]) =>
+    infraCompose(cwd, ['-f', COMPOSE_INFRA_FILE, '-f', overridePath, ...args], runner, true);
+
+  const result = await runnerWithOverride(['up', '-d', 'redis']);
   if (!result.ok) {
-    prompt.warn('failed to apply the redis dev override');
+    prompt.error('failed to recreate redis with loopback override');
     return;
   }
 
-  const deadline = Date.now() + timeoutMs;
   for (;;) {
-    if (await probe(host, port)) {
-      prompt.success(`redis is reachable at ${host}:${port}`);
+    if (await tcpProbe('127.0.0.1', port)) {
+      prompt.success('Redis reachable on host (loopback)');
       return;
     }
     if (Date.now() >= deadline) {
-      prompt.warn(`redis still not reachable at ${host}:${port} — worker queues will retry`);
+      prompt.error('Redis did not become reachable on host in time');
       return;
     }
-    await sleep(1_000);
+    await sleep(2_000);
   }
-}
-
-/**
- * Completa apenas as chaves ausentes/vazias: required sem valor recebe
- * segredo gerado; o resto recebe o default do schema. Respeita `when`
- * (ex.: DB_PASSWORD não existe quando o projeto usa DATABASE_URL).
- * Devolve as chaves preenchidas (nunca os valores).
- */
-export function fillMissingEnv(env: EnvFile): string[] {
-  const record = env.toRecord();
-  const filled: string[] = [];
-
-  for (const field of ENV_FIELDS) {
-    if ((record[field.key] ?? '').trim() !== '') continue;
-    if (field.when && !field.when(record)) continue;
-
-    if (field.required) {
-      record[field.key] = generateSecret(48);
-      filled.push(field.key);
-    } else if (field.default !== undefined) {
-      record[field.key] = field.default;
-      filled.push(field.key);
-    }
-  }
-
-  for (const key of filled) env.set(key, record[key]!);
-  return filled;
 }
 
 async function defaultHooks(log: (message: string) => void): Promise<DevHooks> {
@@ -310,9 +293,9 @@ async function defaultHooks(log: (message: string) => void): Promise<DevHooks> {
       const { anyUserExists } = await import('./users.js');
       return anyUserExists();
     },
-    createUser: async (input) => {
+    createUser: async (input: DevUserInput) => {
       const { createUserAccount } = await import('./users.js');
-      await createUserAccount({ ...input, role: input.role ?? 'SUPER_ADMIN' });
+      await createUserAccount(input);
     },
     startApps: async () => {
       const { startProject } = await import('./start.js');
@@ -321,7 +304,7 @@ async function defaultHooks(log: (message: string) => void): Promise<DevHooks> {
   };
 }
 
-export async function runDev(opts: DevOptions): Promise<number> {
+export async function runDev(opts: DevOptions = {}): Promise<number> {
   const cwd = opts.cwd ?? process.cwd();
   const runner = opts.runner ?? defaultRunner;
   const prompt = opts.prompt ?? new Prompt();
@@ -371,43 +354,51 @@ export async function runDev(opts: DevOptions): Promise<number> {
 
   // ---- 2. infra (compose do projeto — o mesmo que o deploy reutiliza) ------
   const record = env.toRecord();
-  let startedInfra = false;
+  const engine = record['DB_ENGINE'] ?? 'postgres';
+  let startedDb = false;
+  let startedRedis = false;
+
   if (opts.noInfra !== true) {
     const composeFile = join(cwd, COMPOSE_INFRA_FILE);
     if (dockerAvailable(runner) && composeAvailable(runner).ok && existsSync(composeFile)) {
-      const go =
-        !interactive ||
-        (await prompt.confirm('Start the infrastructure (docker compose: postgres + redis)?', {
-          defaultValue: true,
-        }));
-      if (go) {
+      // Pergunta individualmente para o banco
+      const goDb = !interactive ||
+        (await prompt.confirm(`Start the ${engine} database container?`, { defaultValue: true }));
+      // Pergunta individualmente para o Redis
+      const goRedis = !interactive ||
+        (await prompt.confirm('Start the Redis container?', { defaultValue: true }));
+
+      if (goDb || goRedis) {
         prompt.write('\nStarting infrastructure...\n');
-        const result = infraCompose(cwd, ['up', '-d'], runner, true);
+        const services = [];
+        if (goDb) services.push(engine === 'postgres' ? 'postgres' : engine);
+        if (goRedis) services.push('redis');
+        const result = infraCompose(cwd, ['up', '-d', ...services], runner, true);
         if (!result.ok) {
-          prompt.error('failed to start the infrastructure — run `docker compose -f docker-compose.infra.yml up -d` to see why');
+          prompt.error(`failed to start the infrastructure — run \`docker compose -f ${getInfraComposePath(engine)} up -d\` to see why`);
           return 1;
         }
-        startedInfra = true;
-        prompt.success('infrastructure is up (postgres + redis)');
+        if (goDb) startedDb = true;
+        if (goRedis) startedRedis = true;
+        prompt.success(`infrastructure is up${goDb ? ` (${engine})` : ''}${goRedis ? ' (redis)' : ''}`);
         prompt.info('same infra reused by `okcms deploy` targets — nothing to redo later');
       }
 
-      // Postgres NÃO aceita conexões no mesmo instante em que o container
-      // sobe (primeiro boot: init do volume leva ~10-30s) — sem esta espera
-      // as migrations falham com "the database system is starting up".
-      if (startedInfra || interactive) {
-        prompt.write('Waiting for postgres to accept connections...\n');
-        const ready = await waitForPostgresReady(runner, record, {
+      // Espera o banco aceitar conexões
+      if (startedDb || interactive) {
+        const dbLabel = engine === 'postgres' ? 'postgres' : engine;
+        prompt.write(`Waiting for ${dbLabel} to accept connections...\n`);
+        const ready = await waitForDatabaseReady(runner, record, {
           ...opts.infraWait,
-          postgresWaitMs: opts.infraWait?.postgresWaitMs ?? (startedInfra ? 60_000 : 10_000),
+          postgresWaitMs: opts.infraWait?.postgresWaitMs ?? (startedDb ? 60_000 : 10_000),
         });
         if (ready) {
-          prompt.success('postgres is ready');
-        } else if (startedInfra) {
-          prompt.error('postgres did not accept connections in time — check `docker compose logs postgres`');
+          prompt.success(`${dbLabel} is ready`);
+        } else if (startedDb) {
+          prompt.error(`${dbLabel} did not accept connections in time — check \`docker compose logs ${engine}\``);
           return 1;
         } else {
-          prompt.warn('postgres not reachable yet — continuing (migrations will surface the real error)');
+          prompt.warn(`${dbLabel} not reachable yet — continuing (migrations will surface the real error)`);
         }
       }
 
@@ -417,11 +408,12 @@ export async function runDev(opts: DevOptions): Promise<number> {
       // passo não tem container recriado às costas).
       await ensureRedisOnHost(prompt, runner, cwd, record, {
         ...opts.infraWait,
-        apply: startedInfra,
+        apply: startedRedis,
       });
     } else {
       prompt.warn('docker/compose not available — infrastructure step skipped');
-      prompt.info('point DB_* in .env at your own Postgres; REDIS_HOST=disabled runs without Redis (dev only, not written to .env)');
+      const dbLabel = engine === 'postgres' ? 'Postgres' : engine === 'mysql' ? 'MySQL' : 'MariaDB';
+      prompt.info(`point DB_* in .env at your own ${dbLabel}; REDIS_HOST=disabled runs without Redis (dev only, not written to .env)`);
     }
   }
 
@@ -433,7 +425,8 @@ export async function runDev(opts: DevOptions): Promise<number> {
     prompt.error(`database setup failed: ${message}`);
     if (/ECONNREFUSED|ENOTFOUND|ETIMEDOUT|starting up|Connection terminated/i.test(message)) {
       prompt.info('the database is not reachable — rerun `okcms dev` and answer Yes to the infrastructure step,');
-      prompt.info('or point DB_HOST/DB_PORT/DATABASE_URL in .env at a running Postgres.');
+      const dbLabel = engine === 'postgres' ? 'Postgres' : engine === 'mysql' ? 'MySQL' : 'MariaDB';
+      prompt.info(`or point DB_HOST/DB_PORT/DATABASE_URL in .env at a running ${dbLabel}.`);
     }
     return 1;
   }
@@ -496,19 +489,36 @@ export async function runDev(opts: DevOptions): Promise<number> {
     stopAll('SIGTERM', cwd);
   }
 
-  const goStart =
-    !interactive ||
-    (await prompt.confirm('Start the apps now (api · admin · web · worker)?', {
-      defaultValue: true,
-    }));
-  if (!goStart) {
-    finishNotStarted();
-    return 0;
-  }
-
-  prompt.success('dev environment ready — starting the apps (Ctrl+C stops everything)');
+  await hooks.startApps();
+  prompt.success('all apps started');
   for (const url of urls) prompt.info(`  ${url}`);
   prompt.info('deploying later? `okcms stop` first — dev processes hold the ports the containers need');
-  await hooks.startApps();
   return 0;
+}
+
+/**
+ * Completa apenas as chaves ausentes/vazias: required sem valor recebe
+ * segredo gerado; o resto recebe o default do schema. Respeita `when`
+ * (ex.: DB_PASSWORD não existe quando o projeto usa DATABASE_URL).
+ * Devolve as chaves preenchidas (nunca os valores).
+ */
+export function fillMissingEnv(env: EnvFile): string[] {
+  const record = env.toRecord();
+  const filled: string[] = [];
+
+  for (const field of ENV_FIELDS) {
+    if ((record[field.key] ?? '').trim() !== '') continue;
+    if (field.when && !field.when(record)) continue;
+
+    if (field.required) {
+      record[field.key] = generateSecret(48);
+      filled.push(field.key);
+    } else if (field.default !== undefined) {
+      record[field.key] = field.default;
+      filled.push(field.key);
+    }
+  }
+
+  for (const key of filled) env.set(key, record[key]!);
+  return filled;
 }

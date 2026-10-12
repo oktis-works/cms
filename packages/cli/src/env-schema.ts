@@ -46,7 +46,7 @@ export interface EnvSection {
 
 export const ENV_SECTIONS: EnvSection[] = [
   { id: 'app', title: 'Application', hint: 'NODE_ENV, ports and rate limit' },
-  { id: 'database', title: 'Database', hint: 'Postgres via DB_* or DATABASE_URL' },
+  { id: 'database', title: 'Database', hint: 'Postgres/MySQL/MariaDB via DB_* or DATABASE_URL' },
   { id: 'redis', title: 'Redis', hint: 'cache and worker queues' },
   { id: 'auth', title: 'Authentication', hint: 'JWT, cookies and CSRF' },
   { id: 'storage', title: 'Storage', hint: 'local, s3, r2 or minio' },
@@ -130,6 +130,16 @@ export const ENV_FIELDS: EnvField[] = [
 
   // -- Banco de dados -------------------------------------------------------
   {
+    key: 'DB_ENGINE',
+    section: 'database',
+    label: 'DB_ENGINE',
+    description: 'Database engine — chooses defaults and compose service',
+    type: 'enum',
+    options: ['postgres', 'mysql', 'mariadb'],
+    default: 'postgres',
+    example: 'postgres | mysql | mariadb',
+  },
+  {
     key: 'DB_HOST',
     section: 'database',
     label: 'DB_HOST',
@@ -142,7 +152,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'DB_PORT',
     section: 'database',
     label: 'DB_PORT',
-    description: 'Postgres port',
+    description: 'Database port (default varies by engine: postgres=5432, mysql/mariadb=3306)',
     type: 'port',
     default: '5432',
     when: (r) => !r['DATABASE_URL'],

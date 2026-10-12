@@ -1,5 +1,18 @@
 # @oktis-works/cms
 
+## 0.8.0
+
+### Minor Changes
+
+- Wizard: DB engine selection (PostgreSQL/MySQL/MariaDB) and individual container control.
+  
+  - New `DB_ENGINE` field (postgres/mysql/mariadb) with dynamic defaults for port and compose service
+  - Database section now asks engine first, then connection mode (DATABASE_URL vs individual fields)
+  - `runDev` and `ensureRedisOnHost` now ask individually for DB container and Redis container
+  - Support for MySQL 8 and MariaDB 11 compose services with proper healthchecks
+  - `waitForDatabaseReady` replaces `waitForPostgresReady` with engine-aware logic (pg_isready for Postgres, mysqladmin ping for MySQL/MariaDB)
+  - Error messages and prompts are engine-agnostic
+
 ## 0.7.3
 
 ### Patch Changes

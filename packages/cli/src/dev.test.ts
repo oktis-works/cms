@@ -17,7 +17,7 @@ import {
   ensureRedisOnHost,
   fillMissingEnv,
   runDev,
-  waitForPostgresReady,
+  waitForDatabaseReady,
   type DevHooks,
   type DevUserInput,
 } from './dev.js';
@@ -86,6 +86,10 @@ function fakeHooks(): FakeHooks {
 
 function buildPrompt(isTTY: boolean, lines: string[]): Prompt & { printed: () => string } {
   const input = new PassThrough();
+  if (isTTY) {
+    // Simulate a TTY input stream for the Prompt.interactive getter
+    Object.defineProperty(input, 'isTTY', { value: true, configurable: true });
+  }
   const chunks: string[] = [];
   const output = new Writable({
     write(chunk, _enc, cb): void {
@@ -116,8 +120,8 @@ describe('runDev', () => {
     writeFileSync(join(dir, 'docker-compose.infra.yml'), 'name: okcms\nservices: {}\n');
     const hooks = fakeHooks();
     const runner = makeRunner();
-    // 1) completar .env  2) subir infra  3) email  4) nome  5) senha  6) start
-    const prompt = ttyPrompt(['', '', 'admin@example.com', 'Admin', 'senha1234', '']);
+    // 1) completar .env  2) subir DB container?  3) subir Redis container?  4) email  5) nome  6) senha  7) start
+    const prompt = ttyPrompt(['', 'y', 'y', 'admin@example.com', 'Admin', 'senha1234', '']);
 
     const code = await runDev({
       cwd: dir,
@@ -308,7 +312,7 @@ describe('runDev', () => {
       events.push('prepare');
       hooks.prepared += 1;
     };
-    const prompt = ttyPrompt(['', '', 'admin@example.com', 'Admin', 'senha1234', '']);
+    const prompt = ttyPrompt(['y', 'y', '', 'admin@example.com', 'Admin', 'senha1234', '']);
 
     const code = await runDev({
       cwd: dir,
@@ -338,7 +342,7 @@ describe('runDev', () => {
       }
       return res({ command: [command, ...args].join(' ') });
     }) as Runner;
-    const prompt = ttyPrompt(['', '']);
+    const prompt = ttyPrompt(['y', 'y', '']);
 
     const code = await runDev({
       cwd: dir,
@@ -408,13 +412,13 @@ describe('runDev', () => {
   });
 });
 
-describe('waitForPostgresReady', () => {
-  it('container inexistente (Postgres externo): cai no probe TCP do host', async () => {
+describe('waitForDatabaseReady', () => {
+  it('container inexistente (banco externo): cai no probe TCP do host', async () => {
     const runner = (() =>
       res({ ok: false, code: 127, stderr: 'Error: No such container: okcms-postgres' })) as Runner;
     const probed: string[] = [];
 
-    const ready = await waitForPostgresReady(runner, { DB_PORT: '5544' }, {
+    const ready = await waitForDatabaseReady(runner, { DB_PORT: '5544' }, {
       tcpProbe: async (host, port) => {
         probed.push(`${host}:${port}`);
         return true;
@@ -426,7 +430,7 @@ describe('waitForPostgresReady', () => {
     expect(probed).toEqual(['127.0.0.1:5544']);
   });
 
-  it('pg_isready ok na primeira: sem espera', async () => {
+  it('pg_isready ok na primeira (Postgres): sem espera', async () => {
     const calls: string[] = [];
     const runner = ((_c: string, args: string[]) => {
       calls.push(args.join(' '));
@@ -434,7 +438,7 @@ describe('waitForPostgresReady', () => {
     }) as Runner;
     const sleeps: number[] = [];
 
-    const ready = await waitForPostgresReady(runner, {}, {
+    const ready = await waitForDatabaseReady(runner, { DB_ENGINE: 'postgres' }, {
       sleep: async (ms) => { sleeps.push(ms); },
       tcpProbe: async () => false,
     });
@@ -442,6 +446,24 @@ describe('waitForPostgresReady', () => {
     expect(ready).toBe(true);
     expect(sleeps).toEqual([]);
     expect(calls[0]).toContain('pg_isready');
+  });
+
+  it('mysqladmin ping ok na primeira (MySQL): sem espera', async () => {
+    const calls: string[] = [];
+    const runner = ((_c: string, args: string[]) => {
+      calls.push(args.join(' '));
+      return res({ stdout: 'mysqld is alive' });
+    }) as Runner;
+    const sleeps: number[] = [];
+
+    const ready = await waitForDatabaseReady(runner, { DB_ENGINE: 'mysql', DB_PASSWORD: 'secret' }, {
+      sleep: async (ms) => { sleeps.push(ms); },
+      tcpProbe: async () => false,
+    });
+
+    expect(ready).toBe(true);
+    expect(sleeps).toEqual([]);
+    expect(calls[0]).toContain('mysqladmin');
   });
 });
 
@@ -478,8 +500,8 @@ describe('ensureRedisOnHost', () => {
     const up = calls.find((line) => line.includes('up -d redis'));
     expect(up).toBeDefined();
     expect(up).toContain('-f docker-compose.infra.yml');
-    expect(up).toContain('-f .data/dev-infra.override.yml');
-    expect(prompt.printed()).toContain('redis is reachable at localhost:6379');
+    expect(up).toContain('.data/dev-infra.override.yml');
+    expect(prompt.printed()).toContain('Redis reachable on host (loopback)');
     prompt.close();
   });
 
@@ -520,7 +542,7 @@ describe('ensureRedisOnHost', () => {
       tcpProbe: async () => false,
       apply: false,
     });
-    expect(prompt.printed()).toContain('redis not reachable');
+    expect(prompt.printed()).toContain('Redis not reachable on host');
     expect(calls.some((line) => line.includes('up'))).toBe(false);
     expect(existsSync(join(dir, '.data', 'dev-infra.override.yml'))).toBe(false);
 

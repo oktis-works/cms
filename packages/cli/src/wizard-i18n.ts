@@ -82,6 +82,14 @@ export interface Catalog {
   envConfirmSave: (count: number) => string;
   envCancelled: string;
   envNoProject: string;
+  // entrevista de env — engine de banco
+  envDbEngineChoose: string;
+  envDbEnginePostgres: string;
+  envDbEnginePostgresHint: string;
+  envDbEngineMysql: string;
+  envDbEngineMysqlHint: string;
+  envDbEngineMariadb: string;
+  envDbEngineMariadbHint: string;
   // entrevista de env — modo de conexão do banco
   envDbModeChoose: string;
   envDbModeConnectionString: string;
@@ -201,6 +209,13 @@ const en: Catalog = {
   envConfirmSave: (count) => `Save ${count} change(s) to .env?`,
   envCancelled: 'cancelled — nothing was saved',
   envNoProject: 'no .env to edit — run okcms init (or okcms dev) first',
+  envDbEngineChoose: 'Which database engine do you want to use?',
+  envDbEnginePostgres: 'PostgreSQL',
+  envDbEnginePostgresHint: 'PostgreSQL 16 (default port 5432)',
+  envDbEngineMysql: 'MySQL',
+  envDbEngineMysqlHint: 'MySQL 8 (default port 3306)',
+  envDbEngineMariadb: 'MariaDB',
+  envDbEngineMariadbHint: 'MariaDB 11 (default port 3306, MySQL-compatible)',
   envDbModeChoose: 'How do you want to configure the database connection?',
   envDbModeConnectionString: 'Connection string (DATABASE_URL)',
   envDbModeConnectionStringHint: 'single URL like postgres://user:pass@host:5432/db',
@@ -322,6 +337,13 @@ const pt: Catalog = {
   envConfirmSave: (count) => `Salvar ${count} alteração(ões) no .env?`,
   envCancelled: 'cancelado — nada foi salvo',
   envNoProject: 'não há .env para editar — rode okcms init (ou okcms dev) primeiro',
+  envDbEngineChoose: 'Qual engine de banco de dados você quer usar?',
+  envDbEnginePostgres: 'PostgreSQL',
+  envDbEnginePostgresHint: 'PostgreSQL 16 (porta padrão 5432)',
+  envDbEngineMysql: 'MySQL',
+  envDbEngineMysqlHint: 'MySQL 8 (porta padrão 3306)',
+  envDbEngineMariadb: 'MariaDB',
+  envDbEngineMariadbHint: 'MariaDB 11 (porta padrão 3306, compatível com MySQL)',
   envDbModeChoose: 'Como você quer configurar a conexão com o banco de dados?',
   envDbModeConnectionString: 'String de conexão (DATABASE_URL)',
   envDbModeConnectionStringHint: 'URL única como postgres://user:pass@host:5432/db',
