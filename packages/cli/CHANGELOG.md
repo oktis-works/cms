@@ -1,5 +1,11 @@
 # @oktis-works/cms
 
+## 0.7.3
+
+### Patch Changes
+
+- Fix: wizard-i18n Catalog interface missing new DB mode keys (envDbModeChoose, envDbModeConnectionString, etc.) — caused typecheck failure in CI.
+
 ## 0.7.2
 
 ### Patch Changes
