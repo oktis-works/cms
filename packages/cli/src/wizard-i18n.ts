@@ -82,6 +82,12 @@ export interface Catalog {
   envConfirmSave: (count: number) => string;
   envCancelled: string;
   envNoProject: string;
+  // entrevista de env — modo de conexão do banco
+  envDbModeChoose: string;
+  envDbModeConnectionString: string;
+  envDbModeConnectionStringHint: string;
+  envDbModeIndividual: string;
+  envDbModeIndividualHint: string;
   // fluxos guiados
   flowInit: string;
   flowInitHint: string;

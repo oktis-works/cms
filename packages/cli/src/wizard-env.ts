@@ -103,7 +103,6 @@ export async function runEnvInterview(
 
           // DB_PASSWORD é necessário para a infra local (POSTGRES_PASSWORD do compose)
           // mesmo quando usando DATABASE_URL externo — gera se não existir
-          const pwdField = ENV_FIELDS.find((f) => f.key === 'DB_PASSWORD')!;
           const currentPwd = env.get('DB_PASSWORD') ?? '';
           if (!currentPwd || !looksLikeSecret(currentPwd)) {
             const secret = generateSecret(24);
