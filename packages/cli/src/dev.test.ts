@@ -6,13 +6,21 @@
 // filosofia do `okcms update`.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PassThrough, Writable } from 'node:stream';
 
 import { EnvFile } from './env-file.js';
-import { fillMissingEnv, runDev, type DevHooks, type DevUserInput } from './dev.js';
+import {
+  DEV_INFRA_OVERRIDE,
+  ensureRedisOnHost,
+  fillMissingEnv,
+  runDev,
+  waitForPostgresReady,
+  type DevHooks,
+  type DevUserInput,
+} from './dev.js';
 import { Prompt, type PromptIO } from './prompt.js';
 import type { ContainerProbe } from './guards.js';
 import type { Runner } from './docker.js';
@@ -117,6 +125,8 @@ describe('runDev', () => {
       prompt,
       probe: HOST_PROBE,
       hooks,
+      // sondas herméticas: sem TCP real para o postgres/redis da máquina
+      infraWait: { tcpProbe: async () => true, sleep: async () => {} },
     });
 
     expect(code).toBe(0);
@@ -272,6 +282,273 @@ describe('runDev', () => {
     // dica impressa, nunca no arquivo
     expect(readFileSync(join(dir, '.env'), 'utf-8')).not.toContain('REDIS_HOST=disabled');
     expect(prompt.printed()).toContain('REDIS_HOST=disabled');
+    prompt.close();
+  });
+
+  it('espera o postgres aceitar conexões (pg_isready) antes das migrations', async () => {
+    writeFileSync(join(dir, 'docker-compose.infra.yml'), 'name: okcms\nservices: {}\n');
+    const hooks = fakeHooks();
+    const events: string[] = [];
+    let isready = 0;
+    const runner = ((command: string, args: string[]) => {
+      const line = [command, ...args].join(' ');
+      if (args[0] === 'version') return res({ stdout: '29.8.2\n' });
+      if (args[0] === 'compose' && args[1] === 'version') return res({ stdout: '2.24.0\n' });
+      if (args[1] === 'okcms-postgres' && args[2] === 'pg_isready') {
+        isready += 1;
+        events.push('pg_isready');
+        // ainda subindo nas duas primeiras tentativas
+        return isready < 3
+          ? res({ ok: false, code: 1, stderr: 'the database system is starting up' })
+          : res({ stdout: 'accepting connections' });
+      }
+      return res({ command: line });
+    }) as Runner;
+    hooks.prepareDatabase = async (): Promise<void> => {
+      events.push('prepare');
+      hooks.prepared += 1;
+    };
+    const prompt = ttyPrompt(['', '', 'admin@example.com', 'Admin', 'senha1234', '']);
+
+    const code = await runDev({
+      cwd: dir,
+      runner,
+      prompt,
+      probe: HOST_PROBE,
+      hooks,
+      infraWait: { tcpProbe: async () => true, sleep: async () => {} },
+    });
+
+    expect(code).toBe(0);
+    expect(isready).toBe(3); // 2 falhas + sucesso
+    // pg_isready ANTES das migrations — a corrida que quebrava o dev
+    expect(events.indexOf('prepare')).toBeGreaterThan(events.indexOf('pg_isready'));
+    expect(prompt.printed()).toContain('postgres is ready');
+    prompt.close();
+  });
+
+  it('postgres nunca fica pronto com a infra recém-subida: erro claro, código 1', async () => {
+    writeFileSync(join(dir, 'docker-compose.infra.yml'), 'name: okcms\nservices: {}\n');
+    const hooks = fakeHooks();
+    const runner = ((command: string, args: string[]) => {
+      if (args[0] === 'version') return res({ stdout: '29.8.2\n' });
+      if (args[0] === 'compose' && args[1] === 'version') return res({ stdout: '2.24.0\n' });
+      if (args[1] === 'okcms-postgres' && args[2] === 'pg_isready') {
+        return res({ ok: false, code: 1, stderr: 'the database system is starting up' });
+      }
+      return res({ command: [command, ...args].join(' ') });
+    }) as Runner;
+    const prompt = ttyPrompt(['', '']);
+
+    const code = await runDev({
+      cwd: dir,
+      runner,
+      prompt,
+      probe: HOST_PROBE,
+      hooks,
+      infraWait: { tcpProbe: async () => false, sleep: async () => {}, postgresWaitMs: 0 },
+    });
+
+    expect(code).toBe(1);
+    expect(hooks.prepared).toBe(0); // nada de migration contra um banco subindo
+    expect(prompt.printed()).toContain('postgres did not accept connections in time');
+    prompt.close();
+  });
+
+  it('banco inacessível: instrução de recuperação em vez de stack crua', async () => {
+    const hooks = fakeHooks();
+    hooks.users = true;
+    hooks.prepareDatabase = async (): Promise<void> => {
+      throw new Error('connect ECONNREFUSED 127.0.0.1:5432');
+    };
+    const prompt = nonTty();
+
+    const code = await runDev({
+      cwd: dir,
+      runner: makeRunner(),
+      prompt,
+      probe: HOST_PROBE,
+      yes: true,
+      noInfra: true,
+      skipStart: true,
+      hooks,
+    });
+
+    expect(code).toBe(1);
+    expect(prompt.printed()).toContain('the database is not reachable');
+    prompt.close();
+  });
+
+  it('imprime os endereços finais (API/Admin/Web) antes de subir os apps', async () => {
+    writeFileSync(
+      join(dir, 'okcms.config.json'),
+      JSON.stringify({ name: 'x', ports: { api: 3300, admin: 3311, web: 3301 } })
+    );
+    const hooks = fakeHooks();
+    hooks.users = true;
+    const prompt = ttyPrompt(['y']); // completar .env
+
+    const code = await runDev({
+      cwd: dir,
+      runner: makeRunner(),
+      prompt,
+      probe: HOST_PROBE,
+      yes: true,
+      noInfra: true,
+      hooks,
+    });
+
+    expect(code).toBe(0);
+    expect(hooks.started).toBe(1);
+    const printed = prompt.printed();
+    expect(printed).toContain('http://localhost:3300');
+    expect(printed).toContain('http://localhost:3311');
+    expect(printed).toContain('http://localhost:3301');
+    prompt.close();
+  });
+});
+
+describe('waitForPostgresReady', () => {
+  it('container inexistente (Postgres externo): cai no probe TCP do host', async () => {
+    const runner = (() =>
+      res({ ok: false, code: 127, stderr: 'Error: No such container: okcms-postgres' })) as Runner;
+    const probed: string[] = [];
+
+    const ready = await waitForPostgresReady(runner, { DB_PORT: '5544' }, {
+      tcpProbe: async (host, port) => {
+        probed.push(`${host}:${port}`);
+        return true;
+      },
+      sleep: async () => {},
+    });
+
+    expect(ready).toBe(true);
+    expect(probed).toEqual(['127.0.0.1:5544']);
+  });
+
+  it('pg_isready ok na primeira: sem espera', async () => {
+    const calls: string[] = [];
+    const runner = ((_c: string, args: string[]) => {
+      calls.push(args.join(' '));
+      return res({ stdout: 'accepting connections' });
+    }) as Runner;
+    const sleeps: number[] = [];
+
+    const ready = await waitForPostgresReady(runner, {}, {
+      sleep: async (ms) => { sleeps.push(ms); },
+      tcpProbe: async () => false,
+    });
+
+    expect(ready).toBe(true);
+    expect(sleeps).toEqual([]);
+    expect(calls[0]).toContain('pg_isready');
+  });
+});
+
+describe('ensureRedisOnHost', () => {
+  const composeFixture = (): void => {
+    writeFileSync(join(dir, 'docker-compose.infra.yml'), 'name: okcms\nservices: {}\n');
+  };
+
+  it('redis não publicado: grava override de dev e recria só o serviço', async () => {
+    composeFixture();
+    const calls: string[] = [];
+    const runner = ((command: string, args: string[]) => {
+      const line = [command, ...args].join(' ');
+      calls.push(line);
+      if (args[0] === 'version') return res({ stdout: '29.8.2\n' });
+      if (args[0] === 'compose' && args[1] === 'version') return res({ stdout: '2.24.0\n' });
+      return res({ command: line });
+    }) as Runner;
+    const prompt = nonTty();
+    let probes = 0;
+
+    await ensureRedisOnHost(prompt, runner, dir, { REDIS_HOST: 'localhost', REDIS_PORT: '6379' }, {
+      tcpProbe: async () => {
+        probes += 1;
+        return probes > 1; // fechado antes do override, aberto depois
+      },
+      sleep: async () => {},
+      apply: true,
+    });
+
+    const override = readFileSync(join(dir, '.data', 'dev-infra.override.yml'), 'utf-8');
+    expect(override).toBe(DEV_INFRA_OVERRIDE);
+    expect(override).toContain('127.0.0.1:${REDIS_PORT:-6379}:6379');
+    const up = calls.find((line) => line.includes('up -d redis'));
+    expect(up).toBeDefined();
+    expect(up).toContain('-f docker-compose.infra.yml');
+    expect(up).toContain('-f .data/dev-infra.override.yml');
+    expect(prompt.printed()).toContain('redis is reachable at localhost:6379');
+    prompt.close();
+  });
+
+  it('redis já alcançável: não mexe no compose', async () => {
+    composeFixture();
+    const calls: string[] = [];
+    const runner = ((command: string, args: string[]) => {
+      const line = [command, ...args].join(' ');
+      calls.push(line);
+      if (args[0] === 'version') return res({ stdout: '29.8.2\n' });
+      if (args[0] === 'compose' && args[1] === 'version') return res({ stdout: '2.24.0\n' });
+      return res({ command: line });
+    }) as Runner;
+    const prompt = nonTty();
+
+    await ensureRedisOnHost(prompt, runner, dir, { REDIS_HOST: 'localhost' }, {
+      tcpProbe: async () => true,
+      apply: true,
+    });
+
+    expect(calls.some((line) => line.includes('up'))).toBe(false);
+    expect(existsSync(join(dir, '.data', 'dev-infra.override.yml'))).toBe(false);
+    prompt.close();
+  });
+
+  it('apply:false (infra recusada) e REDIS_HOST=disabled: só avisa / nada', async () => {
+    composeFixture();
+    const calls: string[] = [];
+    const runner = ((command: string, args: string[]) => {
+      calls.push([command, ...args].join(' '));
+      if (args[0] === 'version') return res({ stdout: '29.8.2\n' });
+      if (args[0] === 'compose' && args[1] === 'version') return res({ stdout: '2.24.0\n' });
+      return res({});
+    }) as Runner;
+    const prompt = nonTty();
+
+    await ensureRedisOnHost(prompt, runner, dir, { REDIS_HOST: 'localhost' }, {
+      tcpProbe: async () => false,
+      apply: false,
+    });
+    expect(prompt.printed()).toContain('redis not reachable');
+    expect(calls.some((line) => line.includes('up'))).toBe(false);
+    expect(existsSync(join(dir, '.data', 'dev-infra.override.yml'))).toBe(false);
+
+    const prompt2 = nonTty();
+    await ensureRedisOnHost(prompt2, runner, dir, { REDIS_HOST: 'disabled' }, {
+      tcpProbe: async () => false,
+      apply: true,
+    });
+    expect(prompt2.printed()).toBe('');
+    prompt.close();
+    prompt2.close();
+  });
+
+  it('redis externo (host não-loopback): não tenta override', async () => {
+    composeFixture();
+    const prompt = nonTty();
+    let probed = 0;
+
+    await ensureRedisOnHost(prompt, (() => res({})) as Runner, dir, { REDIS_HOST: 'redis.internal' }, {
+      tcpProbe: async () => {
+        probed += 1;
+        return false;
+      },
+      apply: true,
+    });
+
+    expect(probed).toBe(0);
+    expect(prompt.printed()).toBe('');
     prompt.close();
   });
 });

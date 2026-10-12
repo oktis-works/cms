@@ -50,12 +50,16 @@ okcms doctor                 # if anything fails
 
 Or do the whole sequence in one shot with **`okcms dev`**: it completes
 `.env` (generating missing secrets, keeping existing values), starts the
-project infra (the same compose `okcms deploy` reuses), applies schema +
-seed + migrations, creates the first admin (`SUPER_ADMIN`) when the database
-is empty, and starts the apps. It is re-runnable — after a
-`docker compose down -v` everything is recreated on the next run — and
-outside a TTY it requires `--yes` (with `--email/--name/--password` for the
-first user).
+project infra (the same compose `okcms deploy` reuses) and **waits for
+Postgres to accept connections** before migrating, makes Redis reachable
+from the host (the infra compose keeps it network-only for production, so
+the dev writes a loopback-only override in `.data/dev-infra.override.yml`
+that `okcms deploy` never reads), applies schema + seed + migrations,
+creates the first admin (`SUPER_ADMIN`) when the database is empty, starts
+the apps and **prints the final URLs** (API · Admin · Web on localhost).
+It is re-runnable — after a `docker compose down -v` everything is
+recreated on the next run — and outside a TTY it requires `--yes` (with
+`--email/--name/--password` for the first user).
 
 > **Dev → deploy.** `okcms dev` prepares the *same* state `okcms deploy`
 > consumes (project `.env`, the shared infra compose, versioned migrations,
@@ -64,7 +68,9 @@ first user).
 > need, so run `okcms stop` before `okcms deploy`. Without Docker the
 > infrastructure step is skipped with a hint (bring your own Postgres);
 > `okcms dev` never writes dev workarounds like `REDIS_HOST=disabled` into
-> `.env` — existing values are never overwritten.
+> `.env` — existing values are never overwritten. The Redis override lives
+> in `.data/` (gitignored); the deploy re-runs compose without it, so Redis
+> goes back to network-only and the named volume is untouched.
 
 `init` asks which language to write the docs in (`README.md`, `PLUGIN.md`,
 `THEME.md`): **English** or **Português**. In a script/CI (no TTY) it does not
@@ -87,7 +93,7 @@ shows each package's real version as it lands; without bun it falls back to
 | `okcms start` | `-A, --all` (default) · `-a, --api` · `-m, --admin` · `-w, --web` · `-W, --worker` | Starts the apps as host processes (pidfiles in `.data/`) |
 | `okcms stop` | — | Stops what `start` started (pidfile + detection) |
 | `okcms status` | — | Process state + project summary |
-| `okcms dev` | `-y, --yes` · `-s, --skip-start` · `-n, --no-infra` · `-e, --email` · `-N, --name` · `-p, --password` · `-F, --force` | One-shot dev setup + run: complete `.env` → infra → schema/seed/migrations → first admin → `start` (re-runnable; non-TTY needs `--yes`) |
+| `okcms dev` | `-y, --yes` · `-s, --skip-start` · `-n, --no-infra` · `-e, --email` · `-N, --name` · `-p, --password` · `-F, --force` | One-shot dev setup + run: complete `.env` → infra (waits for Postgres, publishes Redis on loopback for host apps) → schema/seed/migrations → first admin → `start` + final URLs (re-runnable; non-TTY needs `--yes`) |
 | `okcms doctor` | — | Diagnostics: node, `.env`, database (`DB_*` or `DATABASE_URL`), config, **docker, compose v2, lane, proxy** |
 | `okcms config` | `-s, --set K=V` (repeatable) · `-l, --list` · `-S, --show-secrets` · `-n, --non-interactive` · `-x, --section <s>` · `-F, --force` | `.env` editing wizard — Enter keeps, Ctrl+C discards everything (exit 130) |
 

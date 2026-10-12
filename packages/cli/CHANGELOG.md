@@ -1,5 +1,11 @@
 # @oktis-works/cms
 
+## 0.6.5
+
+### Patch Changes
+
+- `okcms dev` fix round after real-world usage: (1) waits for Postgres to accept connections (`pg_isready`, 60s timeout) before schema/seed/migrations — kills the "the database system is starting up" race on a fresh volume; (2) makes Redis reachable from host processes: the infra compose keeps Redis network-only for production, so the dev writes a loopback-only override in `.data/dev-infra.override.yml` (gitignored, never read by `okcms deploy`; named volume untouched) and recreates just the redis service — kills the `ECONNREFUSED 127.0.0.1:6379` spam from api/worker; (3) prints the final URLs (API · Admin · Web on localhost) like `okcms start`, and surfaces an actionable hint when the database is unreachable instead of a raw stack trace.
+
 ## 0.6.4
 
 ### Patch Changes

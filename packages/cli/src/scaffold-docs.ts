@@ -113,9 +113,13 @@ Pré-requisitos: **Node 20+** ou **Bun 1.3+** · **PostgreSQL 16+** (obrigatóri
 
 Atalho — \`okcms dev\` faz tudo em um comando: completa o \`.env\` (gera os
 segredos que faltam, mantém os existentes), sobe a infra (o MESMO compose
-que o \`okcms deploy\` reutiliza), aplica schema + seed + migrations, cria o
-primeiro admin (\`SUPER_ADMIN\`) se o banco estiver vazio e sobe os apps.
-É reexecutável; sem TTY exige \`--yes\` (com \`--email/--name/--password\`).
+que o \`okcms deploy\` reutiliza) e espera o Postgres aceitar conexões antes
+das migrations, torna o Redis alcançável do host (via override só-de-dev
+em \`.data/dev-infra.override.yml\`, que o deploy não lê), aplica schema +
+seed + migrations, cria o primeiro admin (\`SUPER_ADMIN\`) se o banco estiver
+vazio, sobe os apps e imprime os endereços finais (API · Admin · Web no
+localhost). É reexecutável; sem TTY exige \`--yes\` (com
+\`--email/--name/--password\`).
 Indo para produção: \`okcms stop\` antes de \`okcms deploy\` — os processos
 do dev ocupam as mesmas portas que os containers.
 
@@ -416,10 +420,13 @@ Prerequisites: **Node 20+** or **Bun 1.3+** · **PostgreSQL 16+** (required) ·
 
 Shortcut — \`okcms dev\` does everything in one command: completes \`.env\`
 (generating missing secrets, keeping existing values), starts the infra
-(the SAME compose \`okcms deploy\` reuses), applies schema + seed +
-migrations, creates the first admin (\`SUPER_ADMIN\`) when the database is
-empty, and starts the apps. Re-runnable; non-TTY requires \`--yes\` (with
-\`--email/--name/--password\`). Going to production: \`okcms stop\` before
+(the SAME compose \`okcms deploy\` reuses) and waits for Postgres to accept
+connections before migrating, makes Redis reachable from the host (via a
+dev-only override in \`.data/dev-infra.override.yml\` that the deploy never
+reads), applies schema + seed + migrations, creates the first admin
+(\`SUPER_ADMIN\`) when the database is empty, starts the apps and prints the
+final URLs (API · Admin · Web on localhost). Re-runnable; non-TTY requires
+\`--yes\` (with \`--email/--name/--password\`). Going to production: \`okcms stop\` before
 \`okcms deploy\` — the dev processes hold the same ports the containers
 need.
 
