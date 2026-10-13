@@ -77,14 +77,22 @@ function answersFor(overrides: Record<string, string>, finalConfirm?: 'y' | 'n')
         // modo connection string: DATABASE_URL será perguntado, DB_PASSWORD gerado auto
         // sobrescreve record para que o when dos DB_* pule
         record['DATABASE_URL'] = overrides['DATABASE_URL'] ?? 'postgresql://user:pass@host:5432/db';
+        record['__db_mode'] = 'connectionString';
       } else {
         // modo individual: campos DB_* normais
+        // no modo individual, o wizard filtra DATABASE_URL, então não consome resposta para ele
+        record['__db_mode'] = 'individual';
       }
     }
 
     for (const field of ENV_FIELDS) {
       if (field.section !== section.id) continue;
       if (field.when && !field.when(record)) continue;
+
+      // no modo individual, o wizard filtra DATABASE_URL
+      if (section.id === 'database' && field.key === 'DATABASE_URL' && record['__db_mode'] === 'individual') {
+        continue;
+      }
 
       // JWT_SECRET fraco/ausente ganha UM prompt extra ("gerar um forte?") ANTES
       // do campo — precisa de uma resposta própria, senão tudo desalinha.

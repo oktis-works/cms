@@ -100,7 +100,7 @@ describe('main menu', () => {
   });
 
   it('prints the adaptive status from the probe (env incomplete)', async () => {
-    const io = fakeIO(['4', '7']); // status → sair
+    const io = fakeIO(['4', '', '7']); // status → Enter para voltar → sair
     await runWizard({
       cwd: dir,
       io,

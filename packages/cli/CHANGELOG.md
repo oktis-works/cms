@@ -1,5 +1,17 @@
 # @oktis-works/cms
 
+## 0.8.1
+
+### Patch Changes
+
+- Wizard navigation improvements:
+  
+  - Clear screen between menu transitions (`clearScreen` using ANSI escape codes) — no more terminal pollution when navigating between menus
+  - Sub-menus (flows, commands, env, status) now clear screen on entry
+  - Status screen (`okcms menu` → status) now waits for Enter before returning to main menu
+  - Fixed: `DATABASE_URL` no longer appears in individual DB connection mode (was incorrectly shown even after selecting "Individual values")
+  - Added internal `__db_mode` marker to track connection mode and filter fields correctly
+
 ## 0.8.0
 
 ### Minor Changes

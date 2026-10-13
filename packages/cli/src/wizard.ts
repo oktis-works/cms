@@ -28,6 +28,13 @@ import {
   type FlowOutcome,
 } from './wizard-flows.js';
 
+const ESC = '\x1b[';
+
+/** Limpa a tela e posiciona o cursor no topo. */
+function clearScreen(prompt: Prompt): void {
+  prompt.write(`${ESC}2J${ESC}H`);
+}
+
 export interface WizardOptions {
   cwd?: string;
   io?: Partial<PromptIO>;
@@ -87,11 +94,11 @@ export async function runWizard(opts: WizardOptions = {}): Promise<number> {
     for (;;) {
       const catalog = catalogFor(ctx.lang);
       const state = stateFn();
-      const suggestion = suggestNext(state);
 
-      printBanner(prompt, catalog, ctx.lang, suggestion, state);
+      clearScreen(prompt);
+      printBanner(prompt, catalog, ctx.lang, suggestNext(state), state);
 
-      const choice = await prompt.select<MenuChoice>(catalog.title, mainMenu(catalog, state));
+      const choice = await prompt.select<MenuChoice>(catalog.title, mainMenu(catalog, stateFn()));
 
       switch (choice) {
         case 'flows': {
@@ -107,7 +114,7 @@ export async function runWizard(opts: WizardOptions = {}): Promise<number> {
           break;
         }
         case 'status': {
-          printStatus(catalog, stateFn());
+          printStatus(catalog, stateFn(), prompt);
           break;
         }
         case 'refresh': {
@@ -183,20 +190,25 @@ function mainMenu(
   ];
 }
 
-function printStatus(catalog: Catalog, state: WizardState): void {
+function printStatus(catalog: Catalog, state: WizardState, prompt: Prompt): void {
+  clearScreen(prompt);
   promptHeadingOnly(catalog.statusHeading);
   if (!state.isProject) {
     console.log(`  ${symbol.fail} ${catalog.statusNoProject}`);
-    return;
+  } else {
+    console.log(
+      `  ${symbol.arrow} ${state.envComplete ? catalog.statusEnvComplete : catalog.statusEnvIncomplete(state.envMissing)}`
+    );
+    console.log(`  ${symbol.arrow} ${state.dockerUp ? catalog.statusDockerUp : catalog.statusDockerDown}`);
+    console.log(`  ${symbol.arrow} ${state.infraRunning ? catalog.statusInfraUp : catalog.statusInfraDown}`);
+    console.log(
+      `  ${symbol.arrow} ${state.appsRunning ? catalog.statusAppsUp(state.appsLabels.join(', ')) : catalog.statusAppsDown}`
+    );
   }
-  console.log(
-    `  ${symbol.arrow} ${state.envComplete ? catalog.statusEnvComplete : catalog.statusEnvIncomplete(state.envMissing)}`
-  );
-  console.log(`  ${symbol.arrow} ${state.dockerUp ? catalog.statusDockerUp : catalog.statusDockerDown}`);
-  console.log(`  ${symbol.arrow} ${state.infraRunning ? catalog.statusInfraUp : catalog.statusInfraDown}`);
-  console.log(
-    `  ${symbol.arrow} ${state.appsRunning ? catalog.statusAppsUp(state.appsLabels.join(', ')) : catalog.statusAppsDown}`
-  );
+  console.log();
+  prompt.write(`  ${style.dim('Pressione Enter para voltar...')}`);
+  // espera Enter (usa askLine que funciona em raw mode também)
+  prompt.askLine('');
 }
 
 function promptHeadingOnly(text: string): void {
@@ -208,6 +220,7 @@ function promptHeadingOnly(text: string): void {
 // ---------------------------------------------------------------------------
 
 async function flowsMenu(ctx: WizardRunCtx): Promise<void> {
+  clearScreen(ctx.prompt);
   const catalog = catalogFor(ctx.lang);
   const deps: FlowDeps = {
     prompt: ctx.prompt,
@@ -246,6 +259,7 @@ async function flowsMenu(ctx: WizardRunCtx): Promise<void> {
 // ---------------------------------------------------------------------------
 
 async function catalogMenu(ctx: WizardRunCtx): Promise<void> {
+  clearScreen(ctx.prompt);
   const prompt = ctx.prompt;
   const catalog = catalogFor(ctx.lang);
 
@@ -365,6 +379,7 @@ async function runCommandInteractive(ctx: WizardRunCtx, cmd: Command): Promise<v
 // ---------------------------------------------------------------------------
 
 async function envMenu(ctx: WizardRunCtx): Promise<void> {
+  clearScreen(ctx.prompt);
   const catalog = catalogFor(ctx.lang);
   const state = ctx.stateFn();
   if (!state.isProject) {

@@ -114,6 +114,13 @@ export async function runEnvInterview(
           { defaultValue: 'individual' }
         );
 
+        // marca o modo no record para filtrar DATABASE_URL no modo individual
+        if (mode === 'individual') {
+          env.set('__db_mode', 'individual');
+        } else {
+          env.set('__db_mode', 'connectionString');
+        }
+
         if (mode === 'connectionString') {
           // modo string de conexão: pergunta DATABASE_URL + garante DB_PASSWORD para a infra
           const dbUrlField = ENV_FIELDS.find((f) => f.key === 'DATABASE_URL')!;
@@ -133,7 +140,16 @@ export async function runEnvInterview(
         // modo individual: segue o fluxo normal (campos DB_* com when)
       }
 
-      const fields = fieldsForSection(section.id, record());
+      let fields = fieldsForSection(section.id, record());
+
+      // no modo individual, não mostrar DATABASE_URL (só aparece no modo connectionString)
+      if (section.id === 'database') {
+        const mode = record()['__db_mode'];
+        if (mode === 'individual') {
+          fields = fields.filter((f) => f.key !== 'DATABASE_URL');
+        }
+      }
+
       if (fields.length === 0) continue;
 
       prompt.write(`\n${style.bold(`  ── ${section.title} ── ${style.dim(section.hint)}`)}\n`);
