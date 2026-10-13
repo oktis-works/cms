@@ -1,5 +1,11 @@
 # @oktis-works/api
 
+## 0.7.0
+
+### Minor Changes
+
+- Bump to 0.8.0 for monorepo sync with CLI 0.8.0 (DB engine selection + container control).
+
 ## 0.6.0
 
 ### Minor Changes
