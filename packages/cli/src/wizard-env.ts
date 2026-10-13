@@ -61,8 +61,14 @@ export interface InterviewResult {
 }
 
 /**
- * Roda a entrevista completa. `opts.skipOption` quando true adiciona a escolha
- * "pular" no primeiro prompt (contexto de fluxo guiado).
+ * Roda a entrevista completa com navegação linear (b = passo anterior).
+ * `opts.skipOption` quando true adiciona a escolha "pular" no primeiro prompt.
+ *
+ * Arquitetura: uma lista plana de PASSOS (engine → mode → campos de cada
+ * seção na ordem de ENV_SECTIONS). 'b' decrementa o índice — inclusive
+ * voltando do primeiro campo DB para o mode select e do mode pro engine.
+ * O `when` é re-avaliado a cada passo: campos que deixam de aplicar são
+ * pulados sem consumir resposta.
  */
 export async function runEnvInterview(
   deps: InterviewDeps,
@@ -97,135 +103,151 @@ export async function runEnvInterview(
   };
 
   try {
-    // respostas parciais alimentam o `when` dos próximos campos
     const record = (): Record<string, string> => {
       const out = env.toRecord();
       for (const key of changed) out[key] = env.get(key) ?? '';
       return out;
     };
 
-    for (const section of ENV_SECTIONS) {
+    // ---- lista plana de passos (re-construída quando `when` muda) ----
+    type Step =
+      | { kind: 'engine' }
+      | { kind: 'mode' }
+      | { kind: 'field'; field: EnvField; section: (typeof ENV_SECTIONS)[number] };
+
+    const buildSteps = (): Step[] => {
+      const steps: Step[] = [];
+      for (const section of ENV_SECTIONS) {
+        if (section.id === 'database') {
+          steps.push({ kind: 'engine' });
+          steps.push({ kind: 'mode' });
+          // campos DB (DATABASE_URL filtrado no modo individual)
+          const r = record();
+          const mode = r['__db_mode'] ?? 'individual';
+          for (const field of ENV_FIELDS) {
+            if (field.section !== 'database') continue;
+            if (field.key === 'DATABASE_URL' && mode === 'individual') continue;
+            if (field.when && !field.when(r)) continue;
+            steps.push({ kind: 'field', field, section });
+          }
+        } else {
+          const r = record();
+          for (const field of ENV_FIELDS) {
+            if (field.section !== section.id) continue;
+            if (field.when && !field.when(r)) continue;
+            steps.push({ kind: 'field', field, section });
+          }
+        }
+      }
+      return steps;
+    };
+
+    let steps = buildSteps();
+    let stepIndex = 0;
+    let lastSectionId = '';
+
+    while (stepIndex < steps.length) {
       if (interrupted.value) break;
 
-      clearScreen(prompt);
+      // re-constrói passos (quando `when` muda, ex: mode trocou)
+      const newSteps = buildSteps();
+      if (newSteps.length !== steps.length) {
+        // tenta manter o passo equivalente pelo key/kind
+        const prev = steps[stepIndex];
+        const matching = newSteps.findIndex((s) => {
+          if (s.kind !== prev?.kind) return false;
+          if (s.kind === 'field' && prev.kind === 'field') return s.field.key === prev.field.key;
+          return true;
+        });
+        stepIndex = matching >= 0 ? matching : Math.min(stepIndex, newSteps.length - 1);
+        steps = newSteps;
+      }
 
-      // seção de banco: antes de tudo, pergunta o engine, depois o modo de conexão
-      if (section.id === 'database') {
-        // 1. Escolha do engine
-        const engine = await prompt.select<'postgres' | 'mysql' | 'mariadb'>(
+      const step = steps[stepIndex];
+      if (!step) break;
+
+      const section = step.kind === 'field' ? step.section : ENV_SECTIONS.find(s => s.id === 'database')!;
+
+      // header de seção (quando muda de seção)
+      if (section.id !== lastSectionId) {
+        clearScreen(prompt);
+        prompt.write(`\n${style.bold(`  ── ${section.title} ── ${style.dim(section.hint)}`)}\n`);
+        const sectionSteps = steps.filter(s =>
+          s.kind === 'field' ? s.section.id === section.id : section.id === 'database'
+        );
+        prompt.info(catalog.envSectionCount(sectionSteps.length));
+        lastSectionId = section.id;
+      } else {
+        clearScreen(prompt);
+      }
+
+      // progress indicator
+      const progress = `[${stepIndex + 1}/${steps.length}]`;
+      prompt.write(`${style.dim(progress)}\n`);
+
+      let result: { type: 'value' } | { type: 'back' } | { type: 'cancel' };
+
+      if (step.kind === 'engine') {
+        const pick = await prompt.select<'postgres' | 'mysql' | 'mariadb' | '__back__'>(
           catalog.envDbEngineChoose,
           [
             { value: 'postgres', label: catalog.envDbEnginePostgres, hint: catalog.envDbEnginePostgresHint },
             { value: 'mysql', label: catalog.envDbEngineMysql, hint: catalog.envDbEngineMysqlHint },
             { value: 'mariadb', label: catalog.envDbEngineMariadb, hint: catalog.envDbEngineMariadbHint },
+            { value: '__back__' as const, label: `← ${catalog.flowBack}`, hint: catalog.flowBackHint },
           ],
           { defaultValue: 'postgres' }
         );
-
-        // salva o engine no env para usar no default dinâmico do DB_PORT
-        if (!env.get('DB_ENGINE') || env.get('DB_ENGINE') !== engine) {
-          env.set('DB_ENGINE', engine);
-          changed.add('DB_ENGINE');
+        if (pick === '__back__') {
+          result = { type: 'back' };
+        } else {
+          if (!env.get('DB_ENGINE') || env.get('DB_ENGINE') !== pick) {
+            env.set('DB_ENGINE', pick);
+            changed.add('DB_ENGINE');
+          }
+          result = { type: 'value' };
         }
-
-        // 2. Modo de conexão
-        const mode = await prompt.select<'connectionString' | 'individual'>(
+      } else if (step.kind === 'mode') {
+        const pick = await prompt.select<'connectionString' | 'individual' | '__back__'>(
           catalog.envDbModeChoose,
           [
             { value: 'connectionString', label: catalog.envDbModeConnectionString, hint: catalog.envDbModeConnectionStringHint },
             { value: 'individual', label: catalog.envDbModeIndividual, hint: catalog.envDbModeIndividualHint },
+            { value: '__back__' as const, label: `← ${catalog.flowBack}`, hint: catalog.flowBackHint },
           ],
           { defaultValue: 'individual' }
         );
-
-        // marca o modo no record para filtrar DATABASE_URL no modo individual
-        if (mode === 'individual') {
-          env.set('__db_mode', 'individual');
+        if (pick === '__back__') {
+          result = { type: 'back' };
         } else {
-          env.set('__db_mode', 'connectionString');
+          env.set('__db_mode', pick);
+          result = { type: 'value' };
         }
-
-        if (mode === 'connectionString') {
-          // modo string de conexão: pergunta DATABASE_URL + garante DB_PASSWORD para a infra
-          const dbUrlField = ENV_FIELDS.find((f) => f.key === 'DATABASE_URL')!;
-          const result = await askFieldWithNavigation(prompt, catalog, env, changed, dbUrlField, record);
-          if (result.type === 'cancel') {
-            prompt.warn(catalog.envCancelled);
-            return cleanupAndReturn({ status: 'cancelled', changed: [] });
-          }
-          if (result.type === 'back') {
-            // voltar para engine selection - reinicia a seção
-            return await runEnvInterview(deps, opts);
-          }
-
-          // DB_PASSWORD é necessário para a infra local (compose precisa)
-          // mesmo quando usando DATABASE_URL externo — gera se não existir
-          const currentPwd = env.get('DB_PASSWORD') ?? '';
-          if (!currentPwd || !looksLikeSecret(currentPwd)) {
-            const secret = generateSecret(24);
-            env.set('DB_PASSWORD', secret);
-            changed.add('DB_PASSWORD');
-            prompt.success(`DB_PASSWORD gerado para a infra local: ${maskValue(secret)}`);
-          }
-          continue; // pula os campos DB_* individuais
-        }
-        // modo individual: segue o fluxo normal (campos DB_* com when)
+      } else {
+        // campo regular
+        const fieldResult = await askFieldWithNavigation(prompt, catalog, env, changed, step.field, record);
+        result = fieldResult.type === 'cancel'
+          ? { type: 'cancel' }
+          : fieldResult.type === 'back'
+            ? { type: 'back' }
+            : { type: 'value' };
       }
 
-      let fields = fieldsForSection(section.id, record());
-
-      // no modo individual, não mostrar DATABASE_URL (só aparece no modo connectionString)
-      if (section.id === 'database') {
-        const mode = record()['__db_mode'];
-        if (mode === 'individual') {
-          fields = fields.filter((f) => f.key !== 'DATABASE_URL');
-        }
+      if (result.type === 'cancel') {
+        prompt.warn(catalog.envCancelled);
+        return cleanupAndReturn({ status: 'cancelled', changed: [] });
       }
-
-      if (fields.length === 0) continue;
-
-      prompt.write(`\n${style.bold(`  ── ${section.title} ── ${style.dim(section.hint)}`)}\n`);
-      prompt.info(catalog.envSectionCount(fields.length));
-
-      // loop com navegação para os campos da seção
-      let fieldIndex = 0;
-      while (fieldIndex < fields.length) {
-        if (interrupted.value) break;
-
-        clearScreen(prompt);
-
-        // header da seção (só no primeiro campo da seção)
-        if (fieldIndex === 0) {
-          prompt.write(`\n${style.bold(`  ── ${section.title} ── ${style.dim(section.hint)}`)}\n`);
-          prompt.info(catalog.envSectionCount(fields.length));
-        }
-
-        // progress indicator
-        const progress = `[${fieldIndex + 1}/${fields.length}]`;
-        prompt.write(`${style.dim(progress)} ${style.bold(fields[fieldIndex]!.key)}\n`);
-
-        const field = fields[fieldIndex]!;
-        const result = await askFieldWithNavigation(prompt, catalog, env, changed, field, record);
-
-        if (result.type === 'cancel') {
-          prompt.warn(catalog.envCancelled);
-          return cleanupAndReturn({ status: 'cancelled', changed: [] });
-        }
-        if (result.type === 'back') {
-          if (fieldIndex > 0) {
-            fieldIndex--;
-            continue;
-          } else {
-            // no primeiro campo da seção, back = voltar para seção anterior
-            // para simplificar, volta para o menu principal (reinicia a entrevista)
-            return await runEnvInterview(deps, opts);
-          }
-        }
-        if (result.type === 'value') {
-          fieldIndex++;
+      if (result.type === 'back') {
+        if (stepIndex > 0) {
+          stepIndex--;
+          lastSectionId = ''; // força re-render do header
           continue;
         }
+        // no primeiro passo, back = continuar (não há onde voltar)
+        continue;
       }
+      // value → próximo passo
+      stepIndex++;
     }
 
     if (interrupted.value) {
@@ -254,6 +276,9 @@ export async function runEnvInterview(
       prompt.warn(catalog.envDiscarded);
       return cleanupAndReturn({ status: 'cancelled', changed: [] });
     }
+
+    // remove marcador interno antes de gravar — não é uma variável real
+    env.delete('__db_mode');
 
     env.save(path);
     prompt.success(catalog.envSaved(changed.size));

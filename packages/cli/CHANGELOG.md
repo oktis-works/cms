@@ -1,5 +1,17 @@
 # @oktis-works/cms
 
+## 0.8.6
+
+### Patch Changes
+
+- Wizard: navegação linear real na entrevista .env (b = passo anterior em qualquer ponto).
+  
+  - Lista plana de passos (engine → mode → campo DB → campos de cada seção na ordem ENV_SECTIONS)
+  - 'b' em QUALQUER passo volta ao anterior: campo DB → mode select → engine select → seção anterior
+  - Engine e mode selects ganham opção "← Voltar" — selecionar o engine errado não te prende mais
+  - __db_mode (marcador interno) removido do .env antes de gravar — não vaza pro docker compose
+  - Quando `when` muda (ex: troca de engine), a lista de passos é reconstruída mantendo a posição
+
 ## 0.8.5
 
 ### Patch Changes
