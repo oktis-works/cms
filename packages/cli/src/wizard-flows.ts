@@ -17,6 +17,13 @@ import { runCliCommand, type RunResult, type SpawnFn } from './wizard-run.js';
 import { type Prompt } from './prompt.js';
 import type { Catalog } from './wizard-i18n.js';
 
+const ESC = '\x1b[';
+
+/** Limpa a tela e posiciona o cursor no topo. */
+function clearScreen(prompt: Prompt): void {
+  prompt.write(`${ESC}2J${ESC}H`);
+}
+
 export interface FlowDeps {
   prompt: Prompt;
   catalog: Catalog;
@@ -32,6 +39,7 @@ const stateOf = (deps: FlowDeps): WizardState =>
 
 /** Entrevista de env comum aos fluxos dev/deploys (pulável). */
 async function envStep(deps: FlowDeps): Promise<boolean> {
+  clearScreen(deps.prompt);
   const result = await runEnvInterview(
     { prompt: deps.prompt, catalog: deps.catalog, cwd: deps.cwd },
     { skipOption: true }
@@ -46,6 +54,7 @@ async function envStep(deps: FlowDeps): Promise<boolean> {
 
 /** Pré-checagem dos deploys: apps locais seguram as portas dos containers. */
 async function precheckDeploy(deps: FlowDeps): Promise<boolean> {
+  clearScreen(deps.prompt);
   const state = stateOf(deps);
   if (!state.isProject) {
     deps.prompt.error(deps.catalog.warnNoProject);
@@ -76,6 +85,7 @@ async function precheckDeploy(deps: FlowDeps): Promise<boolean> {
 /** Em falha: doctor / retry / menu. Retorna 'retry' para repetir o passo. */
 async function failureMenu(deps: FlowDeps, retry: () => Promise<RunResult>): Promise<FlowOutcome> {
   for (;;) {
+    clearScreen(deps.prompt);
     const pick = await deps.prompt.select<'doctor' | 'retry' | 'menu'>(deps.catalog.onFailure, [
       { value: 'doctor', label: deps.catalog.failDoctor },
       { value: 'retry', label: deps.catalog.failRetry },
@@ -101,6 +111,7 @@ async function confirmRun(deps: FlowDeps, line: string): Promise<boolean> {
 
 export async function flowInit(deps: FlowDeps): Promise<FlowOutcome> {
   const { prompt, catalog } = deps;
+  clearScreen(prompt);
   prompt.heading(catalog.stepIntro(catalog.flowInit));
   prompt.info(catalog.initWhatItDoes);
 
@@ -140,6 +151,7 @@ export async function flowInit(deps: FlowDeps): Promise<FlowOutcome> {
 
 export async function flowDev(deps: FlowDeps): Promise<FlowOutcome> {
   const { prompt, catalog } = deps;
+  clearScreen(prompt);
   prompt.heading(catalog.stepIntro(catalog.flowDev));
   prompt.info(catalog.devWhatItDoes);
 
@@ -163,6 +175,7 @@ type DeployTarget = 'blue-green' | 'simple' | 'pm2';
 
 async function flowDeploy(deps: FlowDeps, target: DeployTarget, label: string): Promise<FlowOutcome> {
   const { prompt, catalog } = deps;
+  clearScreen(prompt);
   prompt.heading(catalog.stepIntro(label));
   prompt.info(catalog.deployTargetSummary(target));
 
@@ -197,6 +210,7 @@ export const flowDeployPm2 = (deps: FlowDeps): Promise<FlowOutcome> =>
 export async function flowUpdate(deps: FlowDeps): Promise<FlowOutcome> {
   const { prompt, catalog } = deps;
   const state = stateOf(deps);
+  clearScreen(prompt);
   prompt.heading(catalog.stepIntro(catalog.flowUpdate));
   prompt.info(catalog.updateSummary);
 

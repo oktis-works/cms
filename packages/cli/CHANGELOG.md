@@ -1,5 +1,16 @@
 # @oktis-works/cms
 
+## 0.8.2
+
+### Patch Changes
+
+- Wizard flows: clean screen between all flow steps.
+  
+  - `flowInit`, `flowDev`, `flowDeploy` (blue-green/simple/pm2), `flowUpdate` now clear screen on entry
+  - `flowsMenu` clears screen when opened
+  - `envStep`, `precheckDeploy`, `failureMenu` clear screen before prompting
+  - Complete clean navigation in guided flows — no terminal pollution between steps
+
 ## 0.8.1
 
 ### Patch Changes
