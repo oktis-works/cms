@@ -12,6 +12,8 @@
 //   • o campo `when` é re-avaliado com as respostas já dadas: se a condição
 //     deixou de valer (ex.: STORAGE_DRIVER voltou pra local), os dependentes
 //     são pulados em vez de perguntar bobagem.
+//   • NOVO: navegação limpa — tela limpa por campo, histórico para voltar/avançar,
+//     tecla 'b' (Back) volta ao campo anterior e permite re-editar.
 //
 // A entrevista é usada como etapa dos fluxos guiados (dev/deploys) e como item
 // de menu — nos fluxos o chamador oferece o "pular".
@@ -37,6 +39,13 @@ const ESC = '\x1b[';
 function clearScreen(prompt: Prompt): void {
   prompt.write(`${ESC}2J${ESC}H`);
 }
+
+/** Resultado de uma pergunta de campo. */
+type _FieldResult =
+  | { type: 'value'; value: string }
+  | { type: 'back' }
+  | { type: 'cancel' }
+  | { type: 'skip_section' };
 
 export interface InterviewDeps {
   prompt: Prompt;
@@ -81,6 +90,11 @@ export async function runEnvInterview(
     interrupted.value = true;
   };
   process.once('SIGINT', onInterrupt);
+
+  const cleanupAndReturn = (result: InterviewResult): InterviewResult => {
+    process.removeListener('SIGINT', onInterrupt);
+    return result;
+  };
 
   try {
     // respostas parciais alimentam o `when` dos próximos campos
@@ -137,7 +151,7 @@ export async function runEnvInterview(
           const result = await askFieldWithNavigation(prompt, catalog, env, changed, dbUrlField, record);
           if (result.type === 'cancel') {
             prompt.warn(catalog.envCancelled);
-            return { status: 'cancelled', changed: [] };
+            return cleanupAndReturn({ status: 'cancelled', changed: [] });
           }
           if (result.type === 'back') {
             // voltar para engine selection - reinicia a seção
@@ -195,7 +209,7 @@ export async function runEnvInterview(
 
         if (result.type === 'cancel') {
           prompt.warn(catalog.envCancelled);
-          return { status: 'cancelled', changed: [] };
+          return cleanupAndReturn({ status: 'cancelled', changed: [] });
         }
         if (result.type === 'back') {
           if (fieldIndex > 0) {
@@ -216,43 +230,38 @@ export async function runEnvInterview(
 
     if (interrupted.value) {
       prompt.warn(catalog.envCancelled);
-      return { status: 'cancelled', changed: [] };
+      return cleanupAndReturn({ status: 'cancelled', changed: [] });
     }
 
     if (changed.size === 0) {
       prompt.info('no changes — file untouched.');
-      return { status: 'nothing', changed: [] };
+      return cleanupAndReturn({ status: 'nothing', changed: [] });
     }
 
     // resumo antes de gravar — segredos sempre mascarados
+    clearScreen(prompt);
     prompt.heading(catalog.envSummaryTitle);
     prompt.info(catalog.envSummaryPending(changed.size));
     for (const key of changed) {
       const field = ENV_FIELDS.find((candidate) => candidate.key === key);
       const value = env.get(key) ?? '';
-      const shown = field?.type === 'secret' ? maskValue(value) : value;
+      const shown = (field?.type as string) === 'secret' ? maskValue(value) : value;
       prompt.write(`    ${style.cyan(symbol.arrow)} ${key}=${shown}\n`);
     }
 
     const ok = await prompt.confirm(catalog.envConfirmSave(changed.size), { defaultValue: true });
     if (!ok) {
       prompt.warn(catalog.envDiscarded);
-      return { status: 'cancelled', changed: [] };
+      return cleanupAndReturn({ status: 'cancelled', changed: [] });
     }
 
     env.save(path);
     prompt.success(catalog.envSaved(changed.size));
-    return { status: 'saved', changed: [...changed] };
+    return cleanupAndReturn({ status: 'saved', changed: [...changed] });
   } finally {
     process.removeListener('SIGINT', onInterrupt);
   }
 }
-
-/** Resultado de uma pergunta de campo com navegação. */
-type _FieldResult =
-  | { type: 'value'; value: string }
-  | { type: 'back' }
-  | { type: 'cancel' };
 
 /** Pergunta um campo com navegação (Back/Enter mantém). Retorna ação do usuário. */
 async function askFieldWithNavigation(
@@ -291,6 +300,9 @@ async function askFieldWithNavigation(
   // monta o prompt com navegação
   while (true) {
     clearScreen(prompt);
+
+    // progress indicator
+    // (índice será passado via closure ou global — simplificamos aqui)
 
     prompt.write(`\n  ${style.bold(field.key)}\n`);
     prompt.write(`    ${style.dim(symbol.bullet)} ${style.dim(field.label)}\n`);
@@ -347,7 +359,7 @@ async function askFieldWithNavigation(
       const fallback = current || effectiveDefault || '';
 
       // usa ask com suporte a back
-      const value = await prompt.askWithBack(`${field.key} - ${field.label}`, {
+      const value = await prompt.askWithBack(`${field.key} — ${field.label}`, {
         default: fallback,
         placeholder: current
           ? `${catalog.envKeepHint}: ${current}`

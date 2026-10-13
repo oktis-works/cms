@@ -62,60 +62,77 @@ function answersFor(overrides: Record<string, string>, finalConfirm?: 'y' | 'n')
     if (idx > 0) record[line.slice(0, idx).trim()] = line.slice(idx + 1).trim();
   }
   const lines: string[] = [];
+
+  // O wizard percorre ENV_SECTIONS NA ORDEM (app → database → redis → ...).
+  // Dentro de database: engine select → mode select → campos (DB_ENGINE incluído).
+  // O helper precisa espelhar EXATAMENTE essa ordem de consumo de respostas.
+
   for (const section of ENV_SECTIONS) {
-    // seção de banco: antes dos campos, pergunta o engine, depois o modo de conexão
     if (section.id === 'database') {
-      // 1. DB_ENGINE: default 'postgres' = opção 1 no menu numerado
+      // 1. Engine select (1 resposta: '1'=postgres, '2'=mysql, '3'=mariadb)
       const engine = overrides['DB_ENGINE'] ?? '1';
       lines.push(engine);
       record['DB_ENGINE'] = engine === '1' ? 'postgres' : engine === '2' ? 'mysql' : 'mariadb';
 
-      // 2. DB_MODE: default 'individual' = opção 2 no menu numerado
+      // 2. Mode select (1 resposta: '1'=connectionString, '2'=individual)
       const mode = overrides['DB_MODE'] ?? '2';
       lines.push(mode);
       if (mode === '1') {
-        // modo connection string: DATABASE_URL será perguntado, DB_PASSWORD gerado auto
-        // sobrescreve record para que o when dos DB_* pule
         record['DATABASE_URL'] = overrides['DATABASE_URL'] ?? 'postgresql://user:pass@host:5432/db';
         record['__db_mode'] = 'connectionString';
       } else {
-        // modo individual: campos DB_* normais
-        // no modo individual, o wizard filtra DATABASE_URL, então não consome resposta para ele
         record['__db_mode'] = 'individual';
       }
-    }
 
-    for (const field of ENV_FIELDS) {
-      if (field.section !== section.id) continue;
-      if (field.when && !field.when(record)) continue;
+      // 3. Campos da seção database — DB_ENGINE está em ENV_FIELDS e É perguntado
+      //    como campo regular; DATABASE_URL é filtrado no modo individual.
+      for (const field of ENV_FIELDS) {
+        if (field.section !== 'database') continue;
+        if (field.when && !field.when(record)) continue;
+        if (field.key === 'DATABASE_URL') continue;
 
-      // no modo individual, o wizard filtra DATABASE_URL
-      if (section.id === 'database' && field.key === 'DATABASE_URL' && record['__db_mode'] === 'individual') {
-        continue;
-      }
-
-      // JWT_SECRET fraco/ausente ganha UM prompt extra ("gerar um forte?") ANTES
-      // do campo — precisa de uma resposta própria, senão tudo desalinha.
-      if (field.key === 'JWT_SECRET' && !looksLikeSecret(record['JWT_SECRET'] ?? '')) {
-        const gen = overrides['JWT_SECRET_GENERATE'] ?? '';
-        lines.push(gen);
-        const declined = ['n', 'no'].includes(gen.trim().toLowerCase());
-        if (declined) {
-          lines.push(overrides['JWT_SECRET'] ?? '');
-          if ((overrides['JWT_SECRET'] ?? '') !== '') record['JWT_SECRET'] = overrides['JWT_SECRET']!;
-        } else {
-          // aceitou o gerado: o campo em si não é perguntado e entra no plano
-          record['JWT_SECRET'] = 'generated-by-interview';
+        if (field.key === 'JWT_SECRET' && !looksLikeSecret(record['JWT_SECRET'] ?? '')) {
+          const gen = overrides['JWT_SECRET_GENERATE'] ?? '';
+          lines.push(gen);
+          const declined = ['n', 'no'].includes(gen.trim().toLowerCase());
+          if (declined) {
+            lines.push(overrides['JWT_SECRET'] ?? '');
+            if ((overrides['JWT_SECRET'] ?? '') !== '') record['JWT_SECRET'] = overrides['JWT_SECRET']!;
+          } else {
+            record['JWT_SECRET'] = 'generated-by-interview';
+          }
+          continue;
         }
-        continue;
-      }
 
-      const answer = overrides[field.key] ?? '';
-      lines.push(answer);
-      // resposta vazia não altera o record; valor sim (alimenta os `when` seguintes)
-      if (answer !== '') record[field.key] = answer;
+        const answer = overrides[field.key] ?? '';
+        lines.push(answer);
+        if (answer !== '') record[field.key] = answer;
+      }
+    } else {
+      for (const field of ENV_FIELDS) {
+        if (field.section !== section.id) continue;
+        if (field.when && !field.when(record)) continue;
+
+        if (field.key === 'JWT_SECRET' && !looksLikeSecret(record['JWT_SECRET'] ?? '')) {
+          const gen = overrides['JWT_SECRET_GENERATE'] ?? '';
+          lines.push(gen);
+          const declined = ['n', 'no'].includes(gen.trim().toLowerCase());
+          if (declined) {
+            lines.push(overrides['JWT_SECRET'] ?? '');
+            if ((overrides['JWT_SECRET'] ?? '') !== '') record['JWT_SECRET'] = overrides['JWT_SECRET']!;
+          } else {
+            record['JWT_SECRET'] = 'generated-by-interview';
+          }
+          continue;
+        }
+
+        const answer = overrides[field.key] ?? '';
+        lines.push(answer);
+        if (answer !== '') record[field.key] = answer;
+      }
     }
   }
+
   if (finalConfirm) lines.push(finalConfirm);
   return lines;
 }

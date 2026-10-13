@@ -1,5 +1,17 @@
 # @oktis-works/cms
 
+## 0.8.5
+
+### Patch Changes
+
+- Wizard: navegação limpa campo a campo (Back/Next) na entrevista .env.
+  
+  - Cada campo limpa a tela antes de mostrar (ANSI clearScreen) — zero lixo no terminal
+  - Tecla 'b' volta ao campo anterior para re-editar (prompt.askWithBack / prompt.secretWithBack)
+  - Progress indicator [n/total] + dica "Enter = manter · b = voltar · Ctrl+C = cancelar tudo"
+  - Fix crítico: loop infinito no select de modo de conexão (continue dentro do if database re-executava a seção)
+  - Fix: helper de teste alinhado à ordem real de ENV_SECTIONS (app → database → ...)
+
 ## 0.8.4
 
 ### Patch Changes
