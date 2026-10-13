@@ -31,6 +31,13 @@ import { maskValue } from './config-wizard.js';
 import { style, symbol, type Prompt } from './prompt.js';
 import type { Catalog } from './wizard-i18n.js';
 
+const ESC = '\x1b[';
+
+/** Limpa a tela e posiciona o cursor no topo. */
+function clearScreen(prompt: Prompt): void {
+  prompt.write(`${ESC}2J${ESC}H`);
+}
+
 export interface InterviewDeps {
   prompt: Prompt;
   catalog: Catalog;
@@ -57,6 +64,7 @@ export async function runEnvInterview(
   const env = loadEnvFile(path);
   const changed = new Set<string>();
 
+  clearScreen(prompt);
   prompt.heading(`${catalog.envHeading} — .env`);
   prompt.info(catalog.envIntro);
 
@@ -84,6 +92,8 @@ export async function runEnvInterview(
 
     for (const section of ENV_SECTIONS) {
       if (interrupted.value) break;
+
+      clearScreen(prompt);
 
       // seção de banco: antes de tudo, pergunta o engine, depois o modo de conexão
       if (section.id === 'database') {

@@ -1,5 +1,15 @@
 # @oktis-works/cms
 
+## 0.8.3
+
+### Patch Changes
+
+- Wizard env interview: clean screen between sections.
+  
+  - `runEnvInterview` clears screen on entry
+  - Each section (Application, Database, Redis, Auth, Storage, Worker, Cache, Ports, Theme, Deploy) clears screen before showing fields
+  - Clean navigation through all 10 sections of the .env interview
+
 ## 0.8.2
 
 ### Patch Changes
