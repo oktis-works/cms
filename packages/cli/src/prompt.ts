@@ -708,6 +708,92 @@ export class Prompt {
     }
   }
 
+  /** Texto livre com validação + suporte a voltar (tecla 'b'). Retorna '__BACK__' para voltar. */
+  async askWithBack(title: string, opts: InputOptions = {}): Promise<string> {
+    const fallback = opts.default ?? '';
+
+    if (!this.io.isTTY) {
+      if (opts.default !== undefined) return opts.default;
+      throw new Error(`non-interactive: "${title}" needs a TTY or --set`);
+    }
+
+    const current = opts.placeholder ?? opts.default;
+    const shown = current ? style.dim(` (${current})`) : '';
+
+    for (;;) {
+      const suffix =
+        opts.default !== undefined && !opts.placeholder ? style.dim(`[${opts.default}]`) : '';
+      const hint = style.dim(' (b=voltar)');
+      const raw = await this.askLine(`  ${symbol.ask} ${title}${shown}${suffix}${hint} `);
+
+      // EOF (pipe fechado / Ctrl+D)
+      if (raw === null) {
+        const problem0 = opts.validate?.(fallback);
+        if (problem0) {
+          this.write(`  ${style.red(symbol.fail)} ${problem0}\n`);
+          return '__BACK__';
+        }
+        return fallback;
+      }
+
+      const trimmed = raw.trim();
+      // tecla de voltar
+      if (trimmed.toLowerCase() === 'b') {
+        return '__BACK__';
+      }
+
+      const blank = trimmed === '';
+      const value = blank ? fallback : trimmed;
+
+      const problem = opts.validate?.(value);
+      if (problem) {
+        this.write(`  ${style.red(symbol.fail)} ${problem}\n`);
+        continue;
+      }
+      return value;
+    }
+  }
+
+  /** Segredo com suporte a voltar (digite 'b' para voltar). Retorna '__BACK__' para voltar. */
+  async secretWithBack(title: string, opts: InputOptions = {}): Promise<string> {
+    const fallback = opts.default ?? '';
+
+    if (!this.io.isTTY) {
+      const piped = await this.input.readSecret();
+      const value = !piped || piped.trim() === '' ? fallback : piped.trim();
+      const problem = opts.validate?.(value);
+      if (problem) throw new Error(problem);
+      return value;
+    }
+
+    const current = opts.placeholder ?? (opts.default !== undefined ? '••••••' : undefined);
+    const shown = current ? style.dim(` (${current})`) : '';
+
+    for (;;) {
+      const suffix = opts.default !== undefined ? style.dim('[enter = keep]') : '';
+      const hint = style.dim(' (b=voltar)');
+      this.write(`  ${symbol.ask} ${title}${shown}${suffix}${hint} `);
+      const raw = await this.input.readSecret();
+      this.write('\n');
+
+      // EOF (pipe fechado / Ctrl+D)
+      if (raw === null) return fallback;
+
+      // tecla de voltar
+      if (raw.trim().toLowerCase() === 'b') return '__BACK__';
+
+      // Enter com default disponível = manter o valor atual
+      if (raw === '' && fallback !== '') return fallback;
+
+      const problem = opts.validate?.(raw);
+      if (problem) {
+        this.write(`  ${style.red(symbol.fail)} ${problem}\n`);
+        continue;
+      }
+      return raw;
+    }
+  }
+
   /** Lê uma linha cruta (também usada pelos testes). */
   async askLine(question: string): Promise<string | null> {
     if (this.closed) return null;

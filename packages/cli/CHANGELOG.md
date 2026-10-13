@@ -1,5 +1,19 @@
 # @oktis-works/cms
 
+## 0.8.4
+
+### Patch Changes
+
+- Wizard: navegação limpa entre campos (Back/Next) com tela limpa.
+  
+  - Cada campo da entrevista `.env` agora limpa a tela antes de mostrar (clearScreen)
+  - Navegação com tecla 'b' (Back) para voltar ao campo anterior e re-editar
+  - Dica visual: "Enter = manter · b = voltar · Ctrl+C = cancelar tudo"
+  - Tela limpa entre seções e campos - sem lixo no terminal
+  - Funciona em todos os campos da entrevista `.env` (47 campos)
+  - Tela limpa também nos fluxos guiados (init, dev, deploy, update)
+  - Tela limpa no menu de falha (doctor/retry/menu)
+
 ## 0.8.3
 
 ### Patch Changes

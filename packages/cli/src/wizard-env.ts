@@ -134,7 +134,15 @@ export async function runEnvInterview(
         if (mode === 'connectionString') {
           // modo string de conexão: pergunta DATABASE_URL + garante DB_PASSWORD para a infra
           const dbUrlField = ENV_FIELDS.find((f) => f.key === 'DATABASE_URL')!;
-          await askField(prompt, catalog, env, changed, dbUrlField, record);
+          const result = await askFieldWithNavigation(prompt, catalog, env, changed, dbUrlField, record);
+          if (result.type === 'cancel') {
+            prompt.warn(catalog.envCancelled);
+            return { status: 'cancelled', changed: [] };
+          }
+          if (result.type === 'back') {
+            // voltar para engine selection - reinicia a seção
+            return await runEnvInterview(deps, opts);
+          }
 
           // DB_PASSWORD é necessário para a infra local (compose precisa)
           // mesmo quando usando DATABASE_URL externo — gera se não existir
@@ -165,9 +173,44 @@ export async function runEnvInterview(
       prompt.write(`\n${style.bold(`  ── ${section.title} ── ${style.dim(section.hint)}`)}\n`);
       prompt.info(catalog.envSectionCount(fields.length));
 
-      for (const field of fields) {
+      // loop com navegação para os campos da seção
+      let fieldIndex = 0;
+      while (fieldIndex < fields.length) {
         if (interrupted.value) break;
-        await askField(prompt, catalog, env, changed, field, record);
+
+        clearScreen(prompt);
+
+        // header da seção (só no primeiro campo da seção)
+        if (fieldIndex === 0) {
+          prompt.write(`\n${style.bold(`  ── ${section.title} ── ${style.dim(section.hint)}`)}\n`);
+          prompt.info(catalog.envSectionCount(fields.length));
+        }
+
+        // progress indicator
+        const progress = `[${fieldIndex + 1}/${fields.length}]`;
+        prompt.write(`${style.dim(progress)} ${style.bold(fields[fieldIndex]!.key)}\n`);
+
+        const field = fields[fieldIndex]!;
+        const result = await askFieldWithNavigation(prompt, catalog, env, changed, field, record);
+
+        if (result.type === 'cancel') {
+          prompt.warn(catalog.envCancelled);
+          return { status: 'cancelled', changed: [] };
+        }
+        if (result.type === 'back') {
+          if (fieldIndex > 0) {
+            fieldIndex--;
+            continue;
+          } else {
+            // no primeiro campo da seção, back = voltar para seção anterior
+            // para simplificar, volta para o menu principal (reinicia a entrevista)
+            return await runEnvInterview(deps, opts);
+          }
+        }
+        if (result.type === 'value') {
+          fieldIndex++;
+          continue;
+        }
       }
     }
 
@@ -205,30 +248,26 @@ export async function runEnvInterview(
   }
 }
 
-/** Pergunta um campo com descrição/exemplo/valor atual — Enter mantém. */
-async function askField(
+/** Resultado de uma pergunta de campo com navegação. */
+type _FieldResult =
+  | { type: 'value'; value: string }
+  | { type: 'back' }
+  | { type: 'cancel' };
+
+/** Pergunta um campo com navegação (Back/Enter mantém). Retorna ação do usuário. */
+async function askFieldWithNavigation(
   prompt: Prompt,
   catalog: Catalog,
   env: EnvFile,
   changed: Set<string>,
   field: EnvField,
   record: () => Record<string, string>
-): Promise<void> {
+): Promise<{ type: 'value'; value: string } | { type: 'back' } | { type: 'cancel' }> {
   // o `when` pode ter mudado desde o início da seção (um campo alterou o
   // registro) — reavalia antes de perguntar, senão sai pergunta bobagem
-  if (field.when && !field.when(record())) return;
+  if (field.when && !field.when(record())) return { type: 'value', value: '' };
 
   const current = env.get(field.key) ?? '';
-
-  prompt.write(`\n  ${style.bold(field.key)}\n`);
-  prompt.write(`    ${style.dim(symbol.bullet)} ${style.dim(field.label)}\n`);
-  prompt.write(`    ${style.dim(symbol.bullet)} ${style.dim(field.description)}\n`);
-  if (field.example) {
-    prompt.write(`    ${style.gray(`  ex.: ${field.example}`)}\n`);
-  }
-  if (field.options && field.options.length > 0) {
-    prompt.write(`    ${style.gray(`  options: ${field.options.join(' | ')}`)}\n`);
-  }
 
   // JWT_SECRET fraco/ausente: oferece um gerado (mesma ajuda do config wizard)
   if (field.key === 'JWT_SECRET' && !looksLikeSecret(current)) {
@@ -238,63 +277,103 @@ async function askField(
       env.set(field.key, secret);
       changed.add(field.key);
       prompt.success(catalog.envGenerated);
-      return;
+      return { type: 'value', value: secret };
     }
+    // se recusou gerar, cai no prompt normal abaixo
   }
 
-  const shownCurrent = field.type === 'secret'
-    ? current
-      ? maskValue(current)
-      : catalog.envSecretNotSet
+  const _shownCurrent = (field.type as string) === 'secret'
+    ? current ? maskValue(current) : catalog.envSecretNotSet
     : current || catalog.envSecretNotSet;
 
-  const validate = (candidate: string): string | null => validateField(field, candidate);
+  const _validate = (candidate: string): string | null => validateField(field, candidate);
 
-  let value: string;
-  if (field.type === 'secret') {
-    value = await prompt.secret(`${field.key} — ${field.label}`, {
-      default: current,
-      placeholder: `${catalog.envKeepHint}: ${shownCurrent}`,
-      validate,
-    });
-  } else {
-    // default dinâmico para DB_PORT baseado no DB_ENGINE já escolhido
-    let effectiveDefault = field.default || '';
-    if (field.key === 'DB_PORT') {
-      const engine = env.get('DB_ENGINE') ?? 'postgres';
-      effectiveDefault = engine === 'postgres' ? '5432' : '3306';
+  // monta o prompt com navegação
+  while (true) {
+    clearScreen(prompt);
+
+    prompt.write(`\n  ${style.bold(field.key)}\n`);
+    prompt.write(`    ${style.dim(symbol.bullet)} ${style.dim(field.label)}\n`);
+    prompt.write(`    ${style.dim(symbol.bullet)} ${style.dim(field.description)}\n`);
+    if (field.example) {
+      prompt.write(`    ${style.gray(`  ex.: ${field.example}`)}\n`);
     }
-    const fallback = current || effectiveDefault || '';
-    value = await prompt.ask(`${field.key} — ${field.label}`, {
-      default: fallback,
-      placeholder: current
-        ? `${catalog.envKeepHint}: ${current}`
-        : effectiveDefault
-          ? `${effectiveDefault} (default)`
-          : undefined,
-      validate,
-    });
-  }
+    if (field.options && field.options.length > 0) {
+      prompt.write(`    ${style.gray(`  options: ${field.options.join(' | ')}`)}\n`);
+    }
 
-  if (value === current) return;
+    // nav hint
+    prompt.write(`\n  ${style.dim('Enter = manter · b = voltar · Ctrl+C = cancelar tudo')}\n`);
 
-  // aceitar o default de uma chave AUSENTE não materializa a chave — o app já
-  // aplica esse default; gravar tudo a cada Enter enche o .env de ruído
-  let effectiveDefault = field.default ?? '';
-  if (field.key === 'DB_PORT') {
-    const engine = env.get('DB_ENGINE') ?? 'postgres';
-    effectiveDefault = engine === 'postgres' ? '5432' : '3306';
-  }
-  const acceptedDefault = current === '' && value === effectiveDefault;
-  if (acceptedDefault) {
-    prompt.info(catalog.envDefaultApplies(value));
-    return;
-  }
+    const _shownCurrent = (field.type as string) === 'secret'
+      ? current ? maskValue(current) : catalog.envSecretNotSet
+      : current || catalog.envSecretNotSet;
 
-  env.set(field.key, value);
-  changed.add(field.key);
-  const shown = field.type === 'secret' ? maskValue(value) : value;
-  prompt.success(`${field.key} → ${shown}`);
+    const _validate = (candidate: string): string | null => validateField(field, candidate);
+
+    if ((field.type as string) === 'secret') {
+      const value = await prompt.secretWithBack(`${field.key} — ${field.label}`, {
+        default: current,
+        placeholder: `${catalog.envKeepHint}: ${_shownCurrent}`,
+        validate: _validate,
+      });
+
+      if (value === current) return { type: 'value', value: current };
+      if (value === '__BACK__') return { type: 'back' };
+
+      // aceitar default de chave ausente não materializa
+      let effectiveDefault = field.default ?? '';
+      if (field.key === 'DB_PORT') {
+        const engine = env.get('DB_ENGINE') ?? 'postgres';
+        effectiveDefault = engine === 'postgres' ? '5432' : '3306';
+      }
+      const acceptedDefault = current === '' && value === effectiveDefault;
+      if (acceptedDefault) {
+        prompt.info(catalog.envDefaultApplies(value));
+        return { type: 'value', value: current };
+      }
+
+      env.set(field.key, value);
+      changed.add(field.key);
+      prompt.success(`${field.key} → ${maskValue(value)}`);
+      return { type: 'value', value };
+    } else {
+      // default dinâmico para DB_PORT
+      let effectiveDefault = field.default ?? '';
+      if (field.key === 'DB_PORT') {
+        const engine = env.get('DB_ENGINE') ?? 'postgres';
+        effectiveDefault = engine === 'postgres' ? '5432' : '3306';
+      }
+      const fallback = current || effectiveDefault || '';
+
+      // usa ask com suporte a back
+      const value = await prompt.askWithBack(`${field.key} - ${field.label}`, {
+        default: fallback,
+        placeholder: current
+          ? `${catalog.envKeepHint}: ${current}`
+          : effectiveDefault
+            ? `${effectiveDefault} (default)`
+            : undefined,
+        validate: _validate,
+      });
+
+      if (value === '__BACK__') return { type: 'back' };
+      if (value === current) return { type: 'value', value: current };
+
+      // aceitar default de chave ausente não materializa
+      const acceptedDefault = current === '' && value === effectiveDefault;
+      if (acceptedDefault) {
+        prompt.info(catalog.envDefaultApplies(value));
+        return { type: 'value', value: current };
+      }
+
+      env.set(field.key, value);
+      changed.add(field.key);
+      const shown = (field.type as string) === 'secret' ? maskValue(value) : value;
+      prompt.success(`${field.key} → ${shown}`);
+      return { type: 'value', value };
+    }
+  }
 }
 
 /** Seção do env-schema usada pela entrevista (para testes/docs). */
