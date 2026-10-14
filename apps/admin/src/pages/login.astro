@@ -9,16 +9,7 @@ const { t } = Astro.locals;
     <div class="login-card">
       <div class="login-header">
         <div class="logo">
-          <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <rect width="32" height="32" rx="8" fill="url(#grad)"/>
-            <path d="M8 10h16M8 16h12M8 22h8" stroke="#0A0A0A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-            <defs>
-              <linearGradient id="grad" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stop-color="#D8B45E"/>
-                <stop offset="100%" stop-color="#B99542"/>
-              </linearGradient>
-            </defs>
-          </svg>
+          <img src="/logo.svg" width="48" height="48" alt="" />
         </div>
         <h1>{t('layout.appName')}</h1>
         <p>{t('login.subtitle')}</p>

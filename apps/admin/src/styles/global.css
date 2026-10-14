@@ -822,10 +822,10 @@ select.input {
   box-shadow: 0 4px 14px -2px var(--color-primary);
 }
 
-.login-header .logo svg {
-  width: 40px;
-  height: 40px;
-  color: var(--color-ink);
+.login-header .logo img {
+  width: 48px;
+  height: 48px;
+  display: block;
 }
 
 .login-header h1 {

@@ -126,7 +126,7 @@ export function AdminBar(props: Props) {
         .admin-bar-brand:hover {
           background: rgba(255,255,255,0.08);
         }
-        .admin-bar-brand svg { width: 28px; height: 28px; }
+        .admin-bar-brand img { width: 28px; height: 28px; display: block; }
         .admin-bar-separator { width: 1px; height: 24px; background: #333; }
         .admin-bar-menu { display: flex; gap: 0.25rem; }
         .admin-bar-menu-item {
@@ -346,16 +346,7 @@ export function AdminBar(props: Props) {
       <header id="admin-bar" role="banner">
         <div class="admin-bar-left">
           <a href="/" class="admin-bar-brand" aria-label={t('layout.appName')}>
-            <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <rect width="32" height="32" rx="8" fill="url(#grad)"/>
-              <path d="M8 10h16M8 16h12M8 22h8" stroke="#0A0A0A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-              <defs>
-                <linearGradient id="grad" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-                  <stop offset="0%" stop-color="#D8B45E"/>
-                  <stop offset="100%" stop-color="#B99542"/>
-                </linearGradient>
-              </defs>
-            </svg>
+            <img src="/logo.svg" width="28" height="28" alt="" />
             <span>OkCMS</span>
           </a>
 
