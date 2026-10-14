@@ -32,6 +32,12 @@ export interface EnvField {
   default?: string;
   options?: string[];
   required?: boolean;
+  /**
+   * Campo essencial para o CMS ligar e ser usável — entra na entrevista do
+   * wizard. Campos não-essenciais têm defaults seguros e são configurados
+   * manualmente com `okcms config`.
+   */
+  essential?: boolean;
   /** Mostra o campo só quando a condição é verdadeira (dependências). */
   when?: (record: Record<string, string>) => boolean;
   /** Minibloco de exemplo exibido no prompt. */
@@ -143,9 +149,10 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'DB_HOST',
     section: 'database',
     label: 'DB_HOST',
-    description: 'Ignored when DATABASE_URL is set',
+    description: 'Database host',
     type: 'string',
     default: 'localhost',
+    essential: true,
     when: (r) => !r['DATABASE_URL'],
   },
   {
@@ -155,6 +162,7 @@ export const ENV_FIELDS: EnvField[] = [
     description: 'Database port (default varies by engine: postgres=5432, mysql/mariadb=3306)',
     type: 'port',
     default: '5432',
+    essential: true,
     when: (r) => !r['DATABASE_URL'],
   },
   {
@@ -164,6 +172,7 @@ export const ENV_FIELDS: EnvField[] = [
     description: 'Database name',
     type: 'string',
     default: 'okcms',
+    essential: true,
     when: (r) => !r['DATABASE_URL'],
   },
   {
@@ -173,6 +182,7 @@ export const ENV_FIELDS: EnvField[] = [
     description: 'Database user',
     type: 'string',
     default: 'postgres',
+    essential: true,
     when: (r) => !r['DATABASE_URL'],
   },
   {
@@ -182,6 +192,7 @@ export const ENV_FIELDS: EnvField[] = [
     description: 'Database password',
     type: 'secret',
     required: true,
+    essential: true,
     when: (r) => !r['DATABASE_URL'],
   },
   {
@@ -208,6 +219,7 @@ export const ENV_FIELDS: EnvField[] = [
     label: 'DATABASE_URL',
     description: 'Single URL — overrides DB_* (postgres://user:pass@host:5432/db)',
     type: 'database-url',
+    essential: true,
     example: 'postgresql://postgres:pass@localhost:5432/okcms',
   },
 
@@ -219,6 +231,7 @@ export const ENV_FIELDS: EnvField[] = [
     description: 'use "disabled" to run without Redis (in-memory)',
     type: 'string',
     default: 'localhost',
+    essential: true,
   },
   {
     key: 'REDIS_PORT',
@@ -252,6 +265,7 @@ export const ENV_FIELDS: EnvField[] = [
     description: 'Token signing secret — min 16 characters',
     type: 'secret',
     required: true,
+    essential: true,
   },
   {
     key: 'JWT_EXPIRES_IN',

@@ -109,7 +109,7 @@ export async function runEnvInterview(
       return out;
     };
 
-    // ---- lista plana de passos (re-construída quando `when` muda) ----
+    // ---- lista plana de passos — APENAS essenciais ----
     type Step =
       | { kind: 'engine' }
       | { kind: 'mode' }
@@ -121,11 +121,11 @@ export async function runEnvInterview(
         if (section.id === 'database') {
           steps.push({ kind: 'engine' });
           steps.push({ kind: 'mode' });
-          // campos DB (DB_ENGINE já tratado pelo engine select, DATABASE_URL filtrado no modo individual)
           const r = record();
           const mode = r['__db_mode'] ?? 'individual';
           for (const field of ENV_FIELDS) {
             if (field.section !== 'database') continue;
+            if (!field.essential) continue;
             if (field.key === 'DB_ENGINE') continue; // já tratado pelo engine select
             if (field.key === 'DATABASE_URL' && mode === 'individual') continue;
             if (field.when && !field.when(r)) continue;
@@ -135,6 +135,7 @@ export async function runEnvInterview(
           const r = record();
           for (const field of ENV_FIELDS) {
             if (field.section !== section.id) continue;
+            if (!field.essential) continue;
             if (field.when && !field.when(r)) continue;
             steps.push({ kind: 'field', field, section });
           }
@@ -150,10 +151,9 @@ export async function runEnvInterview(
     while (stepIndex < steps.length) {
       if (interrupted.value) break;
 
-      // re-constrói passos (quando `when` muda, ex: mode trocou)
+      // re-constrói passos quando `when` muda (ex: mode trocou)
       const newSteps = buildSteps();
       if (newSteps.length !== steps.length) {
-        // tenta manter o passo equivalente pelo key/kind
         const prev = steps[stepIndex];
         const matching = newSteps.findIndex((s) => {
           if (s.kind !== prev?.kind) return false;
@@ -170,19 +170,12 @@ export async function runEnvInterview(
       const section = step.kind === 'field' ? step.section : ENV_SECTIONS.find(s => s.id === 'database')!;
 
       // header de seção (quando muda de seção)
+      clearScreen(prompt);
       if (section.id !== lastSectionId) {
-        clearScreen(prompt);
         prompt.write(`\n${style.bold(`  ── ${section.title} ── ${style.dim(section.hint)}`)}\n`);
-        const sectionSteps = steps.filter(s =>
-          s.kind === 'field' ? s.section.id === section.id : section.id === 'database'
-        );
-        prompt.info(catalog.envSectionCount(sectionSteps.length));
         lastSectionId = section.id;
-      } else {
-        clearScreen(prompt);
       }
 
-      // progress indicator
       const progress = `[${stepIndex + 1}/${steps.length}]`;
       prompt.write(`${style.dim(progress)}\n`);
 
@@ -271,6 +264,7 @@ export async function runEnvInterview(
       const shown = (field?.type as string) === 'secret' ? maskValue(value) : value;
       prompt.write(`    ${style.cyan(symbol.arrow)} ${key}=${shown}\n`);
     }
+    prompt.write(`\n  ${style.dim('Configurações avançadas (rate limit, cache, storage, deploy):')} ${style.cyan('okcms config')}\n`);
 
     const ok = await prompt.confirm(catalog.envConfirmSave(changed.size), { defaultValue: true });
     if (!ok) {

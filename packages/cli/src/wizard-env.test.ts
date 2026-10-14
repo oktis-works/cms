@@ -63,9 +63,8 @@ function answersFor(overrides: Record<string, string>, finalConfirm?: 'y' | 'n')
   }
   const lines: string[] = [];
 
-  // O wizard percorre ENV_SECTIONS NA ORDEM (app → database → redis → ...).
-  // Dentro de database: engine select → mode select → campos (DB_ENGINE incluído).
-  // O helper precisa espelhar EXATAMENTE essa ordem de consumo de respostas.
+  // O wizard agora só pergunta campos ESSENCIAIS (essential: true) + os
+  // selects de engine e mode. Restante é configurado com okcms config.
 
   for (const section of ENV_SECTIONS) {
     if (section.id === 'database') {
@@ -84,26 +83,13 @@ function answersFor(overrides: Record<string, string>, finalConfirm?: 'y' | 'n')
         record['__db_mode'] = 'individual';
       }
 
-      // 3. Campos da seção database — DB_ENGINE NÃO é perguntado como campo
-      //    (já foi tratado pelo engine select); DATABASE_URL é filtrado no modo individual.
+      // 3. Campos database ESSENCIAIS (DB_ENGINE e DATABASE_URL excluídos)
       for (const field of ENV_FIELDS) {
         if (field.section !== 'database') continue;
+        if (!field.essential) continue;
         if (field.when && !field.when(record)) continue;
         if (field.key === 'DB_ENGINE') continue; // já tratado pelo engine select
-        if (field.key === 'DATABASE_URL') continue;
-
-        if (field.key === 'JWT_SECRET' && !looksLikeSecret(record['JWT_SECRET'] ?? '')) {
-          const gen = overrides['JWT_SECRET_GENERATE'] ?? '';
-          lines.push(gen);
-          const declined = ['n', 'no'].includes(gen.trim().toLowerCase());
-          if (declined) {
-            lines.push(overrides['JWT_SECRET'] ?? '');
-            if ((overrides['JWT_SECRET'] ?? '') !== '') record['JWT_SECRET'] = overrides['JWT_SECRET']!;
-          } else {
-            record['JWT_SECRET'] = 'generated-by-interview';
-          }
-          continue;
-        }
+        if (field.key === 'DATABASE_URL') continue; // filtrado no modo individual
 
         const answer = overrides[field.key] ?? '';
         lines.push(answer);
@@ -112,6 +98,7 @@ function answersFor(overrides: Record<string, string>, finalConfirm?: 'y' | 'n')
     } else {
       for (const field of ENV_FIELDS) {
         if (field.section !== section.id) continue;
+        if (!field.essential) continue;
         if (field.when && !field.when(record)) continue;
 
         if (field.key === 'JWT_SECRET' && !looksLikeSecret(record['JWT_SECRET'] ?? '')) {
@@ -191,48 +178,48 @@ describe('runEnvInterview', () => {
     expect(readEnv()).toContain('DB_PASSWORD=postgres');
   });
 
-  it('writes a changed PORT after confirming the summary', async () => {
+  it('writes a changed DB_HOST after confirming the summary', async () => {
     writeEnv(
       [
         'NODE_ENV=development',
-        'PORT=3000',
+        'DB_HOST=db.local',
         'DB_PASSWORD=postgres',
         'DB_ENGINE=postgres',
         'JWT_SECRET=uma-chave-segura-de-32-bytes-bem-longa',
         '',
       ].join('\n')
     );
-    const io = fakeIO(answersFor({ PORT: '4000' }, 'y'));
+    const io = fakeIO(answersFor({ DB_HOST: 'db.remoto' }, 'y'));
     const prompt = new Prompt(io);
 
     const result = await runEnvInterview({ prompt, catalog: catalogFor('en'), cwd: dir });
     prompt.close();
 
     expect(result.status).toBe('saved');
-    expect(result.changed).toContain('PORT');
-    expect(readEnv()).toContain('PORT=4000');
+    expect(result.changed).toContain('DB_HOST');
+    expect(readEnv()).toContain('DB_HOST=db.remoto');
   });
 
   it('discards everything when the summary is not confirmed', async () => {
     writeEnv(
       [
         'NODE_ENV=development',
-        'PORT=3000',
+        'DB_HOST=db.local',
         'DB_PASSWORD=postgres',
         'DB_ENGINE=postgres',
         'JWT_SECRET=uma-chave-segura-de-32-bytes-bem-longa',
         '',
       ].join('\n')
     );
-    const io = fakeIO(answersFor({ PORT: '4000' }, 'n'));
+    const io = fakeIO(answersFor({ DB_HOST: 'db.remoto' }, 'n'));
     const prompt = new Prompt(io);
 
     const result = await runEnvInterview({ prompt, catalog: catalogFor('en'), cwd: dir });
     prompt.close();
 
     expect(result.status).toBe('cancelled');
-    expect(readEnv()).toContain('PORT=3000');
-    expect(readEnv()).not.toContain('PORT=4000');
+    expect(readEnv()).toContain('DB_HOST=db.local');
+    expect(readEnv()).not.toContain('DB_HOST=db.remoto');
   });
 
   it('masks a secret in the review summary (never echoes the typed value)', async () => {

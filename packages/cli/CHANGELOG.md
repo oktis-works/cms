@@ -1,5 +1,19 @@
 # @oktis-works/cms
 
+## 0.8.9
+
+### Patch Changes
+
+- Wizard: entrevista .env reduzida aos campos ESSENCIAIS.
+  
+  - Nova prop `essential` em EnvField — só campos essenciais entram na entrevista
+  - Essenciais: DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, DATABASE_URL, JWT_SECRET, REDIS_HOST
+  - Resto (rate limit, cache TTL, storage S3, worker concurrency, deploy, tema): defaults seguros, configurável com `okcms config`
+  - Entrevista cai de ~45 prompts para ~9 (engine select + mode select + 5 DB + JWT_SECRET + REDIS_HOST)
+  - Dica no resumo: "Configurações avançadas: okcms config"
+  - Navegação linear com 'b' em todos os passos (engine ← mode ← campos ← outras seções)
+  - Testes atualizados para o novo fluxo (DB_HOST no lugar de PORT)
+
 ## 0.8.8
 
 ### Patch Changes
