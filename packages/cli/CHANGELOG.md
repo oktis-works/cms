@@ -1,5 +1,19 @@
 # @oktis-works/cms
 
+## 0.8.10
+
+### Patch Changes
+
+- Fix crítico: docker compose não encontra DB_PASSWORD no .env.
+  
+  - CAUSA: docker compose lê .env do DIRETÓRIO DO COMPOSE FILE (ex:
+    infrastructure/compose/), não do cwd (raiz do projeto). Se o .env tem
+    DB_PASSWORD preenchido, o compose não o vê e falha na interpolação.
+  - FIX: todas as chamadas compose (infraCompose, laneCompose, appCompose)
+    agora passam --env-file <cwd>/.env explicitamente.
+  - Verificado: sem --env-file → "required variable DB_PASSWORD is missing";
+    com --env-file → POSTGRES_PASSWORD corretamente interpolado.
+
 ## 0.8.9
 
 ### Patch Changes

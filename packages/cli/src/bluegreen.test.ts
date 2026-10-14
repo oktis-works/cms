@@ -244,8 +244,10 @@ describe('primeiro deploy (sem lane anterior)', () => {
 
     const calls = runner.calls;
     expect(at(calls, 'network create --driver bridge okcms-net')).toBeGreaterThanOrEqual(0);
-    expect(at(calls, '-p okcms -f docker-compose.infra.yml up -d')).toBeGreaterThanOrEqual(0);
-    expect(at(calls, '-p okcms-blue -f docker-compose.deploy.yml build')).toBeGreaterThanOrEqual(0);
+    expect(at(calls, '-p okcms --env-file')).toBeGreaterThanOrEqual(0);
+    expect(at(calls, '-f docker-compose.infra.yml up -d')).toBeGreaterThanOrEqual(0);
+    expect(at(calls, '-p okcms-blue --env-file')).toBeGreaterThanOrEqual(0);
+    expect(at(calls, '-f docker-compose.deploy.yml build')).toBeGreaterThanOrEqual(0);
     expect(at(calls, 'db:migrate')).toBeGreaterThanOrEqual(0);
     expect(at(calls, 'up -d api-blue web-blue admin-blue')).toBeGreaterThanOrEqual(0);
     expect(at(calls, 'nginx -s reload')).toBeGreaterThanOrEqual(0);

@@ -98,8 +98,8 @@ describe('montagem de comando', () => {
     infraCompose('/p', ['up', '-d'], runner);
     laneCompose('/p', 'green', ['down'], runner);
 
-    expect(runner.calls[0]).toBe(`docker compose -p ${INFRA_PROJECT} -f ${COMPOSE_INFRA_FILE} up -d`);
-    expect(runner.calls[1]).toBe('docker compose -p okcms-green -f docker-compose.deploy.yml down');
+    expect(runner.calls[0]).toBe(`docker compose -p ${INFRA_PROJECT} --env-file /p/.env -f ${COMPOSE_INFRA_FILE} up -d`);
+    expect(runner.calls[1]).toBe('docker compose -p okcms-green --env-file /p/.env -f docker-compose.deploy.yml down');
   });
 
   it('runCompose propaga cwd e inherit', () => {

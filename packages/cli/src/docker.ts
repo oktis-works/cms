@@ -197,15 +197,20 @@ export const SIMPLE_WORKER_CONTAINER = 'okcms-worker';
 export interface ComposeCall {
   project?: string;
   file?: string;
+  /** Caminho do .env do projeto — SEM isso o docker compose lê o .env do
+   *  diretório do compose file (ex: infrastructure/compose/), não da raiz,
+   *  e DB_PASSWORD/afins "desaparecem" na interpolação. */
+  envFile?: string;
   args: string[];
   inherit?: boolean;
   timeoutMs?: number;
 }
 
-/** `docker compose -p <projeto> -f <arquivo> ...` — a única forma montada aqui. */
+/** `docker compose -p <projeto> --env-file <env> -f <arquivo> ...` */
 export function composeArgs(call: ComposeCall): string[] {
   const args: string[] = ['compose'];
   if (call.project) args.push('-p', call.project);
+  if (call.envFile) args.push('--env-file', call.envFile);
   if (call.file) args.push('-f', call.file);
   args.push(...call.args);
   return args;
@@ -223,17 +228,19 @@ export function runCompose(
   });
 }
 
+const projectEnv = (cwd: string): string => join(cwd, '.env');
+
 export const infraCompose = (cwd: string, args: string[], runner?: Runner, inherit?: boolean): RunResult =>
-  runCompose(cwd, { project: INFRA_PROJECT, file: COMPOSE_INFRA_FILE, args, inherit }, runner);
+  runCompose(cwd, { project: INFRA_PROJECT, file: COMPOSE_INFRA_FILE, envFile: projectEnv(cwd), args, inherit }, runner);
 
 export const laneCompose = (
   cwd: string,
   lane: Lane,
   args: string[],
-  runner?: Runner,
+  runner: Runner,
   inherit?: boolean
 ): RunResult =>
-  runCompose(cwd, { project: laneProject(lane), file: COMPOSE_DEPLOY_FILE, args, inherit }, runner);
+  runCompose(cwd, { project: laneProject(lane), file: COMPOSE_DEPLOY_FILE, envFile: projectEnv(cwd), args, inherit }, runner);
 
 /** `docker compose -p okcms-app -f docker-compose.app.yml ...` (simple mode). */
 export const appCompose = (
@@ -241,7 +248,7 @@ export const appCompose = (
   args: string[],
   runner?: Runner,
   inherit?: boolean
-): RunResult => runCompose(cwd, { project: APP_PROJECT, file: COMPOSE_APP_FILE, args, inherit }, runner);
+): RunResult => runCompose(cwd, { project: APP_PROJECT, file: COMPOSE_APP_FILE, envFile: projectEnv(cwd), args, inherit }, runner);
 
 /**
  * `okcms-net` é declarada como `external: true` no compose das lanes — se ela
