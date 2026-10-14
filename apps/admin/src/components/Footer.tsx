@@ -1,9 +1,7 @@
 import { useTranslation } from '../i18n';
-import { APP_VERSION } from '../lib/version';
 
 export function Footer() {
   const { t } = useTranslation();
-  const version = APP_VERSION;
 
   return (
     <footer class="admin-footer" role="contentinfo">
@@ -11,7 +9,6 @@ export function Footer() {
         <div class="footer-left">
           <p class="footer-version">
             <span class="product-name">OkCMS</span>
-            <span class="version-badge">v{version}</span>
           </p>
         </div>
 
@@ -68,15 +65,6 @@ export function Footer() {
         .footer-version {
           display: flex; align-items: center; gap: 0.5rem;
           font-weight: 600; color: #ffffff; font-size: 0.8125rem;
-        }
-
-        .version-badge {
-          background: var(--color-primary-soft);
-          color: #2d2d2d;
-          padding: 0.125rem 0.375rem;
-          border-radius: var(--radius-sm);
-          font-size: 0.6875rem;
-          font-weight: 700;
         }
 
         .footer-links {

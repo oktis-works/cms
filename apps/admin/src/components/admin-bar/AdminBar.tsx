@@ -126,7 +126,7 @@ export function AdminBar(props: Props) {
         .admin-bar-brand:hover {
           background: rgba(255,255,255,0.08);
         }
-        .admin-bar-brand img { width: 28px; height: 28px; display: block; }
+        .admin-bar-brand img { height: 28px; width: auto; display: block; }
         .admin-bar-separator { width: 1px; height: 24px; background: #333; }
         .admin-bar-menu { display: flex; gap: 0.25rem; }
         .admin-bar-menu-item {
@@ -346,8 +346,7 @@ export function AdminBar(props: Props) {
       <header id="admin-bar" role="banner">
         <div class="admin-bar-left">
           <a href="/" class="admin-bar-brand" aria-label={t('layout.appName')}>
-            <img src="/logo.svg" width="28" height="28" alt="" />
-            <span>OkCMS</span>
+            <img src="/logo-horizontal.svg" width="86" height="28" alt="" />
           </a>
 
           <div class="admin-bar-separator"></div>
