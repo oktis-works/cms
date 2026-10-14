@@ -1,7 +1,7 @@
 // @oktis-works/admin - lib/api: sessão (cookie HttpOnly + CSRF), upload multipart e métodos
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { apiClient } from './api.js';
+import { apiClient, ApiClient } from './api.js';
 
 const fetchMock = vi.fn();
 
@@ -139,5 +139,39 @@ describe('users/roles/settings', () => {
     fetchMock.mockResolvedValueOnce(respond([]));
     await apiClient.listRoles();
     expect(String(call(0)[0])).toContain('/api/v1/roles');
+  });
+});
+
+describe('base relativa /api (modo proxy do scaffold)', () => {
+  it('new ApiClient("/api") → fetch sem prefixo duplicado /api/api/v1', async () => {
+    const client = new ApiClient('/api');
+    fetchMock.mockResolvedValue(respond({ success: true }));
+
+    await client.logout();
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/auth/logout', expect.anything());
+    expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining('/api/api/'), expect.anything());
+  });
+
+  it('new ApiClient("/api") → csrf bootstrap em /api/v1/auth/csrf', async () => {
+    const client = new ApiClient('/api');
+    // Sem cookie: força o bootstrap via GET /auth/csrf.
+    vi.stubGlobal('document', { cookie: '' });
+    fetchMock.mockResolvedValueOnce(respond({ csrfToken: 'tok-1' }));
+    fetchMock.mockResolvedValueOnce(respond({ success: true }));
+
+    await client.logout();
+
+    expect(String(call(0)[0])).toBe('/api/v1/auth/csrf');
+    expect(String(call(1)[0])).toBe('/api/v1/auth/logout');
+  });
+
+  it('base de origin absoluta continua montando http://.../api/v1/...', async () => {
+    const client = new ApiClient('http://localhost:3000');
+    fetchMock.mockResolvedValue(respond({ success: true }));
+
+    await client.logout();
+
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:3000/api/v1/auth/logout', expect.anything());
   });
 });

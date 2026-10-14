@@ -2,6 +2,8 @@
 import { defineMiddleware } from 'astro:middleware';
 import { SUPPORTED_LOCALES, DEFAULT_LOCALE, isRTLLocale } from './i18n/config';
 import { getTranslationsForLocale } from './i18n';
+import { joinApiUrl } from './lib/api-url';
+import { proxyApiRequest } from './lib/api-proxy';
 
 // Type definitions for Astro middleware (not available in TS environment)
 interface AstroContext {
@@ -57,6 +59,19 @@ function createFallbackT(): (key: string) => string {
 }
 
 export const onRequest = defineMiddleware(async (context: AstroContext, next: () => Promise<Response>) => {
+  // 0. Proxy /api/* → API quando ADMIN_API_PROXY_TARGET está definido.
+  //    O `okcms dev/start` roda o Admin como build pré-compilado (standalone),
+  //    onde o vite.server.proxy do astro.config não existe — sem isto, o modo
+  //    recomendado do scaffold (PUBLIC_API_URL=/api) respondia 404 em todo
+  //    /api/* (login incluso). Curto-circuito antes do i18n (que faria fetch).
+  const proxyTarget = (typeof process !== 'undefined' ? process.env['ADMIN_API_PROXY_TARGET']?.trim() : '') || '';
+  if (proxyTarget) {
+    const pathname = new URL(context.request.url).pathname;
+    if (pathname === '/api' || pathname.startsWith('/api/')) {
+      return proxyApiRequest(proxyTarget, context.request);
+    }
+  }
+
   // SEMPRE define um `t` válido ANTES de qualquer await — evita "t is not a function"
   // se houver erro na carga de traduções, na fetch da API, etc.
   context.locals.t = createFallbackT();
@@ -70,11 +85,21 @@ export const onRequest = defineMiddleware(async (context: AstroContext, next: ()
     // 2. Tentar obter do usuário logado (via API)
     let userLocale: string | null = null;
     try {
-      // Em Astro, env vars estão disponíveis via import.meta.env
-      const apiUrl = import.meta.env.PUBLIC_API_URL?.trim()
+      // Em Astro, env vars estão disponíveis via import.meta.env.
+      // Base relativa ('/api') não pode ser usada em fetch de servidor — o alvo
+      // real é o mesmo do proxy (ADMIN_API_PROXY_TARGET); sem proxy, a API fica
+      // na origem padrão com as rotas /api/v1/*. joinApiUrl evita o prefixo
+      // duplicado '/api/api/v1/...'.
+      let base = import.meta.env.PUBLIC_API_URL?.trim()
         || (typeof process !== 'undefined' ? process.env['PUBLIC_API_URL']?.trim() : '')
-        || 'http://localhost:3000';
-      const res = await fetch(`${apiUrl}/api/v1/users/me/locale`, {
+        || '';
+      base = base.replace(/\/$/, '');
+      if (base && !/^https?:\/\//i.test(base)) {
+        const target = (typeof process !== 'undefined' ? process.env['ADMIN_API_PROXY_TARGET']?.trim() : '') || '';
+        base = target ? `${target.replace(/\/$/, '')}${base}` : '';
+      }
+      const apiUrl = base || 'http://localhost:3000';
+      const res = await fetch(joinApiUrl(apiUrl, '/api/v1/users/me/locale'), {
         credentials: 'include',
         headers: { Cookie: context.request.headers.get('Cookie') ?? '' }
       });

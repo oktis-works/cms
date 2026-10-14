@@ -1,4 +1,6 @@
 ---
+import pkg from '../../package.json';
+
 interface Props {
   title: string;
   description?: string;
@@ -13,6 +15,9 @@ const dir = isRTL ? 'rtl' : 'ltr';
 const runtimeApiUrl = import.meta.env.PUBLIC_API_URL?.trim()
   || (typeof process !== 'undefined' ? process.env.PUBLIC_API_URL?.trim() : '')
   || '';
+// Cache-buster: o browser guarda favicon com URL como chave — a versão muda a
+// URL a cada release e garante que a logo oficial apareça sem limpar cache.
+const faviconHref = `/favicon.svg?v=${pkg.version}`;
 ---
 
 <!DOCTYPE html>
@@ -23,7 +28,7 @@ const runtimeApiUrl = import.meta.env.PUBLIC_API_URL?.trim()
   <meta name="description" content={description ?? 'OkCMS Admin Dashboard'}>
   <meta name="okcms-api-url" content={runtimeApiUrl}>
   <title>{title} | OkCMS</title>
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="icon" type="image/svg+xml" href={faviconHref}>
 </head>
 <body>
   <slot />

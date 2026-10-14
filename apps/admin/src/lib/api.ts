@@ -1,5 +1,7 @@
 // API Client for Admin Dashboard (HttpOnly cookies + CSRF + auto-refresh)
 
+import { joinApiUrl } from './api-url.js';
+
 /**
  * Resolve a API em runtime.
  *
@@ -199,7 +201,7 @@ export interface PluginInfo {
   } | null;
 }
 
-class ApiClient {
+export class ApiClient {
   private baseUrl: string;
   private csrfToken: string | null = null;
   private refreshPromise: Promise<void> | null = null;
@@ -378,7 +380,7 @@ class ApiClient {
     headers?: Record<string, string>,
     options?: { skipRefresh?: boolean; skipCsrfRecovery?: boolean }
   ): Promise<T> {
-    const url = `${this.baseUrl}${path}`;
+    const url = joinApiUrl(this.baseUrl, path);
 
     const send = async (): Promise<Response> => {
       const requestHeaders: Record<string, string> = {
@@ -440,7 +442,7 @@ class ApiClient {
     headers?: Record<string, string>,
     options?: { skipRefresh?: boolean; skipCsrfRecovery?: boolean }
   ): Promise<Response> {
-    const url = `${this.baseUrl}${path}`;
+    const url = joinApiUrl(this.baseUrl, path);
 
     const send = async (): Promise<Response> => {
       const requestHeaders: Record<string, string> = {
@@ -499,7 +501,7 @@ class ApiClient {
     if (!force && this.csrfToken) return this.csrfToken;
 
     try {
-      const response = await fetch(`${this.baseUrl}/api/v1/auth/csrf`, {
+      const response = await fetch(joinApiUrl(this.baseUrl, '/api/v1/auth/csrf'), {
         credentials: 'include',
         headers: { Accept: 'application/json' },
       });
@@ -775,7 +777,7 @@ class ApiClient {
     if (options?.alt) formData.append('alt', options.alt);
     if (options?.caption) formData.append('caption', options.caption);
 
-    const url = `${this.baseUrl}/api/v1/media/upload`;
+    const url = joinApiUrl(this.baseUrl, '/api/v1/media/upload');
     const send = async (): Promise<Response> => {
       const csrf = await this.ensureCsrfToken();
       const requestHeaders: Record<string, string> = {};
@@ -821,7 +823,7 @@ class ApiClient {
   async replaceMediaFile(id: string, file: File): Promise<Media> {
     const formData = new FormData();
     formData.append('file', file);
-    const url = `${this.baseUrl}/api/v1/media/${id}/file`;
+    const url = joinApiUrl(this.baseUrl, `/api/v1/media/${id}/file`);
 
     const send = async (): Promise<Response> => {
       const csrf = await this.ensureCsrfToken();
