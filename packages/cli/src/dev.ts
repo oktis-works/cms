@@ -52,7 +52,7 @@ import {
   infraCompose,
   type Runner,
 } from './docker.js';
-import { EnvFile, loadEnvFile } from './env-file.js';
+import { EnvFile, loadEnvFile, syncProcessEnv } from './env-file.js';
 import { ENV_FIELDS } from './env-schema.js';
 import { assertHostOnly, generateSecret, type ContainerProbe } from './guards.js';
 import { loadProjectConfig } from './project-config.js';
@@ -351,6 +351,13 @@ export async function runDev(opts: DevOptions = {}): Promise<number> {
   } else {
     prompt.success('.env is ready');
   }
+
+  // O processo pode nascer com snapshot antigo/parado do .env (o bun carrega
+  // `.env` no start e não sobrescreve o que já está definido — shell pode ter
+  // exportado o placeholder vazio do init). O arquivo é a fonte: sem esta
+  // cura as migrations conectam com '' enquanto o compose criou o banco com o
+  // valor da .env da raiz.
+  syncProcessEnv(env);
 
   // ---- 2. infra (compose do projeto — o mesmo que o deploy reutiliza) ------
   const record = env.toRecord();

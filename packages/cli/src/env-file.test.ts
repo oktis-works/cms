@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { loadEnvFile, parseEnv, serializeEnvValue } from './env-file.js';
+import { loadEnvFile, parseEnv, projectProcessEnv, serializeEnvValue, syncProcessEnv } from './env-file.js';
 
 const SAMPLE = `# OkCMS - Environment
 # Copie para .env e ajuste.
@@ -169,5 +169,70 @@ describe('loadEnvFile / save', () => {
 
   it('EnvFile built without a path requires one on save', () => {
     expect(() => parseEnv('A=1').save()).toThrow(/no path/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// O processo nasce com um snapshot do .env (bun carrega `.env` no start e não
+// sobrescreve o que já está definido). Quando o arquivo manda depois — ou o
+// shell exporta o placeholder vazio do init — é aqui que o snapshot é curado.
+// ---------------------------------------------------------------------------
+
+describe('syncProcessEnv / projectProcessEnv', () => {
+  let savedEnv: NodeJS.ProcessEnv;
+
+  beforeEach(() => {
+    savedEnv = { ...process.env };
+  });
+
+  afterEach(() => {
+    for (const key of Object.keys(process.env)) {
+      if (!(key in savedEnv)) delete process.env[key];
+    }
+    Object.assign(process.env, savedEnv);
+  });
+
+  it('sync: placeholder vazio no processo é substituído pelo valor do arquivo', () => {
+    process.env['DB_PASSWORD'] = '';
+
+    const applied = syncProcessEnv(parseEnv('DB_PASSWORD=okcms777\n'));
+
+    expect(process.env['DB_PASSWORD']).toBe('okcms777');
+    expect(applied).toContain('DB_PASSWORD');
+  });
+
+  it('sync: segredo exportado pelo shell vence quando o arquivo está vazio', () => {
+    process.env['DB_PASSWORD'] = 'do-shell';
+
+    const applied = syncProcessEnv(parseEnv('DB_PASSWORD=\n'));
+
+    expect(process.env['DB_PASSWORD']).toBe('do-shell');
+    expect(applied).not.toContain('DB_PASSWORD');
+  });
+
+  it('sync: arquivo não-vazio vence valor desatualizado no processo', () => {
+    process.env['DB_PASSWORD'] = 'senha-velha';
+
+    syncProcessEnv(parseEnv('DB_PASSWORD=nova-senha\n'));
+
+    expect(process.env['DB_PASSWORD']).toBe('nova-senha');
+  });
+
+  it('projectProcessEnv: devolve cópia com o arquivo por cima, sem mutar o processo', () => {
+    writeFileSync(join(dir, '.env'), 'DB_PASSWORD=okcms777\nJWT_SECRET=\n');
+    process.env['DB_PASSWORD'] = '';
+
+    const merged = projectProcessEnv(dir);
+
+    expect(merged['DB_PASSWORD']).toBe('okcms777');
+    // arquivo vazio não toca nada: exportação do shell continua valendo
+    expect(merged['JWT_SECRET']).toBe(process.env['JWT_SECRET']);
+    expect(process.env['DB_PASSWORD']).toBe('');
+  });
+
+  it('projectProcessEnv: sem .env na raiz devolve o processo como está', () => {
+    process.env['DB_PASSWORD'] = 'do-shell';
+    const merged = projectProcessEnv(join(dir, 'inexistente'));
+    expect(merged['DB_PASSWORD']).toBe('do-shell');
   });
 });

@@ -11,7 +11,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { EnvFile, loadEnvFile } from './env-file.js';
+import { EnvFile, loadEnvFile, syncProcessEnv } from './env-file.js';
 import {
   ENV_FIELDS,
   ENV_SECTIONS,
@@ -174,6 +174,7 @@ export async function runConfigWizard(opts: ConfigWizardOptions = {}): Promise<n
     }
 
     env.save(path);
+    syncProcessEnv(env);
     console.log(`✓ ${changed.length} key(s) saved to ${relPath} (permission 600):`);
     for (const key of changed) {
       const field = fieldByKey(key);
@@ -299,6 +300,9 @@ async function runInteractive(
     }
 
     env.save(ctx.path);
+    // gravação dentro da sessão: atualiza o snapshot do processo para os
+    // próximos filhos (bun não re-load .env sobre valores já definidos)
+    syncProcessEnv(env);
     prompt.success(`${changed.size} key(s) saved — permission 600`);
     prompt.info('restart the apps for changes to take effect (okcms start / restart containers)');
     return 0;

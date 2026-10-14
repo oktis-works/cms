@@ -13,13 +13,20 @@ import { looksLikeSecret } from './guards.js';
 import { Prompt, type PromptIO } from './prompt.js';
 
 let dir: string;
+/** A entrevista sincroniza process.env ao salvar — restaura entre testes. */
+let envSnapshot: NodeJS.ProcessEnv;
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'okcms-wizenv-'));
+  envSnapshot = { ...process.env };
 });
 
 afterEach(() => {
   rmSync(dir, { recursive: true, force: true });
+  for (const key of Object.keys(process.env)) {
+    if (!(key in envSnapshot)) delete process.env[key];
+  }
+  Object.assign(process.env, envSnapshot);
 });
 
 function fakeIO(lines: string[]): PromptIO & { out: () => string } {
@@ -198,6 +205,9 @@ describe('runEnvInterview', () => {
     expect(result.status).toBe('saved');
     expect(result.changed).toContain('DB_HOST');
     expect(readEnv()).toContain('DB_HOST=db.remoto');
+    // salvar NÃO deixa o processo com snapshot antigo: os filhos spawnados
+    // pelo menu (okcms dev) herdam o valor recém-gravado da .env da raiz
+    expect(process.env['DB_HOST']).toBe('db.remoto');
   });
 
   it('discards everything when the summary is not confirmed', async () => {

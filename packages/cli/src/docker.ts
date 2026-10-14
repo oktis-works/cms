@@ -14,6 +14,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { DEPLOY_PATHS, renderUpstreams, portsFromEnv, type Lane, type UpstreamPorts } from './assets.js';
+import { projectProcessEnv } from './env-file.js';
 
 // ---------------------------------------------------------------------------
 // Runner
@@ -223,6 +224,11 @@ export function runCompose(
 ): RunResult {
   return runner('docker', composeArgs(call), {
     cwd,
+    // A .env da RAIZ manda: o compose dá precedência à env do processo sobre
+    // o --env-file, então um valor vazio herdado (snapshot do bun no start do
+    // menu/shell) apagaria DB_PASSWORD da interpolação. projectProcessEnv faz
+    // o arquivo (não-vazio) vencer o snapshot congelado do processo.
+    env: projectProcessEnv(cwd),
     inherit: call.inherit ?? false,
     timeoutMs: call.timeoutMs,
   });

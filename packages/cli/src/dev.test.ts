@@ -26,6 +26,8 @@ import type { ContainerProbe } from './guards.js';
 import type { Runner } from './docker.js';
 
 let dir: string;
+/** syncProcessEnv escreve em process.env — restaura para não vazar entre testes. */
+let envSnapshot: NodeJS.ProcessEnv;
 
 const HOST_PROBE: ContainerProbe = { env: {}, exists: () => false, cgroup: null };
 const CONTAINER_PROBE: ContainerProbe = {
@@ -109,10 +111,15 @@ const nonTty = (): Prompt & { printed: () => string } => buildPrompt(false, []);
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'okcms-dev-'));
+  envSnapshot = { ...process.env };
 });
 
 afterEach(() => {
   rmSync(dir, { recursive: true, force: true });
+  for (const key of Object.keys(process.env)) {
+    if (!(key in envSnapshot)) delete process.env[key];
+  }
+  Object.assign(process.env, envSnapshot);
 });
 
 describe('runDev', () => {
@@ -168,6 +175,31 @@ describe('runDev', () => {
     expect(hooks.created).toEqual([]);
     expect(hooks.started).toBe(0);
     expect(prompt.printed()).toContain('skipped');
+    prompt.close();
+  });
+
+  it('process.env envenenado com placeholder vazio é curado pelo .env da raiz', async () => {
+    // Reprodução do bug: o processo nasceu com o snapshot do init
+    // (DB_PASSWORD= vazio) e o arquivo já foi preenchido pela entrevista.
+    writeFileSync(join(dir, '.env'), 'DB_PASSWORD=okcms777\n');
+    process.env['DB_PASSWORD'] = '';
+    const hooks = fakeHooks();
+    hooks.users = true;
+    const prompt = ttyPrompt(['y']); // completar o resto do .env
+
+    const code = await runDev({
+      cwd: dir,
+      runner: makeRunner(),
+      prompt,
+      probe: HOST_PROBE,
+      noInfra: true,
+      skipStart: true,
+      hooks,
+    });
+
+    expect(code).toBe(0);
+    // o valor do arquivo (nunca o placeholder vazio herdado) é o que vale
+    expect(process.env['DB_PASSWORD']).toBe('okcms777');
     prompt.close();
   });
 

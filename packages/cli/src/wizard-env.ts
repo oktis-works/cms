@@ -27,7 +27,7 @@ import {
   validateField,
   type EnvField,
 } from './env-schema.js';
-import { EnvFile, loadEnvFile } from './env-file.js';
+import { EnvFile, loadEnvFile, syncProcessEnv } from './env-file.js';
 import { generateSecret, looksLikeSecret } from './guards.js';
 import { maskValue } from './config-wizard.js';
 import { style, symbol, type Prompt } from './prompt.js';
@@ -276,6 +276,11 @@ export async function runEnvInterview(
     env.delete('__db_mode');
 
     env.save(path);
+    // O arquivo mudou DENTRO deste processo: sincroniza o snapshot congelado
+    // (o bun carrega .env no start e não regrava) — senão o `okcms dev`
+    // spawnado pelo menu herda o placeholder vazio do init e o compose/conexão
+    // enxergam '' mesmo com o valor gravado na .env da raiz.
+    syncProcessEnv(env);
     prompt.success(catalog.envSaved(changed.size));
     return cleanupAndReturn({ status: 'saved', changed: [...changed] });
   } finally {

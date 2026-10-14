@@ -457,3 +457,79 @@ describe('upstreams em disco', () => {
     expect(readUpstreamsLane(dir)).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Reprodução do bug: `DB_PASSWORD=''` na env do processo (snapshot do bun do
+// menu, placeholder vazio do init) vencia o --env-file e o compose falhava com
+// "required variable DB_PASSWORD is missing a value" mesmo com o valor na .env
+// da raiz.
+// ---------------------------------------------------------------------------
+
+describe('env do spawn do compose — a .env da raiz manda', () => {
+  let savedEnv: NodeJS.ProcessEnv;
+
+  beforeEach(() => {
+    savedEnv = { ...process.env };
+  });
+
+  afterEach(() => {
+    for (const key of Object.keys(process.env)) {
+      if (!(key in savedEnv)) delete process.env[key];
+    }
+    Object.assign(process.env, savedEnv);
+  });
+
+  function captureRunner(): { runner: Runner; seen: Array<Record<string, unknown>> } {
+    const seen: Array<Record<string, unknown>> = [];
+    const runner = ((command: string, args: string[], opts?: Record<string, unknown>) => {
+      seen.push(opts ?? {});
+      return { ok: true, code: 0, stdout: '', stderr: '', command: `${command} ${args.join(' ')}` };
+    }) as Runner;
+    return { runner, seen };
+  }
+
+  it('placeholder vazio herdado não apaga DB_PASSWORD do arquivo na hora do up', () => {
+    writeFileSync(join(dir, '.env'), 'DB_PASSWORD=okcms777\n');
+    process.env['DB_PASSWORD'] = '';
+    const { runner, seen } = captureRunner();
+
+    infraCompose(dir, ['up', '-d'], runner);
+
+    const env = seen[0]?.['env'] as NodeJS.ProcessEnv;
+    expect(env['DB_PASSWORD']).toBe('okcms777');
+    // o spawn não muta o processo — só entrega a env corrigida ao docker
+    expect(process.env['DB_PASSWORD']).toBe('');
+  });
+
+  it('export do shell perde para a raiz quando o arquivo define o valor', () => {
+    writeFileSync(join(dir, '.env'), 'DB_PASSWORD=do-arquivo\n');
+    process.env['DB_PASSWORD'] = 'do-shell';
+    const { runner, seen } = captureRunner();
+
+    laneCompose(dir, 'blue', ['up', '-d'], runner);
+
+    const env = seen[0]?.['env'] as NodeJS.ProcessEnv;
+    expect(env['DB_PASSWORD']).toBe('do-arquivo');
+  });
+
+  it('arquivo com placeholder vazio preserva a exportação do shell', () => {
+    writeFileSync(join(dir, '.env'), 'DB_PASSWORD=\n');
+    process.env['DB_PASSWORD'] = 'do-shell';
+    const { runner, seen } = captureRunner();
+
+    infraCompose(dir, ['up', '-d'], runner);
+
+    const env = seen[0]?.['env'] as NodeJS.ProcessEnv;
+    expect(env['DB_PASSWORD']).toBe('do-shell');
+  });
+
+  it('sem .env na raiz, o processo é repassado como está', () => {
+    process.env['DB_PASSWORD'] = 'do-shell';
+    const { runner, seen } = captureRunner();
+
+    runCompose(dir, { args: ['config'] }, runner);
+
+    const env = seen[0]?.['env'] as NodeJS.ProcessEnv;
+    expect(env['DB_PASSWORD']).toBe('do-shell');
+  });
+});

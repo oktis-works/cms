@@ -7,7 +7,7 @@
 // byte a byte.
 
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 
 export interface EnvLine {
   /** `assign` = KEY=value; `raw` = comentário, linha em branco ou lixo. */
@@ -219,4 +219,53 @@ export function parseEnv(text: string): EnvFile {
 export function loadEnvFile(path: string): EnvFile {
   if (!existsSync(path)) return new EnvFile('', path);
   return new EnvFile(readFileSync(path, 'utf-8'), path);
+}
+
+/**
+ * Sincroniza `process.env` a partir do arquivo: valor NÃO-VAZIO do `.env`
+ * vence o que está no processo.
+ *
+ * Por que isso é necessário: o bun carrega o `.env` do cwd no START de cada
+ * processo e NÃO sobrescreve o que já está definido — quem edita o arquivo
+ * depois (entrevista do wizard, `okcms config`) deixa o processo — e todos os
+ * filhos que ele spawnar — com um snapshot antigo, frequentemente com o
+ * placeholder VAZIO que o `okcms init` grava (`DB_PASSWORD=`). Uma env vazia
+ * não é um segredo: é lixo que apaga o valor do arquivo no docker compose (a
+ * env do processo vence do `--env-file` na interpolação) e nas conexões
+ * (`@oktis-works/config` só preenche chaves `undefined`, então `''` vira
+ * senha). Valor vazio no arquivo não toca o processo — exportação de
+ * shell/CI segue valendo quando o arquivo não define nada.
+ *
+ * Devolve as chaves aplicadas (nunca os valores).
+ */
+export function syncProcessEnv(env: EnvFile): string[] {
+  const applied: string[] = [];
+  for (const [key, value] of Object.entries(env.toRecord())) {
+    if (value.trim() === '') continue;
+    if (process.env[key] === value) continue;
+    process.env[key] = value;
+    applied.push(key);
+  }
+  return applied;
+}
+
+/**
+ * `process.env` com o `.env` da RAIZ do projeto por cima — a env que um
+ * subprocesso deve receber para enxergar o arquivo, não o snapshot congelado
+ * do processo pai. `docker compose` dá precedência à env do processo sobre o
+ * `--env-file`; sem este merge, `DB_PASSWORD=''` herdado (placeholder do
+ * init, carregado pelo bun no start) faz a interpolação falhar com
+ * "required variable DB_PASSWORD is missing a value" mesmo com o valor
+ * certinho na .env da raiz.
+ *
+ * Não muta `process.env` — devolve uma cópia para repassar ao spawn.
+ */
+export function projectProcessEnv(cwd: string): NodeJS.ProcessEnv {
+  const merged: NodeJS.ProcessEnv = { ...process.env };
+  const path = join(cwd, '.env');
+  if (!existsSync(path)) return merged;
+  for (const [key, value] of Object.entries(loadEnvFile(path).toRecord())) {
+    if (value.trim() !== '') merged[key] = value;
+  }
+  return merged;
 }
