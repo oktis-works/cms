@@ -303,10 +303,11 @@ const settingsChildren = [
 <style is:global>
   /* is:global: os links dinâmicos de content-types (criados por JS) não
       recebem data-astro-cid — precisam casar com estas regras.
-     The fixed AdminBar (46px) sits outside the flow, so we lock the document to
-     the viewport and let .layout fill exactly the remaining height below it.
-     This removes the extra ~46px that used to make body scroll and leave a blank
-     strip under the footer. Scoped to DashboardLayout so the login page (BaseLayout)
+     O documento é travado na viewport e .layout ocupa exatamente 100vh — sem
+     o antigo padding-top no <html> nem calc(100vh - 46px) no layout. O offset
+     da AdminBar fixa (46px) é aplicado DENTRO do layout: margin-top no
+     .content-wrapper (corpo de cada página) e padding-top na .sidebar.
+     Scoped to DashboardLayout so the login page (BaseLayout)
      keeps its normal scrolling behavior. */
   :global(html), :global(body) {
     height: 100%;
@@ -316,22 +317,16 @@ const settingsChildren = [
     padding: 0;
     box-sizing: border-box;
   }
-  /* Padding-top SÓ no <html>: ele é propagado ao viewport e reserva a
-     AdminBar fixa (46px, border-box com a borda). Aplicar também no body
-     empilhava MAIS 46px de fundo branco logo abaixo da barra — era a
-     barra branca sob o header preto. */
-  :global(html) {
-    padding-top: 46px;
-  }
 
-  /* Layout with admin bar offset */
+  /* Layout ocupa a viewport inteira; a faixa da AdminBar é sobreposta no topo
+     e compensada dentro de .sidebar e .content-wrapper. */
   .layout {
     display: flex;
     flex-direction: column;
     width: 100%;
-    height: calc(100vh - 46px);
+    height: 100vh;
     min-height: 0;
-    margin: 0; /* offset handled by body padding-top (no margin collapse) */
+    margin: 0;
     box-sizing: border-box;
     overflow: hidden;
   }
@@ -372,7 +367,7 @@ const settingsChildren = [
 
   body.sidebar-collapsed .sidebar {
     width: 72px;
-    padding: 1rem 0.5rem;
+    padding: calc(var(--admin-bar-h, 46px) + 1rem) 0.5rem 1rem;
   }
 
   body.sidebar-collapsed .nav-item {
@@ -405,7 +400,8 @@ const settingsChildren = [
   .sidebar {
     background: var(--color-surface-dark);
     border-right: 1px solid var(--color-border);
-    padding: 1.5rem 1rem;
+    /* topo reserva a faixa da AdminBar fixa (o layout agora começa em y=0) */
+    padding: calc(var(--admin-bar-h, 46px) + 1.5rem) 1rem 1.5rem;
     height: 100%;
     min-height: 0;
     position: relative;
@@ -543,10 +539,13 @@ const settingsChildren = [
     font-weight: 600;
   }
 
-  /* Content Wrapper */
+  /* Content Wrapper — corpo de cada página. O margin-top reserva a faixa da
+     AdminBar fixa e a altura desconta os mesmos 46px (mesma compensação da
+     .sidebar). */
   .content-wrapper {
     min-height: 0;
-    height: 100%;
+    height: calc(100% - var(--admin-bar-h, 46px));
+    margin-top: var(--admin-bar-h, 46px);
     display: flex;
     flex-direction: column;
   }
