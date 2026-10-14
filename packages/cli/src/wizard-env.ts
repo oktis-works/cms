@@ -87,7 +87,7 @@ export async function runEnvInterview(
     const pick = await prompt.select<'run' | 'skip'>('env', [
       { value: 'run', label: 'Configure variables', hint: catalog.envSectionCount(ENV_FIELDS.length) },
       { value: 'skip', label: catalog.envSkipOption },
-    ]);
+    ], { fullClear: true });
     if (pick === 'skip') return { status: 'nothing', changed: [] };
   }
 
@@ -196,7 +196,7 @@ export async function runEnvInterview(
             { value: 'mariadb', label: catalog.envDbEngineMariadb, hint: catalog.envDbEngineMariadbHint },
             { value: '__back__' as const, label: `← ${catalog.flowBack}`, hint: catalog.flowBackHint },
           ],
-          { defaultValue: 'postgres' }
+          { defaultValue: 'postgres', fullClear: true }
         );
         if (pick === '__back__') {
           result = { type: 'back' };
@@ -215,7 +215,7 @@ export async function runEnvInterview(
             { value: 'individual', label: catalog.envDbModeIndividual, hint: catalog.envDbModeIndividualHint },
             { value: '__back__' as const, label: `← ${catalog.flowBack}`, hint: catalog.flowBackHint },
           ],
-          { defaultValue: 'individual' }
+          { defaultValue: 'individual', fullClear: true }
         );
         if (pick === '__back__') {
           result = { type: 'back' };

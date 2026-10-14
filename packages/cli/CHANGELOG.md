@@ -1,5 +1,15 @@
 # @oktis-works/cms
 
+## 0.8.7
+
+### Patch Changes
+
+- Fix: conteúdo dos selects não multiplica mais com setas rápidas.
+  
+  - `SelectOptions.fullClear` — usa ESC[2J+ESC[H (limpa tela inteira) em cada repaint do navigate
+  - Aplicado nos selects da entrevista .env (engine, mode, skip) — terminais WSL/Windows que não processam ESC[nA rápido o suficiente agora renderizam limpo
+  - Demais selects do CLI (menu, fluxos, catálogo) mantêm o comportamento anterior (ESC[nA+ESC[0J)
+
 ## 0.8.6
 
 ### Patch Changes

@@ -363,6 +363,8 @@ export interface SelectOptions<T> {
   defaultValue?: T;
   /** Mensagem quando não há TTY nem default. */
   nonInteractiveError?: string;
+  /** Limpa a tela INTEIRA a cada repaint (setas) — evita multiplicação de conteúdo em terminais lentos. */
+  fullClear?: boolean;
 }
 
 export interface InputOptions {
@@ -445,7 +447,9 @@ export class Prompt {
     }
 
     if (this.input.canRaw) {
-      return await this.navigate<T>(title, choices, defaultIndex < 0 ? 0 : defaultIndex, {});
+      return await this.navigate<T>(title, choices, defaultIndex < 0 ? 0 : defaultIndex, {
+        fullClear: opts.fullClear,
+      });
     }
 
     // No raw mode (pipe, odd SSH session, test harness): numbered menu.
@@ -531,14 +535,22 @@ export class Prompt {
     title: string,
     choices: Array<SelectChoice<T>>,
     startIndex: number,
-    opts: { inline?: boolean; aliases?: Record<string, number> }
+    opts: { inline?: boolean; aliases?: Record<string, number>; fullClear?: boolean }
   ): Promise<T> {
     const total = choices.length;
     let index = Math.min(Math.max(startIndex, 0), total - 1);
     let painted = 0;
 
     const paint = (final: boolean): void => {
-      if (painted > 0) this.write(`${ESC}[${painted}A${ESC}[0J`);
+      if (painted > 0) {
+        // fullClear: limpa a tela INTEIRA a cada repaint — resolve terminais
+        // que não processam ESC[nA rápido o suficiente com teclas repetidas
+        if (opts.fullClear) {
+          this.write(`${ESC}[2J${ESC}[H`);
+        } else {
+          this.write(`${ESC}[${painted}A${ESC}[0J`);
+        }
+      }
 
       const lines: string[] = [`  ${symbol.ask} ${style.bold(title)}`];
       if (opts.inline) {
