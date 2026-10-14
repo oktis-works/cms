@@ -1,5 +1,16 @@
 # @oktis-works/cms
 
+## 0.8.8
+
+### Patch Changes
+
+- Fix: DB_ENGINE não é mais perguntado duas vezes na entrevista .env.
+  
+  - O engine select (PostgreSQL/MySQL/MariaDB) já define DB_ENGINE — o campo
+    regular DB_ENGINE foi removido da lista de passos (era perguntado como
+    [1/8] logo após o select, redundante)
+  - Alinhado no helper de teste
+
 ## 0.8.7
 
 ### Patch Changes

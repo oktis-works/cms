@@ -84,11 +84,12 @@ function answersFor(overrides: Record<string, string>, finalConfirm?: 'y' | 'n')
         record['__db_mode'] = 'individual';
       }
 
-      // 3. Campos da seção database — DB_ENGINE está em ENV_FIELDS e É perguntado
-      //    como campo regular; DATABASE_URL é filtrado no modo individual.
+      // 3. Campos da seção database — DB_ENGINE NÃO é perguntado como campo
+      //    (já foi tratado pelo engine select); DATABASE_URL é filtrado no modo individual.
       for (const field of ENV_FIELDS) {
         if (field.section !== 'database') continue;
         if (field.when && !field.when(record)) continue;
+        if (field.key === 'DB_ENGINE') continue; // já tratado pelo engine select
         if (field.key === 'DATABASE_URL') continue;
 
         if (field.key === 'JWT_SECRET' && !looksLikeSecret(record['JWT_SECRET'] ?? '')) {

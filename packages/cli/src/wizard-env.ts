@@ -121,11 +121,12 @@ export async function runEnvInterview(
         if (section.id === 'database') {
           steps.push({ kind: 'engine' });
           steps.push({ kind: 'mode' });
-          // campos DB (DATABASE_URL filtrado no modo individual)
+          // campos DB (DB_ENGINE já tratado pelo engine select, DATABASE_URL filtrado no modo individual)
           const r = record();
           const mode = r['__db_mode'] ?? 'individual';
           for (const field of ENV_FIELDS) {
             if (field.section !== 'database') continue;
+            if (field.key === 'DB_ENGINE') continue; // já tratado pelo engine select
             if (field.key === 'DATABASE_URL' && mode === 'individual') continue;
             if (field.when && !field.when(r)) continue;
             steps.push({ kind: 'field', field, section });
