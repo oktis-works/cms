@@ -316,6 +316,40 @@ export class PluginService {
       throw new Error(`ACTIVATION_FAILED: plugin requer OkCMS ${compat}, versão atual é ${CMS_VERSION}`);
     }
 
+    // Validar dependências do plugin (versões semver)
+    const depsResult = await sql.unsafe(
+      `SELECT pd.dependency_id, pd.version_range, pd.optional, p.name, p.version
+       FROM plugin_dependencies pd
+       JOIN plugins p ON p.id = pd.dependency_id
+       WHERE pd.plugin_id = $1`,
+      [id]
+    );
+    const dependencies = depsResult as unknown as Array<{ dependency_id: string; version_range: string; optional: boolean; name: string; version: string }>;
+    
+    for (const dep of dependencies) {
+      // Verificar se a dependência está habilitada para este tenant
+      const depLink = await sql.unsafe(
+        `SELECT status FROM plugin_tenants WHERE plugin_id = $1 AND tenant_id = $2`,
+        [dep.dependency_id, tenantId]
+      );
+      const linkRows = depLink as unknown as Array<{ status: string }>;
+      const isEnabled = linkRows.length > 0 && linkRows[0]!.status === 'ENABLED';
+      
+      if (!isEnabled) {
+        if (!dep.optional) {
+          throw new Error(`ACTIVATION_FAILED: dependência obrigatória "${dep.name}" não está ativada para este tenant`);
+        }
+        continue; // Dependência opcional não ativada - apenas avisa
+      }
+
+      // Validar range de versão semver
+      if (dep.version_range && dep.version_range !== '*') {
+        if (validRange(dep.version_range) && !satisfies(dep.version, dep.version_range)) {
+          throw new Error(`ACTIVATION_FAILED: dependência "${dep.name}" versão ${dep.version} não satisfaz range requerido ${dep.version_range}`);
+        }
+      }
+    }
+
     await sql.unsafe(
       `INSERT INTO plugin_tenants (id, plugin_id, tenant_id, status, enabled_at, disabled_at, created_at, updated_at)
        VALUES ($1, $2, $3, 'ENABLED', NOW(), NULL, NOW(), NOW())

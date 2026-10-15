@@ -3,6 +3,40 @@ import type {
   PluginDependency as CanonicalPluginDependency,
 } from '@oktis-works/types';
 
+/**
+ * Plugin lifecycle hook types.
+ * These map to internal action names fired by the core:
+ * 
+ * | HookType | Internal Action | Description |
+ * |----------|----------------|-------------|
+ * | BEFORE_CONTENT_CREATE | okcms.content.before-create | Fired before content is created |
+ * | AFTER_CONTENT_CREATE | okcms.content.after-create | Fired after content is created |
+ * | BEFORE_CONTENT_UPDATE | okcms.content.before-update | Fired before content is updated |
+ * | AFTER_CONTENT_UPDATE | okcms.content.after-update | Fired after content is updated |
+ * | BEFORE_CONTENT_DELETE | okcms.content.before-delete | Fired before content is deleted |
+ * | AFTER_CONTENT_DELETE | okcms.content.after-delete | Fired after content is deleted |
+ * | ON_CONTENT_PUBLISH | okcms.content.published | Fired when content is published |
+ * | ON_CONTENT_UNPUBLISH | okcms.content.unpublished | Fired when content is unpublished |
+ * | ON_INSTALL | plugin.install | Fired when plugin is installed |
+ * | ON_ACTIVATE | plugin.activate | Fired when plugin is activated for a tenant |
+ * | ON_DEACTIVATE | plugin.deactivate | Fired when plugin is deactivated for a tenant |
+ * | ON_UNINSTALL | plugin.uninstall | Fired when plugin is uninstalled |
+ * | ON_SETTINGS_PAGE | plugin.settings_page | Fired when plugin settings page is rendered |
+ * | ON_ADMIN_MENU | okcms.admin.menu | Fired when admin menu is built |
+ * 
+ * @example
+ * import { HookType, createPluginHooksApi } from '@oktis-works/plugin-sdk';
+ * 
+ * const api = createPluginHooksApi('my-plugin', registry);
+ * api.addAction(HookType.ON_INSTALL, async (context, payload) => {
+ *   // Handle plugin installation
+ * });
+ * 
+ * // Or use registerHook on the full PluginAPI:
+ * api.registerHook('onInstall', async (context, payload) => {
+ *   // Same as above
+ * });
+ */
 export enum HookType {
   BEFORE_CONTENT_CREATE = 'beforeContentCreate',
   AFTER_CONTENT_CREATE = 'afterContentCreate',

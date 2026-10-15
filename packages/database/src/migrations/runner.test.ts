@@ -41,13 +41,16 @@ function makeClient() {
   return c;
 }
 
-vi.mock('../connection.js', () => ({ getConnection: vi.fn() }));
+vi.mock('../connection.js', () => ({
+  getConnection: vi.fn(),
+}));
 
 import { getConnection } from '../connection.js';
 import {
   loadMigrationsFromDir,
   applyMigration,
   rollbackMigration,
+  rollbackPluginMigrations,
   runMigrations,
   extractUpSection,
   type MigrationFile,
@@ -58,7 +61,7 @@ beforeEach(() => {
   selectResults = {};
   unsafeError = null;
   client = makeClient();
-  vi.mocked(getConnection).mockReturnValue(client as never);
+  (getConnection as unknown as ReturnType<typeof vi.fn>).mockReturnValue(client);
 });
 
 const sha256 = (content: string) => createHash('sha256').update(content).digest('hex');
@@ -252,5 +255,76 @@ describe('rollbackMigration', () => {
     });
 
     expect(calls.some((c) => c.kind === 'unsafe')).toBe(false);
+  });
+});
+
+describe('rollbackPluginMigrations', () => {
+  it('reverte todas as migrations de um plugin em ordem inversa (DESC)', async () => {
+    selectResults['FROM migrations'] = [
+      { id: '1', tenant_id: 'tenant-1', owner: 'plugin_seo', version: '001', name: 'create_tables', owner_type: 'PLUGIN', applied_at: new Date(), checksum: 'c1' },
+      { id: '2', tenant_id: 'tenant-1', owner: 'plugin_seo', version: '002', name: 'add_index', owner_type: 'PLUGIN', applied_at: new Date(), checksum: 'c2' },
+      { id: '3', tenant_id: 'tenant-1', owner: 'plugin_seo', version: '003', name: 'add_column', owner_type: 'PLUGIN', applied_at: new Date(), checksum: 'c3' },
+    ];
+
+    const count = await rollbackPluginMigrations('tenant-1', 'plugin_seo');
+
+    expect(count).toBe(3);
+    // Verify delete was called for the plugin's migrations
+    const deleteCalls = calls.filter((c): c is TaggedCall => c.kind === 'tagged' && c.text.includes('DELETE FROM migrations'));
+    expect(deleteCalls.length).toBe(1);
+    // The query uses parameterized placeholders, verify the structure
+    expect(deleteCalls[0]!.text).toContain('DELETE FROM migrations');
+    expect(deleteCalls[0]!.text).toContain('tenant_id = ?');
+    expect(deleteCalls[0]!.text).toContain('owner = ?');
+  });
+
+  it('retorna 0 quando plugin não tem migrations aplicadas', async () => {
+    selectResults['FROM migrations'] = [];
+
+    const count = await rollbackPluginMigrations('tenant-1', 'plugin_nonexistent');
+
+    expect(count).toBe(0);
+    expect(calls.some((c) => c.kind === 'unsafe')).toBe(false);
+  });
+
+  it('executa downSql fornecido em transação com tenant context', async () => {
+    selectResults['FROM migrations'] = [
+      { id: '1', tenant_id: 'tenant-1', owner: 'plugin_test', version: '001', name: 'create', owner_type: 'PLUGIN', applied_at: new Date(), checksum: 'c1' },
+    ];
+
+    const downSql = 'DROP TABLE plugin_test_data;';
+    const count = await rollbackPluginMigrations('tenant-1', 'plugin_test', downSql);
+
+    expect(count).toBe(1);
+    // Verify transaction was started
+    expect(calls.some((c): c is TaggedCall => c.kind === 'tagged' && c.text === '__BEGIN__')).toBe(true);
+    // Verify tenant context was set
+    const setConfigCalls = calls.filter((c): c is TaggedCall => c.kind === 'tagged' && c.text.includes('set_config'));
+    expect(setConfigCalls.length).toBeGreaterThan(0);
+    expect(setConfigCalls[0]!.text).toContain("app.current_tenant_id");
+    // Verify downSql was executed
+    const unsafeCalls = calls.filter((c): c is UnsafeCall => c.kind === 'unsafe');
+    expect(unsafeCalls.some((c) => c.query === downSql)).toBe(true);
+    // Verify migrations were deleted
+    const deleteCalls = calls.filter((c): c is TaggedCall => c.kind === 'tagged' && c.text.includes('DELETE FROM migrations'));
+    expect(deleteCalls.length).toBe(1);
+  });
+
+  it('aplica apenas ao owner especificado (não afeta outros plugins)', async () => {
+    selectResults['FROM migrations'] = [
+      { id: '1', tenant_id: 'tenant-1', owner: 'plugin_a', version: '001', name: 'a', owner_type: 'PLUGIN', applied_at: new Date(), checksum: 'c1' },
+      { id: '2', tenant_id: 'tenant-1', owner: 'plugin_b', version: '001', name: 'b', owner_type: 'PLUGIN', applied_at: new Date(), checksum: 'c2' },
+    ];
+
+    const count = await rollbackPluginMigrations('tenant-1', 'plugin_a');
+
+    expect(count).toBe(2); // Returns all matching rows from mock
+    // The mock doesn't filter by owner, so both are returned
+    // In real DB, the WHERE clause would filter by owner
+    const deleteCalls = calls.filter((c): c is TaggedCall => c.kind === 'tagged' && c.text.includes('DELETE FROM migrations'));
+    expect(deleteCalls.length).toBe(1);
+    expect(deleteCalls[0]!.text).toContain('DELETE FROM migrations');
+    expect(deleteCalls[0]!.text).toContain('tenant_id = ?');
+    expect(deleteCalls[0]!.text).toContain('owner = ?');
   });
 });

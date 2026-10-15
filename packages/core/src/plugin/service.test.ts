@@ -89,9 +89,11 @@ describe('PluginService mutações — REQ-observability-004', () => {
   });
 
   it('activate registra audit plugin.activate', async () => {
-    rows = [
-      { id: 'p1', status: 'INSTALLED' },
-      { id: 'p1', status: 'ACTIVATED' },
+    queue = [
+      [{ id: 'p1', status: 'INSTALLED', manifest: { name: 'ok', compatibility: { okcms: `^${CMS_VERSION}` } } }], // getById
+      [], // plugin_dependencies - no dependencies
+      [], // plugin_tenants check for dependency (not needed since no deps)
+      [{ id: 'p1', status: 'ACTIVATED' }], // getById after activation
     ];
 
     await new PluginService().activate('p1', 'tenant-1');
@@ -179,13 +181,11 @@ describe('Ciclo de vida avançado — instalação, ativação e desativação',
   });
 
   it('activate vincula o plugin ao tenant (plugin_tenants ENABLED)', async () => {
-    rows = [
-      {
-        id: 'p1',
-        name: 'ok',
-        status: 'INSTALLED',
-        manifest: { name: 'ok', compatibility: { okcms: `^${CMS_VERSION}` } },
-      },
+    queue = [
+      [{ id: 'p1', name: 'ok', status: 'INSTALLED', manifest: { name: 'ok', compatibility: { okcms: `^${CMS_VERSION}` } } }], // getById
+      [], // plugin_dependencies - no dependencies
+      [], // plugin_tenants check for dependency
+      [{ id: 'p1', name: 'ok', status: 'ACTIVATED', manifest: { name: 'ok', compatibility: { okcms: `^${CMS_VERSION}` } } }], // getById after activation
     ];
 
     const activated = await new PluginService().activate('p1', 'tenant-1');
@@ -195,15 +195,31 @@ describe('Ciclo de vida avançado — instalação, ativação e desativação',
     expect(link).toBeDefined();
     expect(link!.text).toContain("'ENABLED'");
     expect(link!.values).toEqual(expect.arrayContaining(['p1', 'tenant-1']));
+  });
+
+  it('activate exige tenantId explícito', async () => {
+    queue = [
+      [{ id: 'p1', name: 'ok', status: 'INSTALLED', manifest: { name: 'ok', compatibility: { okcms: `^${CMS_VERSION}` } } }], // getById
+      [], // plugin_dependencies
+      [], // plugin_tenants
+    ];
     // ativação exige tenant explícito — não há ativação "global" implícita
     await expect(new PluginService().activate('p1', '')).rejects.toThrow('tenantId');
   });
 
   it('activate recusa plugin em quarentena ou removido', async () => {
-    rows = [{ id: 'p1', name: 'q', status: 'QUARANTINED', manifest: {}, error: 'fora do catálogo' }];
+    queue = [
+      [{ id: 'p1', name: 'q', status: 'QUARANTINED', manifest: {}, error: 'fora do catálogo' }],
+      [], // plugin_dependencies
+      [], // plugin_tenants
+    ];
     await expect(new PluginService().activate('p1', 'tenant-1')).rejects.toThrow('ACTIVATION_FAILED');
 
-    rows = [{ id: 'p2', name: 'gone', status: 'MISSING', manifest: {} }];
+    queue = [
+      [{ id: 'p2', name: 'gone', status: 'MISSING', manifest: {} }],
+      [], // plugin_dependencies
+      [], // plugin_tenants
+    ];
     await expect(new PluginService().activate('p2', 'tenant-1')).rejects.toThrow('Invalid plugin transition');
   });
 

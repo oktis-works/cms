@@ -148,6 +148,40 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
   // Build the public API object
   const api: PluginAPI = {
     registerHook(type: string, handler: (context: PluginContext, payload: unknown) => void | Promise<void>): void {
+      /**
+       * Maps plugin lifecycle hook types to internal action names.
+       * These actions are fired by the core at the corresponding lifecycle events.
+       * 
+       * @example
+       * // In plugin's register function:
+       * api.registerHook('onInstall', async (context, payload) => {
+       *   // Runs when plugin is installed
+       *   await context.api.query('CREATE TABLE IF NOT EXISTS my_plugin_data (...)');
+       * });
+       * api.registerHook('onActivate', async (context, payload) => {
+       *   // Runs when plugin is activated for a tenant
+       * });
+       * api.registerHook('beforeContentCreate', async (context, payload) => {
+       *   // Runs before content is created - can modify payload
+       *   payload.data.custom_field = 'value';
+       * });
+       * 
+       * Mapping:
+       * - onInstall         -> plugin.install
+       * - onActivate        -> plugin.activate
+       * - onDeactivate      -> plugin.deactivate
+       * - onUninstall       -> plugin.uninstall
+       * - onSettingsPage    -> plugin.settings_page
+       * - onAdminMenu       -> okcms.admin.menu
+       * - beforeContentCreate  -> okcms.content.before-create
+       * - afterContentCreate   -> okcms.content.after-create
+       * - beforeContentUpdate  -> okcms.content.before-update
+       * - afterContentUpdate   -> okcms.content.after-update
+       * - beforeContentDelete  -> okcms.content.before-delete
+       * - afterContentDelete   -> okcms.content.after-delete
+       * - onContentPublish     -> okcms.content.published
+       * - onContentUnpublish   -> okcms.content.unpublished
+       */
       const hookMap: Record<string, string> = {
         'onInstall': 'plugin.install',
         'onActivate': 'plugin.activate',

@@ -22,7 +22,7 @@ import { PLUGIN_PERMISSION_DEFAULT } from '@oktis-works/validation';
 import { PluginLoader, type DiscoveredPlugin } from './loader.js';
 import { PluginSandbox } from './sandbox.js';
 import { getHookRegistry, getHookRegistryStore, type HookRegistry } from './hook-registry.js';
-import type { PluginApiDependencies, PluginApiInternal } from './plugin-api.js';
+import type { PluginApiDependencies, PluginApiInternal, RouteDefinition } from './plugin-api.js';
 
 export interface BootstrapPluginsSql {
   unsafe(text: string, params?: unknown[]): Promise<unknown>;
@@ -109,6 +109,22 @@ export function listLoadedScopes(): Array<{ scope: string; registry: HookRegistr
     registry: entry.registry,
     plugins: [...entry.plugins.keys()],
   }));
+}
+
+/** Obtém as rotas registradas pelos plugins em um escopo. */
+export function getLoadedPluginRoutes(scopeKey: string): Array<{ pluginName: string; routes: RouteDefinition[] }> {
+  const scope = loadedScopes.get(scopeKey);
+  if (!scope) return [];
+  const result: Array<{ pluginName: string; routes: RouteDefinition[] }> = [];
+  for (const [pluginName, entry] of scope.plugins) {
+    if (entry.internal) {
+      const routes = entry.internal.getRoutes();
+      if (routes.length > 0) {
+        result.push({ pluginName, routes });
+      }
+    }
+  }
+  return result;
 }
 
 /**

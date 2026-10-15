@@ -19,6 +19,7 @@ import {
   bootstrapPlugins,
   getHookRegistryStore,
   unloadTenant,
+  getLoadedPluginRoutes,
   type PluginBootstrapResult,
   type PluginApiDependencies,
 } from '@oktis-works/plugin-runtime';
@@ -30,8 +31,10 @@ import { settingsService } from '../settings/service.js';
 import { getEventBus } from '../events/bus.js';
 import { tenantService } from '../tenant/service.js';
 import { userService } from '../user/service.js';
+import { fieldGroupService } from '../fields/service.js';
 import { getCurrentTenantIdSync, getCurrentUserIdSync, getCurrentRequestIdSync } from '../tenant/context.js';
 import { randomUUID } from 'node:crypto';
+import type { RouteDefinition } from '@oktis-works/plugin-runtime';
 
 export interface PluginsScopeState {
   /** `platform` ou `tenant:<id>`. */
@@ -47,6 +50,30 @@ export interface PluginsScopeState {
 export interface PluginsRuntimeState {
   generatedAt: string;
   scopes: PluginsScopeState[];
+}
+
+/** Registro global de rotas de plugins (coletadas durante bootstrap). */
+export interface PluginRouteEntry {
+  pluginName: string;
+  routes: RouteDefinition[];
+}
+
+const pluginRoutesRegistry = new Map<string, PluginRouteEntry>();
+
+/** Registra rotas de um plugin (chamado durante bootstrap). */
+export function registerPluginRoutes(pluginName: string, routes: RouteDefinition[]): void {
+  if (routes.length === 0) return;
+  pluginRoutesRegistry.set(pluginName, { pluginName, routes });
+}
+
+/** Remove rotas de um plugin (quando desativado/desinstalado). */
+export function unregisterPluginRoutes(pluginName: string): boolean {
+  return pluginRoutesRegistry.delete(pluginName);
+}
+
+/** Obtém todas as rotas registradas para montagem no router da API. */
+export function getRegisteredPluginRoutes(): PluginRouteEntry[] {
+  return [...pluginRoutesRegistry.values()];
 }
 
 interface ScopeState {
@@ -77,8 +104,8 @@ function createApiDeps(tenantId: string | null): Partial<PluginApiDependencies> 
       },
     },
     eventBus: {
-      emit: async (eventType: string, payload: Record<string, unknown>) => {
-        await getEventBus().emit({ type: eventType, payload, id: randomUUID(), aggregateType: 'plugin', aggregateId: '', processed: false, createdAt: new Date() });
+      emit: async (event: { id: string; type: string; aggregateType: string; aggregateId: string; payload: Record<string, unknown>; tenantId?: string; processed: boolean; createdAt: Date }) => {
+        await getEventBus().emit(event);
       },
     },
     db: {
@@ -98,11 +125,47 @@ function createApiDeps(tenantId: string | null): Partial<PluginApiDependencies> 
       const user = await userService.getById(id);
       return user ? { id: user.id, email: user.email, name: user.name, roles: user.roles } : null;
     },
-    registerRoutes: (routes) => {
-      console.debug(`[PluginAPI] ${routes.length} rota(s) registrada(s) pelo plugin`);
+    registerRoutes: (routes: RouteDefinition[]) => {
+      const currentTenantId = getCurrentTenantIdSync();
+      const scopeKey = currentTenantId ? `tenant:${currentTenantId}` : 'platform';
+      const state = states.get(scopeKey);
+      // O plugin name vem do contexto de carga — armazenado no scope state
+      // Como alternativa, usamos o pluginId do manifest que está sendo carregado
+      // Para simplificar, o bootstrap passa o pluginName via closure
+      console.debug(`[PluginAPI] ${routes.length} rota(s) registrada(s) — será coletada no bootstrap`);
     },
-    registerContentFields: (fields) => {
-      console.debug(`[PluginAPI] ${fields.length} campo(s) de conteúdo registrado(s)`);
+    registerContentFields: async (fields) => {
+      if (fields.length === 0) return;
+      try {
+        // Cria/atualiza field group do plugin
+        const groupKey = `plugin_${fields[0].name.split('_')[0]}_fields`; // prefixo baseado no primeiro campo
+        const existing = await fieldGroupService.getByKey(groupKey);
+        const fieldInputs = fields.map((f, idx) => ({
+          type: f.type,
+          name: f.name,
+          key: f.name,
+          label: f.label,
+          required: f.required ?? false,
+          config: f.options ?? {},
+          sortOrder: idx,
+        }));
+        if (existing) {
+          await fieldGroupService.update(existing.id, { fields: fieldInputs });
+        } else {
+          await fieldGroupService.create({
+            title: `Campos do Plugin`,
+            key: groupKey,
+            locationRules: [],
+            position: 'normal',
+            displayStyle: 'standard',
+            active: true,
+            fields: fieldInputs,
+          });
+        }
+        console.debug(`[PluginAPI] ${fields.length} campo(s) de conteúdo registrado(s) no field group "${groupKey}"`);
+      } catch (error) {
+        console.error('[PluginAPI] Falha ao registrar campos de conteúdo:', error);
+      }
     },
   };
 }
@@ -181,6 +244,19 @@ async function syncScope(tenantId: string | null, force: boolean): Promise<Plugi
   const promise = (async (): Promise<PluginBootstrapResult> => {
     try {
       const result = await bootstrapPlugins(runtimeOptions(tenantId));
+      
+      // Coleta rotas registradas pelos plugins neste escopo
+      const scopeKey = key; // 'platform' ou 'tenant:<id>'
+      const pluginRoutes = getLoadedPluginRoutes(scopeKey);
+      for (const { pluginName, routes } of pluginRoutes) {
+        registerPluginRoutes(pluginName, routes);
+      }
+
+      // Remove rotas de plugins que foram descarregados (unloaded)
+      for (const pluginName of result.unloaded) {
+        unregisterPluginRoutes(pluginName);
+      }
+
       const previousErrors = states.get(key)?.errors ?? new Map<string, string>();
       const state: ScopeState = {
         key,

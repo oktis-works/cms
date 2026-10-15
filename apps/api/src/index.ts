@@ -6,7 +6,7 @@ import { logger } from 'hono/logger';
 import { cors } from 'hono/cors';
 import { prettyJSON } from 'hono/pretty-json';
 import { serve } from '@hono/node-server';
-import { bootstrap, getEventBus, registerEventAuditLog } from '@oktis-works/core';
+import { bootstrap, getEventBus, registerEventAuditLog, getRegisteredPluginRoutes } from '@oktis-works/core';
 import { CMS_VERSION } from '@oktis-works/validation';
 import { loadConfig } from '@oktis-works/config';
 import { traceMiddleware } from './middleware/trace.js';
@@ -38,12 +38,42 @@ import metricsRouter from './routes/metrics/index.js';
 import auditLogsRouter from './routes/audit-logs/index.js';
 import docsRouter from './routes/docs/index.js';
 import hooksCatalogRouter from './routes/hooks/index.js';
+import type { RouteDefinition } from '@oktis-works/plugin-runtime';
+
+function mountPluginRoutes(app: import('hono').Hono): void {
+  const pluginRoutes = getRegisteredPluginRoutes();
+  for (const { pluginName, routes } of pluginRoutes) {
+    const pluginRouter = new Hono();
+    for (const route of routes) {
+      const method = route.method.toLowerCase() as 'get' | 'post' | 'put' | 'patch' | 'delete' | 'options';
+      if (pluginRouter[method]) {
+        pluginRouter[method](route.path, async (c) => {
+          try {
+            const response = await route.handler(c, {
+              // Provide minimal API for route handler
+              // The plugin's API is already bound during bootstrap
+            } as any);
+            return response;
+          } catch (error) {
+            console.error(`[Plugin Route] Error in ${pluginName} ${route.method} ${route.path}:`, error);
+            return c.json({ error: 'Internal server error' }, 500);
+          }
+        });
+      }
+    }
+    // Mount under /api/v1/plugins/:pluginName
+    app.route(`/api/v1/plugins/${pluginName}`, pluginRouter);
+  }
+}
 
 async function main() {
   // Initialize application
   const lifecycle = await bootstrap();
 
   const app = new Hono();
+
+  // Mount plugin routes after bootstrap (plugins are loaded during bootstrap)
+  mountPluginRoutes(app);
 
   // REQ-event-bus-005: eventos de domínio → AuditLog
   registerEventAuditLog(getEventBus());

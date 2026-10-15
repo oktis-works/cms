@@ -720,8 +720,9 @@ export const commands: Command[] = [
     options: [
       { name: 'name', alias: 'n', description: 'Plugin name', required: true },
       { name: 'info', alias: 'i', description: 'Show manifest info', required: false },
-      { name: 'enable', alias: 'e', description: 'Enable the plugin', required: false },
-      { name: 'disable', alias: 'd', description: 'Disable the plugin', required: false },
+      { name: 'enable', alias: 'e', description: 'Enable the plugin for a tenant', required: false },
+      { name: 'disable', alias: 'd', description: 'Disable the plugin for a tenant', required: false },
+      { name: 'tenant', alias: 't', description: 'Tenant ID (required for --enable/--disable)', required: false },
       { name: 'uninstall', alias: 'u', description: 'Uninstall (remove files + registry)', required: false },
     ],
     handler: async (_args, options) => {
@@ -729,6 +730,9 @@ export const commands: Command[] = [
       const { join } = await import('node:path');
       const { loadProjectConfig } = await import('./project-config.js');
       const { setEnabled, loadExtensionsState, uninstallExtension } = await import('./extensions-state.js');
+      const { initDb } = await import('./db-init.js');
+      const { pluginService } = await import('@oktis-works/core');
+      const { runWithTenantTransaction } = await import('@oktis-works/database');
 
       const name = options['name'];
       if (!name) {
@@ -749,9 +753,42 @@ export const commands: Command[] = [
 
       if (options['enable'] !== undefined || options['disable'] !== undefined) {
         const enabled = options['enable'] !== undefined;
-        const ok = setEnabled('plugin', name, enabled);
-        console.log(ok ? `Plugin "${name}" ${enabled ? 'enabled' : 'disabled'}.` : `Plugin "${name}" is not registered.`);
-        process.exitCode = ok ? 0 : 1;
+        const tenantId = options['tenant'];
+        
+        if (!tenantId) {
+          console.error('Tenant ID is required for --enable/--disable (use --tenant)');
+          process.exitCode = 1;
+          return;
+        }
+
+        try {
+          await initDb();
+          
+          const plugin = await pluginService.getByName(name);
+          if (!plugin) {
+            console.error(`Plugin "${name}" not found.`);
+            process.exitCode = 1;
+            return;
+          }
+
+          await runWithTenantTransaction(tenantId, async () => {
+            if (enabled) {
+              await pluginService.activate(plugin.id, tenantId);
+            } else {
+              await pluginService.deactivate(plugin.id, tenantId);
+            }
+          });
+
+          // Also update local state for consistency
+          setEnabled('plugin', name, enabled);
+          
+          console.log(`Plugin "${name}" ${enabled ? 'enabled' : 'disabled'} for tenant "${tenantId}".`);
+          process.exitCode = 0;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          console.error(`Failed to ${enabled ? 'enable' : 'disable'} plugin: ${message}`);
+          process.exitCode = 1;
+        }
         return;
       }
 
