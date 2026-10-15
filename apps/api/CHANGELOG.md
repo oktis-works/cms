@@ -1,5 +1,12 @@
 # @oktis-works/api
 
+## 0.7.3
+
+### Patch Changes
+
+- Updated dependencies [ce6aef8]
+  - @oktis-works/core@0.5.9
+
 ## 0.7.2
 
 ### Patch Changes
