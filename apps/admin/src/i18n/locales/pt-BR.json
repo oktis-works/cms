@@ -873,8 +873,8 @@
     "title": "Plugins",
     "description": "Gerencie os plugins instalados.",
     "directoryHint": "Detectados automaticamente no diretório plugins/ do projeto. Use a CLI ou o deploy para adicionar extensões.",
-    "columns": { "name": "Nome", "version": "Versão", "status": "Status", "actions": "Ações" },
-    "status": { "active": "Ativo", "installed": "Instalado", "inactive": "Inativo" },
+    "columns": { "name": "Nome", "version": "Versão", "status": "Status", "enabled": "Ativo no tenant", "actions": "Ações" },
+    "status": { "active": "Ativo", "installed": "Instalado", "inactive": "Inativo", "quarantined": "Em quarentena", "missing": "Ausente", "loadFailed": "Falha ao carregar" },
     "activate": "Ativar",
     "deactivate": "Desativar",
     "install": "Instalar plugin",
@@ -888,7 +888,13 @@
     "deactivateError": "Não foi possível desativar o plugin.",
     "installError": "Não foi possível instalar o plugin.",
     "uninstallError": "Não foi possível desinstalar o plugin.",
-    "empty": "Nenhum plugin instalado."
+    "empty": "Nenhum plugin instalado.",
+    "selectTenant": "Selecionar tenant",
+    "selectTenantPlaceholder": "Escolha um tenant para ativar/desativar",
+    "hideSelector": "Ocultar seletor",
+    "enabledForTenant": "Ativo para este tenant",
+    "enabledYes": "Sim",
+    "enabledNo": "Não"
   },
   "themes": {
     "title": "Temas",

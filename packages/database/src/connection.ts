@@ -26,6 +26,11 @@ let _replicaSql: RepoSql | null = null;
 let _driver: DatabaseConfig['driver'] = 'postgres';
 const requestConnection = new AsyncLocalStorage<RepoSql>();
 
+/** Tagged template para interpolação segura de identificadores (ex.: sql`CREATE TABLE \${sql(name)}`). Não disponível no runtime; usamos sanitização simples. */
+export function sqlId(name: string): string {
+  return name.replace(/[^a-zA-Z0-9_]/g, '');
+}
+
 export function createConnection(config: DatabaseConfig): RepoSql {
   if (_sql) return _sql;
   _driver = config.driver;

@@ -87,6 +87,28 @@ export async function clearCurrentContext(): Promise<void> {
   _fallbackContext = null;
 }
 
+/**
+ * Acesso **síncrono** ao tenant do contexto (usado na resolução do registry de
+ * hooks por tenant). Usa exclusivamente o AsyncLocalStorage — o fallback de
+ * módulo (_fallbackContext) é processo-único e cruzaria tenants.
+ */
+export function getCurrentTenantIdSync(): string | null {
+  return contextStorage.getStore()?.tenantId ?? null;
+}
+
+/** Acesso síncrono ao userId do contexto (para getUser no PluginAPI). */
+export function getCurrentUserIdSync(): string | null {
+  return contextStorage.getStore()?.userId ?? null;
+}
+
+/**
+ * Acesso síncrono ao requestId do contexto (para PluginContext.requestId).
+ * O requestId é gerado pelo middleware de auth/request logging.
+ */
+export function getCurrentRequestIdSync(): string | null {
+  return (contextStorage.getStore() as any)?.requestId ?? null;
+}
+
 export function requireTenantContext(): TenantContext {
   const context = contextStorage.getStore() ?? _fallbackContext;
   if (!context) {

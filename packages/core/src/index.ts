@@ -25,7 +25,7 @@ export { MemoryCache, createCache, getCache } from './cache/index.js';
 export type { CacheEntry } from './cache/index.js';
 
 // Tenant Context
-export { establishTenantContext, runWithTenantContext, getCurrentContext, clearCurrentContext, requireTenantContext } from './tenant/context.js';
+export { establishTenantContext, runWithTenantContext, getCurrentContext, clearCurrentContext, requireTenantContext, getCurrentTenantIdSync, getCurrentUserIdSync, getCurrentRequestIdSync } from './tenant/context.js';
 export type { TenantContext } from './tenant/context.js';
 
 // Core Services
@@ -73,6 +73,7 @@ export { S3StorageDriver } from './storage/drivers/s3.js';
 // Hooks
 export { HOOK_POINTS, hooks } from './hooks/points.js';
 export { getHookCatalog, type HookCatalog, type HookCatalogEntry } from './hooks/catalog.js';
+export { hookCatalogNames, installHookRuntimeWiring } from './hooks/wiring.js';
 
 // Field delivery
 export { contentFieldResolver, ContentFieldResolver } from './content/field-resolver.js';
@@ -85,7 +86,8 @@ export { settingsService, SettingsService } from './settings/service.js';
 export { categoryService, CategoryService } from './category/service.js';
 export { tagService, TagService } from './tag/service.js';
 export { pluginService, PluginService } from './plugin/service.js';
-export { syncEnabledPlugins } from './plugin/load.js';
+export { syncEnabledPlugins, ensureTenantPluginsLoaded, invalidateTenantPlugins, invalidatePlatformPlugins, getPluginsRuntimeState } from './plugin/load.js';
+export type { PluginsRuntimeState, PluginsScopeState } from './plugin/load.js';
 export { themeService, ThemeService } from './theme/service.js';
 export { resolveExtensionDirectory } from './extensions/project-directories.js';
 export { buildService, BuildService } from './build/service.js';

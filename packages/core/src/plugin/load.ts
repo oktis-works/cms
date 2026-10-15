@@ -2,31 +2,295 @@
 //
 // O PLUGIN.md promete que `register(registry)` é chamado quando o plugin é
 // carregado — aqui o core cumpre isso para todos os processos (API, web,
-// worker, dev): lê os plugins com status ACTIVATED/RUNNING no banco, importa
-// o entrypoint e registra os hooks no registry compartilhado.
+// worker, dev). Dois escopos:
+//
+//   - **platform** (`syncEnabledPlugins`): plugins `tenant_id IS NULL`,
+//     habilitados globalmente → registry platform, carregado no boot;
+//   - **tenant** (`ensureTenantPluginsLoaded`): plugins vinculados em
+//     `plugin_tenants` (status ENABLED) → registry do tenant, carregado sob
+//     demanda na primeira requisição daquele tenant (cache com TTL + LRU).
 //
 // Nunca lança: falha de banco, diretório ausente ou plugin quebrado são
-// reportadas no resultado, sem derrubar o boot.
+// reportadas no resultado (e persistidas em `plugins.error`), sem derrubar o
+// boot. Falhas ficam visíveis em `getPluginsRuntimeState()` (rota
+// `/api/v1/plugins/runtime` + badge no admin) — não são silenciadas.
 
-import { bootstrapPlugins, type PluginBootstrapResult } from '@oktis-works/plugin-runtime';
+import {
+  bootstrapPlugins,
+  getHookRegistryStore,
+  unloadTenant,
+  type PluginBootstrapResult,
+  type PluginApiDependencies,
+} from '@oktis-works/plugin-runtime';
 import { getConnection } from '@oktis-works/database';
+import { loadConfig } from '@oktis-works/config';
+import { resolvePluginPermissionPolicy } from '@oktis-works/validation';
 import { resolveExtensionDirectory } from '../extensions/project-directories.js';
+import { settingsService } from '../settings/service.js';
+import { getEventBus } from '../events/bus.js';
+import { tenantService } from '../tenant/service.js';
+import { userService } from '../user/service.js';
+import { getCurrentTenantIdSync, getCurrentUserIdSync, getCurrentRequestIdSync } from '../tenant/context.js';
+import { randomUUID } from 'node:crypto';
+
+export interface PluginsScopeState {
+  /** `platform` ou `tenant:<id>`. */
+  scope: string;
+  tenantId: string | null;
+  loadedAt: string;
+  enabled: string[];
+  loaded: string[];
+  unloaded: string[];
+  failed: Array<{ name: string; error: string }>;
+}
+
+export interface PluginsRuntimeState {
+  generatedAt: string;
+  scopes: PluginsScopeState[];
+}
+
+interface ScopeState {
+  key: string;
+  tenantId: string | null;
+  loadedAt: number;
+  result: PluginBootstrapResult;
+  /** Falha por plugin na última sync (evita regravar quando não mudou). */
+  errors: Map<string, string>;
+}
+
+/** Estados por escopo — ordem de iteração = LRU. */
+const states = new Map<string, ScopeState>();
+const inflight = new Map<string, Promise<PluginBootstrapResult>>();
+
+const PLATFORM_KEY = 'platform';
+
+function scopeKey(tenantId?: string | null): string {
+  return tenantId ? `tenant:${tenantId}` : PLATFORM_KEY;
+}
+
+function createApiDeps(tenantId: string | null): Partial<PluginApiDependencies> {
+  return {
+    settings: {
+      get: settingsService.get.bind(settingsService),
+      set: async (key: string, value: unknown, group?: string) => {
+        await settingsService.set(key, value, group);
+      },
+    },
+    eventBus: {
+      emit: async (eventType: string, payload: Record<string, unknown>) => {
+        await getEventBus().emit({ type: eventType, payload, id: randomUUID(), aggregateType: 'plugin', aggregateId: '', processed: false, createdAt: new Date() });
+      },
+    },
+    db: {
+      query: async (sql: string, params?: unknown[]) => {
+        const conn = getConnection();
+        return conn.unsafe(sql, params ?? []);
+      },
+    },
+    getTenantId: () => tenantId ?? getCurrentTenantIdSync(),
+    getUserId: () => getCurrentUserIdSync(),
+    getRequestId: () => getCurrentRequestIdSync(),
+    getTenantById: async (id: string) => {
+      const tenant = await tenantService.getById(id);
+      return tenant ? { id: tenant.id, name: tenant.name, slug: tenant.slug, domain: tenant.domain, subdomain: tenant.subdomain } : null;
+    },
+    getUserById: async (id: string) => {
+      const user = await userService.getById(id);
+      return user ? { id: user.id, email: user.email, name: user.name, roles: user.roles } : null;
+    },
+    registerRoutes: (routes) => {
+      console.debug(`[PluginAPI] ${routes.length} rota(s) registrada(s) pelo plugin`);
+    },
+    registerContentFields: (fields) => {
+      console.debug(`[PluginAPI] ${fields.length} campo(s) de conteúdo registrado(s)`);
+    },
+  };
+}
+
+function runtimeOptions(tenantId?: string | null) {
+  const config = loadConfig();
+  const policy = resolvePluginPermissionPolicy(
+    config.plugins.allowedPermissions.length > 0 ? config.plugins.allowedPermissions : null
+  );
+
+  // Resolve o tenantId atual
+  const currentTenantId = tenantId ?? getCurrentTenantIdSync();
+
+  return {
+    pluginsDir: resolveExtensionDirectory('plugin'),
+    sql: getConnection(),
+    tenantId: tenantId ?? null,
+    permissionPolicy: policy.allowed,
+    hookTimeoutMs: config.plugins.hookTimeoutMs,
+    // Deps reais da API do plugin
+    apiDeps: createApiDeps(currentTenantId),
+  };
+}
 
 /**
- * Sincroniza o registry de hooks com os plugins habilitados no banco.
- * Idempotente: pode ser chamada no boot e depois de ativar/desativar um
- * plugin pela API (reflete no processo na hora; web/worker no próximo restart).
+ * Persiste o resultado da carga em `plugins.error`/`status`:
+ *   - falha nova → `status = LOAD_FAILED` + mensagem;
+ *   - sucesso depois de falha → `ACTIVATED` + `error = NULL`.
+ * Só grava quando o estado mudou (nada de UPDATE por request). Nunca lança.
  */
-export async function syncEnabledPlugins(): Promise<PluginBootstrapResult> {
+async function persistScopeResult(state: ScopeState): Promise<void> {
+  const sql = getConnection();
+  const previous = state.errors;
+  const current = new Map(state.result.failed.map((failure) => [failure.name, failure.error]));
+
   try {
-    return await bootstrapPlugins({
-      pluginsDir: resolveExtensionDirectory('plugin'),
-      sql: getConnection(),
-    });
+    for (const [name, error] of current) {
+      if (previous.get(name) === error) continue;
+      await sql.unsafe(
+        `UPDATE plugins SET status = 'LOAD_FAILED', error = $1, updated_at = NOW()
+         WHERE name = $2 AND status IN ('ACTIVATED', 'RUNNING', 'LOAD_FAILED')`,
+        [error, name]
+      );
+    }
+
+    // Falha resolvida nesta sync → devolve ACTIVATED e limpa a mensagem
+    for (const name of previous.keys()) {
+      if (current.has(name)) continue;
+      await sql.unsafe(
+        `UPDATE plugins SET status = 'ACTIVATED', error = NULL, updated_at = NOW()
+         WHERE name = $1 AND status = 'LOAD_FAILED'`,
+        [name]
+      );
+    }
+  } catch {
+    // banco indisponível não pode derrubar a carga — visibilidade fica no estado em memória
+  }
+}
+
+async function syncScope(tenantId: string | null, force: boolean): Promise<PluginBootstrapResult> {
+  const key = scopeKey(tenantId);
+  const config = loadConfig();
+  const ttlMs = config.plugins.tenantLoadTtlMs;
+  const cached = states.get(key);
+
+  if (!force && cached && Date.now() - cached.loadedAt < ttlMs) {
+    // LRU: acesso recente sobe na ordem
+    states.delete(key);
+    states.set(key, cached);
+    return cached.result;
+  }
+
+  const running = inflight.get(key);
+  if (running) return running;
+
+  const promise = (async (): Promise<PluginBootstrapResult> => {
+    try {
+      const result = await bootstrapPlugins(runtimeOptions(tenantId));
+      const previousErrors = states.get(key)?.errors ?? new Map<string, string>();
+      const state: ScopeState = {
+        key,
+        tenantId,
+        loadedAt: Date.now(),
+        result,
+        errors: previousErrors,
+      };
+      states.set(key, state);
+      await persistScopeResult(state);
+      state.errors = new Map(result.failed.map((failure) => [failure.name, failure.error]));
+      evictOldTenants(config.plugins.maxLoadedTenants);
+      return result;
+    } catch (error) {
+      console.warn(
+        `[plugins] sync indisponível (${key}): ${error instanceof Error ? error.message : String(error)}`
+      );
+      const fallback: PluginBootstrapResult = { enabled: [], loaded: [], unloaded: [], failed: [] };
+      if (!states.has(key)) {
+        states.set(key, { key, tenantId, loadedAt: 0, result: fallback, errors: new Map() });
+      }
+      return fallback;
+    } finally {
+      inflight.delete(key);
+    }
+  })();
+
+  inflight.set(key, promise);
+  return promise;
+}
+
+/** Evita crescer sem limite: descarta tenants com carga mais antiga. */
+function evictOldTenants(maxTenants: number): void {
+  if (states.size <= maxTenants) return;
+  for (const [key, state] of [...states.entries()]) {
+    if (states.size <= maxTenants) break;
+    if (state.tenantId === null) continue; // platform nunca sai
+    states.delete(key);
+    unloadTenant(state.tenantId);
+    getHookRegistryStore().invalidateTenant(state.tenantId);
+  }
+}
+
+/**
+ * Sincroniza o registry **platform** com os plugins habilitados no banco.
+ * Force implícito: é a chamada explícita de boot/ativação — reflete o banco
+ * na hora. Idempotente e nunca lança.
+ */
+export async function syncEnabledPlugins(options: { force?: boolean } = {}): Promise<PluginBootstrapResult> {
+  try {
+    return await syncScope(null, options.force ?? true);
   } catch (error) {
     console.warn(
       `[plugins] sync indisponível: ${error instanceof Error ? error.message : String(error)}`
     );
     return { enabled: [], loaded: [], unloaded: [], failed: [] };
   }
+}
+
+/**
+ * Garante que os plugins do tenant estão carregados no registry dele.
+ * Chamado sob demanda (middleware/API, web, worker) — com cache de TTL para
+ * não bater no banco a cada requisição. Nunca lança.
+ */
+export async function ensureTenantPluginsLoaded(
+  tenantId: string,
+  options: { force?: boolean } = {}
+): Promise<PluginBootstrapResult> {
+  if (!tenantId) return { enabled: [], loaded: [], unloaded: [], failed: [] };
+  try {
+    return await syncScope(tenantId, options.force ?? false);
+  } catch (error) {
+    console.warn(
+      `[plugins] sync do tenant indisponível: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return { enabled: [], loaded: [], unloaded: [], failed: [] };
+  }
+}
+
+/**
+ * Invalida o cache/registry de um tenant (após ativar/desativar vínculo,
+ * desinstalar ou mudar permissões). A próxima requisição do tenant recarrega.
+ */
+export function invalidateTenantPlugins(tenantId: string): void {
+  if (!tenantId) return;
+  const key = scopeKey(tenantId);
+  states.delete(key);
+  inflight.delete(key);
+  unloadTenant(tenantId);
+  getHookRegistryStore().invalidateTenant(tenantId);
+}
+
+/** Invalida o escopo platform (após mudanças globais). */
+export function invalidatePlatformPlugins(): void {
+  states.delete(PLATFORM_KEY);
+  inflight.delete(PLATFORM_KEY);
+}
+
+/** Estado de carga por escopo — superfície de observabilidade (WP2). */
+export function getPluginsRuntimeState(): PluginsRuntimeState {
+  return {
+    generatedAt: new Date().toISOString(),
+    scopes: [...states.values()].map((state) => ({
+      scope: state.key,
+      tenantId: state.tenantId,
+      loadedAt: new Date(state.loadedAt).toISOString(),
+      enabled: state.result.enabled,
+      loaded: state.result.loaded,
+      unloaded: state.result.unloaded,
+      failed: state.result.failed,
+    })),
+  };
 }

@@ -1,9 +1,10 @@
-import { readdir, readFile } from 'node:fs/promises';
+import { readdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { satisfies, validRange } from 'semver';
 import { CMS_VERSION } from '@oktis-works/validation';
 import type { PluginManifest } from '@oktis-works/plugin-sdk';
 import type { LoadedPlugin } from './sandbox.js';
+import { readPluginManifest } from './manifest.js';
 
 export interface DiscoveredPlugin {
   manifest: PluginManifest;
@@ -139,17 +140,10 @@ export class PluginLoader {
   }
 
   private async loadManifest(pluginPath: string): Promise<PluginManifest | null> {
-    // `package.json` é o formato npm (loader original); `manifest.json` é o
-    // que a CLI scaffolda — sem o fallback, plugin criado por `plugin:create`
-    // nunca era descoberto (mesmo fallback do sistema de temas).
-    for (const candidate of ['package.json', 'manifest.json']) {
-      try {
-        const content = await readFile(join(pluginPath, candidate), 'utf-8');
-        return JSON.parse(content) as PluginManifest;
-      } catch {
-        // tenta o próximo nome
-      }
-    }
-    return null;
+    // Fonte única (WP6): `manifest.json` canônico vence `package.json` (npm).
+    // Antes a ordem era inversa — um plugin com ambos os arquivos era lido de
+    // um jeito no loader e de outro no sync/CLI.
+    const { manifest } = await readPluginManifest(pluginPath);
+    return manifest;
   }
 }

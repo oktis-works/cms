@@ -22,3 +22,11 @@ export type {
 } from './conditional.js';
 export { expandCloneFields } from './clone.js';
 export type { CloneDisplay } from './clone.js';
+export {
+  PLUGIN_PERMISSIONS,
+  PLUGIN_PERMISSION_DEFAULT,
+  isKnownPluginPermission,
+  unknownPluginPermissions,
+  resolvePluginPermissionPolicy,
+} from './plugin-permissions.js';
+export type { PluginPermission, PermissionPolicy } from './plugin-permissions.js';

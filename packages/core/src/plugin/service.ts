@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { readdir, readFile } from 'node:fs/promises';
+import { readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { getConnection, runPluginMigrations, rollbackPluginMigrations, type MigrationFile } from '@oktis-works/database';
 import type { Plugin } from '@oktis-works/types';
 import { satisfies, validRange } from 'semver';
-import { CMS_VERSION } from '@oktis-works/validation';
+import { CMS_VERSION, unknownPluginPermissions } from '@oktis-works/validation';
+import { readPluginManifest } from '@oktis-works/plugin-runtime';
 import { auditService } from '../observability/index.js';
 import { getEventBus } from '../events/bus.js';
 import { resolveExtensionDirectory } from '../extensions/project-directories.js';
@@ -15,13 +16,33 @@ export interface PluginDependencyInput {
   optional?: boolean;
 }
 
+/** Vínculo plugin ↔ tenant (quem tem o plugin ligado). */
+export interface PluginTenantLink {
+  id: string;
+  plugin_id: string;
+  tenant_id: string;
+  status: 'ENABLED' | 'DISABLED';
+  error?: string | null;
+  enabled_at?: string | null;
+  disabled_at?: string | null;
+}
+
 export class PluginService {
   /**
-   * O filesystem é a fonte de verdade da instalação. Esta sincronização
-   * cadastra manifests que chegaram em plugins/ via CLI, Git ou deploy e
-   * nunca altera um plugin já ativado/desativado.
+   * O filesystem é a fonte da INSTALAÇÃO. Esta sincronização cadastra manifests
+   * que chegaram em plugins/ via CLI, Git ou deploy:
+   *
+   *   - fonte única de leitura (`readPluginManifest`) — `manifest.json`
+   *     canônico, `package.json` como fallback npm;
+   *   - `type !== 'plugin'` (ex.: tema dentro de plugins/) é ignorado;
+   *   - permissão fora do catálogo → row `QUARANTINED` com erro visível;
+   *   - artefato que sumiu do disco → `MISSING` (vínculos são preservados);
+   *   - nunca altera um plugin já ativado/desativado (ativação = vínculo).
+   *
+   * O artefato é platform: `tenant_id` fica NULL — quem tem o plugin é a linha
+   * em `plugin_tenants`.
    */
-  async syncFromDirectory(tenantId?: string): Promise<Plugin[]> {
+  async syncFromDirectory(_tenantId?: string): Promise<Plugin[]> {
     const directory = resolveExtensionDirectory('plugin');
     let entries;
     try {
@@ -35,57 +56,110 @@ export class PluginService {
 
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
-      let manifest: Record<string, unknown>;
-      try {
-        const raw = await readFile(join(directory, entry.name, 'manifest.json'), 'utf8');
-        manifest = JSON.parse(raw) as Record<string, unknown>;
-      } catch {
-        // Um diretório sem manifest válido não é uma extensão instalável.
+      const pluginPath = join(directory, entry.name);
+
+      const { manifest: parsed, issues } = await readPluginManifest(pluginPath, { strict: true });
+      if (!parsed) {
+        // Diretório sem manifesto válido não é extensão instalável (ex.: tema)
+        if (issues.some((issue) => issue.includes('não é "plugin"'))) {
+          console.warn(`[plugins] ignorado em ${entry.name}: ${issues.join('; ')}`);
+        }
         continue;
       }
 
-      const name = typeof manifest['name'] === 'string' ? manifest['name'].trim() : '';
-      const version = typeof manifest['version'] === 'string' ? manifest['version'].trim() : '';
+      const name = typeof parsed.name === 'string' ? parsed.name.trim() : '';
+      const version = typeof parsed.version === 'string' ? parsed.version.trim() : '';
       if (!name || !version) continue;
 
       discovered.add(name);
       const existing = await this.getByName(name);
-      const permissions = Array.isArray(manifest['permissions']) ? manifest['permissions'] : [];
+      const manifest = parsed as unknown as Record<string, unknown>;
+      const permissions = Array.isArray(manifest['permissions'])
+        ? (manifest['permissions'] as string[]).filter((permission): permission is string => typeof permission === 'string')
+        : [];
+
+      // Política de permissões: fora do catálogo → quarentena visível (não some)
+      const unknown = unknownPluginPermissions(permissions);
+      if (unknown.length > 0) {
+        const error = `permissões fora do catálogo: ${unknown.join(', ')}`;
+        if (existing) {
+          await sql.unsafe(
+            `UPDATE plugins SET version = $1, manifest = $2::jsonb, permissions = $3::jsonb,
+                    status = 'QUARANTINED', error = $4, updated_at = NOW()
+             WHERE id = $5`,
+            [version, manifest, permissions, error, existing.id]
+          );
+        } else {
+          await sql.unsafe(
+            `INSERT INTO plugins (id, tenant_id, name, version, status, manifest, permissions, error, installed_at)
+             VALUES ($1, NULL, $2, $3, 'QUARANTINED', $4::jsonb, $5::jsonb, $6, NOW())`,
+            [randomUUID(), name, version, manifest, permissions, error]
+          );
+        }
+        continue;
+      }
 
       if (existing) {
-        const status = existing.status === 'UNINSTALLED' ? 'INSTALLED' : existing.status;
+        // Reapareceu no disco? volta a ser instalável (MISSING/UNINSTALLED → INSTALLED)
+        const status =
+          existing.status === 'MISSING' || existing.status === 'UNINSTALLED' ? 'INSTALLED' : existing.status;
         await sql.unsafe(
-          `UPDATE plugins SET version = $1, manifest = $2::jsonb, permissions = $3::jsonb, status = $4, updated_at = NOW()
+          `UPDATE plugins SET version = $1, manifest = $2::jsonb, permissions = $3::jsonb,
+                  status = $4, error = NULL, tenant_id = NULL, updated_at = NOW()
            WHERE id = $5`,
           [version, manifest, permissions, status, existing.id]
         );
       } else {
         await sql.unsafe(
           `INSERT INTO plugins (id, tenant_id, name, version, status, manifest, permissions, installed_at)
-           VALUES ($1, $2, $3, $4, 'INSTALLED', $5::jsonb, $6::jsonb, NOW())`,
-          [randomUUID(), tenantId ?? null, name, version, manifest, permissions]
+           VALUES ($1, NULL, $2, $3, 'INSTALLED', $4::jsonb, $5::jsonb, NOW())`,
+          [randomUUID(), name, version, manifest, permissions]
         );
       }
     }
 
+    // Some do disco → MISSING (state explícito; sem isso a row ficava ACTIVATED
+    // órfã, invisível e intocável). Vínculos por tenant são preservados.
+    if (entries.length > 0) {
+      try {
+        await sql.unsafe(
+          `UPDATE plugins SET status = 'MISSING', updated_at = NOW()
+           WHERE status NOT IN ('UNINSTALLED', 'MISSING')
+             AND name <> ALL($1::text[])`,
+          [[...discovered]]
+        );
+      } catch {
+        // banco indisponível não pode apagar estado por engano
+      }
+    }
+
     if (discovered.size === 0) return [];
-    const rows = await this.list(tenantId);
+    const rows = await this.list(_tenantId);
     return rows.filter((plugin) => discovered.has(plugin.name));
   }
 
   /**
-   * RULE-tenant-plugin-scope: retorna plugins platform (globais) + os do tenant informado.
-   * Sem tenantId, retorna apenas os de escopo platform.
+   * Lista os artefatos com o estado de vínculo do tenant informado:
+   * `enabled` = plugin_tenants.status = 'ENABLED' para aquele tenant.
+   * Sem tenantId (visão plataforma), `enabled` vem como false.
    */
-  async list(tenantId?: string): Promise<Plugin[]> {
+  async list(tenantId?: string): Promise<Array<Plugin & { enabled?: boolean }>> {
     const sql = getConnection();
-    const result = tenantId
-      ? await sql.unsafe(
-          "SELECT * FROM plugins WHERE manifest->>'scope' = 'platform' OR manifest->>'scope' IS NULL OR tenant_id = $1 ORDER BY name ASC",
-          [tenantId]
-        )
-      : await sql.unsafe("SELECT * FROM plugins WHERE manifest->>'scope' = 'platform' OR manifest->>'scope' IS NULL ORDER BY name ASC");
-    return result as unknown as Plugin[];
+    if (tenantId) {
+      const result = await sql.unsafe(
+        `SELECT p.*, (pt.status = 'ENABLED') AS enabled
+         FROM plugins p
+         LEFT JOIN plugin_tenants pt ON pt.plugin_id = p.id AND pt.tenant_id = $1
+         WHERE p.tenant_id IS NULL OR p.tenant_id = $1
+         ORDER BY name ASC`,
+        [tenantId]
+      );
+      return result as unknown as Array<Plugin & { enabled?: boolean }>;
+    }
+    const result = await sql.unsafe(
+      `SELECT p.*, false AS enabled FROM plugins p ORDER BY name ASC`
+    );
+    return result as unknown as Array<Plugin & { enabled?: boolean }>;
   }
 
   async getById(id: string): Promise<Plugin | null> {
@@ -100,6 +174,29 @@ export class PluginService {
     return (result[0] as unknown as Plugin) ?? null;
   }
 
+  /** Vínculos de um plugin (todos os tenants — leitura exigindo contexto do dono ou platform). */
+  async listLinks(pluginId: string): Promise<PluginTenantLink[]> {
+    const sql = getConnection();
+    const result = await sql.unsafe(
+      'SELECT * FROM plugin_tenants WHERE plugin_id = $1 ORDER BY created_at ASC',
+      [pluginId]
+    );
+    return result as unknown as PluginTenantLink[];
+  }
+
+  /** Plugins habilitados de um tenant (usado pelo bootstrap por tenant). */
+  async listEnabledForTenant(tenantId: string): Promise<Plugin[]> {
+    const sql = getConnection();
+    const result = await sql.unsafe(
+      `SELECT p.* FROM plugins p
+       JOIN plugin_tenants pt ON pt.plugin_id = p.id
+       WHERE pt.tenant_id = $1 AND pt.status = 'ENABLED'
+       ORDER BY name ASC`,
+      [tenantId]
+    );
+    return result as unknown as Plugin[];
+  }
+
   async install(input: {
     name: string;
     version: string;
@@ -111,6 +208,15 @@ export class PluginService {
     tenantId?: string | null;
   }): Promise<Plugin> {
     const sql = getConnection();
+
+    // Política de permissões: rejeita na instalação, não no boot (WP5)
+    const declared = input.permissions ?? (Array.isArray(input.manifest['permissions'])
+      ? (input.manifest['permissions'] as unknown[]).filter((value): value is string => typeof value === 'string')
+      : []);
+    const unknown = unknownPluginPermissions(declared);
+    if (unknown.length > 0) {
+      throw new Error(`PERMISSION_NOT_ALLOWED: fora do catálogo: ${unknown.join(', ')}`);
+    }
 
     // REQ-plugin-installation-002: dependências devem estar instaladas primeiro
     const missing: string[] = [];
@@ -129,9 +235,10 @@ export class PluginService {
     const id = randomUUID();
     const now = new Date().toISOString();
 
+    // Artefato é platform (tenant_id NULL); quem tem é plugin_tenants.
     const result = await sql.unsafe(
-      `INSERT INTO plugins (id, name, version, status, manifest, permissions, config, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7::jsonb, $8, $8)
+      `INSERT INTO plugins (id, tenant_id, name, version, status, manifest, permissions, config, installed_at, created_at, updated_at)
+       VALUES ($1, NULL, $2, $3, $4, $5::jsonb, $6, $7::jsonb, $8, $8, $8)
        RETURNING *`,
       [
         id,
@@ -139,7 +246,7 @@ export class PluginService {
         input.version,
         'INSTALLED',
         input.manifest,
-        input.permissions ?? [],
+        declared,
         input.config ?? null,
         now,
       ]
@@ -178,13 +285,22 @@ export class PluginService {
     return result[0] as unknown as Plugin;
   }
 
-  async activate(id: string): Promise<Plugin | null> {
+  /**
+   * Ativa (vincula) o plugin a um tenant: `plugin_tenants.status = ENABLED`.
+   * Só SUPER_ADMIN (RBAC) chega aqui; a transação precisa estar no contexto do
+   * tenant alvo (RLS de plugin_tenants).
+   */
+  async activate(id: string, tenantId: string): Promise<Plugin | null> {
     const sql = getConnection();
 
     const existing = await this.getById(id);
     if (!existing) return null;
-    if (!['INSTALLED', 'DEACTIVATED'].includes(existing.status)) {
+    if (!tenantId) throw new Error('tenantId é obrigatório para ativar um plugin');
+    if (['UNINSTALLED', 'MISSING'].includes(existing.status)) {
       throw new Error(`Invalid plugin transition: ${existing.status} → ACTIVATED`);
+    }
+    if (existing.status === 'QUARANTINED') {
+      throw new Error(`ACTIVATION_FAILED: plugin em quarentena (${String((existing as { error?: string }).error ?? '')})`);
     }
 
     // REQ-plugin-activation-004: range compatibility.okcms insatisfazível bloqueia ativação
@@ -200,64 +316,85 @@ export class PluginService {
       throw new Error(`ACTIVATION_FAILED: plugin requer OkCMS ${compat}, versão atual é ${CMS_VERSION}`);
     }
 
-    const result = await sql.unsafe(
-      `UPDATE plugins
-       SET status = $1, activated_at = NOW(), updated_at = NOW()
-       WHERE id = $2
-       RETURNING *`,
-      ['ACTIVATED', id]
+    await sql.unsafe(
+      `INSERT INTO plugin_tenants (id, plugin_id, tenant_id, status, enabled_at, disabled_at, created_at, updated_at)
+       VALUES ($1, $2, $3, 'ENABLED', NOW(), NULL, NOW(), NOW())
+       ON CONFLICT (plugin_id, tenant_id)
+       DO UPDATE SET status = 'ENABLED', enabled_at = NOW(), disabled_at = NULL, updated_at = NOW()`,
+      [randomUUID(), id, tenantId]
     );
 
-    await auditService.record({ action: 'plugin.activate', resourceType: 'plugin', resourceId: id });
+    const result = await this.getById(id);
 
-    return (result[0] as unknown as Plugin) ?? null;
+    // Audit por último (rastreabilidade da transição efetiva)
+    await auditService.record({
+      action: 'plugin.activate',
+      resourceType: 'plugin',
+      resourceId: id,
+      changes: { tenantId },
+    });
+
+    return result;
   }
 
-  async deactivate(id: string): Promise<Plugin | null> {
+  /**
+   * Desativa (desvincula) o plugin de um tenant: DISABLED + notificação dos
+   * dependentes habilitados naquele tenant.
+   */
+  async deactivate(id: string, tenantId: string): Promise<Plugin | null> {
     const sql = getConnection();
 
     const existing = await this.getById(id);
     if (!existing) return null;
-    if (existing.status !== 'ACTIVATED') {
-      throw new Error(`Invalid plugin transition: ${existing.status} → DEACTIVATED`);
+    if (!tenantId) throw new Error('tenantId é obrigatório para desativar um plugin');
+
+    const before = await sql.unsafe(
+      `SELECT status FROM plugin_tenants WHERE plugin_id = $1 AND tenant_id = $2`,
+      [id, tenantId]
+    );
+    if ((before as unknown[]).length === 0) {
+      throw new Error('Invalid plugin transition: plugin não está vinculado a este tenant');
     }
 
-    const result = await sql.unsafe(
-      `UPDATE plugins
-       SET status = $1, updated_at = NOW()
-       WHERE id = $2
-       RETURNING *`,
-      ['DEACTIVATED', id]
+    await sql.unsafe(
+      `UPDATE plugin_tenants
+       SET status = 'DISABLED', disabled_at = NOW(), updated_at = NOW()
+       WHERE plugin_id = $1 AND tenant_id = $2`,
+      [id, tenantId]
     );
 
-    // REQ-plugin-activation-003: dependentes ativos são notificados via evento de domínio
+    // REQ-plugin-activation-003: dependentes habilitados são notificados via evento
     const dependentsResult = await sql.unsafe(
       `SELECT p.id, p.name FROM plugins p
        JOIN plugin_dependencies pd ON pd.plugin_id = p.id
        JOIN plugins dep ON dep.id = pd.dependency_id
-       WHERE dep.name = $1 AND p.status = 'ACTIVATED'`,
-      [existing.name]
+       JOIN plugin_tenants pt ON pt.plugin_id = p.id AND pt.tenant_id = $3
+       WHERE dep.name = $1 AND pt.status = 'ENABLED' AND p.id <> $2`,
+      [existing.name, id, tenantId]
     );
     const dependents = (dependentsResult as unknown as Array<{ id: string; name: string }>).map((d) => d.name);
+
+    const result = await this.getById(id);
 
     await getEventBus().emit({
       id: randomUUID(),
       type: 'plugin.deactivated',
       aggregateType: 'plugin',
       aggregateId: id,
-      payload: { pluginId: id, name: existing.name, dependents },
+      payload: { pluginId: id, name: existing.name, tenantId, dependents },
       processed: false,
       createdAt: new Date(),
     });
 
+    // Audit por último (rastreabilidade da transição efetiva)
     await auditService.record({
       action: 'plugin.deactivate',
       resourceType: 'plugin',
       resourceId: id,
-      changes: { notifiedDependents: dependents },
+      changes: { tenantId, notifiedDependents: dependents },
     });
 
-    return (result[0] as unknown as Plugin) ?? null;
+    return result;
   }
 
   async uninstall(id: string): Promise<boolean> {
@@ -266,7 +403,7 @@ export class PluginService {
     const existing = await this.getById(id);
     if (!existing) return false;
 
-    // REQU-022-004: desinstalação remove dependências registradas e reverte migrations
+    // REQU-022-004: desinstalação remove dependências, vínculos e reverte migrations
     const tenantId = (existing as unknown as { tenant_id?: string | null }).tenant_id ?? '';
     let rolledBack = 0;
     try {
@@ -276,6 +413,7 @@ export class PluginService {
     }
 
     await sql.unsafe('DELETE FROM plugin_dependencies WHERE plugin_id = $1', [id]);
+    await sql.unsafe('DELETE FROM plugin_tenants WHERE plugin_id = $1', [id]);
 
     await sql.unsafe(
       `UPDATE plugins SET status = $1, updated_at = NOW() WHERE id = $2`,

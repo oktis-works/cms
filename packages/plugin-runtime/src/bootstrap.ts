@@ -2,9 +2,10 @@
 //
 // O PLUGIN.md promete: "`register(registry)` é chamado quando o plugin é
 // carregado". Este módulo cumpre a promessa: descobre os plugins habilitados
-// no banco (status ACTIVATED/RUNNING), importa o entrypoint, chama
+// no banco (escopo **platform** = `tenant_id IS NULL`; escopo **tenant** =
+// `plugin_tenants` habilitados), importa o entrypoint, chama
 // `register(registry)` com uma API de hooks atribuída ao plugin (BUSI-032/033)
-// e sincroniza o registry compartilhado.
+// e sincroniza o registry do escopo.
 //
 // Regras:
 //   - **nunca lança**: plugin quebrado, manifesto inválido, incompatibilidade
@@ -12,12 +13,16 @@
 //   - **sincroniza com o banco**: quem saiu da lista de habilitados tem os
 //     hooks removidos do registry (unload);
 //   - **idempotente**: plugin já carregado não é recarregado (sem hooks
-//     duplicados) — chamadas repetidas carregam só o que é novo.
+//     duplicados) — chamadas repetidas carregam só o que é novo;
+//   - **por escopo**: o estado de carga é indexado por escopo (platform ou um
+//     tenant), então ativar/desativar num tenant não afeta outro.
 
 import { createPluginHooksApi, type HookRegistryLike } from '@oktis-works/plugin-sdk';
+import { PLUGIN_PERMISSION_DEFAULT } from '@oktis-works/validation';
 import { PluginLoader, type DiscoveredPlugin } from './loader.js';
 import { PluginSandbox } from './sandbox.js';
-import { getHookRegistry, type HookRegistry } from './hook-registry.js';
+import { getHookRegistry, getHookRegistryStore, type HookRegistry } from './hook-registry.js';
+import type { PluginApiDependencies, PluginApiInternal } from './plugin-api.js';
 
 export interface BootstrapPluginsSql {
   unsafe(text: string, params?: unknown[]): Promise<unknown>;
@@ -28,10 +33,28 @@ export interface BootstrapPluginsOptions {
   pluginsDir: string;
   /** Cliente postgres para ler os habilitados; omitido = estado desconhecido (no-op). */
   sql?: BootstrapPluginsSql;
-  /** Registry alvo (default: o singleton compartilhado usado por core/web). */
+  /** Registry alvo (default: registry do escopo — platform ou `tenantId`). */
   registry?: HookRegistry;
   /** Statuses considerados habilitados (default: ACTIVATED, RUNNING). */
   enabledStatuses?: string[];
+  /**
+   * Escopo de carga: `null`/omitido → platform (`plugins.tenant_id IS NULL`);
+   * string → tenant (`plugin_tenants` com status ENABLED).
+   */
+  tenantId?: string | null;
+  /**
+   * Política de permissões concedidas (allowlist). Default: catálogo completo
+   * de permissões do CMS. Nunca é preenchida com as permissões do manifesto.
+   */
+  permissionPolicy?: string[];
+  /** Timeout de callbacks de hook em ms (0 = sem timeout). Default 5000. */
+  hookTimeoutMs?: number;
+  /**
+   * Dependências reais para a PluginAPI (settings, eventBus, db, etc.).
+   * Se omitido, usa apenas o Hooks API legado (compatibilidade).
+   * O core injeta isto com serviços reais.
+   */
+  apiDeps?: Partial<PluginApiDependencies>;
 }
 
 export interface PluginBootstrapResult {
@@ -54,50 +77,112 @@ interface TrackedRegistration {
 
 interface LoadedEntry {
   registrations: TrackedRegistration[];
+  internal?: PluginApiInternal;
 }
 
-/** Plugins carregados neste processo (nome → registros no registry). */
-const loadedPlugins = new Map<string, LoadedEntry>();
+interface LoadedScope {
+  registry: HookRegistry;
+  /** nome → registros no registry */
+  plugins: Map<string, LoadedEntry>;
+}
+
+/** Estado de carga por escopo (`''` = platform, `tenant:<id>` = tenant). */
+const loadedScopes = new Map<string, LoadedScope>();
+
+function scopeKeyOf(tenantId?: string | null): string {
+  return tenantId ? `tenant:${tenantId}` : '';
+}
+
+function getScope(scopeKey: string, registry: HookRegistry): LoadedScope {
+  let scope = loadedScopes.get(scopeKey);
+  if (!scope) {
+    scope = { registry, plugins: new Map() };
+    loadedScopes.set(scopeKey, scope);
+  }
+  return scope;
+}
+
+/** Escopo com carga registrada (para inspeção/estado de runtime). */
+export function listLoadedScopes(): Array<{ scope: string; registry: HookRegistry; plugins: string[] }> {
+  return [...loadedScopes.entries()].map(([scope, entry]) => ({
+    scope,
+    registry: entry.registry,
+    plugins: [...entry.plugins.keys()],
+  }));
+}
 
 /**
- * Remove todos os hooks de um plugin do registry e limpa o estado.
- * Útil em testes e em shutdown.
+ * Remove todos os hooks dos escopos carregados e limpa o estado.
+ * Útil em testes e em shutdown. Quando `registry` é informado, os hooks são
+ * removidos dele; caso contrário, do registry em que foram registrados.
  */
 export function resetLoadedPlugins(registry?: HookRegistry): void {
-  const target = registry ?? getHookRegistry();
-  for (const [name, entry] of loadedPlugins) {
-    for (const reg of entry.registrations) {
-      if (reg.type === 'action') target.removeAction(reg.name, reg.callback, reg.priority);
-      else target.removeFilter(reg.name, reg.callback, reg.priority);
+  for (const [scopeKey, scope] of loadedScopes) {
+    const target = registry ?? scope.registry;
+    for (const entry of scope.plugins.values()) {
+      for (const reg of entry.registrations) {
+        if (reg.type === 'action') target.removeAction(reg.name, reg.callback, reg.priority);
+        else target.removeFilter(reg.name, reg.callback, reg.priority);
+      }
     }
-    loadedPlugins.delete(name);
+    loadedScopes.delete(scopeKey);
   }
 }
 
-function unloadPlugin(name: string, registry: HookRegistry): boolean {
-  const entry = loadedPlugins.get(name);
+/** Descarrega todos os plugins de um escopo (tenant desativado / LRU). */
+export function unloadScope(scopeKey: string): boolean {
+  const scope = loadedScopes.get(scopeKey);
+  if (!scope) return false;
+  for (const entry of scope.plugins.values()) {
+    for (const reg of entry.registrations) {
+      if (reg.type === 'action') scope.registry.removeAction(reg.name, reg.callback, reg.priority);
+      else scope.registry.removeFilter(reg.name, reg.callback, reg.priority);
+    }
+  }
+  loadedScopes.delete(scopeKey);
+  return true;
+}
+
+/** Descarrega um tenant (chave `tenant:<id>` ou o próprio id). */
+export function unloadTenant(tenantId: string): boolean {
+  return unloadScope(scopeKeyOf(tenantId));
+}
+
+function unloadPlugin(scope: LoadedScope, name: string): boolean {
+  const entry = scope.plugins.get(name);
   if (!entry) return false;
   for (const reg of entry.registrations) {
-    if (reg.type === 'action') registry.removeAction(reg.name, reg.callback, reg.priority);
-    else registry.removeFilter(reg.name, reg.callback, reg.priority);
+    if (reg.type === 'action') scope.registry.removeAction(reg.name, reg.callback, reg.priority);
+    else scope.registry.removeFilter(reg.name, reg.callback, reg.priority);
   }
-  loadedPlugins.delete(name);
+  scope.plugins.delete(name);
   return true;
 }
 
 /**
- * Registry que grava cada registro num sink (para poder descarregar depois)
- * e delega ao registry real com `sourceId` já atribuído pelo SDK.
+ * Registry que grava cada registro num sink (para poder descarregar depois),
+ * delega ao registry real com `sourceId` atribuído pelo SDK e **aplica o
+ * timeout do sandbox** no callback registrado (WP5 — proteção real contra hook
+ * pendurado; documentada como limitada a trabalho assíncrono).
  */
-function recordingRegistry(registry: HookRegistry, sink: TrackedRegistration[]): HookRegistryLike {
+function recordingRegistry(
+  registry: HookRegistry,
+  sink: TrackedRegistration[],
+  sandbox: PluginSandbox
+): HookRegistryLike {
+  const acceptedArgsOf = (callback: (...args: unknown[]) => unknown, explicit?: number): number =>
+    explicit ?? callback.length;
+
   return {
     addAction(action, callback, options) {
-      sink.push({ type: 'action', name: action, callback, priority: options?.priority ?? 10 });
-      registry.addAction(action, callback, options);
+      const wrapped = sandbox.wrapCallback(callback);
+      sink.push({ type: 'action', name: action, callback: wrapped, priority: options?.priority ?? 10 });
+      registry.addAction(action, wrapped, { ...options, acceptedArgs: acceptedArgsOf(callback, options?.acceptedArgs) });
     },
     addFilter(filter, callback, options) {
-      sink.push({ type: 'filter', name: filter, callback, priority: options?.priority ?? 10 });
-      registry.addFilter(filter, callback, options);
+      const wrapped = sandbox.wrapCallback(callback);
+      sink.push({ type: 'filter', name: filter, callback: wrapped, priority: options?.priority ?? 10 });
+      registry.addFilter(filter, wrapped, { ...options, acceptedArgs: acceptedArgsOf(callback, options?.acceptedArgs) });
     },
     removeAction: (action, callback, priority) => registry.removeAction(action, callback, priority),
     removeFilter: (action, callback, priority) => registry.removeFilter(action, callback, priority),
@@ -108,13 +193,30 @@ function recordingRegistry(registry: HookRegistry, sink: TrackedRegistration[]):
   };
 }
 
+/** Query de habilitados por escopo. */
+function enabledQuery(tenantId?: string | null): { text: string; params?: unknown[] } {
+  if (tenantId) {
+    return {
+      text: `SELECT p.name FROM plugins p
+             JOIN plugin_tenants pt ON pt.plugin_id = p.id
+             WHERE pt.tenant_id = $1 AND pt.status = 'ENABLED'
+               AND p.status NOT IN ('UNINSTALLED', 'MISSING')`,
+      params: [tenantId],
+    };
+  }
+  return { text: 'SELECT name FROM plugins WHERE status = ANY($1) AND tenant_id IS NULL' };
+}
+
 /**
- * Sincroniza o registry com os plugins habilitados no banco.
+ * Sincroniza o registry de um escopo com os plugins habilitados no banco.
  * Seguro para chamar no boot de qualquer processo e em re-syncs (ex.: logo
  * após ativar/desativar pela API).
  */
 export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promise<PluginBootstrapResult> {
-  const registry = options.registry ?? getHookRegistry();
+  const scopeKey = scopeKeyOf(options.tenantId);
+  const registry =
+    options.registry ??
+    (options.tenantId ? getHookRegistryStore().tenant(options.tenantId) : getHookRegistry());
   const statuses = options.enabledStatuses ?? ['ACTIVATED', 'RUNNING'];
   const result: PluginBootstrapResult = { enabled: [], loaded: [], unloaded: [], failed: [] };
 
@@ -122,9 +224,10 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
   let enabled: string[] | null = null;
   if (options.sql) {
     try {
+      const query = enabledQuery(options.tenantId);
       const rows = (await options.sql.unsafe(
-        'SELECT name FROM plugins WHERE status = ANY($1) AND tenant_id IS NULL',
-        [statuses]
+        query.text,
+        options.tenantId ? query.params : [statuses]
       )) as Array<{ name?: string }>;
       enabled = rows
         .map((row) => row.name)
@@ -145,9 +248,11 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
     discovered = [];
   }
 
-  // 3) Descarrega quem saiu da lista de habilitados
-  for (const name of [...loadedPlugins.keys()]) {
-    if (!enabled.includes(name) && unloadPlugin(name, registry)) {
+  const scope = getScope(scopeKey, registry);
+
+  // 3) Descarrega quem saiu da lista de habilitados (deste escopo)
+  for (const name of [...scope.plugins.keys()]) {
+    if (!enabled.includes(name) && unloadPlugin(scope, name)) {
       result.unloaded.push(name);
     }
   }
@@ -161,17 +266,20 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
     levels = enabledDiscovered.map((entry) => [entry]); // ordenação falhou: ordem arbitrária
   }
 
+  // Política de permissões: allowlist de configuração (ou catálogo completo).
+  const policy = options.permissionPolicy ?? PLUGIN_PERMISSION_DEFAULT;
+  const timeoutMs = options.hookTimeoutMs ?? 5000;
+
   for (const level of levels) {
     for (const entry of level) {
       const name = entry.manifest.name;
-      if (loadedPlugins.has(name)) continue;
+      if (scope.plugins.has(name)) continue;
 
       try {
         const loaded = await loader.loadPlugin(entry.manifest, entry.path);
 
-        // O sandbox valida permissões declaradas e o isolamento de estilo
-        const permissions = (entry.manifest.permissions ?? []) as string[];
-        const sandbox = new PluginSandbox({ allowedPermissions: permissions });
+        // O sandbox valida o manifesto contra a POLÍTICA (nunca contra si mesmo)
+        const sandbox = new PluginSandbox({ allowedPermissions: [...policy], timeoutMs });
         sandbox.loadPlugin(entry.manifest, loaded.api);
 
         // Contrato do PLUGIN.md: module.exports.register(registry)
@@ -181,10 +289,44 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
         }
 
         const registrations: TrackedRegistration[] = [];
-        const hooksApi = createPluginHooksApi(name, recordingRegistry(registry, registrations));
-        (register as (registry: unknown) => void)(hooksApi);
 
-        loadedPlugins.set(name, { registrations });
+        // Se o core forneceu apiDeps, cria a API completa (hooks + settings + query + routes + ...)
+        // Caso contrário, usa apenas o Hooks API legado (compatibilidade).
+        let apiToPass: unknown;
+        let internal: PluginApiInternal | undefined;
+        if (options.apiDeps) {
+          // Mescla os deps do core com os específicos do plugin/runtime
+          const deps: PluginApiDependencies = {
+            hooks: recordingRegistry(registry, registrations, sandbox),
+            manifest: entry.manifest,
+            settings: options.apiDeps.settings ?? { get: async () => undefined, set: async () => {} },
+            eventBus: options.apiDeps.eventBus ?? { emit: async () => {} },
+            db: options.apiDeps.db ?? { query: async () => [] },
+            getTenantId: options.apiDeps.getTenantId ?? (() => options.tenantId ?? null),
+            getUserId: options.apiDeps.getUserId ?? (() => null),
+            getRequestId: options.apiDeps.getRequestId ?? (() => crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)),
+            getTenantById: options.apiDeps.getTenantById ?? (async () => null),
+            getUserById: options.apiDeps.getUserById ?? (async () => null),
+            registerRoutes: options.apiDeps.registerRoutes ?? (() => {}),
+            registerContentFields: options.apiDeps.registerContentFields ?? (() => {}),
+            allowedPermissions: [...policy],
+          };
+          // Cria a API completa usando a fábrica interna
+          const { createPluginApi } = await import('./plugin-api.js');
+          const apiResult = createPluginApi(deps);
+          apiToPass = apiResult.api;
+          internal = apiResult.internal;
+        } else {
+          apiToPass = createPluginHooksApi(name, recordingRegistry(registry, registrations, sandbox));
+        }
+
+        (register as (registry: unknown) => void)(apiToPass);
+
+        if (internal) {
+          scope.plugins.set(name, { registrations, internal });
+        } else {
+          scope.plugins.set(name, { registrations });
+        }
         result.loaded.push(name);
       } catch (error) {
         // Isolamento de falha: plugin quebrado não impede os demais nem o boot

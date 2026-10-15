@@ -276,7 +276,8 @@ CREATE TABLE IF NOT EXISTS plugins (
   status VARCHAR(50) NOT NULL DEFAULT 'DISCOVERED' CHECK (status IN (
     'DISCOVERED', 'VALIDATED', 'INSTALLED', 'MIGRATED', 'ACTIVATED', 'RUNNING',
     'DEACTIVATED', 'UNINSTALLED', 'INSTALL_FAILED', 'MIGRATION_FAILED',
-    'ACTIVATION_FAILED', 'INCOMPATIBLE', 'QUARANTINED'
+    'ACTIVATION_FAILED', 'INCOMPATIBLE', 'QUARANTINED',
+    'MISSING', 'LOAD_FAILED'
   )),
   manifest JSONB NOT NULL,
   permissions JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -291,6 +292,25 @@ CREATE TABLE IF NOT EXISTS plugins (
 CREATE INDEX IF NOT EXISTS idx_plugins_tenant ON plugins(tenant_id) WHERE tenant_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_plugins_name ON plugins(name);
 CREATE INDEX IF NOT EXISTS idx_plugins_status ON plugins(status);
+
+-- ============================================================
+-- Plugin <-> Tenant (ativação por tenant)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS plugin_tenants (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  plugin_id UUID NOT NULL REFERENCES plugins(id) ON DELETE CASCADE,
+  tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  status VARCHAR(20) NOT NULL DEFAULT 'ENABLED' CHECK (status IN ('ENABLED', 'DISABLED')),
+  error TEXT,
+  enabled_at TIMESTAMP WITH TIME ZONE,
+  disabled_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  UNIQUE (plugin_id, tenant_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_plugin_tenants_tenant ON plugin_tenants(tenant_id, status);
+CREATE INDEX IF NOT EXISTS idx_plugin_tenants_plugin ON plugin_tenants(plugin_id);
 
 -- ============================================================
 -- Plugin Dependencies
@@ -777,7 +797,11 @@ ALTER TABLE menus FORCE ROW LEVEL SECURITY;
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE settings FORCE ROW LEVEL SECURITY;
 ALTER TABLE plugins ENABLE ROW LEVEL SECURITY;
+ALTER TABLE plugins FORCE ROW LEVEL SECURITY;
 ALTER TABLE themes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE themes FORCE ROW LEVEL SECURITY;
+ALTER TABLE plugin_tenants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE plugin_tenants FORCE ROW LEVEL SECURITY;
 ALTER TABLE builds ENABLE ROW LEVEL SECURITY;
 ALTER TABLE deployments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE events ENABLE ROW LEVEL SECURITY;
@@ -853,6 +877,17 @@ BEGIN
     WHERE policyname = 'tenant_isolation_plugins' AND tablename = 'plugins'
   ) THEN
     CREATE POLICY tenant_isolation_plugins ON plugins USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid OR tenant_id IS NULL);
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE policyname = 'tenant_isolation_plugin_tenants' AND tablename = 'plugin_tenants'
+  ) THEN
+    CREATE POLICY tenant_isolation_plugin_tenants ON plugin_tenants
+      USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
   END IF;
 END $$;
 

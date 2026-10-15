@@ -781,12 +781,16 @@
       "name": "Name",
       "version": "Version",
       "status": "Status",
+      "enabled": "Enabled for tenant",
       "actions": "Actions"
     },
     "status": {
       "active": "Active",
       "installed": "Installed",
-      "inactive": "Inactive"
+      "inactive": "Inactive",
+      "quarantined": "Quarantined",
+      "missing": "Missing",
+      "loadFailed": "Load failed"
     },
     "activate": "Activate",
     "deactivate": "Deactivate",
@@ -801,7 +805,13 @@
     "deactivateError": "Could not deactivate the plugin.",
     "installError": "Could not install the plugin.",
     "uninstallError": "Could not uninstall the plugin.",
-    "empty": "No plugins installed."
+    "empty": "No plugins installed.",
+    "selectTenant": "Select tenant",
+    "selectTenantPlaceholder": "Choose a tenant to activate/deactivate for",
+    "hideSelector": "Hide selector",
+    "enabledForTenant": "Active for this tenant",
+    "enabledYes": "Yes",
+    "enabledNo": "No"
   },
   "themes": {
     "title": "Themes",

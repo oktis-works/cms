@@ -1,3 +1,8 @@
+import type {
+  PluginManifest as CanonicalPluginManifest,
+  PluginDependency as CanonicalPluginDependency,
+} from '@oktis-works/types';
+
 export enum HookType {
   BEFORE_CONTENT_CREATE = 'beforeContentCreate',
   AFTER_CONTENT_CREATE = 'afterContentCreate',
@@ -15,21 +20,16 @@ export enum HookType {
   ON_ADMIN_MENU = 'onAdminMenu',
 }
 
-export interface PluginManifest {
-  name: string;
-  version: string;
-  description?: string;
+/**
+ * Manifesto canônico (fonte única em `@oktis-works/types`) + o que o runtime
+ * exige: `main` obrigatório e o bloco opcional `hooks` (lifecycle declarado).
+ */
+export type PluginManifest = CanonicalPluginManifest & {
   main: string;
   hooks?: PluginHook[];
-  permissions?: string[];
-  dependencies?: PluginDependency[];
-}
+};
 
-export interface PluginDependency {
-  name: string;
-  version: string;
-  required?: boolean;
-}
+export type PluginDependency = CanonicalPluginDependency;
 
 export interface PluginHook {
   type: HookType;

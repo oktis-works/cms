@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
-import { getConnection } from '../connection.js';
+import { getConnection, sqlId } from '../connection.js';
 
 export interface MigrationFile {
   name: string;
@@ -219,22 +219,48 @@ export async function runMigrations(
 /**
  * Aplica todas as migrations de um plugin em ordem de versão (idempotente).
  * Usado no install/upgrade do plugin; cada migration roda em transação própria.
+ * 
+ * WP8: cria schema `plugin_<name>` e aplica RLS automático nas tabelas criadas.
  */
 export async function runPluginMigrations(
   tenantId: string,
   owner: string,
   files: Array<Pick<MigrationFile, 'version' | 'name' | 'sql'>>
 ): Promise<number> {
+  // Deriva o nome do plugin do owner (ex.: "plugin_seo" → "seo")
+  const pluginName = owner.startsWith('plugin_') ? owner.slice(7) : owner;
+  const schemaName = `plugin_${pluginName}`;
+
   let applied = 0;
   const sorted = [...files].sort((a, b) => a.version.localeCompare(b.version));
+  
   for (const file of sorted) {
     const before = await getAppliedMigrations(tenantId);
+    
+    // Executa a migration dentro do schema do plugin com RLS
+    await getConnection().begin(async (tx) => {
+      // Define tenant context para RLS
+      await tx`SELECT set_config('app.current_tenant_id', ${tenantId}, false)`;
+      
+      // Cria schema do plugin se não existe e concede uso
+      await tx`CREATE SCHEMA IF NOT EXISTS ${sqlId(schemaName)}`;
+      await tx`GRANT USAGE ON SCHEMA ${sqlId(schemaName)} TO CURRENT_ROLE`;
+      
+      // Define search_path para o schema do plugin (tabelas criadas vão para lá)
+      await tx`SET LOCAL search_path = ${sqlId(schemaName)}, public`;
+      
+      // Executa a migration
+      await tx.unsafe(extractUpSection(file.sql));
+    });
+    
+    // Registra a migration (na tabela core.migrations, não no schema do plugin)
     await applyMigration(tenantId, {
       ...file,
       owner,
       ownerType: 'PLUGIN',
       checksum: computeChecksum(file.sql),
     });
+    
     const after = await getAppliedMigrations(tenantId);
     if (after.length > before.length) applied++;
   }
@@ -261,13 +287,15 @@ export async function rollbackPluginMigrations(
   if (applied.length === 0) return 0;
 
   if (downSql) {
-    await sql.begin(async (tx) => {
+    const conn = getConnection();
+    await conn.begin(async (tx) => {
       await tx`SELECT set_config('app.current_tenant_id', ${tenantId}, false)`;
       await tx.unsafe(downSql);
     });
   }
 
-  await sql`
+  const conn = getConnection();
+  await conn`
     DELETE FROM migrations
     WHERE tenant_id = ${tenantId} AND owner = ${owner}
   `;

@@ -203,6 +203,8 @@ export interface PluginInfo {
   name: string;
   version: string;
   status: string;
+  /** Se o plugin está ativo para o tenant da sessão (true) ou não (false). */
+  enabled?: boolean;
   manifest?: {
     name: string;
     version: string;
@@ -1015,24 +1017,37 @@ export class ApiClient {
       name: String(plugin['name'] ?? ''),
       version: String(plugin['version'] ?? ''),
       status: String(plugin['status'] ?? 'INSTALLED'),
+      enabled: plugin['enabled'] === true,
       manifest: (plugin['manifest'] as PluginInfo['manifest']) ?? null,
     }));
   }
 
-  async activatePlugin(id: string): Promise<PluginInfo> {
-    return this.request('POST', `/api/v1/plugins/${id}/activate`);
+  async activatePlugin(id: string, tenantId: string): Promise<PluginInfo> {
+    return this.request('POST', `/api/v1/plugins/${id}/activate`, { tenantId });
   }
 
-  async deactivatePlugin(id: string): Promise<PluginInfo> {
-    return this.request('POST', `/api/v1/plugins/${id}/deactivate`);
-  }
-
-  async installPlugin(data: { name: string; version: string; manifest: Record<string, unknown> }): Promise<PluginInfo> {
-    return this.request('POST', '/api/v1/plugins/install', data);
+  async deactivatePlugin(id: string, tenantId: string): Promise<PluginInfo> {
+    return this.request('POST', `/api/v1/plugins/${id}/deactivate`, { tenantId });
   }
 
   async uninstallPlugin(id: string): Promise<void> {
     await this.request('DELETE', `/api/v1/plugins/${id}`);
+  }
+
+  /** Estado de runtime dos plugins (WP2) — por escopo platform/tenant. */
+  async getPluginsRuntime(): Promise<{
+    generatedAt: string;
+    scopes: Array<{
+      scope: string;
+      tenantId: string | null;
+      loadedAt: string;
+      enabled: string[];
+      loaded: string[];
+      unloaded: string[];
+      failed: Array<{ name: string; error: string }>;
+    }>;
+  }> {
+    return this.request('GET', '/api/v1/plugins/runtime');
   }
 }
 

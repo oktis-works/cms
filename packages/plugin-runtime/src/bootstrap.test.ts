@@ -175,3 +175,104 @@ describe('bootstrapPlugins', () => {
     expect(result.failed[0]!.error).toContain('requer OkCMS');
   }, 30000);
 });
+
+describe('escopo por tenant (WP3)', () => {
+  it('platform lê plugins com tenant_id IS NULL; tenant lê plugin_tenants', async () => {
+    writePlugin('plugin-p', {
+      'index.js': 'export default { register() {} };',
+    });
+
+    const platformSql = { unsafe: vi.fn(async () => [{ name: 'plugin-p' }]) };
+    await bootstrapPlugins({ pluginsDir, sql: platformSql, registry });
+    const platformCalls = platformSql.unsafe.mock.calls as unknown as Array<[string, string[]]>;
+    expect(platformCalls.length).toBeGreaterThan(0);
+    const [platformQuery, platformParams] = platformCalls[0]!;
+    expect(platformQuery).toContain('tenant_id IS NULL');
+    expect(platformParams).toEqual([['ACTIVATED', 'RUNNING']]);
+
+    const tenantSql = { unsafe: vi.fn(async () => [{ name: 'plugin-p' }]) };
+    const tenantRegistry = new HookRegistry();
+    await bootstrapPlugins({ pluginsDir, sql: tenantSql, registry: tenantRegistry, tenantId: 'tenant-a' });
+    const tenantCalls = tenantSql.unsafe.mock.calls as unknown as Array<[string, string[]]>;
+    expect(tenantCalls.length).toBeGreaterThan(0);
+    const [tenantQuery, tenantParams] = tenantCalls[0]!;
+    expect(tenantQuery).toContain('plugin_tenants');
+    expect(tenantParams).toEqual(['tenant-a']);
+  }, 30000);
+
+  it('plugin habilitado num tenant não entra no registry de outro nem no platform', async () => {
+    writePlugin('plugin-isolado', {
+      'index.js':
+        "export default { register(registry) { registry.addFilter('plugin.iso:v', (v) => v + '!'); } };",
+    });
+
+    const sql = sqlWith([{ name: 'plugin-isolado' }]);
+    const registryA = new HookRegistry();
+    const registryB = new HookRegistry();
+    const registryPlatform = new HookRegistry();
+
+    await bootstrapPlugins({ pluginsDir, sql: sqlWith([{ name: 'plugin-isolado' }]), registry: registryA, tenantId: 'tenant-a' });
+    await bootstrapPlugins({ pluginsDir, sql: sqlWith([]), registry: registryB, tenantId: 'tenant-b' });
+    await bootstrapPlugins({ pluginsDir, sql: sqlWith([]), registry: registryPlatform });
+    void sql;
+
+    expect(registryA.applyFilters('plugin.iso:v', 'x')).toBe('x!');
+    expect(registryB.applyFilters('plugin.iso:v', 'x')).toBe('x');
+    expect(registryPlatform.applyFilters('plugin.iso:v', 'x')).toBe('x');
+  }, 30000);
+
+  it('escopos são independentes: descarregar um não derruba o outro', async () => {
+    writePlugin('plugin-x', {
+      'index.js':
+        "export default { register(registry) { registry.addFilter('bootstrap:x', (v) => v + '!'); } };",
+    });
+
+    const registryA = new HookRegistry();
+    const registryB = new HookRegistry();
+
+    await bootstrapPlugins({ pluginsDir, sql: sqlWith([{ name: 'plugin-x' }]), registry: registryA, tenantId: 'tenant-a' });
+    await bootstrapPlugins({ pluginsDir, sql: sqlWith([{ name: 'plugin-x' }]), registry: registryB, tenantId: 'tenant-b' });
+
+    const offA = await bootstrapPlugins({ pluginsDir, sql: sqlWith([]), registry: registryA, tenantId: 'tenant-a' });
+    expect(offA.unloaded).toEqual(['plugin-x']);
+    expect(registryA.hasFilter('bootstrap:x')).toBe(false);
+    expect(registryB.hasFilter('bootstrap:x')).toBe(true);
+  }, 30000);
+});
+
+describe('política de permissões (WP5)', () => {
+  it('manifesto com permissão fora da política é failed isolado', async () => {
+    writePlugin(
+      'plugin-root',
+      { 'index.js': 'export default { register() {} };' },
+      { permissions: ['root:shell'] }
+    );
+
+    const result = await bootstrapPlugins({
+      pluginsDir,
+      sql: sqlWith([{ name: 'plugin-root' }]),
+      registry,
+    });
+
+    expect(result.loaded).toEqual([]);
+    expect(result.failed[0]!.error).toContain('Plugin permission denied: root:shell');
+  }, 30000);
+
+  it('política concedida pelo chamador habilita a permissão', async () => {
+    writePlugin(
+      'plugin-ok-perm',
+      { 'index.js': 'export default { register() {} };' },
+      { permissions: ['content:read'] }
+    );
+
+    const result = await bootstrapPlugins({
+      pluginsDir,
+      sql: sqlWith([{ name: 'plugin-ok-perm' }]),
+      registry,
+      permissionPolicy: ['content:read'],
+    });
+
+    expect(result.loaded).toEqual(['plugin-ok-perm']);
+    expect(result.failed).toEqual([]);
+  }, 30000);
+});

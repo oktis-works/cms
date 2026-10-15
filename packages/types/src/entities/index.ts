@@ -243,23 +243,36 @@ export type PluginStatus =
   | 'MIGRATION_FAILED'
   | 'ACTIVATION_FAILED'
   | 'INCOMPATIBLE'
-  | 'QUARANTINED';
+  | 'QUARANTINED'
+  /** Sumiu do disco na última sync (vínculos por tenant preservados). */
+  | 'MISSING'
+  /** Falhou ao executar register()/carregar (mensagem em `error`). */
+  | 'LOAD_FAILED';
 
-/** RULE-tenant-plugin-scope: platform = global para todos os tenants; tenant = restrito ao tenant. */
+/** RULE-tenant-plugin-scope: platform = artefato global; tenant = escopo declarado. */
 export type PluginScope = 'platform' | 'tenant';
 
+/**
+ * Manifesto canônico de plugin (fonte única — `@oktis-works/plugin-sdk`
+ * re-exporta este tipo). Campos de compatibilidade/formato são opcionais:
+ * um manifesto real nem sempre traz `cmsVersion`/`entrypoints` (formato npm
+ * usa `main`).
+ */
 export interface PluginManifest {
   name: string;
   version: string;
-  cmsVersion: string;
+  /** Entrpoint no formato npm/OkCMS (`index.js`). */
+  main?: string;
+  type?: 'plugin' | 'theme';
+  cmsVersion?: string;
   sdkVersion?: string;
   scope?: PluginScope;
   compatibility?: { okcms: string };
   description?: string;
   author?: string;
-  permissions: string[];
-  dependencies: PluginDependency[];
-  entrypoints: {
+  permissions?: string[];
+  dependencies?: PluginDependency[];
+  entrypoints?: {
     server?: string;
     admin?: string;
   };
@@ -268,8 +281,11 @@ export interface PluginManifest {
 
 export interface PluginDependency {
   name: string;
-  versionRange: string;
-  optional: boolean;
+  /** Range semver da dependência (formato npm usa `version`). */
+  versionRange?: string;
+  version?: string;
+  optional?: boolean;
+  required?: boolean;
 }
 
 export interface Plugin extends Timestamps {

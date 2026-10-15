@@ -11,7 +11,11 @@ vi.mock('@oktis-works/database', () => ({
   })),
 }));
 vi.mock('@oktis-works/plugin-runtime', () => ({
-  getHookRegistry: vi.fn(() => ({ addFilter: vi.fn(), doAction: vi.fn() })),
+  getHookRegistry: vi.fn(() => ({
+    addFilter: vi.fn(),
+    doAction: vi.fn(),
+    applyFilters: vi.fn((hook, value) => value),
+  })),
 }));
 vi.mock('@oktis-works/core', () => ({
   postTypeRegistry: { list: vi.fn(async () => []) },

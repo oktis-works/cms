@@ -4,6 +4,7 @@ import { loadConfig } from '@oktis-works/config';
 import { ApplicationLifecycle } from '../lifecycle/index.js';
 import { establishTenantContext } from '../tenant/context.js';
 import { syncEnabledPlugins } from '../plugin/load.js';
+import { installHookRuntimeWiring } from '../hooks/wiring.js';
 
 export interface BootstrapOptions {
   configPath?: string;
@@ -15,9 +16,15 @@ export async function bootstrap(_options: BootstrapOptions = {}): Promise<Applic
 
   await lifecycle.start();
 
-  // Plugins habilitados (ACTIVATED/RUNNING) entram no registry compartilhado
-  // de hooks. Internamente nunca lança: plugin quebrado ou banco indisponível
-  // não impedem o boot (isolamento de falha).
+  // Fiação do runtime de hooks: catálogo oficial (allowlist em dev) + resolução
+  // de registry por tenant. Antes de qualquer carga de plugin.
+  installHookRuntimeWiring();
+
+  // Plugins habilitados da plataforma (plugin_tenants/ACTIVATED) entram no
+  // registry platform. Internamente nunca lança: plugin quebrado ou banco
+  // indisponível não impedem o boot (isolamento de falha). Os plugins por
+  // tenant são carregados sob demanda (ensureTenantPluginsLoaded) quando a
+  // requisição já tem contexto de tenant.
   await syncEnabledPlugins();
 
   return lifecycle;

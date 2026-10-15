@@ -49,23 +49,25 @@ beforeEach(() => {
 const plugin = (name: string, scope: string | null) =>
   ({ id: name, name, manifest: { scope }, tenant_id: 'tenant-2' }) as never;
 
-describe('PluginService.list — tenant/platform scope', () => {
-  it('com tenantId retorna platform + do próprio tenant (query parametrizada)', async () => {
+describe('PluginService.list — artefato platform + vínculo do tenant', () => {
+  it('com tenantId traz o estado de vínculo (plugin_tenants) do próprio tenant', async () => {
     rows = [plugin('seo', 'platform'), plugin('loja', null), plugin('interno', 'tenant')];
 
     const result = await new PluginService().list('tenant-2');
 
     expect(lastQuery!.values).toEqual(['tenant-2']);
-    expect(lastQuery!.text).toContain("'platform'");
+    expect(lastQuery!.text).toContain('plugin_tenants');
+    expect(lastQuery!.text).toContain("pt.status = 'ENABLED'");
     expect(result).toHaveLength(3);
   });
 
-  it('sem tenantId retorna apenas escopo platform/legacy', async () => {
+  it('sem tenantId retorna a visão plataforma (enabled=false)', async () => {
     rows = [plugin('seo', 'platform')];
 
     const result = await new PluginService().list();
 
     expect(lastQuery!.values).toHaveLength(0);
+    expect(lastQuery!.text).toContain('false AS enabled');
     expect(result).toHaveLength(1);
   });
 });
@@ -92,10 +94,11 @@ describe('PluginService mutações — REQ-observability-004', () => {
       { id: 'p1', status: 'ACTIVATED' },
     ];
 
-    await new PluginService().activate('p1');
+    await new PluginService().activate('p1', 'tenant-1');
 
     expect(lastQuery!.text).toContain('INSERT INTO audit_logs');
     expect(lastQuery!.values[2]).toBe('plugin.activate');
+    expect(allQueries.some((q) => q.text.includes('INSERT INTO plugin_tenants'))).toBe(true);
   });
 });
 
@@ -172,10 +175,10 @@ describe('Ciclo de vida avançado — instalação, ativação e desativação',
       },
     ];
 
-    await expect(new PluginService().activate('p1')).rejects.toThrow('ACTIVATION_FAILED');
+    await expect(new PluginService().activate('p1', 'tenant-1')).rejects.toThrow('ACTIVATION_FAILED');
   });
 
-  it('activate aceita range satisfazível e transiciona para ACTIVATED', async () => {
+  it('activate vincula o plugin ao tenant (plugin_tenants ENABLED)', async () => {
     rows = [
       {
         id: 'p1',
@@ -185,24 +188,51 @@ describe('Ciclo de vida avançado — instalação, ativação e desativação',
       },
     ];
 
-    const activated = await new PluginService().activate('p1');
+    const activated = await new PluginService().activate('p1', 'tenant-1');
 
     expect(activated).not.toBeNull();
-    expect(allQueries.some((q) => q.text.includes('SET status = $1') && q.values.includes('ACTIVATED'))).toBe(true);
+    const link = allQueries.find((q) => q.text.includes('INSERT INTO plugin_tenants'));
+    expect(link).toBeDefined();
+    expect(link!.text).toContain("'ENABLED'");
+    expect(link!.values).toEqual(expect.arrayContaining(['p1', 'tenant-1']));
+    // ativação exige tenant explícito — não há ativação "global" implícita
+    await expect(new PluginService().activate('p1', '')).rejects.toThrow('tenantId');
+  });
+
+  it('activate recusa plugin em quarentena ou removido', async () => {
+    rows = [{ id: 'p1', name: 'q', status: 'QUARANTINED', manifest: {}, error: 'fora do catálogo' }];
+    await expect(new PluginService().activate('p1', 'tenant-1')).rejects.toThrow('ACTIVATION_FAILED');
+
+    rows = [{ id: 'p2', name: 'gone', status: 'MISSING', manifest: {} }];
+    await expect(new PluginService().activate('p2', 'tenant-1')).rejects.toThrow('Invalid plugin transition');
   });
 
   it('deactivate notifica dependentes ativos via evento plugin.deactivated', async () => {
     queue = [
-      [{ id: 'p1', name: 'base', status: 'ACTIVATED', manifest: {} }],
-      [{ id: 'p1', name: 'base', status: 'DEACTIVATED' }],
+      [{ id: 'p1', name: 'base', status: 'INSTALLED', manifest: {} }],
+      [{ id: 'p1', status: 'ENABLED' }],
+      [{ id: 'p1', name: 'base', status: 'INSTALLED', manifest: {} }],
       [{ id: 'd1', name: 'extensao' }],
+      [{ id: 'p1', name: 'base', status: 'INSTALLED', manifest: {} }],
     ];
 
-    await new PluginService().deactivate('p1');
+    await new PluginService().deactivate('p1', 'tenant-1');
 
     expect(emittedEvents).toHaveLength(1);
     expect(emittedEvents[0]!.type).toBe('plugin.deactivated');
     expect(emittedEvents[0]!.payload['dependents']).toEqual(['extensao']);
+    expect(emittedEvents[0]!.payload['tenantId']).toBe('tenant-1');
+    expect(allQueries.some((q) => q.text.includes("SET status = 'DISABLED'"))).toBe(true);
     expect(allQueries.some((q) => q.text.includes('plugin_dependencies'))).toBe(true);
+  });
+
+  it('deactivate falha quando o plugin não está vinculado ao tenant', async () => {
+    queue = [
+      [{ id: 'p1', name: 'base', status: 'INSTALLED', manifest: {} }],
+      [], // sem vínculo
+    ];
+
+    await expect(new PluginService().deactivate('p1', 'tenant-1')).rejects.toThrow('não está vinculado');
+    expect(emittedEvents).toHaveLength(0);
   });
 });

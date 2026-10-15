@@ -189,8 +189,8 @@ export function resolveThemeStylesheet(themesRoot: string, activeTheme: string):
 
 /**
  * B1 — envolve o fragmento do template num documento completo com title/meta
- * das settings + CSS do tema. Template que já emite documento completo passa
- * intocado (temas headless/full-control).
+ * das settings + CSS do tema + injeções de plugins via hook `theme:head`.
+ * Template que já emite documento completo passa intocado (temas headless/full-control).
  */
 export function wrapDocument(
   body: string,
@@ -209,6 +209,14 @@ export function wrapDocument(
     ? `  <link rel="stylesheet" href="/themes/${escapeHtml(stylesheetTheme)}/dist/theme.css" data-theme-style="${escapeHtml(stylesheetTheme)}" />\n`
     : '';
 
+  // WP6: ponto de extensão theme:head — plugins injetam tags no <head>
+  const registry = getHookRegistry();
+  const headInjections = registry.applyFilters(
+    HOOK_POINTS.THEME_HEAD,
+    '',
+    { settings, activeTheme }
+  );
+
   return `<!DOCTYPE html>
 <html lang="${lang}">
 <head>
@@ -216,7 +224,7 @@ export function wrapDocument(
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${escapeHtml(title)}</title>
   <meta name="description" content="${escapeHtml(settings.siteDescription)}">
-${stylesheet}</head>
+${stylesheet}${headInjections}</head>
 <body>
 ${body}
 </body>
@@ -237,6 +245,15 @@ function plainColumns(row: Record<string, unknown>): Record<string, unknown> {
 function renderFallbackPage(input: ContentPageRenderInput): string {
   const title = toText((input.contentRow ?? {})['title']) || input.settings.siteTitle;
   const lang = escapeHtml(input.settings.language || 'pt-BR');
+
+  // WP6: ponto de extensão theme:head — plugins injetam tags no <head>
+  const registry = getHookRegistry();
+  const headInjections = registry.applyFilters(
+    HOOK_POINTS.THEME_HEAD,
+    '',
+    { settings: input.settings, activeTheme: input.activeTheme }
+  );
+
   return `<!DOCTYPE html>
 <html lang="${lang}">
 <head>
@@ -252,7 +269,7 @@ function renderFallbackPage(input: ContentPageRenderInput): string {
     summary { cursor: pointer; color: #555; }
     pre { background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 6px; padding: 1rem; overflow: auto; font-size: 0.85rem; }
   </style>
-</head>
+${headInjections}</head>
 <body>
   <main data-theme="${escapeHtml(input.activeTheme)}">
     <article>

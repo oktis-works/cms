@@ -93,6 +93,20 @@ export interface CacheConfig {
   prefix: string;
 }
 
+export interface PluginsConfig {
+  /**
+   * Allowlist de permissões concedidas a plugins (catálogo de permissões).
+   * Default: catálogo completo; a configuração só restringe.
+   */
+  allowedPermissions: string[];
+  /** Timeout de callbacks de hook em ms (0 = sem timeout). */
+  hookTimeoutMs: number;
+  /** TTL (ms) do cache de plugins carregados por tenant. */
+  tenantLoadTtlMs: number;
+  /** Máximo de tenants com plugins carregados em memória (LRU). */
+  maxLoadedTenants: number;
+}
+
 export interface Config {
   app: AppConfig;
   database: DatabaseConfig;
@@ -101,6 +115,7 @@ export interface Config {
   storage: StorageConfig;
   worker: WorkerConfig;
   cache: CacheConfig;
+  plugins: PluginsConfig;
 }
 
 function getEnv(key: string, defaultValue?: string): string {
@@ -290,6 +305,16 @@ export function loadConfig(): Config {
     cache: {
       ttl: getEnvInt('CACHE_TTL', 3600),
       prefix: getEnv('CACHE_PREFIX', 'bl:'),
+    },
+    plugins: {
+      // Política de permissões: sem env → catálogo completo (validation)
+      allowedPermissions: getEnv('OKCMS_PLUGIN_PERMISSIONS', '')
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean),
+      hookTimeoutMs: getEnvInt('OKCMS_PLUGIN_HOOK_TIMEOUT_MS', 5000),
+      tenantLoadTtlMs: getEnvInt('OKCMS_PLUGIN_TENANT_TTL_MS', 30000),
+      maxLoadedTenants: getEnvInt('OKCMS_PLUGIN_MAX_TENANTS', 100),
     },
   };
 }

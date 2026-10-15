@@ -9,6 +9,12 @@ export interface Permission {
 export interface RolePermissions {
   role: string;
   permissions: Permission[];
+  /**
+   * Negações explícitas (valem mesmo contra um wildcard na permissão).
+   * Ex.: o gestor do tenant vê plugins (`read`) mas só o SUPER_ADMIN
+   * instala/ativa/remove (`create`/`update`/`delete`).
+   */
+  denies?: Permission[];
 }
 
 export interface RBACPolicy {
@@ -29,6 +35,14 @@ const DEFAULT_POLICY: RBACPolicy = {
       // `roles` vs política `role`, taxonomy, content-type...) e davam 403
       // para o próprio dono do tenant.
       permissions: [{ action: '*', resource: '*' }],
+      // ...menos gestão de plugins: instalação/ativação/remoção é operação de
+      // plataforma (SUPER_ADMIN). Listar (`read`) continua liberado, afinal o
+      // gestor do tenant precisa ver o que está ativo nele.
+      denies: [
+        { action: 'create', resource: 'plugin' },
+        { action: 'update', resource: 'plugin' },
+        { action: 'delete', resource: 'plugin' },
+      ],
     },
     {
       role: 'EDITOR',
@@ -73,6 +87,12 @@ export class RBACService {
   }
 
   hasPermission(userRoles: string[], action: string, resource: string, context?: Record<string, unknown>): boolean {
+    // Denies vencem wildcard (ex.: TENANT_ADMIN vê plugins, não os gerencia) —
+    // exceto para o operador de plataforma, que a política nunca restringe.
+    if (!userRoles.includes('SUPER_ADMIN') && this.isDenied(userRoles, action, resource)) {
+      return false;
+    }
+
     const allPermissions = this.resolvePermissions(userRoles);
 
     return allPermissions.some(permission => {
@@ -91,6 +111,40 @@ export class RBACService {
 
       return true;
     });
+  }
+
+  private isDenied(userRoles: string[], action: string, resource: string): boolean {
+    return this.walkRoles(userRoles, (rolePerms) => rolePerms.denies ?? []).some((deny) => {
+      const actionMatch = deny.action === '*' || deny.action === action;
+      const resourceMatch = deny.resource === '*' || deny.resource === resource;
+      return actionMatch && resourceMatch;
+    });
+  }
+
+  private walkRoles(roles: string[], extractor: (rolePerms: RolePermissions) => Permission[]): Permission[] {
+    const result: Permission[] = [];
+    const visited = new Set<string>();
+
+    const resolve = (role: string) => {
+      if (visited.has(role)) return;
+      visited.add(role);
+
+      const rolePerms = this.policy.roles.find(r => r.role === role);
+      if (rolePerms) {
+        result.push(...extractor(rolePerms));
+      }
+
+      const inherited = this.policy.inheritance[role] ?? [];
+      for (const inheritedRole of inherited) {
+        resolve(inheritedRole);
+      }
+    };
+
+    for (const role of roles) {
+      resolve(role);
+    }
+
+    return result;
   }
 
   getUserPermissions(userRoles: string[]): Permission[] {

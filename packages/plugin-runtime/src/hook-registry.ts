@@ -47,9 +47,43 @@ export class HookRegistry {
   private readonly auditLog: AuditLogEntry[] = [];
   private devMode = false;
   private trustLevels = new Map<string, number>();
+  /** Nomes de hooks oficiais (catálogo do core) — sempre aceitos em dev. */
+  private readonly knownHooks = new Set<string>();
+  /** Prefixos de hooks oficiais parametrizados (terminam em '*'). */
+  private readonly knownPrefixes: string[] = [];
 
   setDevMode(enabled: boolean): void {
     this.devMode = enabled;
+  }
+
+  /**
+   * Registra o catálogo de hooks oficiais do core. Em modo dev a regra de
+   * prefixo (`okcms.`/`plugin.`) continua exigida para hooks customizados,
+   * mas os nomes oficiais (`content:query`, `theme:data:*`, ...) são
+   * aceitos — sem isso, o próprio catálogo do core é reprovado em dev.
+   *
+   * Entradas terminadas em `*` viram prefixos (ex.: `theme:data:*`,
+   * `manage:*`, `before_publish_content_*`).
+   *
+   * O runtime não depende do core (seria ciclo): quem conhece o catálogo é
+   * o chamador (bootstrap do core) e injeta aqui.
+   */
+  setKnownHooks(names: Iterable<string>): void {
+    for (const name of names) {
+      if (name.endsWith('*')) this.knownPrefixes.push(name.slice(0, -1));
+      else this.knownHooks.add(name);
+    }
+  }
+
+  clearKnownHooks(): void {
+    this.knownHooks.clear();
+    this.knownPrefixes.length = 0;
+  }
+
+  /** True quando o nome pertence ao catálogo oficial (exato ou por prefixo). */
+  isKnownHook(action: string): boolean {
+    if (this.knownHooks.has(action)) return true;
+    return this.knownPrefixes.some((prefix) => action.startsWith(prefix));
   }
 
   setTrustLevel(sourceId: string, level: number): void {
@@ -251,9 +285,9 @@ export class HookRegistry {
   private authorizeRegistration(action: string, options: AddHookOptions): boolean {
     const sourceId = options.sourceId ?? 'anonymous';
 
-    if (this.devMode && !isPrefixed(action)) {
+    if (this.devMode && !isPrefixed(action) && !this.isKnownHook(action)) {
       throw new Error(
-        `[hooks] Em modo dev, hooks customizados devem ser prefixados ("${CORE_PREFIX}..." ou "plugin.<id>...."). Recebido: "${action}"`
+        `[hooks] Em modo dev, hooks customizados devem ser prefixados ("${CORE_PREFIX}..." ou "plugin.<id>....") ou pertencer ao catálogo oficial. Recebido: "${action}"`
       );
     }
 
@@ -319,19 +353,130 @@ export class HookRegistry {
   }
 }
 
-let globalRegistry: HookRegistry | null = null;
+/** Nomes do catálogo do core injetados via store — aplicados a novos registries. */
+const pendingKnownHooks: string[] = [];
 
-export function getHookRegistry(): HookRegistry {
-  if (!globalRegistry) {
-    globalRegistry = new HookRegistry();
-    globalRegistry.setDevMode(process.env['NODE_ENV'] !== 'production');
-  }
-  return globalRegistry;
+function createDefaultRegistry(): HookRegistry {
+  const registry = new HookRegistry();
+  registry.setDevMode(process.env['NODE_ENV'] !== 'production');
+  if (pendingKnownHooks.length > 0) registry.setKnownHooks(pendingKnownHooks);
+  return registry;
 }
 
 /**
- * Substitui o registry global. Uso interno: testes e hot-reload de plugins.
+ * Resolução síncrona do tenant ativo. Injetado pelo core (ALS de tenant);
+ * sem contexto → registry platform (hooks do core).
+ */
+let hookTenantResolver: () => string | null = () => null;
+
+export function setHookTenantResolver(resolver: () => string | null): void {
+  hookTenantResolver = resolver;
+}
+
+export function getCurrentHookTenantId(): string | null {
+  try {
+    return hookTenantResolver();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Store de registries por tenant (isolamento de plugins por tenant).
+ *
+ * - `platform`: hooks do core (`okcms.*`) — compartilhado por todo o processo;
+ * - `tenant(tenantId)`: hooks dos plugins habilitados daquele tenant, criado
+ *   sob demanda e descarregável (invalidate/drop).
+ *
+ * O contrato é `tenant(id)` para poder evoluir para vm/worker por tenant sem
+ * mudar quem chama (`getHookRegistry()` continua síncrono).
+ */
+export class HookRegistryStore {
+  private platformRegistry: HookRegistry;
+  private readonly byTenant = new Map<string, HookRegistry>();
+
+  constructor(platform?: HookRegistry) {
+    this.platformRegistry = platform ?? createDefaultRegistry();
+  }
+
+  platform(): HookRegistry {
+    return this.platformRegistry;
+  }
+
+  setPlatform(registry: HookRegistry): void {
+    this.platformRegistry = registry;
+  }
+
+  /** Registry do tenant (criado sob demanda com devMode + catálogo do core). */
+  tenant(tenantId: string): HookRegistry {
+    let registry = this.byTenant.get(tenantId);
+    if (!registry) {
+      registry = createDefaultRegistry();
+      this.byTenant.set(tenantId, registry);
+    }
+    return registry;
+  }
+
+  hasTenant(tenantId: string): boolean {
+    return this.byTenant.has(tenantId);
+  }
+
+  tenantIds(): string[] {
+    return [...this.byTenant.keys()];
+  }
+
+  /**
+   * Descarrega os hooks de um tenant (ativação/desativação, LRU, shutdown).
+   * Retorna true quando havia um registry carregado.
+   */
+  invalidateTenant(tenantId: string): boolean {
+    return this.byTenant.delete(tenantId);
+  }
+
+  clearTenants(): void {
+    this.byTenant.clear();
+  }
+
+  /** Propaga o catálogo do core para todos os registries (atuais e futuros). */
+  setKnownHooks(names: Iterable<string>): void {
+    const list = [...names];
+    pendingKnownHooks.length = 0;
+    pendingKnownHooks.push(...list);
+    this.platformRegistry.setKnownHooks(list);
+    for (const registry of this.byTenant.values()) registry.setKnownHooks(list);
+  }
+
+  get size(): number {
+    return this.byTenant.size;
+  }
+}
+
+let globalStore: HookRegistryStore | null = null;
+
+export function getHookRegistryStore(): HookRegistryStore {
+  if (!globalStore) globalStore = new HookRegistryStore();
+  return globalStore;
+}
+
+/**
+ * Registry do escopo atual: tenant quando há contexto de tenant (plugins por
+ * tenant), platform quando não há (hooks do core).
+ */
+export function getHookRegistry(): HookRegistry {
+  const store = getHookRegistryStore();
+  const tenantId = getCurrentHookTenantId();
+  return tenantId ? store.tenant(tenantId) : store.platform();
+}
+
+/**
+ * Substitui o registry platform. Uso interno: testes e hot-reload de plugins.
  */
 export function setHookRegistry(registry: HookRegistry): void {
-  globalRegistry = registry;
+  getHookRegistryStore().setPlatform(registry);
+}
+
+/** Troca o store inteiro (testes). */
+export function setHookRegistryStore(store: HookRegistryStore | null): void {
+  globalStore = store;
+  if (store === null) pendingKnownHooks.length = 0;
 }
