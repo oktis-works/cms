@@ -1,7 +1,10 @@
 // @oktis-works/cms - Wizard: entrevista de variáveis de ambiente
 //
-// Entrevista campo a campo das 47 variáveis do projeto (ENV_FIELDS é a fonte
-// única de verdade — label, descrição, exemplo, tipo e validação vêm de lá).
+// Entrevista campo a campo das variáveis ESSENCIAIS do projeto (ENV_FIELDS é
+// a fonte única de verdade — label, descrição, exemplo, tipo e validação vêm
+// de lá; só os campos com essential: true são perguntados, mais os selects de
+// engine/mode do banco). O hint do menu mostra o número REAL de perguntas
+// (passos aplicáveis ao .env atual) — não o total do schema.
 // Regras, decididas com o usuário:
 //
 //   • TODOS os campos aparecem em todas as sessões (nada de "só os vazios");
@@ -60,6 +63,45 @@ export interface InterviewResult {
   changed: string[];
 }
 
+/** Um passo da entrevista: select de engine/mode ou campo essencial. */
+type Step =
+  | { kind: 'engine' }
+  | { kind: 'mode' }
+  | { kind: 'field'; field: EnvField; section: (typeof ENV_SECTIONS)[number] };
+
+/**
+ * Monta a lista de passos da entrevista para um registro (estado do .env)
+ * dado: campos `essential` aplicáveis (segundo `when`) + os selects de
+ * engine/mode do banco. Fonte única do que a entrevista PERGUNTA — o hint
+ * do menu usa o comprimento desta lista com o .env atual.
+ */
+function buildInterviewSteps(record: Record<string, string>): Step[] {
+  const steps: Step[] = [];
+  for (const section of ENV_SECTIONS) {
+    if (section.id === 'database') {
+      steps.push({ kind: 'engine' });
+      steps.push({ kind: 'mode' });
+      const mode = record['__db_mode'] ?? 'individual';
+      for (const field of ENV_FIELDS) {
+        if (field.section !== 'database') continue;
+        if (!field.essential) continue;
+        if (field.key === 'DB_ENGINE') continue; // já tratado pelo engine select
+        if (field.key === 'DATABASE_URL' && mode === 'individual') continue;
+        if (field.when && !field.when(record)) continue;
+        steps.push({ kind: 'field', field, section });
+      }
+    } else {
+      for (const field of ENV_FIELDS) {
+        if (field.section !== section.id) continue;
+        if (!field.essential) continue;
+        if (field.when && !field.when(record)) continue;
+        steps.push({ kind: 'field', field, section });
+      }
+    }
+  }
+  return steps;
+}
+
 /**
  * Roda a entrevista completa com navegação linear (b = passo anterior).
  * `opts.skipOption` quando true adiciona a escolha "pular" no primeiro prompt.
@@ -85,7 +127,7 @@ export async function runEnvInterview(
 
   if (opts.skipOption) {
     const pick = await prompt.select<'run' | 'skip'>('env', [
-      { value: 'run', label: 'Configure variables', hint: catalog.envSectionCount(ENV_FIELDS.length) },
+      { value: 'run', label: 'Configure variables', hint: catalog.envSectionCount(buildInterviewSteps(env.toRecord()).length) },
       { value: 'skip', label: catalog.envSkipOption },
     ], { fullClear: true });
     if (pick === 'skip') return { status: 'nothing', changed: [] };
@@ -109,40 +151,8 @@ export async function runEnvInterview(
       return out;
     };
 
-    // ---- lista plana de passos — APENAS essenciais ----
-    type Step =
-      | { kind: 'engine' }
-      | { kind: 'mode' }
-      | { kind: 'field'; field: EnvField; section: (typeof ENV_SECTIONS)[number] };
-
-    const buildSteps = (): Step[] => {
-      const steps: Step[] = [];
-      for (const section of ENV_SECTIONS) {
-        if (section.id === 'database') {
-          steps.push({ kind: 'engine' });
-          steps.push({ kind: 'mode' });
-          const r = record();
-          const mode = r['__db_mode'] ?? 'individual';
-          for (const field of ENV_FIELDS) {
-            if (field.section !== 'database') continue;
-            if (!field.essential) continue;
-            if (field.key === 'DB_ENGINE') continue; // já tratado pelo engine select
-            if (field.key === 'DATABASE_URL' && mode === 'individual') continue;
-            if (field.when && !field.when(r)) continue;
-            steps.push({ kind: 'field', field, section });
-          }
-        } else {
-          const r = record();
-          for (const field of ENV_FIELDS) {
-            if (field.section !== section.id) continue;
-            if (!field.essential) continue;
-            if (field.when && !field.when(r)) continue;
-            steps.push({ kind: 'field', field, section });
-          }
-        }
-      }
-      return steps;
-    };
+    // ---- lista plana de passos — APENAS essenciais (fonte única no módulo) ----
+    const buildSteps = (): Step[] => buildInterviewSteps(record());
 
     let steps = buildSteps();
     let stepIndex = 0;

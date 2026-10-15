@@ -1,4 +1,4 @@
-// @oktis-works/cms - Wizard: entrevista de env (47 campos, explicativa)
+// @oktis-works/cms - Wizard: entrevista de env (campos essenciais, explicativa)
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -142,10 +142,41 @@ describe('catalog completeness', () => {
   });
 });
 
-describe('ENV_FIELDS sizing (wizard promises all fields)', () => {
+describe('ENV_FIELDS sizing', () => {
   it('has 48 fields across 10 sections (DB_ENGINE added)', () => {
     expect(ENV_FIELDS.length).toBe(48);
     expect(ENV_SECTIONS.length).toBe(10);
+  });
+});
+
+describe('menu hint (real question count)', () => {
+  it('shows the questions the interview will really ask — not the schema size', async () => {
+    writeEnv('NODE_ENV=development\n');
+    const io = fakeIO(['2']); // 2ª opção = skip; capturamos só o hint do menu
+    const prompt = new Prompt(io);
+
+    await runEnvInterview({ prompt, catalog: catalogFor('en'), cwd: dir }, { skipOption: true });
+    const output = io.out();
+    prompt.close();
+
+    // .env sem DATABASE_URL: engine + mode + (DB_HOST, DB_PORT, DB_NAME,
+    // DB_USER, DB_PASSWORD) + REDIS_HOST + JWT_SECRET = 9 perguntas — nunca 48
+    expect(output).toContain('9 field(s) in this section');
+    expect(output).not.toContain('48 field(s)');
+  });
+
+  it('counts fewer questions when DATABASE_URL already hides the individual fields', async () => {
+    writeEnv('DATABASE_URL=postgresql://user:pass@localhost:5432/db\n');
+    const io = fakeIO(['2']);
+    const prompt = new Prompt(io);
+
+    await runEnvInterview({ prompt, catalog: catalogFor('en'), cwd: dir }, { skipOption: true });
+    const output = io.out();
+    prompt.close();
+
+    // engine + mode + REDIS_HOST + JWT_SECRET = 4 (os 5 individuais têm
+    // when: !DATABASE_URL e o DATABASE_URL some no modo individual)
+    expect(output).toContain('4 field(s) in this section');
   });
 });
 
