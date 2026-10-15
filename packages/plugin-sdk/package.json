@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/plugin-sdk",
-  "version": "0.5.5",
+  "version": "0.5.6",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -20,7 +20,7 @@
   },
   "devDependencies": {
     "typescript": "5.7.3",
-    "@oktis-works/plugin-runtime": "^0.5.5"
+    "@oktis-works/plugin-runtime": "^0.5.6"
   },
   "files": [
     "dist"
