@@ -340,6 +340,12 @@ export const commands: Command[] = [
       const themesDir = options['themes-dir'] ?? join(process.cwd(), 'themes');
       try {
         const { buildThemeStylesOnDisk } = await import('./theme-build.js');
+        const { migrateThemeManifests } = await import('./theme-migrate.js');
+        // Unificação theme.json: migra manifesto legado antes do build (o
+        // themeManifestPath só lê o nome canônico).
+        for (const migrated of migrateThemeManifests(themesDir)) {
+          console.log(`migrated theme manifest: ${migrated} -> theme.json`);
+        }
         const outcome = await buildThemeStylesOnDisk(themesDir, name);
         if (!outcome.entry) console.log(`[${name}] no style entry (${outcome.engine})`);
         for (const warning of outcome.warnings) console.warn(`warn: ${warning}`);
@@ -843,6 +849,12 @@ export const commands: Command[] = [
         process.exit(1);
       }
 
+      // Unificação theme.json: migra manifesto legado (manifest.json) antes de
+      // qualquer leitura — --info, --set-active (syncFromDirectory) e o
+      // ThemeService só enxergam o nome canônico.
+      const { migrateThemeManifests } = await import('./theme-migrate.js');
+      migrateThemeManifests(join(process.cwd(), loadProjectConfig().themesDir));
+
       if (options['uninstall'] !== undefined) {
         const { uninstallExtension } = await import('./extensions-state.js');
         const result = uninstallExtension('theme', name);
@@ -909,12 +921,9 @@ export const commands: Command[] = [
 
       const config = loadProjectConfig();
       const themeDir = join(process.cwd(), config.themesDir, name);
-      // theme.json é o nome atual; manifest.json é o legado (tema default)
-      const themeJsonPath = [join(themeDir, 'theme.json'), join(themeDir, 'manifest.json')].find((candidate) =>
-        existsSync(candidate)
-      );
+      const themeJsonPath = join(themeDir, 'theme.json');
       try {
-        if (!themeJsonPath) throw new Error('manifesto não encontrado');
+        if (!existsSync(themeJsonPath)) throw new Error('manifesto não encontrado');
         const manifest = JSON.parse(readFileSync(themeJsonPath, 'utf-8')) as Record<string, unknown>;
         const provides = (manifest['provides'] ?? {}) as Record<string, unknown>;
         const state = loadExtensionsState().themes[name];
@@ -926,7 +935,7 @@ export const commands: Command[] = [
         console.log(`Active:     ${config.activeTheme === name ? 'yes' : 'no'} (${config.activeTheme || 'none'})`);
         console.log(`State:      ${state?.enabled === false ? 'disabled' : 'enabled'}`);
       } catch {
-        console.error(`theme.json/manifest.json not found at ${themeDir}`);
+        console.error(`theme.json not found at ${themeDir}`);
         process.exit(1);
       }
     },

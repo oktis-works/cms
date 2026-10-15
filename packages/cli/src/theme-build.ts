@@ -24,15 +24,12 @@ export function readThemeManifest(path: string): any | null {
 }
 
 /**
- * `theme.json` é o canônico (ThemeLoader); `manifest.json` é aceito como
- * fallback para temas antigos que nasceram com esse nome.
+ * `theme.json` é o nome canônico único. O legado `manifest.json` é unificado
+ * pelos entry points do CLI (ver theme-migrate.ts) antes de qualquer leitura.
  */
 export function themeManifestPath(themesDir: string, theme: string): string | null {
-  for (const file of ['theme.json', 'manifest.json']) {
-    const path = join(themesDir, theme, file);
-    if (existsSync(path)) return path;
-  }
-  return null;
+  const path = join(themesDir, theme, 'theme.json');
+  return existsSync(path) ? path : null;
 }
 
 export interface ThemeStyleResolution {
@@ -42,7 +39,7 @@ export interface ThemeStyleResolution {
 }
 
 /**
- * Lê o manifesto (qualquer um dos dois nomes) e resolve engine/entrada/saída.
+ * Lê o manifesto (`theme.json`) e resolve engine/entrada/saída.
  * `null` = arquivo ausente ou JSON inválido.
  */
 export function resolveThemeStyle(themesDir: string, theme: string): ThemeStyleResolution | null {

@@ -31,12 +31,12 @@ describe('DEFAULT_THEME_FILES (tema default embutido no init)', () => {
 
   it('inclui dist/theme.css servível (caminho que o web linka)', () => {
     expect(DEFAULT_THEME_FILES['dist/theme.css']).toContain('--brand');
-    expect(Object.keys(DEFAULT_THEME_FILES)).toContain('manifest.json');
+    expect(Object.keys(DEFAULT_THEME_FILES)).toContain('theme.json');
   });
 
   it('cobre exatamente manifesto + 6 templates + css', () => {
     expect(Object.keys(DEFAULT_THEME_FILES).sort()).toEqual(
-      ['404.astro', 'archive.astro', 'dist/theme.css', 'home.astro', 'index.astro', 'manifest.json', 'page.astro', 'single.astro'].sort()
+      ['404.astro', 'archive.astro', 'dist/theme.css', 'home.astro', 'index.astro', 'theme.json', 'page.astro', 'single.astro'].sort()
     );
   });
 });

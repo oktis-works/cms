@@ -74,21 +74,22 @@ describe('ThemeService.syncFromDirectory', () => {
     expect(result).toHaveLength(1);
   });
 
-  it('aceita manifest.json como fallback legado (tema default distribuído)', async () => {
+  it('NÃO descobre manifesto no nome legado manifest.json (unificação: theme.json é o canônico)', async () => {
     readdirImpl = async () => [{ isDirectory: () => true, name: 'default' }];
     readFileImpl = async (path) => {
       if (path.endsWith('manifest.json')) {
         return JSON.stringify({ name: 'default', version: '0.1.0' });
       }
-      throw new Error('ENOENT'); // theme.json não existe
+      throw new Error('ENOENT'); // theme.json não existe (projeto antigo não migrado)
     };
-    queue = [[], [], [themeRow({ name: 'default' })]];
+    queue = [[themeRow({ name: 'default' })]];
 
     const result = await new ThemeService().syncFromDirectory();
 
-    const insert = allQueries.find((q) => q.text.includes('INSERT INTO themes'));
-    expect(insert!.values).toContain('default');
-    expect(result).toHaveLength(1);
+    // sem theme.json o tema não é descoberto — a migração é dos entry points
+    // do CLI (theme-migrate.ts), não do service
+    expect(allQueries.some((q) => q.text.includes('INSERT INTO themes') || q.text.includes('UPDATE'))).toBe(false);
+    expect(result).toHaveLength(1); // estado do banco intacto
   });
 
   it('sem diretório retorna o estado do banco (não esconde linhas)', async () => {

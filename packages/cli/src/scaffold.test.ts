@@ -50,7 +50,7 @@ describe('scaffoldProject', () => {
       'plugins',
       'migrations',
       // tema default pronto: o projeto novo já renderiza de cara
-      join('themes', 'default', 'manifest.json'),
+      join('themes', 'default', 'theme.json'),
       join('themes', 'default', 'home.astro'),
       join('themes', 'default', 'index.astro'),
       join('themes', 'default', 'single.astro'),

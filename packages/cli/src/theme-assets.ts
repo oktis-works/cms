@@ -4,7 +4,7 @@
 // o site já renderiza de cara (templates .astro na raiz + dist/theme.css
 // servido direto). Mantidos em string porque o package publica só `dist/`.
 
-/** Manifesto do tema default (manifest.json = nome legado, aceito pelo runtime e pelo service). */
+/** Manifesto do tema default (`theme.json` = nome canônico lido por runtime, service e CLI). */
 export const DEFAULT_THEME_MANIFEST = `${JSON.stringify(
   {
     name: 'default',
@@ -200,7 +200,7 @@ export const THEME_TEMPLATE_FILES: Record<string, string> = {
 
 /** Tema default completo gravado pelo `okcms init` (caminhos relativos a themes/default/). */
 export const DEFAULT_THEME_FILES: Record<string, string> = {
-  'manifest.json': DEFAULT_THEME_MANIFEST,
+  'theme.json': DEFAULT_THEME_MANIFEST,
   ...THEME_TEMPLATE_FILES,
   'dist/theme.css': DEFAULT_THEME_CSS,
 };

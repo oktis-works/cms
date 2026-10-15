@@ -57,6 +57,7 @@ import { ENV_FIELDS } from './env-schema.js';
 import { assertHostOnly, generateSecret, type ContainerProbe } from './guards.js';
 import { loadProjectConfig } from './project-config.js';
 import { Prompt } from './prompt.js';
+import { migrateThemeManifests } from './theme-migrate.js';
 import { getInfraComposePath } from './assets.js';
 
 export interface DevUserInput {
@@ -326,6 +327,14 @@ export async function runDev(opts: DevOptions = {}): Promise<number> {
 
   const hooks = opts.hooks ?? (await defaultHooks(log));
   prompt.heading('OkCMS dev');
+
+  // ---- 0. unificação theme.json --------------------------------------------
+  // Projetos antigos gravam o manifesto do tema default como `manifest.json`;
+  // migra antes de subir os apps (o ThemeLoader só lê o nome canônico).
+  const migratedThemes = migrateThemeManifests(join(cwd, loadProjectConfig(cwd).themesDir));
+  if (migratedThemes.length > 0) {
+    log(`theme manifest(s) migrated to theme.json: ${migratedThemes.join(', ')}`);
+  }
 
   // ---- 1. .env -------------------------------------------------------------
   const envPath = join(cwd, '.env');

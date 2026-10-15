@@ -69,26 +69,23 @@ export class ThemeLoader {
   }
 
   private async loadManifest(themePath: string): Promise<ThemeManifest | null> {
-    // theme.json é o nome atual; manifest.json é o legado aceito pelo CLI e
-    // pelo tema default distribuído (evita descobertas divergentes).
-    for (const filename of ['theme.json', 'manifest.json'] as const) {
-      try {
-        const raw = await readFile(join(themePath, filename), 'utf-8');
-        const manifest = JSON.parse(raw) as Partial<ThemeManifest>;
+    // theme.json é o nome canônico único; o legado manifest.json é unificado
+    // pelos entry points do CLI (theme-migrate.ts) antes do boot dos apps.
+    try {
+      const raw = await readFile(join(themePath, 'theme.json'), 'utf-8');
+      const manifest = JSON.parse(raw) as Partial<ThemeManifest>;
 
-        if (!manifest.name || !manifest.version) return null;
+      if (!manifest.name || !manifest.version) return null;
 
-        // validação de estilo exclusiva (avisa em erro, mas não bloqueia descoberta)
-        const errors = validateStyleManifest(manifest as ThemeManifest, themePath);
-        if (errors.length) {
-          console.warn(`[ThemeLoader] ${manifest.name}: ${errors.join('; ')}`);
-        }
-
-        return manifest as ThemeManifest;
-      } catch {
-        // tenta o próximo nome candidato
+      // validação de estilo exclusiva (avisa em erro, mas não bloqueia descoberta)
+      const errors = validateStyleManifest(manifest as ThemeManifest, themePath);
+      if (errors.length) {
+        console.warn(`[ThemeLoader] ${manifest.name}: ${errors.join('; ')}`);
       }
+
+      return manifest as ThemeManifest;
+    } catch {
+      return null;
     }
-    return null;
   }
 }

@@ -40,6 +40,7 @@ import {
   resolveThemeStyle,
   themeManifestPath,
 } from './theme-build.js';
+import { migrateThemeManifests } from './theme-migrate.js';
 import { resolveDeployChoices } from './update.js';
 
 /**
@@ -391,9 +392,21 @@ export async function runRedeploy(opts: RedeployOptions = {}): Promise<number> {
   process.once('SIGINT', onInterrupt);
 
   try {
-    const plan = planRedeploy({ cwd, plugin: opts.plugin, theme: opts.theme });
     const config = loadProjectConfig(cwd);
     const themesDir = join(cwd, config.themesDir);
+
+    // ---- unificação theme.json ----------------------------------------------
+    // Projetos antigos gravam o manifesto do tema default como `manifest.json`.
+    // Migra para o nome canônico ANTES do plano (só assim o plano enxerga o
+    // tema). `--dry-run` não escreve nada — mantém o estado real do disco.
+    if (!opts.dryRun) {
+      const migratedThemes = migrateThemeManifests(themesDir);
+      if (migratedThemes.length > 0) {
+        prompt.info(`theme manifest(s) migrated to theme.json: ${migratedThemes.join(', ')}`);
+      }
+    }
+
+    const plan = planRedeploy({ cwd, plugin: opts.plugin, theme: opts.theme });
 
     if (opts.plugin && !plan.plugins.includes(opts.plugin)) {
       prompt.error(`plugin not found: ${opts.plugin}`);

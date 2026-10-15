@@ -44,7 +44,7 @@ describe('NPM flow integration: ThemeLoader (node_modules layout)', () => {
     expect(await loader.loadTheme('fantasma')).toBeNull();
   });
 
-  it('descobre tema que usa manifest.json (legado — tema default distribuído)', async () => {
+  it('NÃO descobre tema só com manifest.json legado (unificação: theme.json é o canônico)', async () => {
     const dir = join(themesDir, 'default');
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, 'manifest.json'), JSON.stringify({ name: 'default', version: '0.1.0' }));
@@ -52,8 +52,10 @@ describe('NPM flow integration: ThemeLoader (node_modules layout)', () => {
     const loader = new ThemeLoader(themesDir);
     const discovered = await loader.discoverThemes();
 
-    expect(discovered).toHaveLength(1);
-    expect(discovered[0]!.manifest.name).toBe('default');
+    // a migração (manifest.json → theme.json) é responsabilidade dos entry
+    // points do CLI — ver theme-migrate.ts
+    expect(discovered).toHaveLength(0);
+    expect(await loader.loadTheme('default')).toBeNull();
   });
 
   it('orderInheritanceChain coloca parent antes do filho', async () => {

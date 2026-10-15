@@ -6,9 +6,6 @@ import type { Theme } from '@oktis-works/types';
 import { checkExtensionCompatibility } from '@oktis-works/validation';
 import { resolveExtensionDirectory } from '../extensions/project-directories.js';
 
-/** Nomes de manifesto aceitos na descoberta (manifest.json = legado do tema default). */
-const MANIFEST_FILENAMES = ['theme.json', 'manifest.json'] as const;
-
 const SAFE_NAME_RE = /^[a-z0-9][a-z0-9_-]*$/i;
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -18,9 +15,10 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 export class ThemeService {
   /**
    * Descobre temas presentes no diretório configurado do projeto e faz upsert
-   * por nome. aceita theme.json (atual) e manifest.json (legado — é o que o
-   * tema default distribuído usa). A listagem retornada é o estado do banco
-   * COMPLETO: temas removidos do disco continuam visíveis para desinstalação.
+   * por nome. Só `theme.json` (nome canônico — o legado `manifest.json` é
+   * unificado pelos entry points do CLI, ver theme-migrate.ts). A listagem
+   * retornada é o estado do banco COMPLETO: temas removidos do disco continuam
+   * visíveis para desinstalação.
    */
   async syncFromDirectory(): Promise<Theme[]> {
     const directory = resolveExtensionDirectory('theme');
@@ -62,16 +60,14 @@ export class ThemeService {
     return this.list();
   }
 
-  /** Lê theme.json ou (fallback legado) manifest.json do diretório do tema. */
+  /** Lê o theme.json (nome canônico) do diretório do tema. */
   private async readManifest(themeDir: string): Promise<Record<string, unknown> | null> {
-    for (const filename of MANIFEST_FILENAMES) {
-      try {
-        const raw = await readFile(join(themeDir, filename), 'utf8');
-        const manifest = JSON.parse(raw) as unknown;
-        if (isPlainObject(manifest)) return manifest;
-      } catch {
-        // tenta o próximo nome candidato
-      }
+    try {
+      const raw = await readFile(join(themeDir, 'theme.json'), 'utf8');
+      const manifest = JSON.parse(raw) as unknown;
+      if (isPlainObject(manifest)) return manifest;
+    } catch {
+      // ausente/inválido: tema não descoberto até a migração do CLI rodar
     }
     return null;
   }

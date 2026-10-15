@@ -5,6 +5,7 @@ import { isAbsolute, join, resolve } from 'node:path';
 import { loadEnvFile } from './env-file.js';
 import { loadProjectConfig } from './project-config.js';
 import { clearPids, recordPid } from './runtime-state.js';
+import { migrateThemeManifests } from './theme-migrate.js';
 
 const children: ChildProcess[] = [];
 
@@ -42,6 +43,13 @@ function spawnApp(label: string, command: string, args: string[], env: Record<st
 export async function startProject(options: Record<string, string> = {}): Promise<void> {
   loadProjectEnv();
   const config = loadProjectConfig();
+
+  // Unificação theme.json: migra manifesto legado (manifest.json) antes de
+  // subir os apps — o ThemeLoader só lê o nome canônico.
+  const migratedThemes = migrateThemeManifests(join(process.cwd(), config.themesDir));
+  if (migratedThemes.length > 0) {
+    console.log(`[start] theme manifest(s) migrated to theme.json: ${migratedThemes.join(', ')}`);
+  }
 
   const anyFlag =
     options['api'] !== undefined ||
