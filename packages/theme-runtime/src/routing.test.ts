@@ -42,6 +42,22 @@ describe('RuntimeRouter', () => {
     expect(result.slug).toBe('hello');
   });
 
+  it('propaga data (enriquecido) e record até a resolução (sem re-consulta no web)', async () => {
+    const enriched = { title: 'Olá', cover: { id: '1', url: '/media/a.png', alt: null }, _terms: { tag: [{ slug: 'cms', name: 'CMS' }] } };
+    const record = { id: 'content-1', title: 'Olá', body: { title: 'Olá' } };
+    const lookup: ContentLookup = {
+      findByPath: vi.fn().mockResolvedValue({ type: 'post', slug: 'hello', data: enriched, record }),
+      listTypes: vi.fn(),
+    };
+    const router = makeRouter(lookup, ['post.astro']);
+
+    const result = await router.resolve('/hello');
+
+    expect(result.matched).toBe(true);
+    expect(result.data).toBe(enriched);
+    expect(result.record).toBe(record);
+  });
+
   it('não casa URL aninhada quando o primeiro segmento não é o tipo do conteúdo', async () => {
     const lookup: ContentLookup = {
       findByPath: vi.fn().mockResolvedValue({ type: 'post', slug: 'hello', data: {} }),

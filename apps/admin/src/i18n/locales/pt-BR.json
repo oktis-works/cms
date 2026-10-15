@@ -910,6 +910,12 @@
     "deactivateError": "Não foi possível desativar o tema.",
     "installError": "Não foi possível instalar o tema.",
     "uninstallError": "Não foi possível desinstalar o tema.",
+    "reload": "Sincronizar",
+    "configTitle": "Configurações",
+    "configClose": "Ocultar configurações",
+    "configSave": "Salvar configurações",
+    "configSaved": "Configurações salvas.",
+    "configError": "Não foi possível salvar as configurações do tema.",
     "empty": "Nenhum tema instalado."
   },
   "login": {

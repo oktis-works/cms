@@ -3,6 +3,7 @@
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { CMS_VERSION, assertCompatible } from '@oktis-works/validation';
+import { DEFAULT_THEME_CSS, THEME_TEMPLATE_FILES } from './theme-assets.js';
 
 export interface ScaffoldExtensionResult {
   dir: string;
@@ -67,8 +68,11 @@ export function scaffoldPlugin(name: string, baseDir?: string): ScaffoldExtensio
 export type ScaffoldThemeStyle = 'css' | 'scss' | 'tailwind';
 
 /**
- * Gera um tema mínimo: theme.json + templates essenciais da hierarquia
- * (index.html, single.html) e style.css/scss/tailwind conforme engine.
+ * Gera um tema no formato que o runtime do web realmente renderiza:
+ * `*.astro` NA RAIZ do tema (hierarquia home/index/single/page/archive/404),
+ * manifesto theme.json completo (type + compatibility + provides.layouts) e
+ * estilos conforme engine — no engine `css`, o `dist/theme.css` já sai
+ * servível (o site linka somente esse caminho, sem build).
  * @param style escolha exclusiva: css | scss | tailwind (default css)
  */
 export function scaffoldTheme(name: string, baseDir?: string, style: ScaffoldThemeStyle = 'css'): ScaffoldExtensionResult {
@@ -83,6 +87,10 @@ export function scaffoldTheme(name: string, baseDir?: string, style: ScaffoldThe
     description: `Theme ${name} for OkCMS`,
     type: 'theme',
     compatibility: { okcms: `^${CMS_VERSION}` },
+    provides: {
+      layouts: ['home', 'index', 'single', 'page', 'archive', '404'],
+      ...(style === 'css' ? { assets: ['dist/theme.css'] } : {}),
+    },
     ...(styleConfig ? { stylesConfig: styleConfig } : {}),
   };
 
@@ -92,16 +100,14 @@ export function scaffoldTheme(name: string, baseDir?: string, style: ScaffoldThe
   const dir = resolve(baseDir ?? join(process.cwd(), 'themes'), name);
   if (existsSync(dir)) throw new Error(`Directory already exists: ${dir}`);
 
-  mkdirSync(join(dir, 'templates'), { recursive: true });
+  mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, 'theme.json'), JSON.stringify(manifest, null, 2));
-  writeFileSync(
-    join(dir, 'templates', 'index.html'),
-    ['<main class="site">', '  {{#each posts}}', '  <article>{{this.title}}</article>', '  {{/each}}', '</main>'].join('\n')
-  );
-  writeFileSync(
-    join(dir, 'templates', 'single.html'),
-    ['<main class="single">', '  <h1>{{title}}</h1>', '  <div>{{content}}</div>', '</main>'].join('\n')
-  );
+
+  // Templates da hierarquia na raiz — é o que o catch-all do web procura.
+  for (const [file, content] of Object.entries(THEME_TEMPLATE_FILES)) {
+    writeFileSync(join(dir, file), content);
+  }
+
   if (style === 'scss') {
     mkdirSync(join(dir, 'styles'), { recursive: true });
     writeFileSync(join(dir, 'styles', 'main.scss'), `$brand: #6366f1;\n\n.site { color: $brand; }\n.single { max-width: 720px; margin: 0 auto; }\n`);
@@ -117,7 +123,7 @@ export function scaffoldTheme(name: string, baseDir?: string, style: ScaffoldThe
       [
         `/** @type {import('tailwindcss').Config} */`,
         `module.exports = {`,
-        `  content: ["./templates/**/*.{astro,html,js}", "./src/**/*.{astro,html,js}", "./components/**/*.{astro,html,js}"],`,
+        `  content: ["./**/*.astro"],`,
         `  corePlugins: { preflight: false },`,
         `  // isolamento fino: importante apenas dentro do tema pode ser ativado via important: '[data-theme="${name}"]'`,
         `};`,
@@ -125,11 +131,23 @@ export function scaffoldTheme(name: string, baseDir?: string, style: ScaffoldThe
       ].join('\n')
     );
   } else {
-    writeFileSync(join(dir, 'style.css'), ':root { --brand: #000; }\n');
+    // engine css: servível direto de dist/theme.css (caminho que o web linka)
+    mkdirSync(join(dir, 'dist'), { recursive: true });
+    writeFileSync(join(dir, 'dist', 'theme.css'), DEFAULT_THEME_CSS);
   }
   writeFileSync(
     join(dir, 'README.md'),
-    [`# ${name}`, '', `Tema OkCMS.`, '', `- Manifest: theme.json`, `- Templates: templates/`, `- Engine: ${style}`, ''].join('\n')
+    [
+      `# ${name}`,
+      '',
+      `Tema OkCMS.`,
+      '',
+      `- Manifest: theme.json`,
+      `- Templates: *.astro na raiz (home, index, single, page, archive, 404)`,
+      `- Contexto do template: site.*, page.*, content.*, items, menus, settings`,
+      `- Engine: ${style}${style === 'css' ? ' (dist/theme.css servido direto)' : ' (okcms theme:build → dist/theme.css)'}`,
+      '',
+    ].join('\n')
   );
 
   return { dir, manifest };

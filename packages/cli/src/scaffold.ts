@@ -2,9 +2,10 @@
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { defaultProjectConfig, DEFAULT_CONFIG_FILENAME } from './project-config.js';
 import { DEPLOY_GITIGNORE } from './assets.js';
+import { DEFAULT_THEME_FILES } from './theme-assets.js';
 import { writeDeployAssets } from './bluegreen.js';
 import { DEFAULT_DOCS_LANG, docsLangLabel, pluginDoc, projectReadme, themeDoc } from './scaffold-docs.js';
 import type { DocsLang } from './scaffold-docs.js';
@@ -79,6 +80,16 @@ export async function scaffoldProject(
   await mkdir(join(root, 'themes'), { recursive: true });
   await mkdir(join(root, 'plugins'), { recursive: true });
   await mkdir(join(root, 'migrations'), { recursive: true });
+
+  // Tema default pronto: o projeto novo já renderiza de cara (templates .astro
+  // na raiz + dist/theme.css servido direto). Nunca sobrescreve em re-init —
+  // o operador pode ter editado o tema.
+  for (const [relative, content] of Object.entries(DEFAULT_THEME_FILES)) {
+    const target = join(root, 'themes', 'default', relative);
+    if (existsSync(target)) continue;
+    await mkdir(dirname(target), { recursive: true });
+    await writeFile(target, content, 'utf-8');
+  }
 
   const config = defaultProjectConfig(name);
   await writeFile(

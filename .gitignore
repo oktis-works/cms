@@ -55,3 +55,10 @@ uploads/*
 
 # Migrations embutidas no pacote CLI (geradas no build)
 packages/cli/migrations/
+
+# Temas: dist/ dentro de um tema é asset estático servido pelo web
+# (dist/theme.css), não output de build — precisa ir pro repositório.
+!themes/**/dist/
+!themes/**/dist/**
+!templates/project/themes/**/dist/
+!templates/project/themes/**/dist/**

@@ -23,7 +23,9 @@ import {
   renderContentPage,
   fetchSiteSettings,
   resolveThemeAssetPath,
+  resolveThemeStylesheet,
   contentTypeForAsset,
+  wrapDocument,
 } from './rendering.js';
 
 let themesRoot: string;
@@ -57,7 +59,7 @@ afterAll(() => {
   rmSync(themesRoot, { recursive: true, force: true });
 });
 
-const settings = { siteTitle: 'Meu Site', siteDescription: 'Descrição do site' };
+const settings = { siteTitle: 'Meu Site', siteDescription: 'Descrição do site', language: 'pt-BR' };
 const resolution = { matched: true, template: 'single.astro', contentType: 'page', slug: 'sobre' };
 const contentRow = { id: 'c1', title: 'Sobre nós', slug: 'sobre', type: 'page', body: { html: '<p>Conteúdo</p>' } };
 
@@ -204,6 +206,70 @@ describe('fetchSiteSettings — B1 settings do site', () => {
     const result = await fetchSiteSettings(sql as never);
     expect(result.siteTitle).toBe('OkCMS');
     expect(result.siteDescription).toBe('');
+    expect(result.language).toBe('pt-BR');
+  });
+
+  it('lê a setting language (idioma do documento) com fallback pt-BR', async () => {
+    const sql = {
+      unsafe: vi.fn(async () => [{ key: 'language', value: 'en-US' }]),
+    };
+    const result = await fetchSiteSettings(sql as never);
+    expect(result.language).toBe('en-US');
+  });
+});
+
+describe('resolveThemeStylesheet — link só quando dist/theme.css existe', () => {
+  it('segue a cadeia ativo → _shared → default', () => {
+    // default/ dist/theme.css existe (fixture do beforeAll); mytheme não
+    expect(resolveThemeStylesheet(themesRoot, 'mytheme')).toBe('default');
+    expect(resolveThemeStylesheet(themesRoot, 'default')).toBe('default');
+  });
+
+  it('null quando ninguém compilou estilos (documento sai sem <link> quebrado)', () => {
+    const emptyRoot = mkdtempSync(join(tmpdir(), 'okcms-no-css-'));
+    try {
+      mkdirSync(join(emptyRoot, 'sem-estilos'), { recursive: true });
+      expect(resolveThemeStylesheet(emptyRoot, 'sem-estilos')).toBeNull();
+
+      const html = renderContentPage({
+        resolution: { matched: true, template: 'single.astro', contentType: 'page', slug: 'sobre' },
+        contentRow,
+        data: contentRow['body'] as Record<string, unknown>,
+        settings,
+        activeTheme: 'sem-estilos',
+        themesRoot: emptyRoot,
+      });
+      expect(html).not.toContain('rel="stylesheet"');
+    } finally {
+      rmSync(emptyRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('renderContentPage linka o css do fornecedor real (default quando o ativo não compila)', () => {
+    const html = renderContentPage({
+      resolution: { matched: true, template: 'post.astro', contentType: 'post', slug: 'ola' },
+      contentRow,
+      data: contentRow['body'] as Record<string, unknown>,
+      settings,
+      activeTheme: 'mytheme',
+      themesRoot,
+    });
+    expect(html).toContain('href="/themes/default/dist/theme.css"');
+    expect(html).not.toContain('href="/themes/mytheme/dist/theme.css"');
+  });
+});
+
+describe('wrapDocument — idioma do documento vem das settings', () => {
+  it('usa settings.language (não mais pt-BR hardcoded)', () => {
+    const html = wrapDocument('<main>corpo</main>', 'Título', { ...settings, language: 'en-US' }, 'default', null);
+    expect(html).toContain('<html lang="en-US">');
+    expect(html).not.toContain('data-theme-style');
+  });
+
+  it('fallback pt-BR e link do tema quando o stylesheet existe', () => {
+    const html = wrapDocument('<main>corpo</main>', 'Título', settings, 'default', 'default');
+    expect(html).toContain('<html lang="pt-BR">');
+    expect(html).toContain('<link rel="stylesheet" href="/themes/default/dist/theme.css"');
   });
 });
 

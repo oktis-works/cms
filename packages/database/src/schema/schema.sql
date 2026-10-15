@@ -308,6 +308,8 @@ CREATE INDEX IF NOT EXISTS idx_plugin_dependencies_plugin ON plugin_dependencies
 -- ============================================================
 -- Themes
 -- ============================================================
+-- Temas são GLOBAIS no modelo atual: tenant_id fica NULL (reservado para
+-- multi-tenant futuro) e a policy RLS permite tenant_id IS NULL.
 CREATE TABLE IF NOT EXISTS themes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
@@ -318,12 +320,18 @@ CREATE TABLE IF NOT EXISTS themes (
   config JSONB,
   installed_at TIMESTAMP WITH TIME ZONE,
   activated_at TIMESTAMP WITH TIME ZONE,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_themes_tenant ON themes(tenant_id) WHERE tenant_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_themes_name ON themes(name);
+-- Nome único globalmente: a descoberta por diretório faz upsert por name.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_themes_name_unique ON themes(name);
 CREATE INDEX IF NOT EXISTS idx_themes_status ON themes(status);
+-- No máximo UM tema ativo por tenant (NULL = global).
+CREATE UNIQUE INDEX IF NOT EXISTS idx_themes_single_active
+  ON themes((COALESCE(tenant_id, '00000000-0000-0000-0000-000000000000'::uuid)))
+  WHERE status = 'ACTIVE';
 
 -- ============================================================
 -- Builds

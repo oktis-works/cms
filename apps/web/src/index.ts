@@ -16,6 +16,8 @@ import {
   fetchSiteSettings,
   resolveThemeAssetPath,
   contentTypeForAsset,
+  enrichItemsMedia,
+  buildThemeSettings,
 } from './rendering.js';
 import { createDatabaseThemeDataProvider, loadThemeRenderData } from './theme-data.js';
 import { resolveTenantFromHost } from './tenant-resolver.js';
@@ -31,14 +33,41 @@ function bodyOf(row: ContentRow): Record<string, unknown> {
   return ((row['body'] as Record<string, unknown>) ?? {}) as Record<string, unknown>;
 }
 
+/**
+ * Tema ativo efetivo: a fonte única é o banco (status ACTIVE, gravado pelo
+ * admin ou pela CLI). Sem linha ativa — ou com o tema sem arquivos no disco —
+ * cai no ACTIVE_THEME do ambiente. Lido por request: ativação no admin não
+ * exige restart do web. A row completa volta junto (manifest + config do
+ * customizador) para expor `settings.theme` nos templates.
+ */
+async function resolveActiveTheme(
+  themesRoot: string,
+  envFallback: string
+): Promise<{ name: string; row: Record<string, unknown> | null }> {
+  try {
+    const rows = await getConnection().unsafe(
+      `SELECT * FROM themes WHERE status = 'ACTIVE'
+       ORDER BY activated_at DESC NULLS LAST, created_at DESC
+       LIMIT 1`
+    );
+    const row = (rows as unknown as Array<Record<string, unknown>>)[0];
+    const name = row?.['name'];
+    if (typeof name === 'string' && name && existsSync(join(themesRoot, name))) {
+      return { name, row: row ?? null };
+    }
+  } catch {
+    // tabela ausente/falha de leitura nunca derruba o render — usa o env
+  }
+  return { name: envFallback, row: null };
+}
+
 async function main() {
   const lifecycle = await bootstrap();
 
-  wireThemeHooks();
+  await wireThemeHooks();
 
   const themesRoot = process.env['THEMES_DIR'] ?? join(process.cwd(), 'themes');
-  const activeTheme = process.env['ACTIVE_THEME'] ?? 'default';
-  const router = createRouter(themesRoot, activeTheme);
+  const envActiveTheme = process.env['ACTIVE_THEME']?.trim() || 'default';
 
   const app = new Hono<{ Variables: Variables }>();
 
@@ -103,24 +132,25 @@ async function main() {
     const path = c.req.path;
 
     try {
+      // Tema ativo por request (banco → env): ativação reflete sem restart.
+      const active = await resolveActiveTheme(themesRoot, envActiveTheme);
+      const activeTheme = active.name;
+      const router = createRouter(themesRoot, activeTheme);
       const resolution = await router.resolve(path);
 
       if (!resolution.matched) {
         return c.notFound();
       }
 
-      // B1 — conteúdo real: row publicada do slug resolvido
+      // B1 — conteúdo real: payload já enriquecido pelo lookup (mídia real +
+      // _terms) — sem re-consultar a row crua.
       let contentRow: ContentRow | null = null;
       let data: Record<string, unknown> = {};
       if (resolution.slug && resolution.contentType) {
-        const rows = await getConnection().unsafe(
-          "SELECT * FROM content WHERE slug = $1 AND type = $2 AND status = 'PUBLISHED' LIMIT 1",
-          [resolution.slug, resolution.contentType]
-        );
-        contentRow = (rows as unknown as ContentRow[])[0] ?? null;
+        contentRow = (resolution.record as ContentRow | undefined) ?? null;
+        data = resolution.data ?? {};
         if (contentRow) {
           setCurrentContent(contentRow);
-          data = bodyOf(contentRow);
         }
       }
 
@@ -146,10 +176,25 @@ async function main() {
             updated_at: row['updated_at'],
           }))
         );
+
+        // REQU-028-001 em lote: cover/image dos itens viram objetos reais
+        try {
+          await enrichItemsMedia(getConnection(), items);
+        } catch {
+          // enriquecimento de lista nunca derruba a renderização
+        }
       }
 
-      // B1 — título/meta das settings (fim do "OkCMS" hardcoded)
-      const settings = await fetchSiteSettings(getConnection());
+      // B1 — título/meta das settings (fim do "OkCMS" hardcoded) + o config do
+      // customizador do tema ativo exposto como `settings.theme`
+      const siteSettings = await fetchSiteSettings(getConnection());
+      const settings = {
+        ...siteSettings,
+        theme: buildThemeSettings(
+          active.row?.['manifest'] as Record<string, unknown> | null,
+          active.row?.['config'] as Record<string, unknown> | null
+        ),
+      };
 
       const provider = createDatabaseThemeDataProvider(getConnection(), String(c.get('tenant')['id']));
       const html = await runWithThemeDataProvider(provider, async () => {

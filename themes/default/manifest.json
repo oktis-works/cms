@@ -2,10 +2,20 @@
   "name": "default",
   "version": "0.1.0",
   "description": "Tema padrão do OkCMS — templates hierárquicos com interpolação real de conteúdo",
+  "type": "theme",
   "author": "Oktis Works",
   "provides": {
-    "layouts": ["home", "index", "single", "page", "archive", "404"],
-    "assets": ["dist/theme.css"]
+    "layouts": [
+      "home",
+      "index",
+      "single",
+      "page",
+      "archive",
+      "404"
+    ],
+    "assets": [
+      "dist/theme.css"
+    ]
   },
   "stylesConfig": {
     "engine": "css",

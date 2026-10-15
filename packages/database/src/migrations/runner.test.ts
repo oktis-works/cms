@@ -49,6 +49,7 @@ import {
   applyMigration,
   rollbackMigration,
   runMigrations,
+  extractUpSection,
   type MigrationFile,
 } from './runner.js';
 
@@ -137,6 +138,42 @@ describe('applyMigration', () => {
 
     const unsafe = calls.find((c): c is UnsafeCall => c.kind === 'unsafe');
     expect(unsafe!.query).toBe(migration.sql);
+  });
+
+  it('executa APENAS a seção Up — o Down nunca roda na aplicação', async () => {
+    const withDown: MigrationFile = {
+      name: 'harden_themes',
+      version: '010',
+      owner: 'core',
+      ownerType: 'CORE',
+      sql: '-- +migrate Up\nALTER TABLE themes ADD COLUMN updated_at timestamptz;\n-- +migrate Down\nALTER TABLE themes DROP COLUMN updated_at;',
+      checksum: 'c',
+    };
+
+    await applyMigration('tenant-1', withDown);
+
+    const unsafe = calls.find((c): c is UnsafeCall => c.kind === 'unsafe');
+    expect(unsafe!.query).toContain('ALTER TABLE themes ADD COLUMN updated_at');
+    expect(unsafe!.query).not.toContain('DROP COLUMN updated_at');
+    expect(unsafe!.query).not.toContain('-- +migrate Down');
+  });
+});
+
+describe('extractUpSection', () => {
+  it('recorta entre os marcadores Up e Down', () => {
+    expect(extractUpSection('-- +migrate Up\nCREATE TABLE x();\n-- +migrate Down\nDROP TABLE x();')).toContain(
+      'CREATE TABLE x();'
+    );
+    const section = extractUpSection('-- +migrate Up\nCREATE TABLE x();\n-- +migrate Down\nDROP TABLE x();');
+    expect(section).not.toContain('DROP TABLE x();');
+  });
+
+  it('sem marcadores devolve o SQL cru (migrations legadas)', () => {
+    expect(extractUpSection('CREATE TABLE a();')).toBe('CREATE TABLE a();');
+  });
+
+  it('só o marcador Up sem Down devolve o corpo do Up', () => {
+    expect(extractUpSection('-- +migrate Up\nCREATE TABLE x();').trim()).toBe('CREATE TABLE x();');
   });
 });
 

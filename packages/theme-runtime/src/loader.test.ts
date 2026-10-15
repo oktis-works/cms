@@ -44,6 +44,18 @@ describe('NPM flow integration: ThemeLoader (node_modules layout)', () => {
     expect(await loader.loadTheme('fantasma')).toBeNull();
   });
 
+  it('descobre tema que usa manifest.json (legado — tema default distribuído)', async () => {
+    const dir = join(themesDir, 'default');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'manifest.json'), JSON.stringify({ name: 'default', version: '0.1.0' }));
+
+    const loader = new ThemeLoader(themesDir);
+    const discovered = await loader.discoverThemes();
+
+    expect(discovered).toHaveLength(1);
+    expect(discovered[0]!.manifest.name).toBe('default');
+  });
+
   it('orderInheritanceChain coloca parent antes do filho', async () => {
     writeTheme('tema-base', {});
     writeTheme('tema-filho', { parent: 'tema-base' });

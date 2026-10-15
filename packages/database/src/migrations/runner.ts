@@ -78,6 +78,25 @@ export async function getAppliedMigrations(tenantId: string): Promise<MigrationR
   `;
 }
 
+/**
+ * Extrai a seção que a aplicação deve executar: o conteúdo entre
+ * `-- +migrate Up` e `-- +migrate Down` (marcadores ausentes = SQL cru).
+ * Sem esse recorte, `applyMigration` executaria o bloco Down logo após o Up —
+ * desfazendo a própria migration no mesmo commit.
+ */
+export function extractUpSection(sql: string): string {
+  const downMarker = '-- +migrate Down';
+  const downIndex = sql.indexOf(downMarker);
+  let body = downIndex === -1 ? sql : sql.slice(0, downIndex);
+
+  const upMarker = '-- +migrate Up';
+  const upIndex = body.indexOf(upMarker);
+  if (upIndex !== -1) {
+    body = body.slice(upIndex + upMarker.length);
+  }
+  return body;
+}
+
 export async function applyMigration(
   tenantId: string,
   migration: MigrationFile
@@ -101,8 +120,8 @@ export async function applyMigration(
     // Set tenant context for RLS
     await tx`SELECT set_config('app.current_tenant_id', ${tenantId}, false)`;
 
-    // Execute the migration SQL
-    await tx.unsafe(migration.sql);
+    // Execute the migration SQL — apenas a seção Up (o Down é rollback-only)
+    await tx.unsafe(extractUpSection(migration.sql));
 
     // Record the migration
     await tx`

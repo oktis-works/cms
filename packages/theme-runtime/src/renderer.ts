@@ -123,10 +123,19 @@ export class ThemeRenderer {
     return `<div ${attr}>${html}</div>`;
   }
 
+  /** Teto do cache: templates são strings arbitrárias — sem teto, o Map cresce sem limite. */
+  private static readonly TEMPLATE_CACHE_MAX = 200;
+
   compile(template: string): CompiledTemplate {
-    if (this.templateCache.has(template)) {
-      return this.templateCache.get(template)!;
+    const cached = this.templateCache.get(template);
+    if (cached) return cached;
+
+    // eviction FIFO: Map preserva ordem de inserção
+    if (this.templateCache.size >= ThemeRenderer.TEMPLATE_CACHE_MAX) {
+      const oldest = this.templateCache.keys().next().value;
+      if (oldest !== undefined) this.templateCache.delete(oldest);
     }
+
     const nodes = this.parse(template, 0);
     const compiled: CompiledTemplate = { nodes };
     this.templateCache.set(template, compiled);

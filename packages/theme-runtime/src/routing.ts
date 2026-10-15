@@ -7,11 +7,18 @@ export interface RouteResolution {
   template?: string;
   contentType?: string;
   slug?: string;
+  /**
+   * Dados do conteúdo resolvido (já enriquecidos com mídia real e _terms).
+   * O app web usa este payload diretamente — sem re-consultar a row crua.
+   */
+  data?: Record<string, unknown>;
+  /** Row completa do conteúdo (colunas + body) para a API contextual do SDK. */
+  record?: Record<string, unknown>;
 }
 
 export interface ContentLookup {
   /** Retorna o tipo de conteúdo e dados para um caminho de URL. */
-  findByPath(path: string): Promise<{ type: string; slug: string; data: Record<string, unknown>; layout?: string | null } | null>;
+  findByPath(path: string): Promise<{ type: string; slug: string; data: Record<string, unknown>; layout?: string | null; record?: Record<string, unknown> } | null>;
   listTypes(): Promise<Array<{ slug: string; hasArchive: boolean }>>;
 }
 
@@ -55,7 +62,7 @@ export class RuntimeRouter {
       const content = await this.lookup.findByPath(firstSegment);
       if (content) {
         const resolved = await this.resolver.resolve({ type: content.type, slug: content.slug, layoutOverride: content.layout ?? undefined });
-        return { matched: true, template: resolved.file, contentType: content.type, slug: content.slug };
+        return { matched: true, template: resolved.file, contentType: content.type, slug: content.slug, data: content.data, record: content.record };
       }
 
       const types = await this.lookup.listTypes();
@@ -71,7 +78,7 @@ export class RuntimeRouter {
       const content = await this.lookup.findByPath(slug);
       if (content && content.type === typeSegment) {
         const resolved = await this.resolver.resolve({ type: content.type, slug: content.slug, layoutOverride: content.layout ?? undefined });
-        return { matched: true, template: resolved.file, contentType: content.type, slug: content.slug };
+        return { matched: true, template: resolved.file, contentType: content.type, slug: content.slug, data: content.data, record: content.record };
       }
     }
 

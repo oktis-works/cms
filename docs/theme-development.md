@@ -45,11 +45,14 @@ automatically, just like with plugins.
 
 ### Templates
 
-Template syntax with variables and loops:
+Templates are `*.astro` files **at the theme root** — that's what the site
+runtime looks up (hierarchy `home` → `index` → `404`, with `_shared` →
+`default` fallback). Syntax with variables, raw HTML, and nested
+loops/conditionals:
 
 ```html
 <main class="site">
-  {{#each posts}}
+  {{#each items}}
     <article>
       <h2>{{title}}</h2>
       <p>{{excerpt}}</p>
@@ -58,18 +61,26 @@ Template syntax with variables and loops:
 </main>
 ```
 
-- `templates/index.html` — listing (e.g. `{{#each posts}}`)
-- `templates/single.html` — single item (e.g. `{{title}}`, `{{content}}`)
+- `{{variable}}` — HTML-escaped value; `{{{html}}}` — raw (content HTML)
+- `{{#each}}` / `{{#if}}` nest, dotted paths (`content.author.name`)
+- `home.astro` — home (`{{site.title}}`, `{{#each items}}`)
+- `index.astro`, `single.astro`, `page.astro` — content (`{{content.*}}`, `{{page.title}}`)
+- `archive.astro` — type/taxonomy listing (`{{#each items}}`)
+- `404.astro` — last in the chain
+- Context available: `site.*`, `page.*`, `content.*` (columns + fields), `items`,
+  `menus`, `contentTypes`, `taxonomies`, `terms`, `settings`
 
 ## Styles per engine
 
 | `--style` | Generated file | Build |
 |---|---|---|
-| `css` (default) | `style.css` | none — served as is |
+| `css` (default) | `dist/theme.css` | none — served as is |
 | `scss` | `styles/main.scss` (+ `components.scss`) | `okcms theme:build -n my-theme` |
 | `tailwind` | `src/input.css` + `tailwind.config.js` | `okcms theme:build -n my-theme` |
 
-The build compiles into `dist/theme.css` **with `[data-theme="my-theme"]`
+The public site only links `/themes/<theme>/dist/theme.css` — on the `css`
+engine the file is born in `dist/` (served with no build). On the others, the
+build compiles into `dist/theme.css` **with `[data-theme="my-theme"]`
 isolation** (styles never leak between themes; Tailwind already ships with
 `preflight: false`).
 
@@ -84,13 +95,16 @@ isolation** (styles never leak between themes; Tailwind already ships with
 # 1. Create it
 npx okcms theme:create --name my-theme --style scss
 
-# 2. Edit templates/ and styles
+# 2. Edit the root *.astro templates and styles
 
 # 3. Compile the styles (scss/tailwind)
 npx okcms theme:build --name my-theme
 
 # 4. Activate it (writes activeTheme into okcms.config.json)
 npx okcms theme:manage --name my-theme --set-active
+#    (equivalent: ACTIVE_THEME=my-theme in .env)
+#    The admin Themes screen activates too — the active theme is read from
+#    the database on every request, no site restart needed.
 #    (equivalent: ACTIVE_THEME=my-theme in .env)
 
 # 5. Management

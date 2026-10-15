@@ -1,6 +1,6 @@
-import { For, createSignal, onMount } from 'solid-js';
+import { For, Show, createSignal, onMount } from 'solid-js';
 import { useTranslation } from '../../../i18n';
-import { apiClient, ThemeInfo } from '../../../lib/api';
+import { apiClient, ThemeInfo, ThemeSettingField } from '../../../lib/api';
 
 export function ThemeManager() {
   const { t } = useTranslation();
@@ -8,12 +8,17 @@ export function ThemeManager() {
   const [loading, setLoading] = createSignal(true);
   const [error, setError] = createSignal<string | null>(null);
   const [toggling, setToggling] = createSignal<string | null>(null);
+  const [openConfig, setOpenConfig] = createSignal<string | null>(null);
+  const [configDraft, setConfigDraft] = createSignal<Record<string, unknown>>({});
+  const [configSaving, setConfigSaving] = createSignal(false);
+  const [configSaved, setConfigSaved] = createSignal(false);
 
   onMount(async () => {
     await loadThemes();
   });
 
   async function loadThemes() {
+    setError(null);
     try {
       setLoading(true);
       const data = await apiClient.getThemes();
@@ -27,16 +32,103 @@ export function ThemeManager() {
 
   async function handleToggle(theme: ThemeInfo) {
     const wasActive = theme.status === 'ACTIVE';
+    setError(null);
     setToggling(theme.id);
     try {
       const updated = wasActive
         ? await apiClient.deactivateTheme(theme.id)
         : await apiClient.activateTheme(theme.id);
-      setThemes(themes().map(t => t.id === theme.id ? updated : t));
+      // Ativar desativa os demais no servidor — reflete em TODOS os cards.
+      setThemes(
+        themes().map((item) =>
+          item.id === theme.id
+            ? updated
+            : item.status === 'ACTIVE' && updated.status === 'ACTIVE'
+              ? { ...item, status: 'INACTIVE' }
+              : item
+        )
+      );
     } catch {
       setError(wasActive ? t('themes.deactivateError') : t('themes.activateError'));
     } finally {
       setToggling(null);
+    }
+  }
+
+  async function handleUninstall(theme: ThemeInfo) {
+    if (!window.confirm(t('themes.confirmUninstall', { name: theme.name }))) return;
+    setError(null);
+    setToggling(theme.id);
+    try {
+      await apiClient.uninstallTheme(theme.id);
+      setThemes(themes().filter((item) => item.id !== theme.id));
+    } catch {
+      setError(t('themes.uninstallError'));
+    } finally {
+      setToggling(null);
+    }
+  }
+
+  /** Preview do manifesto: URL absoluta, path absoluto ou arquivo do tema. */
+  function previewUrl(theme: ThemeInfo): string | null {
+    const raw = theme.manifest?.preview ?? theme.manifest?.screenshots?.[0];
+    if (!raw || typeof raw !== 'string') return null;
+    if (/^(https?:)?\/\//.test(raw) || raw.startsWith('/')) return raw;
+    return `/themes/${encodeURIComponent(theme.name)}/${raw}`;
+  }
+
+  function configFields(theme: ThemeInfo): ThemeSettingField[] {
+    return (theme.manifest?.settings ?? []).filter(
+      (field): field is ThemeSettingField => Boolean(field) && typeof field.name === 'string'
+    );
+  }
+
+  function defaultForField(field: ThemeSettingField): unknown {
+    if (field.default !== undefined) return field.default;
+    if (field.type === 'checkbox') return false;
+    if (field.type === 'number') return 0;
+    return '';
+  }
+
+  function optionValue(option: string | { value: string; label?: string }): string {
+    return typeof option === 'string' ? option : option.value;
+  }
+
+  function optionLabel(option: string | { value: string; label?: string }): string {
+    return typeof option === 'string' ? option : (option.label ?? option.value);
+  }
+
+  function toggleConfig(theme: ThemeInfo) {
+    if (openConfig() === theme.id) {
+      setOpenConfig(null);
+      return;
+    }
+    const draft: Record<string, unknown> = {};
+    for (const field of configFields(theme)) {
+      const current = theme.config?.[field.name];
+      draft[field.name] = current !== undefined ? current : defaultForField(field);
+    }
+    setConfigDraft(draft);
+    setConfigSaved(false);
+    setOpenConfig(theme.id);
+  }
+
+  function setDraftValue(name: string, value: unknown) {
+    setConfigDraft({ ...configDraft(), [name]: value });
+  }
+
+  async function handleSaveConfig(theme: ThemeInfo) {
+    setError(null);
+    setConfigSaved(false);
+    setConfigSaving(true);
+    try {
+      const updated = await apiClient.updateThemeConfig(theme.id, configDraft());
+      setThemes(themes().map((item) => (item.id === theme.id ? updated : item)));
+      setConfigSaved(true);
+    } catch {
+      setError(t('themes.configError'));
+    } finally {
+      setConfigSaving(false);
     }
   }
 
@@ -60,57 +152,184 @@ export function ThemeManager() {
 
   return (
     <div class="theme-manager">
-      <p class="page-hint">{t('themes.directoryHint')}</p>
+      <div class="theme-toolbar">
+        <p class="page-hint">{t('themes.directoryHint')}</p>
+        <button class="btn btn-refresh" onClick={loadThemes} disabled={loading()}>
+          {t('themes.reload')}
+        </button>
+      </div>
 
       {error() && <div class="alert alert-error">{error()}</div>}
 
       {loading() && <div class="skeleton">Loading...</div>}
 
-      {!loading() && !error() && (
+      {!loading() && (
         <div class="themes-grid">
           <For each={themes()}>
-            {(theme) => (
-              <div class={`theme-card ${theme.status === 'ACTIVE' ? 'active' : ''}`}>
-                <div class="theme-preview">
-                  {theme.manifest?.name && (
-                    <div class="theme-badge active-badge">{t('themes.active')}</div>
-                  )}
+            {(theme) => {
+              const fields = configFields(theme);
+              const preview = previewUrl(theme);
+              return (
+                <div class={`theme-card ${theme.status === 'ACTIVE' ? 'active' : ''}`}>
+                  <div class="theme-preview">
+                    <Show when={preview}>
+                      <img
+                        class="theme-preview__img"
+                        src={preview!}
+                        alt=""
+                        loading="lazy"
+                        onError={(event) => {
+                          event.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    </Show>
+                    {theme.status === 'ACTIVE' && (
+                      <div class="theme-badge active-badge">{t('themes.active')}</div>
+                    )}
+                  </div>
+                  <div class="theme-info">
+                    <h3>{theme.name}</h3>
+                    <p class="theme-version">{t('themes.version')}: {theme.version}</p>
+                    <p class="theme-status">
+                      <span class={`status-badge ${getStatusClass(theme.status)}`}>
+                        {getStatusLabel(theme.status)}
+                      </span>
+                    </p>
+                    {theme.manifest?.description && (
+                      <p class="theme-desc">{theme.manifest!.description}</p>
+                    )}
+                  </div>
+
+                  <Show when={openConfig() === theme.id && fields.length > 0}>
+                    <div class="config-panel">
+                      <For each={fields}>
+                        {(field) => (
+                          <div class="config-field">
+                            <label class="config-label" for={`cfg-${theme.id}-${field.name}`}>
+                              {field.label || field.name}
+                            </label>
+                            {field.type === 'textarea' ? (
+                              <textarea
+                                id={`cfg-${theme.id}-${field.name}`}
+                                class="input"
+                                rows={3}
+                                value={String(configDraft()[field.name] ?? '')}
+                                onInput={(event) => setDraftValue(field.name, event.currentTarget.value)}
+                              />
+                            ) : field.type === 'select' ? (
+                              <select
+                                id={`cfg-${theme.id}-${field.name}`}
+                                class="input"
+                                value={String(configDraft()[field.name] ?? '')}
+                                onChange={(event) => setDraftValue(field.name, event.currentTarget.value)}
+                              >
+                                <For each={field.options ?? []}>
+                                  {(option) => (
+                                    <option value={optionValue(option)}>{optionLabel(option)}</option>
+                                  )}
+                                </For>
+                              </select>
+                            ) : field.type === 'checkbox' ? (
+                              <input
+                                id={`cfg-${theme.id}-${field.name}`}
+                                type="checkbox"
+                                checked={Boolean(configDraft()[field.name])}
+                                onChange={(event) => setDraftValue(field.name, event.currentTarget.checked)}
+                              />
+                            ) : field.type === 'color' ? (
+                              <input
+                                id={`cfg-${theme.id}-${field.name}`}
+                                type="color"
+                                class="input config-color"
+                                value={String(configDraft()[field.name] ?? '#000000')}
+                                onInput={(event) => setDraftValue(field.name, event.currentTarget.value)}
+                              />
+                            ) : (
+                              <input
+                                id={`cfg-${theme.id}-${field.name}`}
+                                type={field.type === 'number' ? 'number' : 'text'}
+                                class="input"
+                                value={String(configDraft()[field.name] ?? '')}
+                                onInput={(event) =>
+                                  setDraftValue(
+                                    field.name,
+                                    field.type === 'number'
+                                      ? Number(event.currentTarget.value)
+                                      : event.currentTarget.value
+                                  )
+                                }
+                              />
+                            )}
+                          </div>
+                        )}
+                      </For>
+                      <div class="config-actions">
+                        <button
+                          class="btn"
+                          onClick={() => handleSaveConfig(theme)}
+                          disabled={configSaving()}
+                        >
+                          {t('themes.configSave')}
+                        </button>
+                        <Show when={configSaved()}>
+                          <span class="config-saved">{t('themes.configSaved')}</span>
+                        </Show>
+                      </div>
+                    </div>
+                  </Show>
+
+                  <div class="theme-actions">
+                    <button
+                      class={`btn ${toggling() === theme.id ? 'btn-loading' : ''}`}
+                      onClick={() => handleToggle(theme)}
+                      disabled={toggling() !== null}
+                    >
+                      {theme.status === 'ACTIVE'
+                        ? t('themes.deactivate')
+                        : t('themes.activate')}
+                    </button>
+                    <Show when={fields.length > 0}>
+                      <button
+                        class="btn btn-secondary"
+                        onClick={() => toggleConfig(theme)}
+                        disabled={toggling() !== null}
+                      >
+                        {openConfig() === theme.id
+                          ? t('themes.configClose')
+                          : t('themes.configTitle')}
+                      </button>
+                    </Show>
+                    <button
+                      class="btn btn-danger"
+                      onClick={() => handleUninstall(theme)}
+                      disabled={toggling() !== null}
+                    >
+                      {t('themes.uninstall')}
+                    </button>
+                  </div>
                 </div>
-                <div class="theme-info">
-                  <h3>{theme.name}</h3>
-                  <p class="theme-version">{t('themes.version')}: {theme.version}</p>
-                  <p class="theme-status">
-                    <span class={`status-badge ${getStatusClass(theme.status)}`}>
-                      {getStatusLabel(theme.status)}
-                    </span>
-                  </p>
-                  {theme.manifest?.description && (
-                    <p class="theme-desc">{theme.manifest!.description}</p>
-                  )}
-                </div>
-                <div class="theme-actions">
-                  <button
-                    class={`btn ${toggling() === theme.id ? 'btn-loading' : ''}`}
-                    onClick={() => handleToggle(theme)}
-                    disabled={toggling() !== null}
-                  >
-                    {theme.status === 'ACTIVE'
-                      ? t('themes.deactivate')
-                      : t('themes.activate')}
-                  </button>
-                </div>
-              </div>
-            )}
+              );
+            }}
           </For>
           {themes().length === 0 && <div class="empty-state">{t('themes.empty')}</div>}
         </div>
       )}
 
       <style>{`
+        .theme-toolbar {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 1rem;
+          margin-bottom: 1.25rem;
+        }
         .page-hint {
-          margin: 0 0 1.25rem;
+          margin: 0;
           color: var(--color-muted);
           font-size: 0.8125rem;
+        }
+        .btn-refresh {
+          flex-shrink: 0;
         }
         .themes-grid {
           display: grid;
@@ -137,6 +356,12 @@ export function ThemeManager() {
         }
         .theme-preview {
           position: relative;
+        }
+        .theme-preview__img {
+          display: block;
+          width: 100%;
+          border-radius: var(--radius-md);
+          border: 1px solid var(--color-border);
         }
         .theme-badge {
           position: absolute;
@@ -197,8 +422,52 @@ export function ThemeManager() {
           background: var(--color-muted-soft);
           color: var(--color-muted);
         }
+        .config-panel {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+          padding: 1rem;
+          background: var(--color-muted-soft, rgba(0, 0, 0, 0.03));
+          border-radius: var(--radius-md);
+        }
+        .config-field {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+        }
+        .config-label {
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: var(--color-text);
+        }
+        .config-color {
+          height: 2.25rem;
+          padding: 0.15rem;
+        }
+        .config-actions {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+        }
+        .config-saved {
+          font-size: 0.75rem;
+          color: var(--color-success);
+        }
         .theme-actions {
           margin-top: 0.5rem;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+        }
+        .btn-secondary {
+          background: transparent;
+          color: var(--color-text);
+          border: 1px solid var(--color-border);
+        }
+        .btn-danger {
+          background: transparent;
+          color: var(--color-error);
+          border: 1px solid var(--color-error);
         }
         .empty-state {
           grid-column: 1 / -1;

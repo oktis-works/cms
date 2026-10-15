@@ -256,12 +256,15 @@ describe('scaffoldPlugin / scaffoldTheme', () => {
     expect(() => scaffoldPlugin('meu-plugin', join(dir, 'plugins'))).toThrow('already exists');
   });
 
-  it('theme: theme.json + templates essenciais', () => {
+  it('theme: theme.json + templates *.astro na raiz (formato do runtime)', () => {
     const result = scaffoldTheme('meu-tema', join(dir, 'themes'));
 
     expect(existsSync(join(result.dir, 'theme.json'))).toBe(true);
-    expect(existsSync(join(result.dir, 'templates', 'index.html'))).toBe(true);
-    expect(existsSync(join(result.dir, 'templates', 'single.html'))).toBe(true);
+    expect(existsSync(join(result.dir, 'index.astro'))).toBe(true);
+    expect(existsSync(join(result.dir, 'single.astro'))).toBe(true);
+    expect(existsSync(join(result.dir, 'dist', 'theme.css'))).toBe(true);
+    // o web não lê templates/*.html — nunca mais gerar esse formato
+    expect(existsSync(join(result.dir, 'templates'))).toBe(false);
   });
 
   it('nome inválido ou traversal é rejeitado', () => {

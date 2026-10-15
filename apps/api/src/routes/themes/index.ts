@@ -35,6 +35,7 @@ themes.post('/:id/activate', requirePermission('update', 'theme'), async (c) => 
   try {
     const id = c.req.param('id') as string
     const result = await themeService.activate(id)
+    if (!result) return c.json({ error: 'Theme not found' }, 404)
     return c.json(result)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to activate theme'
@@ -54,10 +55,24 @@ themes.post('/:id/deactivate', requirePermission('update', 'theme'), async (c) =
   }
 })
 
+themes.patch('/:id/config', requirePermission('update', 'theme'), async (c) => {
+  try {
+    const id = c.req.param('id') as string
+    const body = await c.req.json()
+    const result = await themeService.updateConfig(id, body.config)
+    if (!result) return c.json({ error: 'Theme not found' }, 404)
+    return c.json(result)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to update theme config'
+    return c.json({ error: message }, 400)
+  }
+})
+
 themes.delete('/:id', requirePermission('delete', 'theme'), async (c) => {
   try {
     const id = c.req.param('id') as string
-    await themeService.uninstall(id)
+    const removed = await themeService.uninstall(id)
+    if (!removed) return c.json({ error: 'Theme not found' }, 404)
     return c.json({ success: true })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to uninstall theme'

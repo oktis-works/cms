@@ -65,6 +65,10 @@ describe('createContentLookup.findByPath — enriquecimento', () => {
       { slug: 'tech', name: 'Tech' },
     ]);
     expect((data['_terms'] as Record<string, unknown>)['post_tag']).toEqual([{ slug: 'cms', name: 'CMS' }]);
+
+    // record: a row bruta vai junto no retorno (o web usa sem re-consultar)
+    expect(found!.record!['id']).toBe('c1');
+    expect(found!.record!['slug']).toBe('ola');
   });
 
   it('UUID fora de campo de mídia permanece intacto e _terms ausente quando vazio', async () => {
@@ -95,5 +99,68 @@ describe('createContentLookup.findByPath — enriquecimento', () => {
 
     const found = await createContentLookup().findByPath('x');
     expect(found).not.toBeNull();
+  });
+});
+
+describe('enrichItemsMedia — REQU-028-001 em listas (archive/home)', () => {
+  it('enriquece N itens com UMA query de mídia (sem N+1)', async () => {
+    const capa1 = '0b9e6c35-7d5a-4f1e-9a3b-2c4d5e6f7081';
+    const capa2 = '1b9e6c35-7d5a-4f1e-9a3b-2c4d5e6f7082';
+    const { enrichItemsMedia } = await import('./rendering.js');
+
+    const unsafe = vi.fn(async (_text: string, _values?: unknown[]) => [
+      { id: capa1, url: '/media/a.png', alt: 'A', filename: 'a.png' },
+      { id: capa2, url: '/media/b.png', alt: null, filename: 'b.png' },
+    ]);
+
+    const items = [
+      { title: 'Um', slug: 'um', cover: capa1 },
+      { title: 'Dois', slug: 'dois', cover: capa2 },
+    ];
+    await enrichItemsMedia({ unsafe } as never, items);
+
+    // Uma única chamada para os dois itens
+    expect(unsafe).toHaveBeenCalledTimes(1);
+    expect(unsafe.mock.calls[0]![1]).toEqual([[capa1, capa2]]);
+
+    expect(items[0]!['cover']).toEqual({ id: capa1, url: '/media/a.png', alt: 'A', filename: 'a.png' });
+    expect(items[1]!['cover']).toEqual({ id: capa2, url: '/media/b.png', alt: null, filename: 'b.png' });
+  });
+
+  it('sem UUIDs de mídia não consulta o banco', async () => {
+    const { enrichItemsMedia } = await import('./rendering.js');
+    const unsafe = vi.fn(async (_text: string, _values?: unknown[]) => [] as unknown[]);
+
+    await enrichItemsMedia({ unsafe } as never, [{ title: 'sem mídia' }]);
+
+    expect(unsafe).not.toHaveBeenCalled();
+  });
+});
+
+describe('buildThemeSettings — customizador exposto como settings.theme', () => {
+  it('defaults do manifesto sobrescritos pelo config salvo', async () => {
+    const { buildThemeSettings } = await import('./rendering.js');
+
+    const manifest = {
+      settings: [
+        { name: 'siteTitle', type: 'text', label: 'Título', default: 'OkCMS' },
+        { name: 'accent', type: 'color', default: '#000000' },
+        { name: 'semDefault', type: 'text' },
+      ],
+    };
+
+    const merged = buildThemeSettings(manifest, { siteTitle: 'Meu Site' });
+    expect(merged).toEqual({
+      siteTitle: 'Meu Site', // config vence sobre o default
+      accent: '#000000', // default do manifesto
+      semDefault: undefined, // declarado sem default
+    });
+  });
+
+  it('sem manifesto/config devolve objeto vazio (nunca undefined)', async () => {
+    const { buildThemeSettings } = await import('./rendering.js');
+    expect(buildThemeSettings(null, null)).toEqual({});
+    expect(buildThemeSettings(undefined, undefined)).toEqual({});
+    expect(buildThemeSettings({ settings: 'nao-array' }, {})).toEqual({});
   });
 });

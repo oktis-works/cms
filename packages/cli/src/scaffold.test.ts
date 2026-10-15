@@ -49,6 +49,15 @@ describe('scaffoldProject', () => {
       'themes',
       'plugins',
       'migrations',
+      // tema default pronto: o projeto novo já renderiza de cara
+      join('themes', 'default', 'manifest.json'),
+      join('themes', 'default', 'home.astro'),
+      join('themes', 'default', 'index.astro'),
+      join('themes', 'default', 'single.astro'),
+      join('themes', 'default', 'page.astro'),
+      join('themes', 'default', 'archive.astro'),
+      join('themes', 'default', '404.astro'),
+      join('themes', 'default', 'dist', 'theme.css'),
       ...Object.values(DEPLOY_PATHS),
     ]) {
       expect(existsSync(join(root, entry))).toBe(true);
@@ -209,6 +218,17 @@ describe('scaffoldProject', () => {
     // mas PLUGIN.md/THEME.md (que não existiam) são criados
     expect(existsSync(join(workDir, 'keep-readme', 'PLUGIN.md'))).toBe(true);
     expect(existsSync(join(workDir, 'keep-readme', 'THEME.md'))).toBe(true);
+  });
+
+  it('não sobrescreve o tema default editado no re-init', async () => {
+    await scaffoldProject('keep-theme', 'keep-theme');
+
+    const homePath = join(workDir, 'keep-theme', 'themes', 'default', 'home.astro');
+    writeFileSync(homePath, '<main>editado por mim</main>');
+
+    await scaffoldProject('keep-theme', 'keep-theme');
+
+    expect(readFileSync(homePath, 'utf-8')).toBe('<main>editado por mim</main>');
   });
 
   it('docker-compose sobe postgres + redis com healthcheck e volume', async () => {

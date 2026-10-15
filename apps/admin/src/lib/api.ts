@@ -163,11 +163,21 @@ export interface Content {
   updatedAt: string;
 }
 
+export interface ThemeSettingField {
+  name: string;
+  type?: string;
+  label?: string;
+  default?: unknown;
+  options?: Array<string | { value: string; label: string }>;
+}
+
 export interface ThemeInfo {
   id: string;
   name: string;
   version?: string;
   status: string;
+  /** Config (customizador) salvo no banco — mesclado sobre os defaults do manifesto. */
+  config?: Record<string, unknown> | null;
   manifest?: {
     name: string;
     version: string;
@@ -178,8 +188,13 @@ export interface ThemeInfo {
       astro?: string;
       config?: string;
     };
-    provides?: { layouts?: string[] };
+    provides?: { layouts?: string[]; assets?: string[] };
     parent?: string;
+    /** Campos do customizador de tema (quando declarados no manifesto). */
+    settings?: ThemeSettingField[];
+    /** Preview exibido no card (caminho servido por /themes/<nome>/ ou URL). */
+    preview?: string;
+    screenshots?: string[];
   } | null;
 }
 
@@ -967,6 +982,7 @@ export class ApiClient {
       name: String(theme['name'] ?? ''),
       version: theme['version'] ? String(theme['version']) : undefined,
       status: String(theme['status'] ?? 'INSTALLED'),
+      config: (theme['config'] as Record<string, unknown> | null) ?? {},
       manifest: (theme['manifest'] as ThemeInfo['manifest']) ?? null,
     }));
   }
@@ -977,6 +993,10 @@ export class ApiClient {
 
   async deactivateTheme(id: string): Promise<ThemeInfo> {
     return this.request('POST', `/api/v1/themes/${id}/deactivate`);
+  }
+
+  async updateThemeConfig(id: string, config: Record<string, unknown>): Promise<ThemeInfo> {
+    return this.request('PATCH', `/api/v1/themes/${id}/config`, { config });
   }
 
   async installTheme(data: { name: string; version: string; manifest: Record<string, unknown> }): Promise<ThemeInfo> {

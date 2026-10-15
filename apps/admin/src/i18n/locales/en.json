@@ -827,6 +827,12 @@
     "deactivateError": "Could not deactivate the theme.",
     "installError": "Could not install the theme.",
     "uninstallError": "Could not uninstall the theme.",
+    "reload": "Reload",
+    "configTitle": "Settings",
+    "configClose": "Hide settings",
+    "configSave": "Save settings",
+    "configSaved": "Settings saved.",
+    "configError": "Could not save the theme settings.",
     "empty": "No themes installed."
   },
   "login": {

@@ -49,6 +49,8 @@ export function loadTemplateSource(themesRoot: string, activeTheme: string, file
 export interface SiteSettings {
   siteTitle: string;
   siteDescription: string;
+  /** Idioma do documento (setting `language`); fallback pt-BR. */
+  language: string;
   [key: string]: unknown;
 }
 
@@ -59,7 +61,7 @@ export interface SiteSettings {
 export async function fetchSiteSettings(sql: ReturnType<typeof getConnection>): Promise<SiteSettings> {
   try {
     const rows = await sql.unsafe(
-      "SELECT key, value FROM settings WHERE key IN ('siteTitle', 'siteDescription')"
+      "SELECT key, value FROM settings WHERE key IN ('siteTitle', 'siteDescription', 'language')"
     );
     const byKey = new Map(
       (rows as unknown as Array<{ key: string; value: unknown }>).map((r) => [r.key, r.value])
@@ -67,9 +69,10 @@ export async function fetchSiteSettings(sql: ReturnType<typeof getConnection>): 
     return {
       siteTitle: toText(byKey.get('siteTitle')) || 'OkCMS',
       siteDescription: toText(byKey.get('siteDescription')) || '',
+      language: toText(byKey.get('language')) || 'pt-BR',
     };
   } catch {
-    return { siteTitle: 'OkCMS', siteDescription: '' };
+    return { siteTitle: 'OkCMS', siteDescription: '', language: 'pt-BR' };
   }
 }
 
@@ -81,6 +84,36 @@ function toText(value: unknown): string {
 }
 
 export const themeRenderer = new ThemeRenderer();
+
+/**
+ * Configurações do tema para os templates: defaults declarados em
+ * `manifest.settings` sobrescritos pelo `config` salvo na tela Temas do
+ * admin (exposto como `settings.theme` no contexto do template).
+ */
+export function buildThemeSettings(
+  manifest: Record<string, unknown> | null | undefined,
+  config: Record<string, unknown> | null | undefined
+): Record<string, unknown> {
+  const settings: Record<string, unknown> = {};
+
+  const declared = Array.isArray(manifest?.['settings']) ? (manifest['settings'] as unknown[]) : [];
+  for (const field of declared) {
+    if (!field || typeof field !== 'object') continue;
+    const record = field as Record<string, unknown>;
+    const name = record['name'];
+    if (typeof name === 'string' && name) {
+      settings[name] = record['default'];
+    }
+  }
+
+  if (config && typeof config === 'object' && !Array.isArray(config)) {
+    for (const [key, value] of Object.entries(config)) {
+      settings[key] = value;
+    }
+  }
+
+  return settings;
+}
 
 export interface ContentPageRenderInput {
   resolution: { template?: string; contentType?: string; slug?: string; matched: boolean };
@@ -137,7 +170,21 @@ export function renderContentPage(input: ContentPageRenderInput): string {
   };
 
   const body = themeRenderer.renderString(template, context, row);
-  return wrapDocument(body, title, input.settings, input.activeTheme);
+  const stylesheet = resolveThemeStylesheet(input.themesRoot, input.activeTheme);
+  return wrapDocument(body, title, input.settings, input.activeTheme, stylesheet);
+}
+
+/**
+ * Primeiro fornecedor real de `dist/theme.css` na cadeia (tema ativo →
+ * _shared → default). `null` quando ninguém compilou estilos — o documento
+ * sai sem <link> quebrado (nada de 404 silencioso no console).
+ */
+export function resolveThemeStylesheet(themesRoot: string, activeTheme: string): string | null {
+  for (const theme of [activeTheme, '_shared', 'default']) {
+    if (!theme) continue;
+    if (existsSync(join(themesRoot, theme, 'dist', 'theme.css'))) return theme;
+  }
+  return null;
 }
 
 /**
@@ -149,23 +196,27 @@ export function wrapDocument(
   body: string,
   pageTitle: string,
   settings: SiteSettings,
-  activeTheme: string
+  activeTheme: string,
+  stylesheetTheme: string | null = null
 ): string {
   if (body.includes('<html') || body.includes('<!DOCTYPE')) {
     return body;
   }
 
   const title = pageTitle && pageTitle !== settings.siteTitle ? `${pageTitle} | ${settings.siteTitle}` : settings.siteTitle;
+  const lang = escapeHtml(settings.language || 'pt-BR');
+  const stylesheet = stylesheetTheme
+    ? `  <link rel="stylesheet" href="/themes/${escapeHtml(stylesheetTheme)}/dist/theme.css" data-theme-style="${escapeHtml(stylesheetTheme)}" />\n`
+    : '';
 
   return `<!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="${lang}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${escapeHtml(title)}</title>
   <meta name="description" content="${escapeHtml(settings.siteDescription)}">
-  <link rel="stylesheet" href="/themes/${escapeHtml(activeTheme)}/dist/theme.css" data-theme-style="${escapeHtml(activeTheme)}" />
-</head>
+${stylesheet}</head>
 <body>
 ${body}
 </body>
@@ -185,19 +236,32 @@ function plainColumns(row: Record<string, unknown>): Record<string, unknown> {
 /** Tema sem template para a rota: HTML mínimo com os dados reais (nunca stub). */
 function renderFallbackPage(input: ContentPageRenderInput): string {
   const title = toText((input.contentRow ?? {})['title']) || input.settings.siteTitle;
+  const lang = escapeHtml(input.settings.language || 'pt-BR');
   return `<!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="${lang}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${escapeHtml(title)} | ${escapeHtml(input.settings.siteTitle)}</title>
   <meta name="description" content="${escapeHtml(input.settings.siteDescription)}">
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; color: #111; }
+    main { max-width: 46rem; margin: 0 auto; padding: 3rem 1.5rem; }
+    .fallback__hint { color: #555; line-height: 1.5; }
+    details { margin-top: 2rem; }
+    summary { cursor: pointer; color: #555; }
+    pre { background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 6px; padding: 1rem; overflow: auto; font-size: 0.85rem; }
+  </style>
 </head>
 <body>
   <main data-theme="${escapeHtml(input.activeTheme)}">
     <article>
       <h1>${escapeHtml(title)}</h1>
-      <div class="entry__body">${escapeHtml(JSON.stringify(input.data))}</div>
+      <p class="fallback__hint">Este tema não possui template para esta rota — os dados reais do conteúdo estão abaixo.</p>
+      <details>
+        <summary>Dados (JSON)</summary>
+        <pre>${escapeHtml(JSON.stringify(input.data, null, 2))}</pre>
+      </details>
     </article>
   </main>
 </body>
@@ -278,26 +342,9 @@ function collectMediaIds(value: unknown, out: Set<string>, depth = 0): void {
   }
 }
 
-/**
- * REQU-028-001: substitui referências de mídia por objetos {id,url,alt} reais.
- * Uma única query batched — sem N+1.
- */
-async function enrichMedia(sql: ReturnType<typeof getConnection>, data: Record<string, unknown>): Promise<void> {
-  const ids = new Set<string>();
-  collectMediaIds(data, ids);
-  if (ids.size === 0) return;
-
-  const idList = [...ids];
-  const rows = await sql.unsafe(
-    `SELECT id, url, alt, filename FROM media WHERE id = ANY($1::uuid[])`,
-    [idList]
-  );
-  const byId = new Map(
-    (rows as Array<Record<string, unknown>>).map((r) => [String(r['id']), { id: String(r['id']), url: String(r['url']), alt: r['alt'] ?? null, filename: r['filename'] ?? null }])
-  );
-  if (byId.size === 0) return;
-
-  const replace = (value: unknown, keyHint: string | undefined, depth: number): unknown => {
+/** Constrói o rewriter que troca UUIDs por objetos de mídia real (REQU-028-001). */
+function buildMediaReplacer(byId: Map<string, Record<string, unknown>>) {
+  return function replace(value: unknown, keyHint: string | undefined, depth: number): unknown {
     if (value == null || depth > 6) return value;
     if (typeof value === 'string') {
       const hit = byId.get(value);
@@ -313,9 +360,56 @@ async function enrichMedia(sql: ReturnType<typeof getConnection>, data: Record<s
     }
     return value;
   };
+}
 
+/** Uma única query de mídia para N payloads — sem N+1. */
+async function fetchMediaById(sql: ReturnType<typeof getConnection>, ids: Set<string>): Promise<Map<string, Record<string, unknown>>> {
+  if (ids.size === 0) return new Map();
+  const rows = await sql.unsafe(
+    `SELECT id, url, alt, filename FROM media WHERE id = ANY($1::uuid[])`,
+    [[...ids]]
+  );
+  return new Map(
+    (rows as Array<Record<string, unknown>>).map((r) => [String(r['id']), { id: String(r['id']), url: String(r['url']), alt: r['alt'] ?? null, filename: r['filename'] ?? null }])
+  );
+}
+
+/**
+ * REQU-028-001: substitui referências de mídia por objetos {id,url,alt} reais.
+ * Uma única query batched — sem N+1.
+ */
+async function enrichMedia(sql: ReturnType<typeof getConnection>, data: Record<string, unknown>): Promise<void> {
+  const ids = new Set<string>();
+  collectMediaIds(data, ids);
+  const byId = await fetchMediaById(sql, ids);
+  if (byId.size === 0) return;
+
+  const replace = buildMediaReplacer(byId);
   for (const key of Object.keys(data)) {
     data[key] = replace(data[key], key, 0);
+  }
+}
+
+/**
+ * REQU-028-001 (listas): o mesmo enriquecimento para os itens de archive/home,
+ * com UMA query de mídia para todos os itens do lote.
+ */
+export async function enrichItemsMedia(
+  sql: ReturnType<typeof getConnection>,
+  items: Array<Record<string, unknown>>
+): Promise<void> {
+  if (items.length === 0) return;
+
+  const ids = new Set<string>();
+  for (const item of items) collectMediaIds(item, ids);
+  const byId = await fetchMediaById(sql, ids);
+  if (byId.size === 0) return;
+
+  const replace = buildMediaReplacer(byId);
+  for (const item of items) {
+    for (const key of Object.keys(item)) {
+      item[key] = replace(item[key], key, 0);
+    }
   }
 }
 
@@ -371,6 +465,7 @@ export function createContentLookup(): ContentLookup {
         slug: String(row['slug']),
         data,
         layout: (row['layout'] as string | null | undefined) ?? null,
+        record: row,
       };
     },
 
@@ -401,11 +496,11 @@ export async function buildTheme(themeRoot: string, themeName: string, manifest:
 
 /**
  * Registra o hook registry no Theme SDK para habilitar os filtros theme:data:*.
+ * Awaited no boot do web — fire-and-forget deixava a janela inicial sem hooks.
  */
-export function wireThemeHooks(): void {
-  void import('@oktis-works/theme-sdk').then((sdk) => {
-    sdk.setThemeHooks(getHookRegistry());
-  });
+export async function wireThemeHooks(): Promise<void> {
+  const sdk = await import('@oktis-works/theme-sdk');
+  sdk.setThemeHooks(getHookRegistry());
 
   // Ponto de extensão head: plugins podem injetar tags no <head> do site público.
   void HOOK_POINTS;

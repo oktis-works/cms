@@ -896,6 +896,17 @@ export const commands: Command[] = [
           return;
         }
         console.log(`Theme "${name}" uninstalled (${result.targetDir}).`);
+        // Remove também o registro no banco (best-effort — sem banco, o
+        // registro continua visível na tela Temas do admin para desinstalar).
+        try {
+          const { initDb } = await import('./db-init.js');
+          await initDb();
+          const { themeService } = await import('@oktis-works/core');
+          const row = await themeService.getByName(name);
+          if (row) await themeService.uninstall(row.id);
+        } catch {
+          // registro remanescente é tratável pela UI
+        }
         return;
       }
 
@@ -910,7 +921,25 @@ export const commands: Command[] = [
         const raw = JSON.parse(readFileSync(configPath, 'utf-8')) as Record<string, unknown>;
         raw['activeTheme'] = name;
         writeFileSync(configPath, JSON.stringify(raw, null, 2));
-        console.log(`Active theme set to "${name}".`);
+
+        // Fonte única do tema ativo em runtime é o BANCO (o site lê por
+        // request) — sem gravar lá, a ativação via CLI seria ignorada ou
+        // divergiria do status mostrado no admin.
+        try {
+          const { initDb } = await import('./db-init.js');
+          await initDb();
+          const { themeService } = await import('@oktis-works/core');
+          await themeService.syncFromDirectory(); // registra temas do diretório (idempotente)
+          const row = await themeService.getByName(name);
+          if (row) {
+            await themeService.activate(row.id);
+            console.log(`Active theme set to "${name}" (config + banco).`);
+          } else {
+            console.log(`Active theme set to "${name}" (config; tema não descoberto no banco — abra a tela Temas do admin para sincronizar).`);
+          }
+        } catch {
+          console.log(`Active theme set to "${name}" (config; banco indisponível — ative pelo admin depois).`);
+        }
         return;
       }
 
@@ -923,8 +952,13 @@ export const commands: Command[] = [
       }
 
       const config = loadProjectConfig();
-      const themeJsonPath = join(process.cwd(), config.themesDir, name, 'theme.json');
+      const themeDir = join(process.cwd(), config.themesDir, name);
+      // theme.json é o nome atual; manifest.json é o legado (tema default)
+      const themeJsonPath = [join(themeDir, 'theme.json'), join(themeDir, 'manifest.json')].find((candidate) =>
+        existsSync(candidate)
+      );
       try {
+        if (!themeJsonPath) throw new Error('manifesto não encontrado');
         const manifest = JSON.parse(readFileSync(themeJsonPath, 'utf-8')) as Record<string, unknown>;
         const provides = (manifest['provides'] ?? {}) as Record<string, unknown>;
         const state = loadExtensionsState().themes[name];
@@ -936,7 +970,7 @@ export const commands: Command[] = [
         console.log(`Active:     ${config.activeTheme === name ? 'yes' : 'no'} (${config.activeTheme || 'none'})`);
         console.log(`State:      ${state?.enabled === false ? 'disabled' : 'enabled'}`);
       } catch {
-        console.error(`theme.json not found at ${themeJsonPath}`);
+        console.error(`theme.json/manifest.json not found at ${themeDir}`);
         process.exit(1);
       }
     },
