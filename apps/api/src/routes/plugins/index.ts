@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { pluginService } from '@oktis-works/core'
+import { pluginService, syncEnabledPlugins } from '@oktis-works/core'
 import { authMiddleware, requirePermission } from '../../middleware/auth.js'
 
 const plugins = new Hono()
@@ -35,6 +35,9 @@ plugins.post('/:id/activate', requirePermission('update', 'plugin'), async (c) =
   try {
     const id = c.req.param('id') as string
     const result = await pluginService.activate(id)
+    if (!result) return c.json({ error: 'Plugin not found' }, 404)
+    // Ativação reflete no processo da API sem restart (web/worker: próximo boot)
+    await syncEnabledPlugins()
     return c.json(result)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to activate plugin'
@@ -46,6 +49,9 @@ plugins.post('/:id/deactivate', requirePermission('update', 'plugin'), async (c)
   try {
     const id = c.req.param('id') as string
     const result = await pluginService.deactivate(id)
+    if (!result) return c.json({ error: 'Plugin not found' }, 404)
+    // Remove os hooks do plugin deste processo na hora
+    await syncEnabledPlugins()
     return c.json(result)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to deactivate plugin'

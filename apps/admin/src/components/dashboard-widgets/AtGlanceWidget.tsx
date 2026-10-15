@@ -1,7 +1,6 @@
 import { Show, createSignal, onMount } from 'solid-js';
 import { useTranslation } from '../../i18n';
 import { apiClient } from '../../lib/api';
-import { APP_VERSION } from '../../lib/version';
 
 interface DashboardWidgetProps {
   title: string;
@@ -50,7 +49,6 @@ interface AtGlanceStats {
   media: { total: number };
   users: { total: number; active: number; inactive: number };
   storage: { used: string };
-  version: string;
 }
 
 function formatBytes(bytes: number): string {
@@ -98,7 +96,6 @@ export function AtGlanceWidget() {
           inactive: usersData.filter(u => u.status === 'INACTIVE').length,
         },
         storage: { used: formatBytes(storageBytes) },
-        version: APP_VERSION,
       });
     } catch (e) {
       console.error('Failed to load At Glance stats:', e);
@@ -155,14 +152,10 @@ export function AtGlanceWidget() {
             <span class="stat-desc">{t('dashboard.widgets.usersDesc')}</span>
           </div>
 
-          <div class="stat-item full-width">
-            <span class="stat-label">{t('dashboard.widgets.version')}</span>
-            <div class="version-info">
-              <span class="version-label">OkCMS</span>
-              <span class="version-number">{stats()?.version}</span>
-              <span class="version-separator">|</span>
-              <span class="storage-label">{t('dashboard.widgets.storage')}</span>
-              <span class="storage-value">{stats()?.storage.used}</span>
+          <div class="stat-item">
+            <span class="stat-label">{t('dashboard.widgets.storage')}</span>
+            <div class="stat-values">
+              <span class="stat-value total">{stats()?.storage.used}</span>
             </div>
           </div>
         </div>
@@ -171,7 +164,6 @@ export function AtGlanceWidget() {
       <style>{`
         .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
         .stat-item { display: flex; flex-direction: column; gap: 0.5rem; padding: 1rem; background: var(--color-background); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
-        .stat-item.full-width { grid-column: 1 / -1; }
         .stat-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-muted); }
         .stat-values { display: flex; align-items: baseline; gap: 0.375rem; flex-wrap: wrap; }
         .stat-value { font-size: 1.5rem; font-weight: 700; color: var(--color-text); }
@@ -186,12 +178,6 @@ export function AtGlanceWidget() {
         .stat-value.inactive { color: var(--color-danger); }
         .stat-separator { color: var(--color-muted); }
         .stat-desc { font-size: 0.6875rem; color: var(--color-muted); }
-        .version-info { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
-        .version-label { font-weight: 500; color: var(--color-text); }
-        .version-number { background: var(--color-primary-soft); color: var(--color-primary-hover); padding: 0.125rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.8125rem; font-weight: 600; }
-        .version-separator { color: var(--color-muted); }
-        .storage-label { font-size: 0.8125rem; color: var(--color-muted); }
-        .storage-value { font-weight: 600; color: var(--color-text); }
       `}</style>
     </DashboardWidget>
   );

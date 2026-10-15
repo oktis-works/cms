@@ -53,7 +53,13 @@ plugins/my-plugin/
 'use strict';
 
 module.exports.register = function register(registry) {
-  registry.addFilter('theme:data:posts', (value) => value);
+  // Real filter: runs on every content listing (e.g. GET /api/v1/content)
+  registry.addFilter('content:query', (items) => items);
+
+  // Real action: fired after publishing a "post" entry
+  registry.addAction('after_publish_content_post', (content) => {
+    console.log('[my-plugin] published:', content.slug);
+  });
 };
 ```
 
@@ -103,16 +109,18 @@ npx okcms plugin:create --name my-plugin
 npx okcms plugin:install --name ../my-plugin-source
 
 # 4. Management
-npx okcms plugin:list                                # installed + status
+npx okcms plugin:list                                # installed + local state
 npx okcms plugin:manage -n my-plugin --info          # manifest information
-npx okcms plugin:manage -n my-plugin --disable       # disables (keeps the files)
-npx okcms plugin:manage -n my-plugin --enable        # enables it again
-npx okcms plugin:manage -n my-plugin --uninstall     # removes files + registration
+npx okcms plugin:manage -n my-plugin --disable       # marks as disabled in the local state (.okcms/extensions.json)
+npx okcms plugin:manage -n my-plugin --enable        # marks as enabled again (same local state)
+npx okcms plugin:manage -n my-plugin --uninstall     # removes the project files
+# Runtime effect comes from the admin: activate/deactivate flips the database
+# status loaded at boot (web/worker on the next restart).
 
 # 5. Search npm (packages with the okcms-plugin keyword)
 npx okcms plugin:search -q gallery
 
-# 6. Published/updated? Stage the SQL + build the themes + blue/green deploy
+# 6. Published/updated? Stage the SQL + build the themes + deploy (saved target)
 npx okcms redeploy --dry-run   # only shows the plan
 npx okcms redeploy
 ```

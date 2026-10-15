@@ -386,50 +386,6 @@ export const commands: Command[] = [
     },
   },
   {
-    name: 'prerender',
-    description: 'Statically prerender published pages for the active theme (best-effort)',
-    options: [
-      { name: 'out', alias: 'o', description: 'Output directory (default: ./.prerender)', required: false },
-    ],
-    handler: async (_args, options) => {
-      const { join } = await import('node:path');
-
-      if (!process.env['DATABASE_URL']) {
-        console.log('[prerender] DATABASE_URL not set — skipping (best-effort).');
-        return;
-      }
-
-      const outDir = options['out'] ?? join(process.cwd(), '.prerender');
-
-      try {
-        const { getConnection } = await import('@oktis-works/database');
-        const { prerenderStatic } = await import('@oktis-works/theme-runtime');
-
-        const rows = await getConnection().unsafe(
-          "SELECT type, slug FROM content WHERE status = 'PUBLISHED' ORDER BY updated_at DESC LIMIT 500"
-        );
-        const contents = rows as unknown as Array<{ type: string; slug: string }>;
-
-        const result = await prerenderStatic(
-          contents.map((content) => ({
-            path: `/${content.slug}`,
-            render: async () =>
-              `<main data-type="${content.type}" data-slug="${content.slug}"></main>`,
-          })),
-          outDir
-        );
-
-        console.log(`[prerender] ${result.pages} page(s) generated at ${outDir}`);
-        if (result.failed.length > 0) {
-          const failedPaths = result.failed.map((failed) => failed.path).join(', ');
-          console.warn(`[prerender] ${result.failed.length} failure(s): ${failedPaths}`);
-        }
-      } catch (error) {
-        console.warn(`[prerender] unavailable (${error instanceof Error ? error.message : String(error)}) — skipping.`);
-      }
-    },
-  },
-  {
     name: 'config',
     description:
       'Environment variables wizard (.env) — interactive, or --list / --set KEY=value',

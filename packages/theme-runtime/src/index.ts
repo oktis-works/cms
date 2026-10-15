@@ -9,7 +9,6 @@ export {
 } from './template-resolver.js';
 export type { TemplateContext, ResolvedTemplate, TemplateFileChecker } from './template-resolver.js';
 export { ThemeLoader } from './loader.js';
-export { prerenderStatic, routeToOutputFile, type PrerenderRoute, type PrerenderResult } from './prerender.js';
 export type { DiscoveredTheme } from './loader.js';
 export {
   RuntimeRouter,

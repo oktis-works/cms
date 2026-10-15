@@ -57,7 +57,7 @@ const NEEDS_PROJECT = new Set([
   'rollback', 'db:migrate', 'db:rollback', 'db:status', 'db:backup', 'db:restore',
   'seed', 'user:create', 'plugin:install', 'plugin:list', 'plugin:manage',
   'theme:install', 'theme:list', 'theme:manage', 'theme:build', 'build',
-  'prerender', 'media:migrate', 'system:status',
+  'media:migrate', 'system:status',
 ]);
 
 /** Comandos que bloqueiam por longo tempo (Ctrl+C volta ao wizard). */

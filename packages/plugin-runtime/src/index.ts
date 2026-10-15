@@ -8,6 +8,12 @@ export {
   setHookRegistry,
 } from './hook-registry.js';
 export type { AddHookOptions, AuditLogEntry, HookCallback } from './hook-registry.js';
+export { bootstrapPlugins, resetLoadedPlugins } from './bootstrap.js';
+export type {
+  BootstrapPluginsOptions,
+  BootstrapPluginsSql,
+  PluginBootstrapResult,
+} from './bootstrap.js';
 export {
   scopePluginCss,
   getPluginScopeAttribute,

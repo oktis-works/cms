@@ -54,7 +54,7 @@
 ### 1.7 Plugins (Extensões)
 | Arquivo | Strings a traduzir |
 |---------|-------------------|
-| `plugins/[slug].astro` | "Plugin", "Conteúdo renderizado pelo runtime de componentes do plugin — isolado via `data-plugin=\"{pluginSlug}\"`." |
+| `plugins/[slug].astro` | "Plugin", "Página de extensão com contentor estático (ainda sem runtime que monte componentes) — isolado via `data-plugin=\"{pluginSlug}\"`." |
 | `extensions.tsx` | (Strings dinâmicas vindas do manifest do plugin) |
 
 ### 1.8 Themes (Temas)
@@ -589,6 +589,11 @@ export function ContentList(props: { locale?: string }) {
 ---
 
 ## 6. Sistema para Plugins e Temas
+
+> ⚠️ **Proposta (Fase 4 do plano) — ainda não implementada.** Os exemplos desta
+> seção descrevem o sistema de i18n de plugins/temas como ele será implementado;
+> hoje os plugins não têm carregamento de traduções nem `addComponent` no
+> registro de hooks.
 
 ### 6.1 Estrutura de Idiomas para Extensões
 
@@ -1182,4 +1187,4 @@ export function useLocaleContext(): LocaleContextValue {
 
 ---
 
-> **Nota**: Este plano mantém compatibilidade total com plugins existentes — eles continuam funcionando sem mudanças. O sistema de i18n de plugins é **opcional** e **aditivo**.
+> **Nota**: O sistema proposto mantém compatibilidade total com plugins existentes — eles continuarão funcionando sem mudanças. O i18n de plugins (Fase 4) será **opcional** e **aditivo**.

@@ -2,7 +2,7 @@
 
 # OkCMS v2
 
-Hybrid, modular, API-first, extensible CMS with Astro+SolidJS frontend, Node.js/TypeScript backend, PostgreSQL, Docker immutable deployments, plugin/theme systems with sandbox, and multi-tenancy.
+Hybrid, modular, API-first, extensible CMS with Astro+SolidJS frontend, Node.js/TypeScript backend, PostgreSQL, Docker immutable deployments, plugin and theme extension systems, and multi-tenancy.
 
 ## Documentation
 
@@ -196,10 +196,10 @@ target.
 | `okcms plugin:create` | `-n, --name` (required) · `-d, --dir` | Minimal plugin scaffold |
 | `okcms plugin:install` | `-n, --name` (required) | Installs from a local path + registers |
 | `okcms plugin:list` · `plugin:search` | `-q, --query` | Lists installed / searches npm (`okcms-plugin`) |
-| `okcms plugin:manage` | `-n, --name` (required) · `-i` · `-e` · `-d` · `-u` | Info, enable, disable, uninstall |
+| `okcms plugin:manage` | `-n, --name` (required) · `-i` · `-e` · `-d` · `-u` | Info; enable/disable (local state); uninstall |
 | `okcms theme:create` | `-n, --name` (required) · `-d, --dir` · `-s, --style css\|scss\|tailwind` | Minimal theme scaffold |
 | `okcms theme:install` · `theme:list` · `theme:search` | `-q, --query` | Theme install/lookup |
-| `okcms theme:manage` | `-n, --name` (required) · `-i` · `-e` · `-d` · `-u` · `-s, --set-active` | Info, enable, disable, uninstall, activate |
+| `okcms theme:manage` | `-n, --name` (required) · `-i` · `-e` · `-d` · `-u` · `-s, --set-active` | Info; enable/disable (local state); uninstall; activate |
 | `okcms theme:build` | `-n, --name` (required) · `-d, --themes-dir` | Compiles SCSS/Tailwind → isolated `dist/theme.css` |
 
 **Content and system**
@@ -210,7 +210,6 @@ target.
 | `okcms seed` | — | Initial data (roles + settings) — idempotent |
 | `okcms system:status` | — | Environment status + database health |
 | `okcms media:migrate` | `-f, --from` · `-t, --to` (required) | Moves media between drivers (`local`, `s3`, `r2`, `minio`) |
-| `okcms prerender` | `-o, --out` | Static HTML of the published pages |
 | `okcms build` | `-a, --apps api,admin,web` | Builds the apps (monorepo only) |
 
 **Conventions and exit codes**
@@ -314,7 +313,7 @@ failure rolls back, as always. Useful options:
 
 ## Architecture
 
-- **Frontend**: Astro (SSR/SSG) + SolidJS (reactive islands)
+- **Frontend**: Astro (SSR) + SolidJS (reactive islands)
 - **Backend**: Node.js + TypeScript + Hono
 - **Database**: PostgreSQL with Row-Level Security
 - **Cache/Queue**: Redis
@@ -340,7 +339,7 @@ okcms-v2/
 │   ├── ui/            # Shared UI components
 │   ├── plugin-sdk/    # Plugin development SDK
 │   ├── theme-sdk/     # Theme development SDK
-│   ├── plugin-runtime/# Plugin sandbox and execution
+│   ├── plugin-runtime/# Plugin loader, hooks registry & bootstrap
 │   ├── theme-runtime/ # Theme rendering engine
 │   ├── cli/           # `okcms` CLI (canonical deploy assets in src/assets.ts)
 │   ├── validation/    # CMS_VERSION / compatibility

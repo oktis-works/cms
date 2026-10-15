@@ -16,7 +16,7 @@ export {
   createPluginHooksApi,
   ADMIN_HOOK_POINTS,
 } from './hooks.js';
-export type { PluginHooksApi, HookRegistration } from './hooks.js';
+export type { PluginHooksApi, HookRegistration, HookRegistryLike } from './hooks.js';
 
 export {
   createPluginAdminApi,

@@ -64,7 +64,7 @@ const commandGroups: Array<[string, string[]]> = [
   ['Database', ['db:migrate', 'db:rollback', 'db:status', 'db:backup', 'db:restore', 'seed', 'user:create']],
   ['Extensions', ['plugin:create', 'plugin:install', 'plugin:list', 'plugin:search', 'plugin:manage', 'theme:create', 'theme:install', 'theme:list', 'theme:search', 'theme:manage', 'theme:build']],
   ['Deploy', ['build', 'update', 'redeploy', 'rollback', 'deploy']],
-  ['System', ['prerender', 'media:migrate', 'system:status']],
+  ['System', ['media:migrate', 'system:status']],
 ];
 
 /**

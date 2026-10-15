@@ -139,12 +139,17 @@ export class PluginLoader {
   }
 
   private async loadManifest(pluginPath: string): Promise<PluginManifest | null> {
-    try {
-      const manifestPath = join(pluginPath, 'package.json');
-      const content = await readFile(manifestPath, 'utf-8');
-      return JSON.parse(content) as PluginManifest;
-    } catch {
-      return null;
+    // `package.json` é o formato npm (loader original); `manifest.json` é o
+    // que a CLI scaffolda — sem o fallback, plugin criado por `plugin:create`
+    // nunca era descoberto (mesmo fallback do sistema de temas).
+    for (const candidate of ['package.json', 'manifest.json']) {
+      try {
+        const content = await readFile(join(pluginPath, candidate), 'utf-8');
+        return JSON.parse(content) as PluginManifest;
+      } catch {
+        // tenta o próximo nome
+      }
     }
+    return null;
   }
 }

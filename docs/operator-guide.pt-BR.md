@@ -249,7 +249,6 @@ deploy, mas backup fora do servidor é o único que aguenta perda da máquina.
 | `okcms seed` | Roles + settings iniciais (idempotente) |
 | `okcms system:status` | Status do ambiente + saúde do banco |
 | `okcms media:migrate -f <de> -t <para>` | Move mídia entre drivers (`local`, `s3`, `r2`, `minio`) |
-| `okcms prerender` | HTML estático das páginas publicadas (best-effort) |
 | `okcms build` | Build dos apps (só em monorepo) |
 
 ## Exit codes e convenções

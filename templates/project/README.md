@@ -7,14 +7,14 @@ Template mínimo para iniciar um projeto OkCMS.
 ```bash
 okcms init meu-site
 cd meu-site
-cp env.example .env
-docker compose up -d
+docker compose up -d      # PostgreSQL + Redis locais (healthcheck + volume)
+okcms db:migrate          # cria o schema no banco
 okcms start
 ```
 
 ## Estrutura
 
 - `docker-compose.yml` — PostgreSQL + Redis local com healthcheck
-- `env.example` — variáveis de ambiente do projeto
+- `.env.example` — modelo de variáveis (o `okcms init` já gera o `.env`)
 - `themes/` — temas instalados (criado pelo CLI)
 - `plugins/` — plugins instalados (criado pelo CLI)

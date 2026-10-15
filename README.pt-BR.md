@@ -2,7 +2,7 @@
 
 # OkCMS v2
 
-Hybrid, modular, API-first, extensible CMS with Astro+SolidJS frontend, Node.js/TypeScript backend, PostgreSQL, Docker immutable deployments, plugin/theme systems with sandbox, and multi-tenancy.
+Hybrid, modular, API-first, extensible CMS with Astro+SolidJS frontend, Node.js/TypeScript backend, PostgreSQL, Docker immutable deployments, plugin and theme extension systems, and multi-tenancy.
 
 ## Documentation
 
@@ -197,10 +197,10 @@ executa o deploy do target escolhido.
 | `okcms plugin:create` | `-n, --name` (obrigatória) · `-d, --dir` | Scaffold mínimo de plugin |
 | `okcms plugin:install` | `-n, --name` (obrigatória) | Instala de um caminho local + registra |
 | `okcms plugin:list` · `plugin:search` | `-q, --query` | Lista instalados / busca no npm (`okcms-plugin`) |
-| `okcms plugin:manage` | `-n, --name` (obrigatória) · `-i` · `-e` · `-d` · `-u` | Info, enable, disable, uninstall |
+| `okcms plugin:manage` | `-n, --name` (obrigatória) · `-i` · `-e` · `-d` · `-u` | Info; enable/disable (estado local); uninstall |
 | `okcms theme:create` | `-n, --name` (obrigatória) · `-d, --dir` · `-s, --style css\|scss\|tailwind` | Scaffold mínimo de tema |
 | `okcms theme:install` · `theme:list` · `theme:search` | `-q, --query` | Instalação/consulta de temas |
-| `okcms theme:manage` | `-n, --name` (obrigatória) · `-i` · `-e` · `-d` · `-u` · `-s, --set-active` | Info, enable, disable, uninstall, ativar |
+| `okcms theme:manage` | `-n, --name` (obrigatória) · `-i` · `-e` · `-d` · `-u` · `-s, --set-active` | Info; enable/disable (estado local); uninstall; ativar |
 | `okcms theme:build` | `-n, --name` (obrigatória) · `-d, --themes-dir` | Compila SCSS/Tailwind → `dist/theme.css` isolado |
 
 **Conteúdo e sistema**
@@ -211,7 +211,6 @@ executa o deploy do target escolhido.
 | `okcms seed` | — | Dados iniciais (roles + settings) — idempotente |
 | `okcms system:status` | — | Status do ambiente + saúde do banco |
 | `okcms media:migrate` | `-f, --from` · `-t, --to` (obrigatórios) | Move mídia entre drivers (`local`, `s3`, `r2`, `minio`) |
-| `okcms prerender` | `-o, --out` | HTML estático das páginas publicadas |
 | `okcms build` | `-a, --apps api,admin,web` | Build dos apps (só em monorepo) |
 
 **Convenções e exit codes**
@@ -315,7 +314,7 @@ faz rollback, como sempre. Opções úteis:
 
 ## Architecture
 
-- **Frontend**: Astro (SSR/SSG) + SolidJS (reactive islands)
+- **Frontend**: Astro (SSR) + SolidJS (reactive islands)
 - **Backend**: Node.js + TypeScript + Hono
 - **Database**: PostgreSQL with Row-Level Security
 - **Cache/Queue**: Redis
@@ -341,7 +340,7 @@ okcms-v2/
 │   ├── ui/            # Shared UI components
 │   ├── plugin-sdk/    # Plugin development SDK
 │   ├── theme-sdk/     # Theme development SDK
-│   ├── plugin-runtime/# Plugin sandbox and execution
+│   ├── plugin-runtime/# Plugin loader, hooks registry & bootstrap
 │   ├── theme-runtime/ # Theme rendering engine
 │   ├── cli/           # `okcms` CLI (assets canônicos de deploy em src/assets.ts)
 │   ├── validation/    # CMS_VERSION / compatibilidade

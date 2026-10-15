@@ -53,7 +53,13 @@ plugins/meu-plugin/
 'use strict';
 
 module.exports.register = function register(registry) {
-  registry.addFilter('theme:data:posts', (value) => value);
+  // Filtro real: roda em toda listagem de conteúdo (ex.: GET /api/v1/content)
+  registry.addFilter('content:query', (items) => items);
+
+  // Action real: disparada após publicar um conteúdo do tipo "post"
+  registry.addAction('after_publish_content_post', (content) => {
+    console.log('[meu-plugin] publicado:', content.slug);
+  });
 };
 ```
 
@@ -103,16 +109,17 @@ npx okcms plugin:create --name meu-plugin
 npx okcms plugin:install --name ../meu-plugin-fonte
 
 # 4. Gestão
-npx okcms plugin:list                                # instalados + status
+npx okcms plugin:list                                # instalados + estado local
 npx okcms plugin:manage -n meu-plugin --info         # informações do manifesto
-npx okcms plugin:manage -n meu-plugin --disable      # desabilita (mantém os arquivos)
-npx okcms plugin:manage -n meu-plugin --enable       # habilita de novo
-npx okcms plugin:manage -n meu-plugin --uninstall    # remove arquivos + registro
+npx okcms plugin:manage -n meu-plugin --disable      # marca como desabilitado no estado local (.okcms/extensions.json)
+npx okcms plugin:manage -n meu-plugin --enable       # marca como habilitado de novo (mesmo estado local)
+npx okcms plugin:manage -n meu-plugin --uninstall    # remove os arquivos do projeto
+# O runtime lê o status no banco: ative/desative pelo admin (carregado no boot).
 
 # 5. Busca no npm (pacotes com a keyword okcms-plugin)
 npx okcms plugin:search -q galeria
 
-# 6. Publicou/atualizou? Stage do SQL + build dos temas + deploy blue/green
+# 6. Publicou/atualizou? Stage do SQL + build dos temas + deploy (destino salvo)
 npx okcms redeploy --dry-run   # só mostra o plano
 npx okcms redeploy
 ```

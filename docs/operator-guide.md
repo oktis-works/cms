@@ -249,7 +249,6 @@ deploy, but an off-server backup is the only one that survives losing the machin
 | `okcms seed` | Initial roles + settings (idempotent) |
 | `okcms system:status` | Environment status + database health |
 | `okcms media:migrate -f <de> -t <para>` | Moves media between drivers (`local`, `s3`, `r2`, `minio`) |
-| `okcms prerender` | Static HTML of published pages (best-effort) |
 | `okcms build` | Builds the apps (only in monorepo) |
 
 ## Exit codes and conventions

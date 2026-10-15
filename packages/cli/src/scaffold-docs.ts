@@ -222,8 +222,8 @@ pm2 logs okcms-api                   # log por processo
 pm2 unmonitor okcms-api && pm2 delete okcms-api   # remover
 \`\`\`
 
-- O worker tem **modo pm2 nativo**: \`WORKER_MODE=pm2\` (cluster) combinado com
-  \`WORKER_COUNT\` e \`WORKER_CONCURRENCY\`.
+- O worker lê \`WORKER_MODE\` (docker · pm2 · k8s, default \`docker\`), loga
+  \`WORKER_COUNT\` e usa \`WORKER_CONCURRENCY\` (default 5) na concorrência das filas.
 - Como cada app é um executável independente, o \`okcms start\` não é
   necessário em produção — o pm2 supervisoria cada um diretamente.
 
@@ -298,20 +298,19 @@ os 6 passos acima na mão. Prefira o comando da CLI.
 | \`okcms db:backup\` · \`db:restore -f <arquivo>\` | Backup/restore do Postgres |
 | \`okcms plugin:create -n <nome>\` | Scaffold de plugin — guia em [PLUGIN.md](./PLUGIN.md) |
 | \`okcms plugin:install -n <caminho>\` | Instala plugin de um caminho local + registra |
-| \`okcms plugin:list\` · \`plugin:search\` · \`plugin:manage\` | Lista, busca (npm) e habilita/desabilita plugins |
+| \`okcms plugin:list\` · \`plugin:search\` · \`plugin:manage\` | Lista, busca (npm) e gerencia plugins (info · habilitar/desabilitar no estado local) |
 | \`okcms theme:create -n <nome> --style css\\|scss\\|tailwind\` | Scaffold de tema — guia em [THEME.md](./THEME.md) |
 | \`okcms theme:install\` · \`theme:list\` · \`theme:search\` · \`theme:manage\` | Gestão de temas (\`--set-active\` define o ativo) |
 | \`okcms theme:build -n <nome>\` | Compila SCSS/Tailwind → \`dist/theme.css\` isolado |
 | \`okcms update\` | Assistente de atualização: y/n por etapa — pacotes → migrations (sincroniza \`./migrations\`) → healthcheck → deploy |
 | \`okcms update -i\` | Alias legado; a atualização completa já instala os pacotes |
 | \`okcms update --mode download\` | Baixa/aplica os pacotes \`@oktis-works/*\` + sincroniza \`./migrations\`, sem iniciar Docker |
-| \`okcms update --mode deploy\` | Deploy blue/green completo: build → migrations → healthcheck → swap → worker |
-| \`okcms redeploy\` | Depois de instalar plugin/tema: SQL do plugin → \`migrations/\`, \`dist/theme.css\` do tema e deploy blue/green (\`--dry-run\` só mostra o plano) |
+| \`okcms update --mode deploy\` | Deploy do destino salvo: build → migrations → healthcheck → swap → worker (\`--target\` escolhe blue-green, simple ou pm2) |
+| \`okcms redeploy\` | Depois de instalar plugin/tema: SQL do plugin → \`migrations/\`, \`dist/theme.css\` do tema e refaz o deploy (\`--dry-run\` só mostra o plano, \`--target\` escolhe o destino) |
 | \`okcms seed\` | Semeia dados iniciais (roles + settings) — idempotente |
 | \`okcms user:create\` | Cria usuário e atribui um papel dentro do tenant |
 | \`okcms system:status\` | Status do sistema (ambiente + saúde do banco) |
 | \`okcms media:migrate\` | Migra arquivos de mídia entre drivers (\`local\` ↔ \`s3\`/\`r2\`/\`minio\`) |
-| \`okcms prerender\` | Gera HTML estático das páginas publicadas (best-effort) |
 | \`okcms build\` | Build dos apps em monorepo (\`--apps api,admin,web\`) |
 
 ## Banco de dados
@@ -328,7 +327,7 @@ os 6 passos acima na mão. Prefira o comando da CLI.
 \`\`\`bash
 okcms update        # assistente: y/n em pacotes → migrations → deploy
 okcms update --mode download  # só baixa/aplica os pacotes
-okcms update --mode deploy          # deploy blue/green completo
+okcms update --mode deploy          # deploy completo do destino salvo
 okcms update --mode deploy --yes    # sem prompts (CI/CD)
 \`\`\`
 
@@ -355,7 +354,7 @@ okcms redeploy
 \`\`\`
 
 Ele copia \`plugins/<n>/migrations/*.sql\` para \`migrations/\` (idempotente),
-compila o estilo de cada tema com entrada e refaz o deploy blue/green — sem
+compila o estilo de cada tema com entrada e refaz o deploy — sem
 \`bun add\`. Use \`--dry-run\` para ver o plano, \`--plugin <nome>\` /
 \`--theme <nome>\` para restringir o preparo, \`--skip-migrations\` e
 \`--skip-theme-build\` para pular etapas.
@@ -530,8 +529,8 @@ pm2 logs okcms-api                   # log per process
 pm2 unmonitor okcms-api && pm2 delete okcms-api   # remove
 \`\`\`
 
-- The worker has a **native pm2 mode**: \`WORKER_MODE=pm2\` (cluster) combined with
-  \`WORKER_COUNT\` and \`WORKER_CONCURRENCY\`.
+- The worker reads \`WORKER_MODE\` (docker · pm2 · k8s, default \`docker\`), logs
+  \`WORKER_COUNT\` and uses \`WORKER_CONCURRENCY\` (default 5) for queue concurrency.
 - Since each app is an independent executable, \`okcms start\` is not
   needed in production — pm2 supervises each one directly.
 
@@ -606,7 +605,7 @@ the 6 steps above to do by hand. Prefer the CLI command.
 | \`okcms db:backup\` · \`db:restore -f <file>\` | Postgres backup/restore |
 | \`okcms plugin:create -n <name>\` | Plugin scaffold — guide in [PLUGIN.md](./PLUGIN.md) |
 | \`okcms plugin:install -n <path>\` | Installs a plugin from a local path + registers it |
-| \`okcms plugin:list\` · \`plugin:search\` · \`plugin:manage\` | Lists, searches (npm) and enables/disables plugins |
+| \`okcms plugin:list\` · \`plugin:search\` · \`plugin:manage\` | Lists, searches (npm) and manages plugins (info · enable/disable in local state) |
 | \`okcms theme:create -n <name> --style css\\|scss\\|tailwind\` | Theme scaffold — guide in [THEME.md](./THEME.md) |
 | \`okcms theme:install\` · \`theme:list\` · \`theme:search\` · \`theme:manage\` | Theme management (\`--set-active\` sets the active one) |
 | \`okcms theme:build -n <name>\` | Compiles SCSS/Tailwind → isolated \`dist/theme.css\` |
@@ -620,7 +619,6 @@ the 6 steps above to do by hand. Prefer the CLI command.
 | \`okcms user:create\` | Creates a user and assigns a role inside the tenant |
 | \`okcms system:status\` | System status (environment + database health) |
 | \`okcms media:migrate\` | Migrates media files between drivers (\`local\` ↔ \`s3\`/\`r2\`/\`minio\`) |
-| \`okcms prerender\` | Generates static HTML for published pages (best-effort) |
 | \`okcms build\` | Builds the monorepo apps (\`--apps api,admin,web\`) |
 
 ## Database
@@ -637,7 +635,7 @@ the 6 steps above to do by hand. Prefer the CLI command.
 \`\`\`bash
 okcms update        # wizard: y/n on packages → migrations → deploy
 okcms update --mode download  # only downloads/applies the packages
-okcms update --mode deploy          # full blue/green deploy
+okcms update --mode deploy          # full deploy of the saved target
 okcms update --mode deploy --yes    # no prompts (CI/CD)
 \`\`\`
 
@@ -663,8 +661,8 @@ okcms redeploy
 \`\`\`
 
 It copies \`plugins/<n>/migrations/*.sql\` into \`migrations/\` (idempotent),
-compiles the style of every theme with an entry and redoes the blue/green
-deploy — without \`bun add\`. Use \`--dry-run\` to see the plan,
+compiles the style of every theme with an entry and redoes the deploy of
+the chosen target — without \`bun add\`. Use \`--dry-run\` to see the plan,
 \`--plugin <name>\` / \`--theme <name>\` to narrow the preparation, and
 \`--skip-migrations\` / \`--skip-theme-build\` to skip steps.
 
@@ -733,13 +731,26 @@ plugins/meu-plugin/
 'use strict';
 
 module.exports.register = function register(registry) {
-  registry.addFilter('theme:data:posts', (value) => value);
+  // Filtro real: roda em toda listagem de conteúdo (ex.: GET /api/v1/content)
+  registry.addFilter('content:query', (items) => items);
+
+  // Action real: disparada após publicar um conteúdo do tipo "post"
+  registry.addAction('after_publish_content_post', (content) => {
+    console.log('[meu-plugin] publicado:', content.slug);
+  });
 };
 \`\`\`
 
 O \`register(registry)\` é chamado quando o plugin é carregado. Use o registro
 para expor filters (transformações) — veja o que existe em
 \`GET /api/v1/hooks/catalog\` para os nomes e contratos disponíveis.
+
+O carregamento acontece no boot de todos os processos (API, web e worker):
+plugins com status \`ACTIVATED\` no banco têm o \`register\` chamado e os hooks
+entram no registry compartilhado. Ativar/desativar pela API recarrega no
+próprio processo da API na hora; web/worker pegam a mudança no próximo
+restart. Um plugin que falha ao carregar é isolado: a falha é reportada no
+log e nunca derruba o boot dos outros plugins nem do processo.
 
 ## Migrations do banco
 
@@ -783,16 +794,17 @@ okcms plugin:create --name meu-plugin
 okcms plugin:install --name ../meu-plugin-fonte
 
 # 4. Gestão
-okcms plugin:list                                # instalados + status
+okcms plugin:list                                # instalados + estado local
 okcms plugin:manage -n meu-plugin --info         # informações do manifesto
-okcms plugin:manage -n meu-plugin --disable      # desabilita (mantém os arquivos)
-okcms plugin:manage -n meu-plugin --enable       # habilita de novo
-okcms plugin:manage -n meu-plugin --uninstall    # remove arquivos + registro
+okcms plugin:manage -n meu-plugin --disable      # marca como desabilitado no estado local (.okcms/extensions.json)
+okcms plugin:manage -n meu-plugin --enable       # marca como habilitado de novo (mesmo estado local)
+okcms plugin:manage -n meu-plugin --uninstall    # remove os arquivos do projeto
+# O runtime lê o status no banco: ative/desative pelo admin (carregado no boot).
 
 # 5. Busca no npm (pacotes com a keyword okcms-plugin)
 okcms plugin:search -q galeria
 
-# 6. Publicou/atualizou? Stage do SQL + build dos temas + deploy blue/green
+# 6. Publicou/atualizou? Stage do SQL + build dos temas + deploy (destino salvo)
 okcms redeploy --dry-run   # só mostra o plano
 okcms redeploy
 \`\`\`
@@ -917,6 +929,7 @@ okcms theme:manage --name meu-tema --set-active
 okcms theme:list                               # instalados + status
 okcms theme:manage -n meu-tema --info          # informações do theme.json
 okcms theme:manage -n meu-tema --disable|enable
+#    (estado local .okcms/extensions.json; o tema ativo é o --set-active)
 okcms theme:manage -n meu-tema --uninstall
 okcms theme:search -q blog                     # busca no npm (keyword okcms-theme)
 
@@ -990,13 +1003,26 @@ plugins/my-plugin/
 'use strict';
 
 module.exports.register = function register(registry) {
-  registry.addFilter('theme:data:posts', (value) => value);
+  // Real filter: runs on every content listing (e.g. GET /api/v1/content)
+  registry.addFilter('content:query', (items) => items);
+
+  // Real action: fired after publishing a "post" entry
+  registry.addAction('after_publish_content_post', (content) => {
+    console.log('[my-plugin] published:', content.slug);
+  });
 };
 \`\`\`
 
 \`register(registry)\` is called when the plugin is loaded. Use the registry
 to expose filters (transformations) — see what exists at
 \`GET /api/v1/hooks/catalog\` for the available names and contracts.
+
+Loading happens at the boot of every process (API, web and worker): plugins
+with \`ACTIVATED\` status in the database get \`register\` called and their hooks
+enter the shared registry. Activating/deactivating via the API reloads the
+API process in place; web/worker pick the change up on the next restart.
+A plugin that fails to load is isolated: the failure is logged and never
+breaks the boot of the other plugins or of the process.
 
 ## Database migrations
 
@@ -1040,16 +1066,18 @@ okcms plugin:create --name my-plugin
 okcms plugin:install --name ../my-plugin-source
 
 # 4. Management
-okcms plugin:list                                # installed + status
+okcms plugin:list                                # installed + local state
 okcms plugin:manage -n my-plugin --info          # manifest information
-okcms plugin:manage -n my-plugin --disable       # disables (keeps the files)
-okcms plugin:manage -n my-plugin --enable        # enables it again
-okcms plugin:manage -n my-plugin --uninstall     # removes files + registration
+okcms plugin:manage -n my-plugin --disable       # marks as disabled in the local state (.okcms/extensions.json)
+okcms plugin:manage -n my-plugin --enable        # marks as enabled again (same local state)
+okcms plugin:manage -n my-plugin --uninstall     # removes the project files
+# Runtime effect comes from the admin: activate/deactivate flips the database
+# status loaded at boot (web/worker on the next restart).
 
 # 5. Search npm (packages with the okcms-plugin keyword)
 okcms plugin:search -q gallery
 
-# 6. Published/updated? Stage the SQL + build the themes + blue/green deploy
+# 6. Published/updated? Stage the SQL + build the themes + deploy (saved target)
 okcms redeploy --dry-run   # only shows the plan
 okcms redeploy
 \`\`\`
@@ -1176,6 +1204,7 @@ okcms theme:manage --name my-theme --set-active
 okcms theme:list                               # installed + status
 okcms theme:manage -n my-theme --info          # theme.json information
 okcms theme:manage -n my-theme --disable|enable
+#    (local state .okcms/extensions.json; the active theme is the --set-active)
 okcms theme:manage -n my-theme --uninstall
 okcms theme:search -q blog                     # npm search (keyword okcms-theme)
 

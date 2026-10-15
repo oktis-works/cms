@@ -111,6 +111,7 @@ npx okcms theme:manage --name my-theme --set-active
 npx okcms theme:list                               # installed + status
 npx okcms theme:manage -n my-theme --info          # theme.json information
 npx okcms theme:manage -n my-theme --disable|enable
+#    (local state .okcms/extensions.json; the active theme is the --set-active)
 npx okcms theme:manage -n my-theme --uninstall
 npx okcms theme:search -q blog                     # npm search (keyword okcms-theme)
 
