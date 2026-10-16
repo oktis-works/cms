@@ -499,10 +499,16 @@ export async function runRedeploy(opts: RedeployOptions = {}): Promise<number> {
         try {
           const outcome = await buildThemeStylesOnDisk(themesDir, entry.theme);
           for (const warning of outcome.warnings) prompt.warn(`${entry.theme}: ${warning}`);
-          write(
-            `  ✓ theme ${outcome.theme}: ${outcome.engine} → ${outcome.output} ` +
-              `(${outcome.bytes} bytes, isolated=${outcome.isolated})\n`
-          );
+          if (outcome.skipped) {
+            write(
+              `  ✓ theme ${outcome.theme}: no style entry — nothing to compile, ${outcome.output} left untouched\n`
+            );
+          } else {
+            write(
+              `  ✓ theme ${outcome.theme}: ${outcome.engine} → ${outcome.output} ` +
+                `(${outcome.bytes} bytes, isolated=${outcome.isolated})\n`
+            );
+          }
         } catch (error) {
           prompt.error(
             `theme build failed for ${entry.theme}: ${

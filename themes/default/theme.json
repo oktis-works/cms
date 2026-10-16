@@ -4,6 +4,12 @@
   "description": "Tema padrão do OkCMS — templates hierárquicos com interpolação real de conteúdo",
   "type": "theme",
   "author": "Oktis Works",
+  "compatibility": {
+    "okcms": "^0.5.5"
+  },
+  "screenshots": [
+    "screenshot.png"
+  ],
   "provides": {
     "layouts": [
       "home",
@@ -19,7 +25,7 @@
   },
   "stylesConfig": {
     "engine": "css",
-    "isolation": true
+    "isolation": "manual"
   },
   "settings": [
     {

@@ -1,11 +1,11 @@
 // @oktis-works/cms - Project Scaffolding
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { defaultProjectConfig, DEFAULT_CONFIG_FILENAME } from './project-config.js';
 import { DEPLOY_GITIGNORE } from './assets.js';
-import { DEFAULT_THEME_FILES } from './theme-assets.js';
+import { DEFAULT_THEME_FILES, DEFAULT_THEME_BINARY_FILES } from './theme-assets.js';
 import { writeDeployAssets } from './bluegreen.js';
 import { DEFAULT_DOCS_LANG, docsLangLabel, pluginDoc, projectReadme, themeDoc } from './scaffold-docs.js';
 import type { DocsLang } from './scaffold-docs.js';
@@ -89,6 +89,15 @@ export async function scaffoldProject(
     if (existsSync(target)) continue;
     await mkdir(dirname(target), { recursive: true });
     await writeFile(target, content, 'utf-8');
+  }
+
+  // Binários (screenshot.png): writeFile de string corromperia o PNG —
+  // decodifica do base64 e grava Buffer. Mesma regra de re-init.
+  for (const [relative, base64] of Object.entries(DEFAULT_THEME_BINARY_FILES)) {
+    const target = join(root, 'themes', 'default', relative);
+    if (existsSync(target)) continue;
+    await mkdir(dirname(target), { recursive: true });
+    writeFileSync(target, Buffer.from(base64, 'base64'));
   }
 
   const config = defaultProjectConfig(name);

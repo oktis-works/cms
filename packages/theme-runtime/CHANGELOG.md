@@ -1,5 +1,42 @@
 # @oktis-works/theme-runtime
 
+## 0.6.0
+
+### Minor Changes
+
+- refactor(themes): descoberta de templates do projeto unificada no theme-runtime
+  
+  O `apps/web` reimplementava a cadeia de templates (tema ativo → `_shared` →
+  `default`) e a leitura de arquivo em `rendering.ts`, duplicando a lógica já
+  testada do pacote — duas fontes de verdade para a mesma regra (risco de drift).
+  
+  Agora `createProjectTemplateResolver` vive no `@oktis-works/theme-runtime` e é
+  a fonte única: saneamento do nome de tema, guard contra `..`/path absoluto e a
+  cadeia de fallback. O app web consome via `createTemplateChecker`/
+  `loadTemplateSource` (adapters finos, mesma API pública de antes).
+  
+  Bônus de segurança: templates com nome hostil (`../fora`, `/etc/passwd`) são
+  negados pelo guard do pacote em vez de cair em `join()` cru.
+- feat(themes): isolamento CSS `isolation: "manual"` + tema default já escopado (BUSI-040)
+  
+  Formaliza a exceção de isolamento para temas `engine: css`: o manifest pode
+  declarar `stylesConfig.isolation: "manual"`, significando que o AUTOR entrega o
+  CSS já isolado (o pipeline de build não escopa de novo). `'manual'` é válido
+  apenas com `engine: css` — em engines com build (scss/tailwind) é rejeitado na
+  validação, pois o build sempre escopa.
+  
+  - `theme-sdk`: `ThemeStyleConfig.isolation` aceita `true | 'manual'`.
+  - `theme-runtime`: `validateStyleManifest`/`resolveStyleEngine`/`buildThemeStyles`
+    entendem `'manual'` (não escopa; `false` continua proibido).
+  - tema default: `dist/theme.css` versionado **já escopado** (`[data-theme="default"]`)
+    e `theme.json` com `isolation: "manual"` — o site fica isolado sem build.
+  - docs EN/pt-BR, THEMES.md e scaffold-docs atualizados.
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/theme-sdk@0.6.0
+
 ## 0.5.8
 
 ### Patch Changes

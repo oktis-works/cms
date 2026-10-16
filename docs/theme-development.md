@@ -84,6 +84,14 @@ build compiles into `dist/theme.css` **with `[data-theme="my-theme"]`
 isolation** (styles never leak between themes; Tailwind already ships with
 `preflight: false`).
 
+### Isolation contract (`stylesConfig.isolation`)
+
+| value | meaning |
+|---|---|
+| `true` | the build scopes the CSS (mandatory/automatic on `scss`/`tailwind`) |
+| `"manual"` | **CSS engine only** — the author ships `dist/theme.css` already isolated (see the default theme); the build never touches it |
+| `false` | **rejected** by validation (BUSI-040)
+
 > `dist/theme.css` is read **ready-made** by the container — nothing compiles
 > SCSS or Tailwind inside the image. The file exists on the host and only
 > reaches production when the image is rebuilt: `okcms theme:build` followed by

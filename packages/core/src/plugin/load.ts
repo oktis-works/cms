@@ -33,7 +33,6 @@ import { tenantService } from '../tenant/service.js';
 import { userService } from '../user/service.js';
 import { fieldGroupService } from '../fields/service.js';
 import { getCurrentTenantIdSync, getCurrentUserIdSync, getCurrentRequestIdSync } from '../tenant/context.js';
-import { randomUUID } from 'node:crypto';
 import type { RouteDefinition } from '@oktis-works/plugin-runtime';
 
 export interface PluginsScopeState {
@@ -126,19 +125,19 @@ function createApiDeps(tenantId: string | null): Partial<PluginApiDependencies> 
       return user ? { id: user.id, email: user.email, name: user.name, roles: user.roles } : null;
     },
     registerRoutes: (routes: RouteDefinition[]) => {
-      const currentTenantId = getCurrentTenantIdSync();
-      const scopeKey = currentTenantId ? `tenant:${currentTenantId}` : 'platform';
-      const state = states.get(scopeKey);
-      // O plugin name vem do contexto de carga — armazenado no scope state
-      // Como alternativa, usamos o pluginId do manifest que está sendo carregado
-      // Para simplificar, o bootstrap passa o pluginName via closure
+      // As rotas registradas aqui são coletadas no bootstrap pelo próprio
+      // PluginAPI (getLoadedPluginRoutes) — neste ponto só registramos o log.
       console.debug(`[PluginAPI] ${routes.length} rota(s) registrada(s) — será coletada no bootstrap`);
     },
     registerContentFields: async (fields) => {
-      if (fields.length === 0) return;
+      // Guard explícito: com noUncheckedIndexedAccess, fields[0] é T | undefined
+      // mesmo com o length check acima — o desctructuring com verificação
+      // deixa o narrowing para o TS e mantém a mesma semântica.
+      const firstField = fields[0];
+      if (!firstField) return;
       try {
         // Cria/atualiza field group do plugin
-        const groupKey = `plugin_${fields[0].name.split('_')[0]}_fields`; // prefixo baseado no primeiro campo
+        const groupKey = `plugin_${firstField.name.split('_')[0]}_fields`; // prefixo baseado no primeiro campo
         const existing = await fieldGroupService.getByKey(groupKey);
         const fieldInputs = fields.map((f, idx) => ({
           type: f.type,

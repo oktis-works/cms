@@ -7,13 +7,14 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { serve } from '@hono/node-server';
 import { bootstrap } from '@oktis-works/core';
+import { resolveExtensionDirectory } from '@oktis-works/core';
 import { runWithTenantContext } from '@oktis-works/core';
 import { getConnection, runWithTenantTransaction } from '@oktis-works/database';
 import {
   createRouter,
   wireThemeHooks,
   renderContentPage,
-  fetchSiteSettings,
+  toSiteSettings,
   resolveThemeAssetPath,
   contentTypeForAsset,
   enrichItemsMedia,
@@ -66,7 +67,10 @@ async function main() {
 
   await wireThemeHooks();
 
-  const themesRoot = process.env['THEMES_DIR'] ?? join(process.cwd(), 'themes');
+  // Fonte ÚNICA de resolução do diretório de temas: a mesma função usada pela
+  // API/CLI (env → okcms.config.json → ./themes). Antes o web lia só
+  // THEMES_DIR com outro fallback — apps com cwd diferente divergiam.
+  const themesRoot = resolveExtensionDirectory('theme');
   const envActiveTheme = process.env['ACTIVE_THEME']?.trim() || 'default';
 
   const app = new Hono<{ Variables: Variables }>();
@@ -185,20 +189,23 @@ async function main() {
         }
       }
 
-      // B1 — título/meta das settings (fim do "OkCMS" hardcoded) + o config do
-      // customizador do tema ativo exposto como `settings.theme`
-      const siteSettings = await fetchSiteSettings(getConnection());
-      const settings = {
-        ...siteSettings,
-        theme: buildThemeSettings(
-          active.row?.['manifest'] as Record<string, unknown> | null,
-          active.row?.['config'] as Record<string, unknown> | null
-        ),
-      };
-
       const provider = createDatabaseThemeDataProvider(getConnection(), String(c.get('tenant')['id']));
       const html = await runWithThemeDataProvider(provider, async () => {
         const themeData = await loadThemeRenderData(provider);
+
+        // B1 — título/meta das settings (fim do "OkCMS" hardcoded) + o config do
+        // customizador do tema ativo exposto como `settings.theme`. As settings
+        // vêm do provider do tema (mesma fonte/contrato das demais consultas,
+        // com filtro de tenant) — não de uma query ad-hoc sem tenant_id.
+        const rawSettings = await provider.getSettings().catch(() => ({}));
+        const settings = {
+          ...toSiteSettings(rawSettings),
+          theme: buildThemeSettings(
+            active.row?.['manifest'] as Record<string, unknown> | null,
+            active.row?.['config'] as Record<string, unknown> | null
+          ),
+        };
+
         return renderContentPage({
           resolution,
           contentRow,

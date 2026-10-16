@@ -1,5 +1,24 @@
 # @oktis-works/admin
 
+## 0.8.7
+
+### Patch Changes
+
+- feat(themes): `GET /api/v1/themes` vira leitura pura; sincronização explícita em `POST /sync`
+  
+  `GET /api/v1/themes` disparava `syncFromDirectory()` — uma **escrita** no banco
+  a cada listagem (upsert + `updated_at`), colidindo com o contrato de uma
+  opação de leitura e fazendo I/O de disco à cada request.
+  
+  - `GET /api/v1/themes`: só `themeService.list()` (sem side-effect).
+  - `POST /api/v1/themes/sync`: novo, com `requirePermission('create', 'theme')`,
+    devolve o estado completo após o upsert.
+  - Admin (`ThemeManager`): `loadThemes()` chama `syncThemes()` e degrada para a
+    listagem pura se o sync falhar (ex.: usuário sem permissão de criação).
+  
+  Compatível com o fluxo existente do admin (abrir a tela Temas continua
+  sincronizando), apenas com o side-effect movido para a operação explícita.
+
 ## 0.8.6
 
 ### Patch Changes

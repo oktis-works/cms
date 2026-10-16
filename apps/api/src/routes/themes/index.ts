@@ -6,12 +6,27 @@ const themes = new Hono()
 
 themes.use('*', authMiddleware)
 
+// Leitura pura: lista o estado do banco SEM escrever. A descoberta de temas
+// no disco é explícita em POST /sync — operação de leitura não deve disparar
+// side-effect de escrita.
 themes.get('/', requirePermission('read', 'theme'), async (c) => {
   try {
-    const result = await themeService.syncFromDirectory()
+    const result = await themeService.list()
     return c.json(result)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to list themes'
+    return c.json({ error: message }, 500)
+  }
+})
+
+// Sincroniza o diretório de temas com o banco (upsert por nome) e retorna o
+// estado completo. Usada pela tela Temas do admin ao abrir/atualizar.
+themes.post('/sync', requirePermission('create', 'theme'), async (c) => {
+  try {
+    const result = await themeService.syncFromDirectory();
+    return c.json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to sync themes'
     return c.json({ error: message }, 500)
   }
 })

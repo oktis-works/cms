@@ -1,5 +1,24 @@
 # @oktis-works/theme-sdk
 
+## 0.6.0
+
+### Minor Changes
+
+- feat(themes): isolamento CSS `isolation: "manual"` + tema default já escopado (BUSI-040)
+  
+  Formaliza a exceção de isolamento para temas `engine: css`: o manifest pode
+  declarar `stylesConfig.isolation: "manual"`, significando que o AUTOR entrega o
+  CSS já isolado (o pipeline de build não escopa de novo). `'manual'` é válido
+  apenas com `engine: css` — em engines com build (scss/tailwind) é rejeitado na
+  validação, pois o build sempre escopa.
+  
+  - `theme-sdk`: `ThemeStyleConfig.isolation` aceita `true | 'manual'`.
+  - `theme-runtime`: `validateStyleManifest`/`resolveStyleEngine`/`buildThemeStyles`
+    entendem `'manual'` (não escopa; `false` continua proibido).
+  - tema default: `dist/theme.css` versionado **já escopado** (`[data-theme="default"]`)
+    e `theme.json` com `isolation: "manual"` — o site fica isolado sem build.
+  - docs EN/pt-BR, THEMES.md e scaffold-docs atualizados.
+
 ## 0.5.5
 
 No changes in this release.

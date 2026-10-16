@@ -989,6 +989,19 @@ export class ApiClient {
     }));
   }
 
+  /** Sincroniza o diretório de temas com o banco e retorna o estado completo. */
+  async syncThemes(): Promise<ThemeInfo[]> {
+    const themes = await this.request<Array<Record<string, unknown>>>('POST', '/api/v1/themes/sync');
+    return themes.map((theme) => ({
+      id: String(theme['id'] ?? ''),
+      name: String(theme['name'] ?? ''),
+      version: theme['version'] ? String(theme['version']) : undefined,
+      status: String(theme['status'] ?? 'INSTALLED'),
+      config: (theme['config'] as Record<string, unknown> | null) ?? {},
+      manifest: (theme['manifest'] as ThemeInfo['manifest']) ?? null,
+    }));
+  }
+
   async activateTheme(id: string): Promise<ThemeInfo> {
     return this.request('POST', `/api/v1/themes/${id}/activate`);
   }

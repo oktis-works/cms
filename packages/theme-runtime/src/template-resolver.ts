@@ -1,5 +1,8 @@
 // @oktis-works/theme-runtime - Template Hierarchy Resolver
 
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 export interface TemplateContext {
   type: string;
   slug?: string;
@@ -63,6 +66,70 @@ export function buildTemplateChain(context: TemplateContext): string[] {
 
 export interface TemplateFileChecker {
   exists(file: string): Promise<boolean> | boolean;
+}
+
+export interface ProjectTemplateResolver {
+  /** Cadeia de busca de temas: [tema ativo, _shared, default]. */
+  templateChain: string[];
+  /** true quando o arquivo existe em QUALQUER tema da cadeia. */
+  exists(file: string): boolean;
+  /** LÊ o arquivo do primeiro tema da cadeia que o tiver; null se nenhum tiver. */
+  read(file: string): string | null;
+  /** Caminho absoluto resolvido do primeiro candidato existente. */
+  resolvePathFor(file: string): string | null;
+}
+
+/** Estados de tema aceitos na cadeia de fallback do projeto. */
+const PROJECT_FALLBACKS = ['_shared', 'default'] as const;
+const SAFE_THEME_NAME_RE = /^[A-Za-z0-9_-]+$/;
+
+/**
+ * Descoberta de templates do PROJETO — fonte única consumida pelo app web
+ * (e qualquer outro runtime de projeto), no lugar de reimplementação local.
+ *
+ * Cadeia: [tema ativo, _shared, default] — "_shared" cobre partials de
+ * projeto independentes do tema ativo e "default" é o piso final.
+ *
+ * Segurança: o `file` chega da hierarquia (sem nome de tema) e os nomes de
+ * tema são validados — `..`/paths absolutos são negados explicitamente.
+ */
+export function createProjectTemplateResolver(
+  themesRoot: string,
+  activeTheme: string
+): ProjectTemplateResolver {
+  const chain: string[] = [];
+  for (const theme of [activeTheme, ...PROJECT_FALLBACKS]) {
+    // nome vazio/inválido OU já presente: dedupe e saneamento da cadeia
+    if (!theme || !SAFE_THEME_NAME_RE.test(theme) || chain.includes(theme)) continue;
+    chain.push(theme);
+  }
+
+  const all = (file: string): string[] =>
+    chain
+      .map((theme) => safeTarget(themesRoot, theme, file))
+      .filter((target): target is string => target !== null);
+
+  return {
+    templateChain: chain,
+    exists(file: string): boolean {
+      return all(file).some((candidate) => existsSync(candidate));
+    },
+    read(file: string): string | null {
+      for (const candidate of all(file)) {
+        if (existsSync(candidate)) return readFileSync(candidate, 'utf-8');
+      }
+      return null;
+    },
+    resolvePathFor(file: string): string | null {
+      return all(file).find((candidate) => existsSync(candidate)) ?? null;
+    },
+  } satisfies ProjectTemplateResolver;
+}
+
+function safeTarget(themesRoot: string, theme: string, file: string): string | null {
+  if (!file || file.includes('..') || file.startsWith('/')) return null;
+  const target = join(themesRoot, theme, file);
+  return target === themesRoot || target.startsWith(themesRoot + '/') ? target : null;
 }
 
 export class TemplateHierarchyResolver {

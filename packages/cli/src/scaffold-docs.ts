@@ -864,6 +864,11 @@ Com \`--style scss\` ou \`--style tailwind\`, o manifesto ganha também
 entrada de estilos. \`compatibility.okcms\` é preenchido e validado
 automaticamente, como nos plugins.
 
+Isolamento (\`stylesConfig.isolation\`): \`scss\`/\`tailwind\` sempre escopam no
+build (\`isolation: true\`); no engine \`css\` o tema pode assumir o isolamento
+com \`isolation: \"manual\"\` — o \`dist/theme.css\` entregue já precisa estar
+escopado (é o caso do tema default). \`isolation: false\` é rejeitado.
+
 ### Templates
 
 Templates são arquivos \`*.astro\` **na raiz do tema** — é o formato que o
@@ -1136,6 +1141,12 @@ With \`--style scss\` or \`--style tailwind\`, the manifest also gets
 \`stylesConfig\` (\`engine\`, \`entry\`, \`output\`, \`isolation\`) pointing at the
 style entry. \`compatibility.okcms\` is filled in and validated
 automatically, just like with plugins.
+
+Isolation (\`stylesConfig.isolation\`): \`scss\`/\`tailwind\` always get scoped
+on build (\`isolation: true\`); on the \`css\` engine the theme can take
+responsibility with \`isolation: \"manual\"\` — the shipped \`dist/theme.css\`
+must already be scoped (the bundled default theme is). \`isolation: false\` is
+rejected.
 
 ### Templates
 

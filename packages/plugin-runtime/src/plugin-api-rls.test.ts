@@ -4,11 +4,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { bootstrapPlugins, resetLoadedPlugins, getLoadedPluginRoutes } from './bootstrap.js';
+import { bootstrapPlugins, resetLoadedPlugins } from './bootstrap.js';
 import { HookRegistry } from './hook-registry.js';
-import { PluginSandbox } from './sandbox.js';
 import type { PluginApiDependencies } from './plugin-api.js';
-import { randomUUID } from 'node:crypto';
 
 let pluginsDir: string;
 let registry: HookRegistry;

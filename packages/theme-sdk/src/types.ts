@@ -26,8 +26,14 @@ export interface ThemeStyleConfig {
   entry?: string;
   /** Saída relativa ao tema (ex: dist/theme.css). Se omitido, dist/theme.css isolado. */
   output?: string;
-  /** Isolamento fino obrigatório via [data-theme="nome"] — sempre true, false é rejeitado em validação (BUSI-040). */
-  isolation?: true;
+  /**
+   * Isolamento fino BUSI-040 via [data-theme="nome"]:
+   * - `true` — o pipeline de build escopa o CSS ( engines com build: scss/tailwind ).
+   * - `'manual'` — o AUTOR entrega o CSS já isolado; válido apenas com engine css
+   *   (tema sem build, `dist/theme.css` servido como está). `false` é rejeitado
+   *   em validação; `'manual'` fora do css é rejeitado.
+   */
+  isolation?: true | 'manual';
 }
 
 export interface ThemeProvides {

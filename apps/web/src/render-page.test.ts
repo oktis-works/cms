@@ -23,9 +23,10 @@ vi.mock('@oktis-works/core', () => ({
 }));
 
 import {
+  createTemplateChecker,
   loadTemplateSource,
   renderContentPage,
-  fetchSiteSettings,
+  toSiteSettings,
   resolveThemeAssetPath,
   resolveThemeStylesheet,
   contentTypeForAsset,
@@ -174,10 +175,26 @@ describe('renderContentPage — B1 render real', () => {
   });
 });
 
-describe('loadTemplateSource — B1 cadeia de fallback', () => {
+describe('loadTemplateSource — B1 cadeia de fallback (fonte única: theme-runtime)', () => {
   it('tema ativo → default', () => {
     expect(loadTemplateSource(themesRoot, 'mytheme', 'single.astro')).toContain('data-theme');
     expect(loadTemplateSource(themesRoot, 'inexistente', 'single.astro')).toContain('data-theme');
+  });
+
+  it('cadeia inclui _shared (partials de projeto independentes do tema)', () => {
+    mkdirSync(join(themesRoot, '_shared'), { recursive: true });
+    writeFileSync(join(themesRoot, '_shared', 'partial.astro'), '<p>compartilhado</p>');
+    expect(loadTemplateSource(themesRoot, 'mytheme', 'partial.astro')).toContain('compartilhado');
+  });
+
+  it('nome de tema inválido é saneado (cai no default)', () => {
+    // activeTheme com path/hostile não pode sair da raiz de temas
+    expect(loadTemplateSource(themesRoot, '../fora', 'single.astro')).toContain('data-theme');
+  });
+
+  it('guard de traversal nega arquivo fora do tema', () => {
+    expect(loadTemplateSource(themesRoot, 'mytheme', '../default/single.astro')).toBeNull();
+    expect(loadTemplateSource(themesRoot, 'mytheme', '/etc/passwd')).toBeNull();
   });
 
   it('arquivo inexistente → null', () => {
@@ -185,40 +202,39 @@ describe('loadTemplateSource — B1 cadeia de fallback', () => {
   });
 });
 
-describe('fetchSiteSettings — B1 settings do site', () => {
-  it('lê siteTitle/siteDescription das settings', async () => {
-    const { getConnection } = await import('@oktis-works/database');
-    const sql = {
-      unsafe: vi.fn(async () => [
-        { key: 'siteTitle', value: 'Título do Banco' },
-        { key: 'siteDescription', value: 'Descrição do Banco' },
-      ]),
-    };
-    (getConnection as ReturnType<typeof vi.fn>).mockReturnValueOnce(sql as never);
+describe('createTemplateChecker — hierarquia consome o mesmo resolver', () => {
+  it('exists cobre a cadeia ativo → _shared → default', () => {
+    const checker = createTemplateChecker(themesRoot, 'mytheme');
+    expect(checker.exists('post.astro')).toBe(true);
+    expect(checker.exists('single.astro')).toBe(true);
+    expect(checker.exists('nao-existe.astro')).toBe(false);
+  });
+});
 
-    const result = await fetchSiteSettings(sql as never);
+describe('toSiteSettings — B1 settings do site (via ThemeDataProvider)', () => {
+  it('mapeia siteTitle/siteDescription/language com fallbacks', () => {
+    const result = toSiteSettings({
+      siteTitle: 'Título do Banco',
+      siteDescription: 'Descrição do Banco',
+      language: 'en-US',
+      timezone: 'UTC',
+    });
     expect(result.siteTitle).toBe('Título do Banco');
     expect(result.siteDescription).toBe('Descrição do Banco');
+    expect(result.language).toBe('en-US');
   });
 
-  it('falha de banco → fallbacks locais', async () => {
-    const sql = {
-      unsafe: vi.fn(async () => {
-        throw new Error('db down');
-      }),
-    };
-    const result = await fetchSiteSettings(sql as never);
+  it('settings vazias/faltando → fallbacks locais', () => {
+    const result = toSiteSettings({});
     expect(result.siteTitle).toBe('OkCMS');
     expect(result.siteDescription).toBe('');
     expect(result.language).toBe('pt-BR');
   });
 
-  it('lê a setting language (idioma do documento) com fallback pt-BR', async () => {
-    const sql = {
-      unsafe: vi.fn(async () => [{ key: 'language', value: 'en-US' }]),
-    };
-    const result = await fetchSiteSettings(sql as never);
-    expect(result.language).toBe('en-US');
+  it('valores não-texto (null/número) são tratados de forma robusta', () => {
+    const result = toSiteSettings({ siteTitle: null as unknown as string, siteDescription: 123 as unknown as string });
+    expect(result.siteTitle).toBe('OkCMS');
+    expect(result.siteDescription).toBe('123');
   });
 });
 

@@ -38,7 +38,6 @@ import metricsRouter from './routes/metrics/index.js';
 import auditLogsRouter from './routes/audit-logs/index.js';
 import docsRouter from './routes/docs/index.js';
 import hooksCatalogRouter from './routes/hooks/index.js';
-import type { RouteDefinition } from '@oktis-works/plugin-runtime';
 
 function mountPluginRoutes(app: import('hono').Hono): void {
   const pluginRoutes = getRegisteredPluginRoutes();

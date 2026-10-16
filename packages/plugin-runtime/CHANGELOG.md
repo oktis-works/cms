@@ -1,5 +1,21 @@
 # @oktis-works/plugin-runtime
 
+## 0.5.7
+
+### Patch Changes
+
+- fix(lint): remove imports/vars não usados que quebravam `bun run lint` no CI
+  
+  `eslint .` falhava com 7 erros de `no-unused-vars` em arquivos committados
+  (`apps/api/src/index.ts`, `packages/core/src/plugin/load.ts`,
+  `packages/plugin-runtime/src/plugin-api-rls.test.ts`) — o gate de lint do CI
+  ficava vermelho em qualquer tag. Removidos os símbolos sem uso, sem mudança
+  de comportamento.
+  
+  Inclui também a limpeza do `apps/web/src/rendering.ts`: `getScopedContainer` e
+  `buildTheme` eram helpers exportados porém **nunca consumidos** pelo app
+  (duplicavam o style-engine do pacote) — removidos junto com os imports órfãos.
+
 ## 0.5.6
 
 ### Patch Changes

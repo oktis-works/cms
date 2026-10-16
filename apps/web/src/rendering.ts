@@ -1,6 +1,6 @@
 // @oktis-works/web - Runtime Rendering (catch-all SSR com hierarquia de templates)
 
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 import { getConnection } from '@oktis-works/database';
 import { getHookRegistry } from '@oktis-works/plugin-runtime';
@@ -9,28 +9,31 @@ import {
   TemplateHierarchyResolver,
   RuntimeRouter,
   ThemeRenderer,
+  createProjectTemplateResolver,
   type ContentLookup,
+  type ProjectTemplateResolver,
   type TemplateFileChecker,
-  buildThemeStyles,
-  getThemeScopeAttribute,
 } from '@oktis-works/theme-runtime';
 import type { ThemeRenderData } from '@oktis-works/theme-sdk';
 
-export function createTemplateChecker(themesRoot: string, activeTheme: string): TemplateFileChecker {
-  return {
-    exists(file: string): boolean {
-      return templateCandidates(themesRoot, activeTheme, file).some((candidate) => existsSync(candidate));
-    },
-  };
+/**
+ * B1/Unificação (FEAT-095): a cadeia de templates do projeto
+ * (tema ativo → `_shared` → `default`), o saneamento dos nomes de tema e o
+ * guard contra traversal vivem **apenas** no `@oktis-works/theme-runtime` —
+ * este app só consome a fonte única, sem reimplementação local.
+ */
+function projectTemplates(themesRoot: string, activeTheme: string): ProjectTemplateResolver {
+  return createProjectTemplateResolver(themesRoot, activeTheme);
 }
 
-/** Cadeia de busca do arquivo de template: tema ativo → _shared → default. */
-function templateCandidates(themesRoot: string, activeTheme: string, file: string): string[] {
-  return [
-    join(themesRoot, activeTheme, file),
-    join(themesRoot, '_shared', file),
-    join(themesRoot, 'default', file),
-  ];
+/** Adaptador do checker do TemplateHierarchyResolver sobre o resolver único. */
+export function createTemplateChecker(themesRoot: string, activeTheme: string): TemplateFileChecker {
+  const resolver = projectTemplates(themesRoot, activeTheme);
+  return {
+    exists(file: string): boolean {
+      return resolver.exists(file);
+    },
+  };
 }
 
 /**
@@ -38,12 +41,7 @@ function templateCandidates(themesRoot: string, activeTheme: string, file: strin
  * Retorna null quando nenhum candidato existe (rota cai no 404 do tema).
  */
 export function loadTemplateSource(themesRoot: string, activeTheme: string, file: string): string | null {
-  for (const candidate of templateCandidates(themesRoot, activeTheme, file)) {
-    if (existsSync(candidate)) {
-      return readFileSync(candidate, 'utf-8');
-    }
-  }
-  return null;
+  return projectTemplates(themesRoot, activeTheme).read(file);
 }
 
 export interface SiteSettings {
@@ -54,27 +52,15 @@ export interface SiteSettings {
   [key: string]: unknown;
 }
 
-/**
- * B1 — título/descrição do site vêm das settings (fim do "OkCMS" hardcoded).
- * Falha de leitura nunca derruba o render (fallbacks locais).
- */
-export async function fetchSiteSettings(sql: ReturnType<typeof getConnection>): Promise<SiteSettings> {
-  try {
-    const rows = await sql.unsafe(
-      "SELECT key, value FROM settings WHERE key IN ('siteTitle', 'siteDescription', 'language')"
-    );
-    const byKey = new Map(
-      (rows as unknown as Array<{ key: string; value: unknown }>).map((r) => [r.key, r.value])
-    );
-    return {
-      siteTitle: toText(byKey.get('siteTitle')) || 'OkCMS',
-      siteDescription: toText(byKey.get('siteDescription')) || '',
-      language: toText(byKey.get('language')) || 'pt-BR',
-    };
-  } catch {
-    return { siteTitle: 'OkCMS', siteDescription: '', language: 'pt-BR' };
-  }
+export function toSiteSettings(raw: Record<string, unknown>): SiteSettings {
+  return {
+    siteTitle: toText(raw['siteTitle']) || 'OkCMS',
+    siteDescription: toText(raw['siteDescription']) || '',
+    language: toText(raw['language']) || 'pt-BR',
+  };
 }
+
+
 
 function toText(value: unknown): string {
   if (value == null) return '';
@@ -498,17 +484,6 @@ export function createContentLookup(): ContentLookup {
 export function createRouter(themesRoot: string, activeTheme: string): RuntimeRouter {
   const resolver = new TemplateHierarchyResolver(createTemplateChecker(themesRoot, activeTheme));
   return new RuntimeRouter(createContentLookup(), resolver);
-}
-
-/** Helper para web: obtém atributo de isolamento para template */
-export function getScopedContainer(themeName: string): string {
-  const { attr } = getThemeScopeAttribute(themeName);
-  return attr;
-}
-
-/** Build pipeline do tema: compila SCSS ou Tailwind e retorna relatório */
-export async function buildTheme(themeRoot: string, themeName: string, manifest: import('@oktis-works/theme-sdk').ThemeManifest) {
-  return buildThemeStyles({ themesRoot: themeRoot, themeName, manifest });
 }
 
 /**

@@ -1,5 +1,5 @@
 /* Tema default do OkCMS — estilos básicos (servido direto de dist/theme.css) */
-:root {
+[data-theme="default"]{
   --brand: #4f46e5;
   --text: #1f2937;
   --muted: #6b7280;
@@ -7,9 +7,9 @@
   --border: #e5e7eb;
 }
 
-* { box-sizing: border-box; }
+[data-theme="default"] *{ box-sizing: border-box; }
 
-body {
+[data-theme="default"]{
   margin: 0;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
   color: var(--text);
@@ -17,26 +17,26 @@ body {
   line-height: 1.6;
 }
 
-main {
+[data-theme="default"] main{
   max-width: 46rem;
   margin: 0 auto;
   padding: 2.5rem 1.5rem;
 }
 
-.hero__title { margin: 0 0 0.5rem; font-size: 2rem; }
-.hero__description { margin: 0 0 2rem; color: var(--muted); }
+[data-theme="default"] .hero__title{ margin: 0 0 0.5rem; font-size: 2rem; }
+[data-theme="default"] .hero__description{ margin: 0 0 2rem; color: var(--muted); }
 
-.listing { display: grid; gap: 1rem; }
-.card { border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; }
-.entry__title { margin: 0 0 0.25rem; font-size: 1.15rem; }
-.entry__title a { color: var(--brand); text-decoration: none; }
-.entry__title a:hover { text-decoration: underline; }
-.entry__excerpt { margin: 0; color: var(--muted); }
+[data-theme="default"] .listing{ display: grid; gap: 1rem; }
+[data-theme="default"] .card{ border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; }
+[data-theme="default"] .entry__title{ margin: 0 0 0.25rem; font-size: 1.15rem; }
+[data-theme="default"] .entry__title a{ color: var(--brand); text-decoration: none; }
+[data-theme="default"] .entry__title a:hover{ text-decoration: underline; }
+[data-theme="default"] .entry__excerpt{ margin: 0; color: var(--muted); }
 
-.entry__header { margin-bottom: 1.5rem; }
-.entry__cover { max-width: 100%; border-radius: 8px; margin: 1rem 0; }
-.entry__body { font-size: 1.05rem; }
-.entry__date { color: var(--muted); font-size: 0.85rem; }
+[data-theme="default"] .entry__header{ margin-bottom: 1.5rem; }
+[data-theme="default"] .entry__cover{ max-width: 100%; border-radius: 8px; margin: 1rem 0; }
+[data-theme="default"] .entry__body{ font-size: 1.05rem; }
+[data-theme="default"] .entry__date{ color: var(--muted); font-size: 0.85rem; }
 
-.not-found__code { margin: 0; font-size: 4rem; color: var(--brand); }
-.not-found__message { color: var(--muted); }
+[data-theme="default"] .not-found__code{ margin: 0; font-size: 4rem; color: var(--brand); }
+[data-theme="default"] .not-found__message{ color: var(--muted); }

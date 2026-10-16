@@ -1,5 +1,34 @@
 # @oktis-works/core
 
+## 0.5.10
+
+### Patch Changes
+
+- fix(lint): remove imports/vars não usados que quebravam `bun run lint` no CI
+  
+  `eslint .` falhava com 7 erros de `no-unused-vars` em arquivos committados
+  (`apps/api/src/index.ts`, `packages/core/src/plugin/load.ts`,
+  `packages/plugin-runtime/src/plugin-api-rls.test.ts`) — o gate de lint do CI
+  ficava vermelho em qualquer tag. Removidos os símbolos sem uso, sem mudança
+  de comportamento.
+  
+  Inclui também a limpeza do `apps/web/src/rendering.ts`: `getScopedContainer` e
+  `buildTheme` eram helpers exportados porém **nunca consumidos** pelo app
+  (duplicavam o style-engine do pacote) — removidos junto com os imports órfãos.
+- fix(extensions): `THEMES_DIR` e `OKCMS_THEMES_DIR` apontam para o mesmo diretório
+  
+  O web runtime resolvia o diretório de temas com `THEMES_DIR ?? ./themes` (cwd),
+  enquanto o core/API usava `OKCMS_THEMES_DIR ?? okcms.config.json ?? ./themes`.
+  Dois nomes de env para a mesma coisa, sem ninguém definir o segundo — em apps
+  com cwd diferente (worker/e2e) a API olhava um diretório vazio e o `sync`
+  "não descobria" nenhum tema.
+  
+  Agora o web consome `resolveExtensionDirectory('theme')` do core (fonte única)
+  e a função aceita `THEMES_DIR` como alias documentado do canônico
+  `OKCMS_THEMES_DIR`. Contrato novo coberto por `project-directories.test.ts`.
+- Updated dependencies
+  - @oktis-works/plugin-runtime@0.5.7
+
 ## 0.5.9
 
 ### Patch Changes

@@ -41,6 +41,40 @@ describe('style-engine: BUSI-039 exclusive + BUSI-040 isolation', () => {
     }
   });
 
+  it("isolation='manual' é aceito para engine css — o autor assume o isolamento", () => {
+    const dir = mkdtempSync(join(tmpdir(), 'theme-'));
+    try {
+      const manifest: any = { name: 't', stylesConfig: { engine: 'css', isolation: 'manual' } };
+      const report = resolveStyleEngine({ themesRoot: dir, themeName: 't', manifest });
+      expect(report.errors).toEqual([]);
+      expect(report.isolated).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("isolation='manual' fora do engine css é rejeitado", () => {
+    const dir = mkdtempSync(join(tmpdir(), 'theme-'));
+    try {
+      const manifest: any = { name: 't', stylesConfig: { engine: 'scss', isolation: 'manual', entry: 'styles/main.scss' } };
+      const report = resolveStyleEngine({ themesRoot: dir, themeName: 't', manifest });
+      expect(report.errors.join(' ')).toMatch(/"manual" é válido apenas com engine css/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("validateStyleManifest rejeita isolation='manual' fora do css (BUSI-040)", () => {
+    const dir = mkdtempSync(join(tmpdir(), 'theme-'));
+    try {
+      const manifest: any = { name: 't', stylesConfig: { engine: 'scss', isolation: 'manual' } };
+      const errs = validateStyleManifest(manifest, dir);
+      expect(errs.join(' ')).toMatch(/"manual" é válido apenas com engine css/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('validateStyleManifest detecta tailwind.config + .scss ambíguo', () => {
     const dir = mkdtempSync(join(tmpdir(), 'theme-'));
     try {

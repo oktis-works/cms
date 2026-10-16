@@ -1,5 +1,55 @@
 # @oktis-works/api
 
+## 0.8.0
+
+### Minor Changes
+
+- feat(themes): `GET /api/v1/themes` vira leitura pura; sincronização explícita em `POST /sync`
+  
+  `GET /api/v1/themes` disparava `syncFromDirectory()` — uma **escrita** no banco
+  a cada listagem (upsert + `updated_at`), colidindo com o contrato de uma
+  opação de leitura e fazendo I/O de disco à cada request.
+  
+  - `GET /api/v1/themes`: só `themeService.list()` (sem side-effect).
+  - `POST /api/v1/themes/sync`: novo, com `requirePermission('create', 'theme')`,
+    devolve o estado completo após o upsert.
+  - Admin (`ThemeManager`): `loadThemes()` chama `syncThemes()` e degrada para a
+    listagem pura se o sync falhar (ex.: usuário sem permissão de criação).
+  
+  Compatível com o fluxo existente do admin (abrir a tela Temas continua
+  sincronizando), apenas com o side-effect movido para a operação explícita.
+
+### Patch Changes
+
+- fix(lint): remove imports/vars não usados que quebravam `bun run lint` no CI
+  
+  `eslint .` falhava com 7 erros de `no-unused-vars` em arquivos committados
+  (`apps/api/src/index.ts`, `packages/core/src/plugin/load.ts`,
+  `packages/plugin-runtime/src/plugin-api-rls.test.ts`) — o gate de lint do CI
+  ficava vermelho em qualquer tag. Removidos os símbolos sem uso, sem mudança
+  de comportamento.
+  
+  Inclui também a limpeza do `apps/web/src/rendering.ts`: `getScopedContainer` e
+  `buildTheme` eram helpers exportados porém **nunca consumidos** pelo app
+  (duplicavam o style-engine do pacote) — removidos junto com os imports órfãos.
+- feat(themes): isolamento CSS `isolation: "manual"` + tema default já escopado (BUSI-040)
+  
+  Formaliza a exceção de isolamento para temas `engine: css`: o manifest pode
+  declarar `stylesConfig.isolation: "manual"`, significando que o AUTOR entrega o
+  CSS já isolado (o pipeline de build não escopa de novo). `'manual'` é válido
+  apenas com `engine: css` — em engines com build (scss/tailwind) é rejeitado na
+  validação, pois o build sempre escopa.
+  
+  - `theme-sdk`: `ThemeStyleConfig.isolation` aceita `true | 'manual'`.
+  - `theme-runtime`: `validateStyleManifest`/`resolveStyleEngine`/`buildThemeStyles`
+    entendem `'manual'` (não escopa; `false` continua proibido).
+  - tema default: `dist/theme.css` versionado **já escopado** (`[data-theme="default"]`)
+    e `theme.json` com `isolation: "manual"` — o site fica isolado sem build.
+  - docs EN/pt-BR, THEMES.md e scaffold-docs atualizados.
+- Updated dependencies
+- Updated dependencies
+  - @oktis-works/core@0.5.10
+
 ## 0.7.3
 
 ### Patch Changes

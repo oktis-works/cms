@@ -233,3 +233,7 @@ controlados; não use estado mutável global para dados específicos de usuário
   API.
 - Dados externos devem ser escapados no template. Use interpolação normal para
   texto e a forma raw somente quando o valor for HTML confiável.
+- Isolamento de CSS (`[data-theme="nome"]`): engines com build (`scss`/
+  `tailwind`) são escopados automaticamente no build; no engine `css` o tema
+  declara `isolation: "manual"` e entrega o `dist/theme.css` já escopado
+  (é o caso do tema default). `isolation: false` é rejeitado.

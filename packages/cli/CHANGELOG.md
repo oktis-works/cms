@@ -1,5 +1,42 @@
 # @oktis-works/cms
 
+## 0.9.0
+
+### Minor Changes
+
+- feat(themes): isolamento CSS `isolation: "manual"` + tema default já escopado (BUSI-040)
+  
+  Formaliza a exceção de isolamento para temas `engine: css`: o manifest pode
+  declarar `stylesConfig.isolation: "manual"`, significando que o AUTOR entrega o
+  CSS já isolado (o pipeline de build não escopa de novo). `'manual'` é válido
+  apenas com `engine: css` — em engines com build (scss/tailwind) é rejeitado na
+  validação, pois o build sempre escopa.
+  
+  - `theme-sdk`: `ThemeStyleConfig.isolation` aceita `true | 'manual'`.
+  - `theme-runtime`: `validateStyleManifest`/`resolveStyleEngine`/`buildThemeStyles`
+    entendem `'manual'` (não escopa; `false` continua proibido).
+  - tema default: `dist/theme.css` versionado **já escopado** (`[data-theme="default"]`)
+    e `theme.json` com `isolation: "manual"` — o site fica isolado sem build.
+  - docs EN/pt-BR, THEMES.md e scaffold-docs atualizados.
+
+### Patch Changes
+
+- fix(theme-build): `theme:build` não apaga mais o `dist/theme.css` de temas sem entry
+  
+  Para `engine: css` sem entry convencional (ex.: o tema default, que tem o CSS
+  direto em `dist/theme.css`), `buildThemeStyles` devolvia `css: ""` e
+  `buildThemeStylesOnDisk` gravava por cima — truncando o stylesheet servido em
+  0 bytes, silenciosamente. Agora `entry` nulo vira no-op seguro: o artefato é
+  preservado e o comando reporta `skipped: true` com warning orientando o autor.
+  
+  Coberto por `theme-build.test.ts` (caso entry-null + caso scss com entry).
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @oktis-works/core@0.5.10
+  - @oktis-works/theme-runtime@0.6.0
+
 ## 0.8.14
 
 ### Patch Changes

@@ -8,11 +8,20 @@ type ExtensionKind = 'plugin' | 'theme';
 /**
  * Resolve os diretórios reais do projeto. O diretório pode ser sobrescrito
  * por ambiente; caso contrário, respeita okcms.config.json e os defaults.
+ *
+ * Contrato único de env por tipo (o web runtime consome ESTA função — não
+ * inventa outro nome de variável):
+ *   - tema:    `OKCMS_THEMES_DIR` (canônico) ou `THEMES_DIR` (alias usado
+ *              pelo web runtime e pelos scripts e2e)
+ *   - plugin:  `OKCMS_PLUGINS_DIR`
  */
 export function resolveExtensionDirectory(kind: ExtensionKind, cwd = process.cwd()): string {
   const envKey = kind === 'plugin' ? 'OKCMS_PLUGINS_DIR' : 'OKCMS_THEMES_DIR';
+  // Alias aceito para o mesmo diretório (evita dois nomes de env divergindo
+  // entre apps: o web runtime e o e2e usavam THEMES_DIR, a API OKCMS_THEMES_DIR).
+  const aliasKey = kind === 'plugin' ? null : 'THEMES_DIR';
   const fallback = kind === 'plugin' ? 'plugins' : 'themes';
-  const configured = process.env[envKey];
+  const configured = process.env[envKey] ?? (aliasKey ? process.env[aliasKey] : undefined);
 
   if (configured) return resolve(cwd, configured);
 

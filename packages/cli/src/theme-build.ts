@@ -58,10 +58,13 @@ export interface ThemeBuildOutcome {
   theme: string;
   engine: string;
   output: string;
-  bytes: number;
+  /** Bytes gravados em dist/theme.css. `null` = nada foi escrito (no-op seguro). */
+  bytes: number | null;
   isolated: boolean;
   entry: string | null;
   warnings: string[];
+  /** true quando não havia entrada para compilar — dist/theme.css permanece intacto. */
+  skipped: boolean;
 }
 
 /**
@@ -92,6 +95,26 @@ export async function buildThemeStylesOnDisk(
     throw new Error(`Invalid stylesConfig.output in ${manifestPath}: ${report.output}`);
   }
 
+  // Sem entrada não existe o que compilar. Gravar `""` APAGARIA o
+  // dist/theme.css servido pelo web (o tema default é exatamente esse caso:
+  // engine css com o CSS direto em dist/, sem entry convencional). No-op
+  // seguro: preserva o artefato e avisa por warning em vez de destruir.
+  if (!report.entry) {
+    return {
+      theme: themeName,
+      engine: report.engine,
+      output: report.output,
+      bytes: null,
+      isolated: report.isolated,
+      entry: null,
+      warnings: [
+        ...report.warnings,
+        `no style entry found for theme "${themeName}" — dist/theme.css left untouched (nothing to compile)`,
+      ],
+      skipped: true,
+    };
+  }
+
   const target = join(themesDir, themeName, report.output);
   mkdirSync(dirname(target), { recursive: true });
   writeFileSync(target, css, 'utf-8');
@@ -104,5 +127,6 @@ export async function buildThemeStylesOnDisk(
     isolated: report.isolated,
     entry: report.entry,
     warnings: report.warnings,
+    skipped: false,
   };
 }

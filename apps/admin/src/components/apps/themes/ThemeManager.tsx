@@ -21,7 +21,15 @@ export function ThemeManager() {
     setError(null);
     try {
       setLoading(true);
-      const data = await apiClient.getThemes();
+      // Descoberta explícita (POST /sync — escrita) seguida da lista.
+      // Sem permissão de create (ou sync falhando), degrada para a leitura
+      // pura em vez de deixar a tela vazia.
+      let data: ThemeInfo[];
+      try {
+        data = await apiClient.syncThemes();
+      } catch {
+        data = await apiClient.getThemes();
+      }
       setThemes(data);
     } catch {
       setError(t('themes.loadError'));

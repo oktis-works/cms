@@ -6,8 +6,14 @@ export type { ResolvedComponent } from './resolver.js';
 export {
   TemplateHierarchyResolver,
   buildTemplateChain,
+  createProjectTemplateResolver,
 } from './template-resolver.js';
-export type { TemplateContext, ResolvedTemplate, TemplateFileChecker } from './template-resolver.js';
+export type {
+  TemplateContext,
+  ResolvedTemplate,
+  TemplateFileChecker,
+  ProjectTemplateResolver,
+} from './template-resolver.js';
 export { ThemeLoader } from './loader.js';
 export type { DiscoveredTheme } from './loader.js';
 export {

@@ -1,7 +1,11 @@
-version: '3.8'
+# Infra de dev do monorepo — usada pelo `bun run dev` dos apps, pelos scripts
+# e2e (scripts/e2e-api.mjs) e pela CLI (`docker compose up -d postgres redis`).
+#
+# O deploy real NÃO usa este arquivo: os apps entram em contêiner pelos compose
+# gerados no projeto (docker-compose.infra.yml / docker-compose.app.yml — em
+# infrastructure/compose/ estão os templates que a CLI copia).
 
 services:
-  # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
     environment:
@@ -18,7 +22,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # Redis Cache/Queue
   redis:
     image: redis:7-alpine
     ports:
@@ -30,28 +33,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
-  # API Server
-  api:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
-    ports:
-      - "3000:3000"
-    environment:
-      NODE_ENV: development
-      DATABASE_URL: postgresql://okcms:okcms_dev@postgres:5432/okcms
-      REDIS_URL: redis://redis:6379
-      JWT_SECRET: dev-secret-change-in-production
-      PORT: 3000
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    volumes:
-      - ./apps/api/src:/app/apps/api/src
-      - ./packages:/app/packages
 
 volumes:
   postgres_data:

@@ -82,6 +82,14 @@ arquivo já nasce em `dist/` (servível sem build). Nos demais, o build compila
 para `dist/theme.css` **com isolamento `[data-theme="meu-tema"]`** (sem vazar
 estilos entre temas; o Tailwind já sai com `preflight: false`).
 
+### Contrato de isolamento (`stylesConfig.isolation`)
+
+| valor | significado |
+|---|---|
+| `true` | o build escopa o CSS (obrigatório/automático em `scss`/`tailwind`) |
+| `"manual"` | **apenas engine css** — o autor entrega o `dist/theme.css` já isolado (como no tema default); o build não mexe |
+| `false` | **rejeitado** pela validação (BUSI-040)
+
 > `dist/theme.css` é lido **pronto** pelo container — nada compila SCSS ou
 > Tailwind dentro da imagem. O arquivo existe no host e só chega em
 > produção quando a imagem é reconstruída: `okcms theme:build` seguido de

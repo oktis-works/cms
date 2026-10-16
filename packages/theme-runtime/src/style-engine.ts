@@ -83,11 +83,16 @@ export function resolveStyleEngine(opts: StyleEngineOptions): ThemeStyleReport &
   if (!cfg.entry && convention && convention.engine !== engine) {
     warnings.push(`Convenção detectada ${convention.engine} mas manifest declara ${engine}; respeitando manifest`);
   }
-  // BUSI-040: isolamento obrigatório — sempre true, false é erro
+  // BUSI-040: isolamento obrigatório — false é proibido; 'manual' significa
+  // que o AUTOR entregou o CSS já isolado — válido apenas para engine css.
   if ((cfg as any).isolation === false) errors.push('stylesConfig.isolation=false proibido — [data-theme="nome"] é obrigatório');
+  if ((cfg as any).isolation === 'manual' && engine !== 'css') {
+    errors.push('stylesConfig.isolation="manual" é válido apenas com engine css — engines com build sempre escopam');
+  }
   const entry = cfg.entry ?? convention?.entry ?? null;
   if (entry && entry.includes('..')) errors.push('entry com path traversal não permitido');
-  const isolated = true;
+  // 'manual': nada é escopado no build — a responsabilidade é do tema
+  const isolated = (cfg as any).isolation !== 'manual';
   const output = cfg.output ?? 'dist/theme.css';
   if (engine !== 'css' && !entry) {
     warnings.push(`Engine ${engine} declarado mas nenhuma entrada encontrada; fallback para css`);
@@ -262,17 +267,23 @@ export async function buildThemeStyles(opts: StyleEngineOptions): Promise<{ css:
       if (process.env['DEBUG']) console.warn(`Autoprefixer skipped: ${e.message}`);
     }
   }
-  // isolamento obrigatório — sempre escopa
-  css = scopeCss(css, opts.manifest.name);
+  // isolamento obrigatório — sempre escopa, exceto quando o tema assumiu o
+  // isolamento manual (isolation: 'manual', permitido só com engine css)
+  if (report.isolated) {
+    css = scopeCss(css, opts.manifest.name);
+  }
   return { css, report };
 }
 
-/** Valida manifest contra BUSI-039/BUSI-040: retorna erros se ambíguo ou isolamento desativado. */
+/** Valida manifest contra BUSI-039/BUSI-040: retorna erros se ambíguo, isolamento desativado ou 'manual' fora do css. */
 export function validateStyleManifest(manifest: ThemeManifest, themePath: string): string[] {
   const errors: string[] = [];
   const engine = manifest.stylesConfig?.engine;
   if (engine && !VALID_ENGINES.includes(engine)) errors.push(`stylesConfig.engine inválido: ${engine}`);
   if ((manifest.stylesConfig as any)?.isolation === false) errors.push('stylesConfig.isolation=false proibido — [data-theme="nome"] é obrigatório (BUSI-040)');
+  if ((manifest.stylesConfig as any)?.isolation === 'manual' && (engine ?? 'css') !== 'css') {
+    errors.push('stylesConfig.isolation="manual" é válido apenas com engine css — engines com build sempre escopam (BUSI-040)');
+  }
   const hasTailwind = existsSync(join(themePath, 'tailwind.config.js')) || existsSync(join(themePath, 'tailwind.config.cjs'));
   const hasScss = listFilesRecursive(themePath).some((f) => f.endsWith('.scss'));
   if (hasTailwind && hasScss) errors.push('Tema contém ambos tailwind.config e .scss — escolha apenas um engine (tailwind XOR scss)');

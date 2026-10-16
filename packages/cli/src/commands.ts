@@ -347,11 +347,16 @@ export const commands: Command[] = [
           console.log(`migrated theme manifest: ${migrated} -> theme.json`);
         }
         const outcome = await buildThemeStylesOnDisk(themesDir, name);
-        if (!outcome.entry) console.log(`[${name}] no style entry (${outcome.engine})`);
         for (const warning of outcome.warnings) console.warn(`warn: ${warning}`);
-        console.log(
-          `[${name}] ${outcome.engine} -> ${outcome.output} (${outcome.bytes} bytes) isolated=${outcome.isolated}`
-        );
+        if (outcome.skipped) {
+          console.log(
+            `[${name}] no style entry (${outcome.engine}) — nothing compiled, dist/theme.css left untouched`
+          );
+        } else {
+          console.log(
+            `[${name}] ${outcome.engine} -> ${outcome.output} (${outcome.bytes} bytes) isolated=${outcome.isolated}`
+          );
+        }
       } catch (e) {
         console.error(e instanceof Error ? e.message : String(e));
         process.exit(1);
