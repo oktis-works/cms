@@ -4,6 +4,8 @@
 // o site já renderiza de cara (templates .astro na raiz + dist/theme.css
 // servido direto). Mantidos em string porque o package publica só `dist/`.
 
+import { CMS_VERSION } from '@oktis-works/validation';
+
 /** Manifesto do tema default (`theme.json` = nome canônico lido por runtime, service e CLI). */
 export const DEFAULT_THEME_MANIFEST = `${JSON.stringify(
   {
@@ -13,8 +15,9 @@ export const DEFAULT_THEME_MANIFEST = `${JSON.stringify(
     type: 'theme',
     author: 'Oktis Works',
     // Contrato BUSI-022: exigido pelo theme:install via API. Sem o range,
-    // o tema default seria rejeitado na instalação explícita.
-    compatibility: { okcms: '^0.5.5' },
+    // o tema default seria rejeitado na instalação explícita. Derivado do
+    // CMS_VERSION (fonte única) — nunca literal, senão dessincroniza.
+    compatibility: { okcms: `^${CMS_VERSION}` },
     // Preview do card na tela Temas do admin (servido por /themes/default/).
     screenshots: ['screenshot.png'],
     provides: {

@@ -14,7 +14,7 @@ O catálogo de hooks disponíveis é servido pela API em
 ## Estrutura gerada
 
 ```bash
-npx okcms plugin:create --name meu-plugin
+okcms plugin:create --name meu-plugin
 ```
 
 ```
@@ -35,7 +35,7 @@ plugins/meu-plugin/
   "main": "index.js",
   "scope": "tenant",
   "permissions": [],
-  "compatibility": { "okcms": "^0.2.0" }
+  "compatibility": { "okcms": "^0.5.5" }
 }
 ```
 
@@ -66,6 +66,13 @@ module.exports.register = function register(registry) {
 O `register(registry)` é chamado quando o plugin é carregado. Use o registro
 para expor filters (transformações) — veja o que existe em
 `GET /api/v1/hooks/catalog` para os nomes e contratos disponíveis.
+
+O carregamento acontece no boot de todos os processos (API, web e worker):
+plugins com status `ACTIVATED` no banco têm o `register` chamado e os hooks
+entram no registry compartilhado. Ativar/desativar pela API recarrega no
+próprio processo da API na hora; web/worker pegam a mudança no próximo
+restart. Um plugin que falha ao carregar é isolado: a falha é reportada no
+log e nunca derruba o boot dos outros plugins nem do processo.
 
 ## Migrations do banco
 
@@ -101,27 +108,27 @@ Duas regras que o redeploy impõe:
 
 ```bash
 # 1. Crie (em ./plugins do projeto, ou num workspace externo com --dir)
-npx okcms plugin:create --name meu-plugin
+okcms plugin:create --name meu-plugin
 
 # 2. Implemente plugins/meu-plugin/index.js
 
 # 3. Se criou FORA do projeto, instale (valida compatibilidade e copia para plugins/)
-npx okcms plugin:install --name ../meu-plugin-fonte
+okcms plugin:install --name ../meu-plugin-fonte
 
 # 4. Gestão
-npx okcms plugin:list                                # instalados + estado local
-npx okcms plugin:manage -n meu-plugin --info         # informações do manifesto
-npx okcms plugin:manage -n meu-plugin --disable      # marca como desabilitado no estado local (.okcms/extensions.json)
-npx okcms plugin:manage -n meu-plugin --enable       # marca como habilitado de novo (mesmo estado local)
-npx okcms plugin:manage -n meu-plugin --uninstall    # remove os arquivos do projeto
+okcms plugin:list                                # instalados + estado local
+okcms plugin:manage -n meu-plugin --info         # informações do manifesto
+okcms plugin:manage -n meu-plugin --disable      # marca como desabilitado no estado local (.okcms/extensions.json)
+okcms plugin:manage -n meu-plugin --enable       # marca como habilitado de novo (mesmo estado local)
+okcms plugin:manage -n meu-plugin --uninstall    # remove os arquivos do projeto
 # O runtime lê o status no banco: ative/desative pelo admin (carregado no boot).
 
 # 5. Busca no npm (pacotes com a keyword okcms-plugin)
-npx okcms plugin:search -q galeria
+okcms plugin:search -q galeria
 
 # 6. Publicou/atualizou? Stage do SQL + build dos temas + deploy (destino salvo)
-npx okcms redeploy --dry-run   # só mostra o plano
-npx okcms redeploy
+okcms redeploy --dry-run   # só mostra o plano
+okcms redeploy
 ```
 
 ## Publicando

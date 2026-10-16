@@ -14,7 +14,7 @@ etc.). The catalogue of available hooks is served by the API at
 ## Generated structure
 
 ```bash
-npx okcms plugin:create --name my-plugin
+okcms plugin:create --name my-plugin
 ```
 
 ```
@@ -35,7 +35,7 @@ plugins/my-plugin/
   "main": "index.js",
   "scope": "tenant",
   "permissions": [],
-  "compatibility": { "okcms": "^0.2.0" }
+  "compatibility": { "okcms": "^0.5.5" }
 }
 ```
 
@@ -66,6 +66,13 @@ module.exports.register = function register(registry) {
 `register(registry)` is called when the plugin is loaded. Use the registry
 to expose filters (transformations) — see what exists at
 `GET /api/v1/hooks/catalog` for the available names and contracts.
+
+Loading happens at the boot of every process (API, web and worker): plugins
+with `ACTIVATED` status in the database get `register` called and their hooks
+enter the shared registry. Activating/deactivating via the API reloads the
+API process in place; web/worker pick the change up on the next restart.
+A plugin that fails to load is isolated: the failure is logged and never
+breaks the boot of the other plugins or of the process.
 
 ## Database migrations
 
@@ -101,28 +108,28 @@ Two rules the redeploy enforces:
 
 ```bash
 # 1. Create it (in the project's ./plugins, or an external workspace with --dir)
-npx okcms plugin:create --name my-plugin
+okcms plugin:create --name my-plugin
 
 # 2. Implement plugins/my-plugin/index.js
 
 # 3. If you created it OUTSIDE the project, install it (validates compatibility and copies into plugins/)
-npx okcms plugin:install --name ../my-plugin-source
+okcms plugin:install --name ../my-plugin-source
 
 # 4. Management
-npx okcms plugin:list                                # installed + local state
-npx okcms plugin:manage -n my-plugin --info          # manifest information
-npx okcms plugin:manage -n my-plugin --disable       # marks as disabled in the local state (.okcms/extensions.json)
-npx okcms plugin:manage -n my-plugin --enable        # marks as enabled again (same local state)
-npx okcms plugin:manage -n my-plugin --uninstall     # removes the project files
+okcms plugin:list                                # installed + local state
+okcms plugin:manage -n my-plugin --info          # manifest information
+okcms plugin:manage -n my-plugin --disable       # marks as disabled in the local state (.okcms/extensions.json)
+okcms plugin:manage -n my-plugin --enable        # marks as enabled again (same local state)
+okcms plugin:manage -n my-plugin --uninstall     # removes the project files
 # Runtime effect comes from the admin: activate/deactivate flips the database
 # status loaded at boot (web/worker on the next restart).
 
 # 5. Search npm (packages with the okcms-plugin keyword)
-npx okcms plugin:search -q gallery
+okcms plugin:search -q gallery
 
 # 6. Published/updated? Stage the SQL + build the themes + deploy (saved target)
-npx okcms redeploy --dry-run   # only shows the plan
-npx okcms redeploy
+okcms redeploy --dry-run   # only shows the plan
+okcms redeploy
 ```
 
 ## Publishing

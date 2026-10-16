@@ -1,5 +1,12 @@
 # @oktis-works/types
 
+## 0.5.6
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/validation@0.6.0
+
 ## 0.5.5
 
 ### Patch Changes

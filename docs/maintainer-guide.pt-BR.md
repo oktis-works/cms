@@ -173,14 +173,21 @@ baterem:
 
 1. toda versão de manifest publicável é semver `X.Y.Z`;
 2. `CMS_VERSION` (`packages/validation/src/compatibility.ts` e o arquivo
-   `CMS_VERSION` da raiz) === versão de `@oktis-works/validation` — é a
-   versão que `compatibility.okcms` de plugins/temas compara. Sincronize com
-   `bun run sync-version --write` (o `bun run version-packages` já faz isso).
+   `CMS_VERSION` da raiz) === **versão de produto**, ancorada no
+   `package.json` da raiz (workspace privado `okcms` — nunca publicado no
+   npm, então livre para carregar a semântica de produto). É a versão que
+   `compatibility.okcms` de plugins/temas compara, a que aparece no
+   `<meta name="generator">` do site público e a que o `GET /api` reporta.
+   Sincronize com `bun run sync-version --write` (o `bun run version-packages`
+   já faz isso). Os pacotes continuam independentes: `@oktis-works/validation`
+   tem a sua própria versão de biblioteca — versão de produto NÃO é versão
+   de pacote (é o anti-padrão que esta âncora substitui).
 
-A **tag `vX.Y.Z` é só o gatilho** do release: não precisa bater com a versão
-de nenhum pacote. O CI roda na tag e, se passar, dispara o `publish.yml`
-(testes/typecheck/lint rodam uma vez, no CI; o publish só builda e publica o
-que ainda não está no registry).
+A **tag `vX.Y.Z` é a versão de produto que está saindo**: com `--tag`, o
+`prepare-publish.mjs` bloqueia se o número da tag não bater com a âncora de
+produto (ela não é mais "só gatilho"). O CI roda na tag e, se passar, dispara
+o `publish.yml` (testes/typecheck/lint rodam uma vez, no CI; o publish só
+builda e publica o que ainda não está no registry).
 
 ### Fluxo de release
 
@@ -188,14 +195,15 @@ que ainda não está no registry).
 # 1. registrar o que mudou (antes do merge, em cada PR)
 bun run changeset
 
-# 2. bump das versões + CHANGELOG + sincroniza CMS_VERSION
+# 2. bump da versão de produto (package.json da raiz, ex.: 0.13.0) e depois
+#    bump das versões de pacote + CHANGELOG + sincroniza CMS_VERSION
 bun run version-packages
 
 # 3. validação completa (nada de publicar com gate vermelho)
 bun run test:run && bun run typecheck && bun run lint && bun run build
-node scripts/prepare-publish.mjs --check
+node scripts/prepare-publish.mjs --check --tag vX.Y.Z
 
-# 4. commit + tag (qualquer vX.Y.Z) + push — a tag dispara CI → publish
+# 4. commit + tag vX.Y.Z (tem que BATER com a âncora da raiz) + push
 git commit -am 'chore(release)'
 git tag vX.Y.Z && git push --follow-tags
 ```

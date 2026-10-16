@@ -1,5 +1,30 @@
 # @oktis-works/validation
 
+## 0.6.0
+
+### Minor Changes
+
+- feat(versioning): `CMS_VERSION` passa a ser a versão de PRODUTO, ancorada na raiz
+  
+  `CMS_VERSION` (a versão que `compatibility.okcms` de plugins/temas compara, que
+  o scaffold grava nos manifestos e que o site expõe no
+  `<meta name="generator">`) **não é mais a versão de `@oktis-works/validation`**.
+  
+  - Âncora de produto: o `version` do `package.json` da raiz (workspace privado
+    `okcms`, nunca publicado — livre para carregar semântica de produto).
+  - `bun run sync-version` deriva `CMS_VERSION` (const + arquivo raiz) dessa âncora;
+    `prepare-publish.mjs` bloqueia release se `CMS_VERSION ≠ âncora` ou se a
+    tag `vX.Y.Z` não bater com ela (a tag deixa de ser "só gatilho").
+  - `@oktis-works/validation` volta a ser biblioteca independente, com a sua
+    própria numeração — produto não mora dentro de uma lib publicada.
+  
+  ⚠️ **Migração (breaking em 0.x):** `CMS_VERSION` passa de `0.5.5` para a versão
+  de produto (`0.12.0`). Extensões de TERCEIROS declarando `"okcms": "^0.5.5"`
+  deixam de satisfazer `0.12.0` (caret trava o minor em 0.x) e serão rejeitadas
+  nos gates de instalação/ativação — redeclare como `"okcms": "^0.12.0"` (ou a
+  janela desejada). First-party já migrada: tema default (`^0.12.0`) e scaffold
+  da CLI (deriva do `CMS_VERSION`).
+
 ## 0.5.5
 
 No changes in this release.

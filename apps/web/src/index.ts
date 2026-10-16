@@ -9,6 +9,7 @@ import { serve } from '@hono/node-server';
 import { bootstrap } from '@oktis-works/core';
 import { resolveExtensionDirectory } from '@oktis-works/core';
 import { runWithTenantContext } from '@oktis-works/core';
+import { CMS_VERSION } from '@oktis-works/validation';
 import { getConnection, runWithTenantTransaction } from '@oktis-works/database';
 import {
   createRouter,
@@ -74,6 +75,15 @@ async function main() {
   const envActiveTheme = process.env['ACTIVE_THEME']?.trim() || 'default';
 
   const app = new Hono<{ Variables: Variables }>();
+
+  // Assinatura do produto para detectores (Wappalyzer etc.): X-Powered-By em
+  // TODA resposta do site público. Vale inclusive para temas full-control,
+  // que são donos do próprio <head> e por isso não recebem o
+  // <meta name="generator"> aplicado pelo wrapDocument.
+  app.use('*', async (c, next) => {
+    c.header('X-Powered-By', `OkCMS/${CMS_VERSION}`);
+    await next();
+  });
 
   // Tenant resolution middleware (loopback → default; senão subdomain/domain)
   app.use('*', async (c, next) => {

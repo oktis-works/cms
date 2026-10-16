@@ -895,6 +895,12 @@ runtime do site busca (hierarquia \`home\` → \`index\` → \`404\`, com fallba
 - Contexto disponível: \`site.*\`, \`page.*\`, \`content.*\` (colunas + campos), \`items\`,
   \`menus\`, \`contentTypes\`, \`taxonomies\`, \`terms\`, \`settings\`
 
+> **Nota — assinatura do produto:** o runtime envolve seus templates com
+> \`<meta name="generator" content="OkCMS <versão>">\` e envia \`X-Powered-By:
+> OkCMS/<versão>\` em toda resposta pública. Se o tema emite o documento
+> COMPLETO (\`<html>\` no fragmento — full-control), o meta não é injetado (o
+> tema é dono do próprio \`<head>\`), mas o header continua presente.
+
 ## Estilos por engine
 
 | \`--style\` | Arquivo gerado | Build |
@@ -1174,6 +1180,13 @@ loops/conditionals:
 - \`404.astro\` — last in the chain
 - Context available: \`site.*\`, \`page.*\`, \`content.*\` (columns + fields), \`items\`,
   \`menus\`, \`contentTypes\`, \`taxonomies\`, \`terms\`, \`settings\`
+
+> **Note — product signature:** the runtime wraps your templates with
+> \`<meta name="generator" content="OkCMS <version>">\` and sends
+> \`X-Powered-By: OkCMS/<version>\` on every public response. If the theme
+> emits a COMPLETE document (\`<html>\` in the fragment — full-control), the
+> meta is not injected (the theme owns its \`<head>\`), but the header is
+> still there.
 
 ## Styles per engine
 

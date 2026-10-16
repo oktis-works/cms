@@ -1,6 +1,7 @@
 // @oktis-works/core - Theme Service Tests (ciclo de vida + descoberta)
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { CMS_VERSION } from '@oktis-works/validation';
 
 type Row = Record<string, unknown>;
 let queue: Row[][];
@@ -120,7 +121,9 @@ describe('ThemeService.install', () => {
     name: 'novo-tema',
     version: '1.0.0',
     type: 'theme',
-    compatibility: { okcms: '^0.5.5' },
+    // Símbolo, nunca literal: o teste cobre o CICLO DE VIDA do install, não a
+    // compatibilidade — o range precisa satisfazer qualquer CMS_VERSION futura.
+    compatibility: { okcms: `^${CMS_VERSION}` },
   };
 
   it('rejeita nome inseguro', async () => {

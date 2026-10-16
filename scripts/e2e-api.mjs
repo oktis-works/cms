@@ -8,6 +8,7 @@
 // Requisitos: Postgres + Redis acessíveis (docker compose up -d postgres redis)
 
 import { spawn } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { setTimeout as sleep } from 'node:timers/promises';
 
 const API = process.env['E2E_API_URL'] ?? 'http://127.0.0.1:4010';
@@ -177,6 +178,16 @@ async function main() {
   expect(html.includes('E2E Site Title'), 'title/meta usa siteTitle das settings (fim do OkCMS hardcoded)');
   expect(html.includes('Descrição E2E do site'), 'meta description = siteDescription');
 
+  // ---------- ASSINATURA DO PRODUTO (detecção Wappalyzer) ----------
+  // Versão de produto = âncora no package.json da raiz (workspace privado).
+  const productVersion = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
+  expect(
+    html.includes(`<meta name="generator" content="OkCMS ${productVersion}">`),
+    'meta generator = OkCMS <versão de produto> no HTML público'
+  );
+  const apiInfo = await (await fetch(`${API}/api`)).json();
+  expect(apiInfo.version === productVersion, 'GET /api reporta a versão de produto (fonte única)');
+
   // Home do tema: título das settings
   const home = await fetch(`${WEB}/`);
   const homeHtml = await home.text();
@@ -220,6 +231,10 @@ async function main() {
   expect(themedHome.status === 200 && themedHtml.includes('data-theme="default"'), 'web usa o tema ativo do banco (sem restart)');
   expect(themedHtml.includes('href="/themes/default/dist/theme.css"'), 'documento linka o CSS do tema ativo');
   expect(themedHtml.includes('data-theme-style="default"'), 'link do CSS carrega o data-theme-style do tema ativo');
+  expect(
+    themedHome.headers.get('x-powered-by') === `OkCMS/${productVersion}`,
+    'header X-Powered-By assina o site com a versão de produto'
+  );
 
   // 5) Isolamento ENTREGUE (3-B): o dist servido já vem escopado, sem build
   const scopedCss = await (await fetch(`${WEB}/themes/default/dist/theme.css`)).text();

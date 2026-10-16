@@ -1,5 +1,14 @@
 # @oktis-works/api
 
+## 0.8.1
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/validation@0.6.0
+  - @oktis-works/core@0.5.11
+  - @oktis-works/types@0.5.6
+
 ## 0.8.0
 
 ### Minor Changes

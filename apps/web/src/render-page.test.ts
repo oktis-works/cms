@@ -32,6 +32,7 @@ import {
   contentTypeForAsset,
   wrapDocument,
 } from './rendering.js';
+import { CMS_VERSION } from '@oktis-works/validation';
 
 let themesRoot: string;
 
@@ -95,7 +96,9 @@ describe('renderContentPage — B1 render real', () => {
     });
 
     expect(html).toContain('<h1>Meu Site</h1>');
-    expect(html).not.toContain('OkCMS');
+    // O fallback hardcoded antigo era <title>OkCMS</title> — o ÚNICO "OkCMS"
+    // permitido no documento agora é o <meta name="generator"> (assinatura).
+    expect(html).not.toContain('<title>OkCMS');
     expect(html).toContain('Descrição do site');
   });
 
@@ -290,6 +293,18 @@ describe('wrapDocument — idioma do documento vem das settings', () => {
     const html = wrapDocument('<main>corpo</main>', 'Título', settings, 'default', 'default');
     expect(html).toContain('<html lang="pt-BR">');
     expect(html).toContain('<link rel="stylesheet" href="/themes/default/dist/theme.css"');
+  });
+});
+
+describe('wrapDocument — assinatura do produto (meta generator)', () => {
+  it('emite <meta name="generator" content="OkCMS <CMS_VERSION>" em todo documento', () => {
+    const html = wrapDocument('<main>corpo</main>', 'Título', settings, 'default', null);
+    expect(html).toContain(`<meta name="generator" content="OkCMS ${CMS_VERSION}">`);
+  });
+
+  it('documento COMPLETO do tema (full-control) passa intocado — sem meta injetado', () => {
+    const full = '<!DOCTYPE html><html><head><title>x</title></head><body>y</body></html>';
+    expect(wrapDocument(full, 'Título', settings, 'default', 'default')).toBe(full);
   });
 });
 

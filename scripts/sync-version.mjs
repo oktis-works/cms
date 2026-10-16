@@ -2,15 +2,21 @@
 /**
  * scripts/sync-version.mjs
  *
- * SINCRONIZADOR DE CMS_VERSION — fonte única: versão de `@oktis-works/validation`.
+ * SINCRONIZADOR DE CMS_VERSION — fonte única: âncora de versão de PRODUTO.
  *
- * `CMS_VERSION` (packages/validation/src/compatibility.ts) é a versão do CMS
- * contra a qual plugins/temas são validados (`compatibility.okcms`) e o valor
- * que o scaffold grava nos manifestos. Como o monorepo é versionado de forma
- * INDEPENDENTE (changesets sem grupo fixed), o "produto" é a própria versão do
- * pacote validation — logo CMS_VERSION acompanha a versão dele.
+ * A versão do produto é o `version` do package.json da raiz (workspace
+ * PRIVADO `okcms`, nunca publicado no npm — logo livre para carregar a
+ * semântica de produto). É ela que:
+ *   - vira `CMS_VERSION` (packages/validation/src/compatibility.ts), a versão
+ *     contra a qual plugins/temas são validados (`compatibility.okcms`) e que
+ *     o scaffold grava nos manifestos;
+ *   - deve ser igual à tag do release (`vX.Y.Z` — validado no prepare-publish).
  *
- * Propaga a versão do validation para as duas âncoras:
+ * Os pacotes do monorepo são INDEPENDENTES (changesets): `@oktis-works/validation`
+ * segue a sua própria numeração de biblioteca — ela NÃO é a versão do produto
+ * (anti-padrão: versão de produto dentro de uma lib publicada).
+ *
+ * Propaga a âncora de produto para as duas âncoras derivadas:
  *   1. `CMS_VERSION` em packages/validation/src/compatibility.ts;
  *   2. arquivo CMS_VERSION na raiz (referência humana/deploy).
  *
@@ -18,9 +24,9 @@
  *   bun run sync-version            # valida e sai com 0 se tudo alinhado
  *   bun run sync-version --write    # reescreve âncoras dessincronizadas
  *
- * Comportamento:
- *   - sem --write: modo CHECK. Exit 0 = tudo alinhado; exit 1 = divergências.
- *   - --write: altera apenas o que diverge e revalida ao final.
+ * Bump de release: edite `version` no package.json da raiz (ex.: 0.12.0) e
+ * rode `bun run sync-version --write` — ou apenas `bun run version-packages`,
+ * que já roda este script no fim.
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -35,18 +41,18 @@ const errors = [];
 const writes = [];
 
 // ---------------------------------------------------------------------------
-// fonte da verdade: versão de @oktis-works/validation
+// fonte da verdade: âncora de versão de produto (package.json da raiz)
 // ---------------------------------------------------------------------------
-const validationPath = join(ROOT, 'packages', 'validation', 'package.json');
-const validationPkg = JSON.parse(readFileSync(validationPath, 'utf8'));
-const version = validationPkg.version;
+const rootPath = join(ROOT, 'package.json');
+const rootPkg = JSON.parse(readFileSync(rootPath, 'utf8'));
+const version = rootPkg.version;
 if (!SEMVER.test(String(version))) {
-  console.error(`✗ @oktis-works/validation: version "${version}" não é semver X.Y.Z`);
+  console.error(`✗ âncora de produto (package.json da raiz): version "${version}" não é semver X.Y.Z`);
   process.exit(1);
 }
 
 // ---------------------------------------------------------------------------
-// 1. CMS_VERSION em compatibility.ts === versão do validation
+// 1. CMS_VERSION em compatibility.ts === âncora de produto
 // ---------------------------------------------------------------------------
 const compatPath = join(ROOT, 'packages', 'validation', 'src', 'compatibility.ts');
 if (existsSync(compatPath)) {
@@ -68,7 +74,7 @@ if (existsSync(compatPath)) {
 }
 
 // ---------------------------------------------------------------------------
-// 2. arquivo CMS_VERSION na raiz === versão do validation
+// 2. arquivo CMS_VERSION na raiz === âncora de produto
 // ---------------------------------------------------------------------------
 const cmsVersionPath = join(ROOT, 'CMS_VERSION');
 if (existsSync(cmsVersionPath)) {
@@ -78,7 +84,7 @@ if (existsSync(cmsVersionPath)) {
       writes.push({ path: cmsVersionPath, label: 'CMS_VERSION (arquivo raiz)', detail: `${current} → ${version}` });
       writeFileSync(cmsVersionPath, `${version}\n`);
     } else {
-      errors.push(`CMS_VERSION (arquivo): ${current} (esperado ${version})`);
+      errors.push(`arquivo CMS_VERSION (${current}) (esperado ${version})`);
     }
   }
 } else if (write) {
@@ -103,7 +109,7 @@ if (errors.length) {
 
 if (write && writes.length) {
   for (const w of writes) console.log(`✎ ${w.label}: ${w.detail}`);
-  console.log(`\n✓ ${writes.length} arquivo(s) sincronizado(s) para @oktis-works/validation@${version}`);
+  console.log(`\n✓ ${writes.length} arquivo(s) sincronizado(s) para a versão de produto ${version}`);
 } else {
-  console.log(`✓ CMS_VERSION sincronizado — @oktis-works/validation@${version}`);
+  console.log(`✓ CMS_VERSION sincronizado — versão de produto ${version}`);
 }

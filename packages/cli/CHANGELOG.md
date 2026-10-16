@@ -1,5 +1,13 @@
 # @oktis-works/cms
 
+## 0.9.1
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/validation@0.6.0
+  - @oktis-works/core@0.5.11
+
 ## 0.9.0
 
 ### Minor Changes

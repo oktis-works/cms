@@ -1,5 +1,31 @@
 # @oktis-works/web
 
+## 0.9.0
+
+### Minor Changes
+
+- feat(web): assinatura do produto no site público — `<meta name="generator">` + `X-Powered-By`
+  
+  O site público agora se identifica explicitamente como OkCMS (padrão de
+  mercado: WordPress/Ghost/Hugo emitem o mesmo meta) — é o que permite que
+  detectores (Wappalyzer, BuiltWith, Netcraft) reconheçam um site feito com
+  OkCMS de forma determinística, em vez de heurística.
+  
+  - `wrapDocument` injeta `<meta name="generator" content="OkCMS <CMS_VERSION>">`
+    em todo documento gerado (fonte única: o símbolo, sem literal).
+  - Middleware emite `X-Powered-By: OkCMS/<CMS_VERSION>` em toda resposta —
+    cobre até temas full-control, que são donos do próprio `<head>` e não
+    recebem o meta (contrato documentado no guia de temas).
+  - `apps/web` passa a depender de `@oktis-works/validation` para ler o símbolo.
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/validation@0.6.0
+  - @oktis-works/core@0.5.11
+  - @oktis-works/plugin-runtime@0.5.8
+  - @oktis-works/types@0.5.6
+
 ## 0.8.0
 
 ### Minor Changes

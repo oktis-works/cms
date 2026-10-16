@@ -8,18 +8,20 @@
  * Sistema de versionamento deste repositório:
  *   1. Changesets (.changeset/): todos os pacotes são INDEPENDENTES — cada
  *      um tem bump próprio (`bun run changeset` + `bun run version-packages`).
- *   2. CMS_VERSION (packages/validation/src/compatibility.ts) === versão de
- *      @oktis-works/validation — versão do produto usada na compatibilidade
- *      de plugins/temas (`compatibility.okcms`). Sincronize com
+ *   2. Versão de PRODUTO: o `version` do package.json da raiz (workspace
+ *      privado `okcms`, nunca publicado) é a âncora. `CMS_VERSION`
+ *      (packages/validation/src/compatibility.ts) é derivada dela — é a
+ *      versão usada na compatibilidade de plugins/temas (`compatibility.okcms`)
+ *      e no `<meta name="generator">` do site. Sincronize com
  *      `bun run sync-version --write`.
- *   3. Tag `vX.Y.Z`: é só o GATILHO do release (CI → publish). Não precisa
- *      bater com a versão de nenhum pacote.
+ *   3. Tag `vX.Y.Z`: é a versão de produto que está saindo — o número tem que
+ *      BATER com a âncora (não é mais "só gatilho").
  *
  * Regras BLOQUEANTES (exit 1):
  *   - toda versão de manifest publicável é semver `X.Y.Z`;
  *   - todos os pacotes do grupo `fixed` (se houver) compartilham a MESMA versão;
- *   - CMS_VERSION (const e arquivo) === versão de @oktis-works/validation;
- *   - com `--tag`: a tag é `vX.Y.Z` (formato apenas — é um gatilho).
+ *   - CMS_VERSION (const e arquivo) === versão de produto (package.json da raiz);
+ *   - com `--tag`: a tag é `vX.Y.Z` E o número é igual à versão de produto.
  *
  * AVISOS (não bloqueiam):
  *   - changesets pendentes em .changeset/*.md (valem para a PRÓXIMA release).
@@ -133,20 +135,18 @@ if (existsSync(csConfigPath)) {
 }
 
 // ---------------------------------------------------------------------------
-// 3. CMS_VERSION (const e arquivo) === versão de @oktis-works/validation
+// 3. CMS_VERSION (const e arquivo) === âncora de versão de produto (raiz)
 // ---------------------------------------------------------------------------
-const validationVersion = byName.get('@oktis-works/validation')?.version ?? null;
-if (!validationVersion) {
-  errors.push('@oktis-works/validation não encontrado nos workspaces');
-} else {
+const productVersion = String(rootPkg.version);
+{
   const compatPath = join(ROOT, 'packages', 'validation', 'src', 'compatibility.ts');
   if (existsSync(compatPath)) {
     const match = readFileSync(compatPath, 'utf8').match(/CMS_VERSION\s*=\s*'([^']+)'/);
     if (!match) {
       errors.push('CMS_VERSION não encontrado em packages/validation/src/compatibility.ts');
-    } else if (match[1] !== validationVersion) {
+    } else if (match[1] !== productVersion) {
       errors.push(
-        `CMS_VERSION (${match[1]}) diverge de @oktis-works/validation (${validationVersion}) — ` +
+        `CMS_VERSION (${match[1]}) diverge da versão de produto (${productVersion}) — ` +
           `rode \`bun run sync-version --write\` para propagar`,
       );
     }
@@ -154,13 +154,13 @@ if (!validationVersion) {
     errors.push('packages/validation/src/compatibility.ts não encontrado');
   }
 
-  // 3b. arquivo CMS_VERSION na raiz === versão do validation
+  // 3b. arquivo CMS_VERSION na raiz === âncora de versão de produto
   const cmsVersionPath = join(ROOT, 'CMS_VERSION');
   if (existsSync(cmsVersionPath)) {
     const current = readFileSync(cmsVersionPath, 'utf8').trim();
-    if (current !== validationVersion) {
+    if (current !== productVersion) {
       errors.push(
-        `arquivo CMS_VERSION (${current}) diverge de @oktis-works/validation (${validationVersion}) — ` +
+        `arquivo CMS_VERSION (${current}) diverge da versão de produto (${productVersion}) — ` +
           `rode \`bun run sync-version --write\` para propagar`,
       );
     }
@@ -170,10 +170,17 @@ if (!validationVersion) {
 }
 
 // ---------------------------------------------------------------------------
-// 4. tag da release — só o formato vX.Y.Z (a tag é o gatilho do CI)
+// 4. tag da release === versão de produto (a tag NÃO é "só gatilho")
 // ---------------------------------------------------------------------------
-if (tag && !/^v\d+\.\d+\.\d+$/.test(tag)) {
-  errors.push(`tag "${tag}" fora do padrão vX.Y.Z — a release precisa ser tagada como vX.Y.Z`);
+if (tag) {
+  if (!/^v\d+\.\d+\.\d+$/.test(tag)) {
+    errors.push(`tag "${tag}" fora do padrão vX.Y.Z — a release precisa ser tagada como vX.Y.Z`);
+  } else if (tag.slice(1) !== productVersion) {
+    errors.push(
+      `tag ${tag} diverge da versão de produto ${productVersion} — ` +
+        `bump o package.json da raiz para ${tag.slice(1)} e rode \`bun run sync-version --write\` antes de tagar`,
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -202,8 +209,8 @@ for (const w of warnings) console.log(`⚠️  ${w}`);
 console.log(
   `✓ versionamento válido` +
     (fixedVersion ? ` | grupo fixed ${fixedVersion}` : '') +
-    (validationVersion ? ` | CMS_VERSION ${validationVersion}` : '') +
-    (tag ? ` | tag ${tag} (gatilho)` : '') +
+    ` | versão de produto ${productVersion}` +
+    (tag ? ` | tag ${tag}` : '') +
     ` | ${published.length} pacotes publicáveis`,
 );
 

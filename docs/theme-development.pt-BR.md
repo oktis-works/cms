@@ -13,16 +13,20 @@ CSS para outro.
 ## Estrutura gerada
 
 ```bash
-npx okcms theme:create --name meu-tema --style css   # css | scss | tailwind
+okcms theme:create --name meu-tema --style css   # css | scss | tailwind
 ```
 
 ```
 themes/meu-tema/
 ├── theme.json               # manifest (type: theme + compatibilidade)
-├── templates/
-│   ├── index.html           # listagem (home)
-│   └── single.html          # página única (post/conteúdo)
-├── style.css                # engine css — ou styles/main.scss — ou src/input.css
+├── home.astro               # templates da hierarquia NA RAIZ
+├── index.astro
+├── single.astro
+├── page.astro
+├── archive.astro
+├── 404.astro
+├── dist/theme.css           # engine css — já servível
+│                            # (ou styles/main.scss — ou src/input.css)
 └── README.md
 ```
 
@@ -34,7 +38,7 @@ themes/meu-tema/
   "version": "0.1.0",
   "description": "Tema meu-tema para OkCMS",
   "type": "theme",
-  "compatibility": { "okcms": "^0.2.0" }
+  "compatibility": { "okcms": "^0.5.5" }
 }
 ```
 
@@ -42,6 +46,11 @@ Com `--style scss` ou `--style tailwind`, o manifesto ganha também
 `stylesConfig` (`engine`, `entry`, `output`, `isolation`) apontando para a
 entrada de estilos. `compatibility.okcms` é preenchido e validado
 automaticamente, como nos plugins.
+
+Isolamento (`stylesConfig.isolation`): `scss`/`tailwind` sempre escopam no
+build (`isolation: true`); no engine `css` o tema pode assumir o isolamento
+com `isolation: "manual"` — o `dist/theme.css` entregue já precisa estar
+escopado (é o caso do tema default). `isolation: false` é rejeitado.
 
 ### Templates
 
@@ -69,6 +78,12 @@ runtime do site busca (hierarquia `home` → `index` → `404`, com fallback
 - Contexto disponível: `site.*`, `page.*`, `content.*` (colunas + campos), `items`,
   `menus`, `contentTypes`, `taxonomies`, `terms`, `settings`
 
+> **Nota — assinatura do produto:** o runtime envolve seus templates com
+> `<meta name="generator" content="OkCMS <versão>">` e envia `X-Powered-By:
+> OkCMS/<versão>` em toda resposta pública. Se o tema emite o documento
+> COMPLETO (`<html>` no fragmento — full-control), o meta não é injetado (o
+> tema é dono do próprio `<head>`), mas o header continua presente.
+
 ## Estilos por engine
 
 | `--style` | Arquivo gerado | Build |
@@ -82,14 +97,6 @@ arquivo já nasce em `dist/` (servível sem build). Nos demais, o build compila
 para `dist/theme.css` **com isolamento `[data-theme="meu-tema"]`** (sem vazar
 estilos entre temas; o Tailwind já sai com `preflight: false`).
 
-### Contrato de isolamento (`stylesConfig.isolation`)
-
-| valor | significado |
-|---|---|
-| `true` | o build escopa o CSS (obrigatório/automático em `scss`/`tailwind`) |
-| `"manual"` | **apenas engine css** — o autor entrega o `dist/theme.css` já isolado (como no tema default); o build não mexe |
-| `false` | **rejeitado** pela validação (BUSI-040)
-
 > `dist/theme.css` é lido **pronto** pelo container — nada compila SCSS ou
 > Tailwind dentro da imagem. O arquivo existe no host e só chega em
 > produção quando a imagem é reconstruída: `okcms theme:build` seguido de
@@ -99,33 +106,33 @@ estilos entre temas; o Tailwind já sai com `preflight: false`).
 
 ```bash
 # 1. Crie
-npx okcms theme:create --name meu-tema --style scss
+okcms theme:create --name meu-tema --style scss
 
 # 2. Edite os templates *.astro na raiz e os estilos
 
 # 3. Compile os estilos (scss/tailwind)
-npx okcms theme:build --name meu-tema
+okcms theme:build --name meu-tema
 
 # 4. Ative (grava activeTheme no okcms.config.json)
-npx okcms theme:manage --name meu-tema --set-active
+okcms theme:manage --name meu-tema --set-active
 #    (equivalente: ACTIVE_THEME=meu-tema no .env)
 #    A tela Temas do admin também ativa — o tema ativo é lido do banco a
 #    cada request, sem restart do site.
 
 # 5. Gestão
-npx okcms theme:list                               # instalados + status
-npx okcms theme:manage -n meu-tema --info          # informações do theme.json
-npx okcms theme:manage -n meu-tema --disable|enable
+okcms theme:list                               # instalados + status
+okcms theme:manage -n meu-tema --info          # informações do theme.json
+okcms theme:manage -n meu-tema --disable|enable
 #    (estado local .okcms/extensions.json; o tema ativo é o --set-active)
-npx okcms theme:manage -n meu-tema --uninstall
-npx okcms theme:search -q blog                     # busca no npm (keyword okcms-theme)
+okcms theme:manage -n meu-tema --uninstall
+okcms theme:search -q blog                     # busca no npm (keyword okcms-theme)
 
 # Se criou FORA do projeto:
-npx okcms theme:install --name ../meu-tema-fonte
+okcms theme:install --name ../meu-tema-fonte
 
 # 6. Depois de mudar templates/estilos: recompila e refaz o deploy
-npx okcms theme:build --name meu-tema   # (o redeploy já compila sozinho)
-npx okcms redeploy
+okcms theme:build --name meu-tema   # (o redeploy já compila sozinho)
+okcms redeploy
 ```
 
 ## Publicando

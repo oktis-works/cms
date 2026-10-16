@@ -15,6 +15,7 @@ import {
   type TemplateFileChecker,
 } from '@oktis-works/theme-runtime';
 import type { ThemeRenderData } from '@oktis-works/theme-sdk';
+import { CMS_VERSION } from '@oktis-works/validation';
 
 /**
  * B1/Unificação (FEAT-095): a cadeia de templates do projeto
@@ -208,6 +209,7 @@ export function wrapDocument(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="generator" content="OkCMS ${CMS_VERSION}">
   <title>${escapeHtml(title)}</title>
   <meta name="description" content="${escapeHtml(settings.siteDescription)}">
 ${stylesheet}${headInjections}</head>
