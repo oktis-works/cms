@@ -304,8 +304,11 @@
         },
         "hasArchive": "Possui arquivo público (/slug)",
         "singleton": "Singleton (apenas um conteúdo)",
-        "icon": "Ícone do sidebar (nome Lucide)",
-        "iconHint": "Exemplos: box, package, shopping-bag, file-text",
+        "icon": "Ícone do menu lateral",
+        "iconHint": "Escolha um ícone Lucide — o nome dele é o que aparece no menu do admin",
+        "iconSearchPlaceholder": "Buscar ícones…",
+        "iconEmpty": "Nenhum ícone encontrado.",
+        "iconCount": "{count} ícones disponíveis",
         "editTitle": "Editar Tipo de Conteúdo",
         "update": "Atualizar",
         "cancel": "Cancelar",
@@ -922,6 +925,14 @@
     "configSaved": "Configurações salvas.",
     "configError": "Não foi possível salvar as configurações do tema.",
     "empty": "Nenhum tema instalado."
+  },
+  "notFound": {
+    "title": "Página não encontrada",
+    "description": "O endereço pode estar desatualizado ou a página pode ter sido movida. Confira o endereço ou acesse uma das seções abaixo.",
+    "requestedPath": "Você tentou abrir",
+    "suggestionsLabel": "Ou acesse uma destas seções",
+    "goHome": "Voltar ao início",
+    "goBack": "Voltar"
   },
   "login": {
     "title": "Login",

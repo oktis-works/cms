@@ -321,6 +321,14 @@
       }
     }
   },
+  "notFound": {
+    "title": "Ukurasa haupatikani",
+    "description": "Anwani imeenda au ukurasa umehamishwa. Angalia anwani au nenda kwenye moja ya sehemu hizi.",
+    "requestedPath": "Ulijaribu kufungua",
+    "suggestionsLabel": "Au nenda kwenye moja ya sehemu hizi",
+    "goHome": "Rudi mwanzo",
+    "goBack": "Rudi"
+  },
   "login": {
     "title": "Ingia",
     "subtitle": "Ingia kwenye akaunti yako",

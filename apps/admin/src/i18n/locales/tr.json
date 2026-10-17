@@ -321,6 +321,14 @@
       }
     }
   },
+  "notFound": {
+    "title": "Sayfa bulunamadı",
+    "description": "Adres eskimiş olabilir veya sayfa taşınmış olabilir. URL'yi kontrol et ya da şu bölümlerden birine git.",
+    "requestedPath": "Şu adresi açmaya çalıştınız",
+    "suggestionsLabel": "Ya da şu bölümlerden birine git",
+    "goHome": "Ana sayfaya dön",
+    "goBack": "Geri dön"
+  },
   "login": {
     "title": "Giriş",
     "subtitle": "Hesabınıza giriş yapın",

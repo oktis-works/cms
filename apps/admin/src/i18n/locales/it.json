@@ -321,6 +321,14 @@
       }
     }
   },
+  "notFound": {
+    "title": "Pagina non trovata",
+    "description": "L'indirizzo potrebbe essere cambiato o la pagina essere stata spostata. Controlla l'URL o visita una di queste sezioni.",
+    "requestedPath": "Hai provato ad aprire",
+    "suggestionsLabel": "Oppure visita una di queste sezioni",
+    "goHome": "Torna all'inizio",
+    "goBack": "Indietro"
+  },
   "login": {
     "title": "Accesso",
     "subtitle": "Accedi al tuo account",

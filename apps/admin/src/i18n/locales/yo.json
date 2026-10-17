@@ -321,6 +321,14 @@
       }
     }
   },
+  "notFound": {
+    "title": "Kò sí ojú-ìwé yìí",
+    "description": "Adrésì lè ti parẹ tàbí ojú-ìwé ti yí padà. Ṣààyẹ̀ résì náà tàbí wọ ọ̀kan nínú ọ̀nà wọ̀nyí.",
+    "requestedPath": "O gbìyànjú láti ṣí",
+    "suggestionsLabel": "Tàbí wọ ọ̀kan nínú wọ̀nyí",
+    "goHome": "Padà sí ìbẹ̀rẹ̀",
+    "goBack": "Padà sẹ́yìn"
+  },
   "login": {
     "title": "Wá",
     "subtitle": "Wá sí àkàùntí rẹ",

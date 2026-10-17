@@ -1291,6 +1291,94 @@ label.checkbox-label {
 .tz-select__option.is-selected { background: rgba(216, 180, 94, 0.16); color: #8a6d1d; font-weight: 600; }
 .tz-select__empty { margin: 0; padding: 0.5rem 0.6rem; color: var(--color-muted); font-size: 0.85rem; }
 
+/* Icon picker (dropdown com preview + virtualização do catálogo Lucide) */
+.post-types-manager__icon-field { align-self: start; }
+.icon-picker { position: relative; }
+.icon-picker__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+}
+.icon-picker__value { display: inline-flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.icon-picker__preview {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--color-primary);
+}
+.icon-picker__preview svg { width: 18px; height: 18px; display: block; }
+.icon-picker__name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8125rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.icon-picker__caret { color: var(--color-muted); flex-shrink: 0; }
+.icon-picker__panel {
+  position: absolute;
+  z-index: 1200;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  /* A coluna do formulário tem 280–340px (.post-types-manager é grid de 2
+     colunas); o painel é um pouco mais largo e transborda com sombra sobre a
+     tabela, como todo dropdown. */
+  width: min(360px, calc(100vw - 2rem));
+  padding: 0.5rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 32px rgba(15, 15, 15, 0.18);
+  display: grid;
+  gap: 0.5rem;
+}
+.icon-picker__search { width: 100%; }
+/* Só as células da janela existem no DOM; `contain` impede que o browser
+   calcule layout/paint para o que não está rolando na tela. */
+.icon-picker__viewport {
+  position: relative;
+  height: 300px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  contain: layout paint;
+  scrollbar-gutter: stable;
+}
+.icon-picker__grid { position: relative; width: 100%; }
+.icon-picker__cell {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+}
+.icon-picker__cell svg { width: 20px; height: 20px; display: block; pointer-events: none; }
+.icon-picker__cell:hover { background: var(--color-bg-tertiary); }
+.icon-picker__cell.is-active { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+.icon-picker__cell.is-selected {
+  background: rgba(216, 180, 94, 0.16);
+  border-color: var(--color-primary);
+  color: #8a6d1d;
+}
+.icon-picker__cell:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.icon-picker__empty { margin: 0; padding: 0.5rem 0.6rem; color: var(--color-muted); font-size: 0.85rem; }
+.icon-picker__count { margin: 0; padding: 0 0.25rem; font-size: 0.7rem; color: var(--color-muted); text-align: right; }
+
+/* Tabela de tipos de conteúdo: ícone + nome */
+.post-types-manager__icon { display: inline-flex; align-items: center; gap: 0.5rem; }
+.post-types-manager__icon-preview { display: inline-flex; width: 16px; height: 16px; color: var(--color-muted); }
+.post-types-manager__icon-preview svg { width: 16px; height: 16px; display: block; }
+
 /* Content workspace — classic editor layout */
 .content-list__heading,
 .classic-editor__topbar {

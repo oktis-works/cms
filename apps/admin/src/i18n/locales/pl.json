@@ -321,6 +321,14 @@
       }
     }
   },
+  "notFound": {
+    "title": "Nie znaleziono strony",
+    "description": "Adres mógł się zmienić lub strona została przeniesiona. Sprawdź URL lub wejdź do jednej z tych sekcji.",
+    "requestedPath": "Próbowano otworzyć",
+    "suggestionsLabel": "Albo wejdź do jednej z tych sekcji",
+    "goHome": "Powrót do strony głównej",
+    "goBack": "Wstecz"
+  },
   "login": {
     "title": "Logowanie",
     "subtitle": "Zaloguj się do swojego konta",

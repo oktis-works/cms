@@ -3,6 +3,7 @@
 import { For, Show, createMemo, createSignal, onMount } from 'solid-js';
 import { apiClient, type ContentType } from '../../../lib/api';
 import { useTranslation } from '../../../i18n';
+import { IconPicker, iconMarkup } from './IconPicker';
 
 export function PostTypesManager() {
   const { t } = useTranslation();
@@ -138,9 +139,16 @@ export function PostTypesManager() {
               onInput={(e) => setForm({ ...form(), pluralLabel: e.currentTarget.value })}
             />
           </label>
-          <label>
+          <label class="post-types-manager__icon-field">
             {t('settings.postTypes.form.icon')}
-            <input class="input" value={form().menuIcon} placeholder="box" onInput={(e) => setForm({ ...form(), menuIcon: e.currentTarget.value })} />
+            <IconPicker
+              value={form().menuIcon}
+              onChange={(value) => setForm({ ...form(), menuIcon: value })}
+              searchPlaceholder={t('settings.postTypes.form.iconSearchPlaceholder')}
+              emptyLabel={t('settings.postTypes.form.iconEmpty')}
+              countLabel={(count) => t('settings.postTypes.form.iconCount', { count })}
+              label={t('settings.postTypes.form.icon')}
+            />
             <small class="muted">{t('settings.postTypes.form.iconHint')}</small>
           </label>
         </div>
@@ -217,7 +225,16 @@ export function PostTypesManager() {
                 <td>{(type.supports ?? []).join(', ')}</td>
                 <td>{type.hasArchive ? t('common.yes') : t('common.no')}</td>
                 <td>{type.singleton ? t('settings.postTypes.table.singleton') : t('settings.postTypes.table.collection')}</td>
-                <td>{type.menuIcon ?? 'box'}</td>
+                <td>
+                  <span class="post-types-manager__icon">
+                    <span
+                      class="post-types-manager__icon-preview"
+                      aria-hidden="true"
+                      innerHTML={iconMarkup(type.menuIcon ?? 'box')}
+                    />
+                    {type.menuIcon ?? 'box'}
+                  </span>
+                </td>
                 <td>
                   <button type="button" class="btn btn-secondary" onClick={() => edit(type)}>
                     {t('settings.postTypes.table.actions.edit')}

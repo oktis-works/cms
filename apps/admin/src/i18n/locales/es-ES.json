@@ -321,6 +321,14 @@
       }
     }
   },
+  "notFound": {
+    "title": "Página no encontrada",
+    "description": "La dirección puede haber cambiado o la página haberse movido. Comprueba la URL o visita una de estas secciones.",
+    "requestedPath": "Intentaste abrir",
+    "suggestionsLabel": "O visita una de estas secciones",
+    "goHome": "Volver al inicio",
+    "goBack": "Volver"
+  },
   "login": {
     "title": "Iniciar Sesión",
     "subtitle": "Accede a tu cuenta",

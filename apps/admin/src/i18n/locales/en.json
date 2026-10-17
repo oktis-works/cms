@@ -304,8 +304,11 @@
         },
         "hasArchive": "Has public archive (/slug)",
         "singleton": "Singleton (only one content entry)",
-        "icon": "Sidebar icon (Lucide name)",
-        "iconHint": "Examples: box, package, shopping-bag, file-text",
+        "icon": "Sidebar menu icon",
+        "iconHint": "Pick a Lucide icon — its name is what shows in the admin sidebar",
+        "iconSearchPlaceholder": "Search icons…",
+        "iconEmpty": "No icons found.",
+        "iconCount": "{count} icons available",
         "editTitle": "Edit Content Type",
         "update": "Update",
         "cancel": "Cancel",
@@ -843,6 +846,14 @@
     "configSaved": "Settings saved.",
     "configError": "Could not save the theme settings.",
     "empty": "No themes installed."
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "The address may be out of date or the page may have moved. Check the URL or pick one of the sections below.",
+    "requestedPath": "You tried to open",
+    "suggestionsLabel": "Or visit one of these",
+    "goHome": "Back to home",
+    "goBack": "Go back"
   },
   "login": {
     "title": "Login",

@@ -1,0 +1,216 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const { t } = Astro.locals;
+// Caminho tentado — mostrado para o usuário facilitar o suporte/debug.
+const requestedPath = Astro.url.pathname;
+
+// Sugestões de seções fixas do admin. Só rotas core garantidas: o catálogo de
+// tipos de conteúdo é carregado no cliente (via API) e não deve ser buscado
+// numa página de erro. '/content' sem tipo também não existe como rota.
+const suggestions = [
+  { href: '/media', key: 'layout.nav.media' },
+  { href: '/users', key: 'layout.nav.users' },
+  { href: '/menus', key: 'layout.nav.menus' },
+  { href: '/plugins', key: 'layout.nav.plugins' },
+  { href: '/themes', key: 'layout.nav.themes' },
+  { href: '/settings/general', key: 'layout.nav.settings' },
+];
+---
+
+<BaseLayout title={t('notFound.title')} description={t('notFound.description')}>
+  <main class="notfound-page">
+    <div class="notfound-card">
+      <div class="notfound-logo">
+        <img src="/logo-horizontal.svg" width="200" height="65" alt="OkCMS" />
+      </div>
+
+      <p class="notfound-code" aria-hidden="true">404</p>
+
+      <h1 class="notfound-title">{t('notFound.title')}</h1>
+      <p class="notfound-description">{t('notFound.description')}</p>
+
+      <p class="notfound-path" title={requestedPath}>
+        <span class="notfound-path-label">{t('notFound.requestedPath')}:</span>
+        <code>{requestedPath}</code>
+      </p>
+
+      <!-- Sugestões discretas: texto simples, sem botão/borda/fundo — o ouro só
+           aparece no hover, para não competir com a ação principal. -->
+      <nav class="notfound-suggestions" aria-label={t('notFound.suggestionsLabel')}>
+        <span class="notfound-suggestions-label">{t('notFound.suggestionsLabel')}</span>
+        <ul>
+          {suggestions.map((item) => (
+            <li><a href={item.href}>{t(item.key)}</a></li>
+          ))}
+        </ul>
+      </nav>
+
+      <div class="notfound-actions">
+        <a href="/" class="btn btn-primary">{t('notFound.goHome')}</a>
+        <button type="button" class="btn btn-secondary" id="notfound-back">{t('notFound.goBack')}</button>
+      </div>
+    </div>
+  </main>
+</BaseLayout>
+
+<script>
+  // "Voltar" só faz sentido com histórico; sem histórico (link direto),
+  // cai no início para nunca deixar o usuário preso nesta tela.
+  document.getElementById('notfound-back')?.addEventListener('click', () => {
+    if (window.history.length > 1) window.history.back();
+    else window.location.href = '/';
+  });
+</script>
+
+<style>
+  .notfound-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 2rem 1rem;
+    background: var(--color-background);
+  }
+
+  .notfound-card {
+    width: 100%;
+    max-width: 520px;
+    text-align: center;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    padding: 3rem 2.5rem;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .notfound-logo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.75rem;
+  }
+
+  .notfound-logo img {
+    width: 200px;
+    height: 65px;
+    display: block;
+  }
+
+  .notfound-code {
+    font-size: 4rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    color: var(--color-primary);
+    margin-bottom: 0.75rem;
+  }
+
+  .notfound-title {
+    font-size: 1.375rem;
+    font-weight: 600;
+    color: var(--color-ink);
+    margin-bottom: 0.5rem;
+  }
+
+  .notfound-description {
+    font-size: 0.9375rem;
+    color: var(--color-muted);
+    margin-bottom: 1.5rem;
+  }
+
+  .notfound-path {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    font-size: 0.8125rem;
+    color: var(--color-muted);
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 1.75rem;
+    text-align: start;
+  }
+
+  .notfound-path-label {
+    white-space: nowrap;
+  }
+
+  .notfound-path code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color: var(--color-text);
+    overflow-wrap: anywhere;
+    min-width: 0;
+  }
+
+  /* === Sugestões — intencionalmente apagadas: nada de card, badge ou fundo. === */
+  .notfound-suggestions {
+    margin-bottom: 2rem;
+  }
+
+  .notfound-suggestions-label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--color-muted);
+    opacity: 0.75;
+    margin-bottom: 0.5rem;
+  }
+
+  .notfound-suggestions ul {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem 0;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .notfound-suggestions li {
+    display: flex;
+    align-items: center;
+  }
+
+  /* Separador fino entre itens — quebra de linha sem poluir. */
+  .notfound-suggestions li + li::before {
+    content: '';
+    width: 1px;
+    height: 0.75rem;
+    margin: 0 0.625rem;
+    background: var(--color-border);
+  }
+
+  .notfound-suggestions a {
+    font-size: 0.8125rem;
+    color: var(--color-muted);
+    text-decoration: none;
+  }
+
+  .notfound-suggestions a:hover,
+  .notfound-suggestions a:focus-visible {
+    color: var(--color-primary-hover);
+    text-decoration: underline;
+  }
+
+  .notfound-suggestions a:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+    border-radius: var(--radius-sm);
+  }
+
+  .notfound-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+
+  [dir='rtl'] .notfound-path {
+    text-align: end;
+  }
+</style>

@@ -321,6 +321,14 @@
       }
     }
   },
+  "notFound": {
+    "title": "页面未找到",
+    "description": "地址可能已过期，或页面已被移动。请检查网址，或访问以下栏目之一。",
+    "requestedPath": "您尝试打开的地址",
+    "suggestionsLabel": "或访问以下栏目",
+    "goHome": "返回首页",
+    "goBack": "返回"
+  },
   "login": {
     "title": "登录",
     "subtitle": "登录您的账户",
