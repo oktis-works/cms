@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/web",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -18,9 +18,9 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo"
   },
   "dependencies": {
-    "@oktis-works/core": "^0.5.11",
-    "@oktis-works/config": "^0.5.5",
-    "@oktis-works/database": "^0.5.6",
+    "@oktis-works/core": "^0.5.13",
+    "@oktis-works/config": "^0.6.0",
+    "@oktis-works/database": "^0.5.8",
     "@oktis-works/types": "^0.5.6",
     "@oktis-works/theme-sdk": "^0.6.0",
     "@oktis-works/theme-runtime": "^0.6.0",

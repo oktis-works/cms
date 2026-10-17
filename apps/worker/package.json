@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/worker",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -18,9 +18,9 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo"
   },
   "dependencies": {
-    "@oktis-works/core": "^0.5.5",
-    "@oktis-works/config": "^0.5.5",
-    "@oktis-works/database": "^0.5.5",
+    "@oktis-works/core": "^0.5.13",
+    "@oktis-works/config": "^0.6.0",
+    "@oktis-works/database": "^0.5.8",
     "@oktis-works/types": "^0.5.5",
     "bullmq": "5.0.0",
     "ioredis": "5.3.0",

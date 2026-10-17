@@ -1,5 +1,12 @@
 # @oktis-works/database
 
+## 0.5.8
+
+### Patch Changes
+
+- Updated dependencies [3da0733]
+  - @oktis-works/config@0.6.0
+
 ## 0.5.7
 
 ### Patch Changes
