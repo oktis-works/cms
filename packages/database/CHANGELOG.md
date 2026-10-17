@@ -1,5 +1,24 @@
 # @oktis-works/database
 
+## 0.5.7
+
+### Patch Changes
+
+- Corrige o schema bootstrap defasado em relação ao sistema de plugins por tenant.
+  
+  O `schema.sql` e o `rls/index.ts` publicados em `0.5.6` não continham a tabela
+  `plugin_tenants` (nem a policy RLS correspondente nem os status `MISSING` /
+  `LOAD_FAILED` em `plugins`), enquanto `@oktis-works/core@>=0.5.10` já consultava
+  `plugin_tenants` em `plugin/service.ts` e no bootstrap do plugin-runtime — em
+  instalações novas isso quebrava o admin com
+  `PostgresError: relation "plugin_tenants" does not exist` até que a migration
+  `V011__core__plugin_tenants.sql` fosse aplicada.
+  
+  Com este patch o schema inicial passa a criar `plugin_tenants` (com índices,
+  `UNIQUE (plugin_id, tenant_id)`, FKs e RLS `tenant_isolation_plugin_tenants`)
+  e a habilitar `FORCE ROW LEVEL SECURITY` em `plugins` e `themes`, alinhando o
+  bootstrap ao schema gerido pelas migrations.
+
 ## 0.5.6
 
 ### Patch Changes
