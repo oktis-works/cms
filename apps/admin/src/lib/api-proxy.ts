@@ -27,8 +27,19 @@ const HOP_BY_HOP = new Set([
 /**
  * Encaminha `request` (caminho /api/*) para `target` (ex.: http://localhost:3000)
  * e devolve a resposta da API como se o próprio Admin a tivesse servido.
+ *
+ * `clientAddress` (socket do browser contra o Admin) é repassado como
+ * X-Forwarded-For/X-Real-IP: sem ele, a API enxergava o IP do próprio
+ * processo do Admin e TODOS os usuários caíam no mesmo bucket de rate limit
+ * — a causa direta do 429 em rajada. O valor é APENDIDO à cadeia existente,
+ * então um XFF forjado pelo browser fica à esquerda e o rate limiter (que
+ * caminha da direita) continua usando o hop real.
  */
-export async function proxyApiRequest(target: string, request: Request): Promise<Response> {
+export async function proxyApiRequest(
+  target: string,
+  request: Request,
+  options?: { clientAddress?: string }
+): Promise<Response> {
   const url = new URL(request.url);
   const upstream = new URL(url.pathname + url.search, `${target.replace(/\/$/, '')}/`);
 
@@ -36,6 +47,13 @@ export async function proxyApiRequest(target: string, request: Request): Promise
   request.headers.forEach((value, key) => {
     if (!HOP_BY_HOP.has(key.toLowerCase())) headers.set(key, value);
   });
+
+  const clientIp = options?.clientAddress?.trim();
+  if (clientIp) {
+    const existing = headers.get('X-Forwarded-For');
+    headers.set('X-Forwarded-For', existing ? `${existing}, ${clientIp}` : clientIp);
+    headers.set('X-Real-IP', clientIp);
+  }
 
   const init: RequestInit & { duplex?: 'half' } = {
     method: request.method,

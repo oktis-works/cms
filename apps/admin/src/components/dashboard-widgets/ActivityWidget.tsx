@@ -19,23 +19,19 @@ export function ActivityWidget() {
   onMount(async () => {
     try {
       const [contentRes, usersRes] = await Promise.all([
-        // Backend: GET /api/v1/content (ordenado por created_at DESC)
-        apiClient.getContent({ limit: 20 }),
+        // Backend: GET /api/v1/content?include=author — o autor vem expandido
+        // numa única query de users (antes era um GET /content/:id POR item:
+        // 10 itens = 10 requisições extra a cada carregamento do dashboard).
+        apiClient.getContent({ limit: 10, includeAuthor: true }),
         apiClient.listUsers({ limit: 5 })
       ]);
 
       const activities: ActivityItem[] = [];
 
-      // Mudanças recentes de conteúdo — detalhe (autor) via /content/:id, em paralelo
-      const recentContent = (contentRes.data ?? []).slice(0, 10);
-      const details = await Promise.all(
-        recentContent.map((item) => apiClient.getContentById(item.id).catch(() => null))
-      );
-
-      recentContent.forEach((item, index) => {
+      (contentRes.data ?? []).forEach((item) => {
         const raw = item as unknown as Record<string, unknown>;
         const updatedAt = (raw['updated_at'] ?? raw['updatedAt'] ?? raw['created_at']) as string | undefined;
-        const author = (details[index] as unknown as { author?: { name?: string; email?: string } } | null)?.author;
+        const author = item.author ?? (raw['author'] as { name?: string; email?: string } | null);
         activities.push({
           id: `content-${item.id}`,
           type: item.status === 'PUBLISHED' ? 'post_published' : 'post_updated',

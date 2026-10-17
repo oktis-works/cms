@@ -10,6 +10,7 @@
 // aqui também (o teste de catálogo cobre esse vínculo).
 
 import { parseDatabaseUrl } from './doctor.js';
+import { RATE_LIMIT_DEFAULTS } from '@oktis-works/config';
 
 export type EnvType =
   | 'string'
@@ -118,20 +119,54 @@ export const ENV_FIELDS: EnvField[] = [
     example: 'https://api.meusite.com',
   },
   {
-    key: 'RATE_LIMIT_WINDOW_MS',
+    key: 'TRUST_PROXY',
     section: 'app',
-    label: 'RATE_LIMIT_WINDOW_MS',
-    description: 'Rate limit window in milliseconds',
+    label: 'TRUST_PROXY',
+    description:
+      'Trust X-Forwarded-For/X-Real-IP from the socket peer (auto = only when the peer is a private/loopback proxy)',
+    type: 'enum',
+    options: ['auto', 'true', 'false'],
+    default: 'auto',
+  },
+  {
+    key: 'RATE_LIMIT_WINDOW_SECONDS',
+    section: 'app',
+    label: 'RATE_LIMIT_WINDOW_SECONDS',
+    description: 'Rate limit window in seconds (RATE_LIMIT_WINDOW_MS is still accepted as a legacy alias)',
     type: 'number',
-    default: '60000',
+    default: String(RATE_LIMIT_DEFAULTS.windowSeconds),
   },
   {
     key: 'RATE_LIMIT_MAX',
     section: 'app',
     label: 'RATE_LIMIT_MAX',
-    description: 'Max requests per window',
+    description: 'Max requests per window for anonymous clients (keyed by real client IP)',
     type: 'number',
-    default: '100',
+    default: String(RATE_LIMIT_DEFAULTS.max),
+  },
+  {
+    key: 'RATE_LIMIT_AUTH_MAX',
+    section: 'app',
+    label: 'RATE_LIMIT_AUTH_MAX',
+    description: 'Max requests per window for authenticated sessions (keyed by user id)',
+    type: 'number',
+    default: String(RATE_LIMIT_DEFAULTS.authMax),
+  },
+  {
+    key: 'RATE_LIMIT_LOGIN_MAX',
+    section: 'app',
+    label: 'RATE_LIMIT_LOGIN_MAX',
+    description: 'Max login attempts per email within the login window',
+    type: 'number',
+    default: String(RATE_LIMIT_DEFAULTS.loginMax),
+  },
+  {
+    key: 'RATE_LIMIT_LOGIN_WINDOW_SECONDS',
+    section: 'app',
+    label: 'RATE_LIMIT_LOGIN_WINDOW_SECONDS',
+    description: 'Login brute-force window in seconds',
+    type: 'number',
+    default: String(RATE_LIMIT_DEFAULTS.loginWindowSeconds),
   },
 
   // -- Banco de dados -------------------------------------------------------

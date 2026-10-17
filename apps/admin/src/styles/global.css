@@ -1479,3 +1479,34 @@ label.checkbox-label {
   .classic-editor__columns { grid-template-columns: 1fr; }
   .classic-editor__sidebar { order: -1; }
 }
+
+/* ------------------------------------------------- aviso de rate limit ---
+ * Toast não bloqueante disparado pelo client API quando a API responde 429.
+ * A UI explica o que houve em vez de falhar em silêncio (o login falso
+ * anterior vinha exatamente deste silêncio tratado como "sem sessão").
+ */
+.okcms-rate-limit-notice {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translate(-50%, 12px);
+  z-index: 2000;
+  max-width: min(92vw, 520px);
+  padding: 12px 18px;
+  border-radius: 10px;
+  background: var(--bg-primary, #1f2430);
+  color: var(--text-primary, #e7e9ee);
+  border: 1px solid var(--border, rgba(148, 163, 184, .28));
+  box-shadow: 0 10px 30px rgba(15, 23, 42, .35);
+  font-size: 14px;
+  line-height: 1.4;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s ease, transform .18s ease;
+}
+
+.okcms-rate-limit-notice.visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}

@@ -934,6 +934,10 @@
     "goHome": "Voltar ao início",
     "goBack": "Voltar"
   },
+  "rateLimit": {
+    "notice": "Limite de requisições atingido — aguarde alguns segundos e tente de novo.",
+    "noticeRetry": "Limite de requisições atingido — nova tentativa automática em {seconds}s."
+  },
   "login": {
     "title": "Login",
     "subtitle": "Entre na sua conta",

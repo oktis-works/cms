@@ -3,6 +3,69 @@
 import { joinApiUrl } from './api-url.js';
 
 /**
+ * Erro tipado da API: o STATUS é o contrato, não a string do corpo.
+ *
+ * Antes, qualquer `!response.ok` virava `new Error(string)` — e o guarda de
+ * sessão do layout tratava "qualquer erro" como "usuário deslogado". Um 429
+ * (rate limit) ou um 502 (API reiniciando) bastava para mandar o usuário
+ * para a tela de login com a sessão ainda válida no servidor.
+ */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly code: string;
+  /** Segundos do header Retry-After (presente em respostas 429). */
+  readonly retryAfter?: number;
+
+  constructor(status: number, code: string, message?: string, retryAfter?: number) {
+    super(message ?? code);
+    this.name = 'ApiError';
+    this.status = status;
+    this.code = code;
+    this.retryAfter = retryAfter;
+  }
+
+  static async fromResponse(response: Response): Promise<ApiError> {
+    const rawRetryAfter = response.headers?.get?.('Retry-After') ?? '';
+    const retryAfter = Number(rawRetryAfter);
+    const body = await response.json().catch(() => null) as { error?: string; message?: string } | null;
+    return new ApiError(
+      response.status,
+      body?.error ?? 'Request failed',
+      body?.message ?? (body?.error ? undefined : `Request failed: ${response.status}`),
+      rawRetryAfter && Number.isFinite(retryAfter) ? retryAfter : undefined
+    );
+  }
+}
+
+/**
+ * Verificação de sessão em três estados. Só `unauthenticated` (401 depois do
+ * refresh falhar) autoriza redirecionar para o login — `unavailable` cobre
+ * 429/5xx/rede, que NÃO significam sessão inválida.
+ */
+export type SessionState = 'authenticated' | 'unauthenticated' | 'unavailable';
+
+/** Evento global disparado quando a API responde 429 (o layout exibe um aviso). */
+export const RATE_LIMITED_EVENT = 'okcms:rate-limited';
+
+/** Espera máxima de Retry-After antes de reenviar uma leitura (não trava a UI). */
+const MAX_RATE_LIMIT_WAIT_MS = 2000;
+/** Margem de renovação do access token (15min de vida → renova faltando 5). */
+const SESSION_REFRESH_MARGIN_MS = 5 * 60 * 1000;
+/** TTL do token CSRF em memória — evita re-buscar /auth/csrf a cada mutação. */
+const CSRF_TTL_MS = 60_000;
+/** TTL do lock de refresh entre abas (um refresh real leva <1s). */
+const REFRESH_LOCK_TTL_MS = 3000;
+
+function emitRateLimited(retryAfter?: number): void {
+  if (typeof window === 'undefined' || typeof CustomEvent === 'undefined') return;
+  window.dispatchEvent(new CustomEvent(RATE_LIMITED_EVENT, { detail: { retryAfter: retryAfter ?? null } }));
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
  * Resolve a API em runtime.
  *
  * O Admin também é distribuído como pacote pré-compilado. Nesse caso,
@@ -161,6 +224,8 @@ export interface Content {
   layout?: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Presente quando ?include=author (expandido pelo backend em uma query). */
+  author?: { id: string; name: string; email: string; avatar?: string | null } | null;
 }
 
 export interface ThemeSettingField {
@@ -222,6 +287,8 @@ export class ApiClient {
   private baseUrl: string;
   private csrfToken: string | null = null;
   private refreshPromise: Promise<void> | null = null;
+  private proactiveRefreshBound = false;
+  private csrfFetchedAt = 0;
   private readonly refreshOwner = typeof globalThis.crypto?.randomUUID === 'function'
     ? globalThis.crypto.randomUUID()
     : Math.random().toString(36).slice(2);
@@ -252,14 +319,62 @@ export class ApiClient {
     }
   }
 
+  /** Sessão em três estados — o status HTTP decide, nunca a string do erro. */
+  async checkSession(): Promise<SessionState> {
+    try {
+      // skipRateLimitRetry: um 429 já significa "indisponível" aqui — esperar
+      // e reenviar só atrasaria o guarda de sessão sem mudar a resposta.
+      await this.request('GET', '/api/v1/auth/me', undefined, undefined, { skipRateLimitRetry: true });
+      return 'authenticated';
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) return 'unauthenticated';
+      // 429/5xx/rede: indisponibilidade transitória — a sessão continua viva.
+      return 'unavailable';
+    }
+  }
+
   /** Sessão válida — verifica via /me (usa cookies HttpOnly automaticamente) */
   async isLoggedIn(): Promise<boolean> {
+    return (await this.checkSession()) === 'authenticated';
+  }
+
+  /**
+   * Refresh PROATIVO do access token.
+   *
+   * O access token vence em 15min e só era renovado DEPOIS do primeiro 401.
+   * O retorno à aba após esse tempo disparava ~20 requisições simultâneas,
+   * todas com 401, cada uma reenviando: ~40 chamadas em <1s — quase metade
+   * de um budget de rate limit gasto num único gesto.
+   *
+   * O cookie `session_expires_at` (emitido por /auth/login e /auth/refresh)
+   * permite renovar ANTES do vencimento. Cookie ausente (API antiga) mantém
+   * o comportamento legado: nada é renovado proativamente.
+   */
+  async ensureFreshSession(): Promise<void> {
+    const expiresAt = this.readSessionExpiry();
+    if (!expiresAt || expiresAt - Date.now() > SESSION_REFRESH_MARGIN_MS) return;
     try {
-      await this.request('GET', '/api/v1/auth/me');
-      return true;
+      await this.refreshTokens();
     } catch {
-      return false;
+      // Sem refresh possível: o caminho reativo (401 → refresh) continua de pé.
     }
+  }
+
+  /** Instala o refresh proativo uma vez por aba: boot + aba voltando ao foco. */
+  installProactiveRefresh(): void {
+    if (typeof document === 'undefined' || this.proactiveRefreshBound) return;
+    this.proactiveRefreshBound = true;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') void this.ensureFreshSession();
+    });
+  }
+
+  private readSessionExpiry(): number | null {
+    if (typeof document === 'undefined') return null;
+    const match = document.cookie.match(/(?:^|;\s*)session_expires_at=([^;]+)/);
+    if (!match?.[1]) return null;
+    const parsed = Date.parse(decodeURIComponent(match[1]));
+    return Number.isNaN(parsed) ? null : parsed;
   }
 
   /** Obtém tenantId do backend via /me */
@@ -340,70 +455,111 @@ export class ApiClient {
       return;
     }
 
-    const now = Date.now();
-    let current: { owner?: string; expiresAt?: number } | null;
-    try {
-      current = JSON.parse(localStorage.getItem(this.refreshLockKey) ?? 'null') as { owner?: string; expiresAt?: number } | null;
-    } catch {
-      // Storage indisponível (privacidade): mantém o refresh seguro dentro da aba.
-      await this.request('POST', '/api/v1/auth/refresh', {}, undefined, { skipRefresh: true });
-      return;
-    }
-
-    if (current?.owner && current.owner !== this.refreshOwner && Number(current.expiresAt) > now) {
+    const current = this.readRefreshLock();
+    if (current?.owner && current.owner !== this.refreshOwner && Number(current.expiresAt) > Date.now()) {
+      // Outra aba já está renovando. Os cookies são compartilhados entre
+      // abas: quando ela libera o lock, o reenvio desta requisição usa o
+      // access token novo — nada aqui precisa buscar token.
       await this.waitForOtherTabRefresh(Number(current.expiresAt));
       return;
     }
 
-    try {
-      localStorage.setItem(this.refreshLockKey, JSON.stringify({ owner: this.refreshOwner, expiresAt: now + 10000 }));
-    } catch {
-      await this.request('POST', '/api/v1/auth/refresh', {}, undefined, { skipRefresh: true });
+    if (!this.acquireRefreshLock()) {
+      // Outra aba tomou o lock entre a leitura e a escrita — espera o dela.
+      await this.waitForOtherTabRefresh(Date.now() + REFRESH_LOCK_TTL_MS);
       return;
     }
+
     try {
       await this.request('POST', '/api/v1/auth/refresh', {}, undefined, { skipRefresh: true });
     } finally {
-      try {
-        const lock = JSON.parse(localStorage.getItem(this.refreshLockKey) ?? 'null') as { owner?: string } | null;
-        if (lock?.owner === this.refreshOwner) localStorage.removeItem(this.refreshLockKey);
-      } catch {
-        // Storage pode ficar indisponível durante a navegação; o lock expira sozinho.
-      }
+      this.releaseRefreshLock();
     }
   }
 
-  private async waitForOtherTabRefresh(expiresAt: number): Promise<void> {
-    while (Date.now() < Math.min(expiresAt, Date.now() + 10000)) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      try {
-        const lock = JSON.parse(localStorage.getItem(this.refreshLockKey) ?? 'null') as { expiresAt?: number } | null;
-        if (!lock || Number(lock.expiresAt) <= Date.now()) return;
-      } catch {
-        return;
-      }
+  private readRefreshLock(): { owner?: string; expiresAt?: number } | null {
+    try {
+      return JSON.parse(localStorage.getItem(this.refreshLockKey) ?? 'null') as { owner?: string; expiresAt?: number } | null;
+    } catch {
+      return null;
     }
   }
 
-  /** Requisição genérica com:
-   * - credentials: 'include' (envia cookies HttpOnly)
-   * - auto-refresh em 401
-   * - CSRF header para mutações
+  private acquireRefreshLock(): boolean {
+    try {
+      localStorage.setItem(
+        this.refreshLockKey,
+        JSON.stringify({ owner: this.refreshOwner, expiresAt: Date.now() + REFRESH_LOCK_TTL_MS })
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private releaseRefreshLock(): void {
+    try {
+      if (this.readRefreshLock()?.owner === this.refreshOwner) localStorage.removeItem(this.refreshLockKey);
+    } catch {
+      // Storage pode ficar indisponível durante a navegação; o lock expira sozinho.
+    }
+  }
+
+  /**
+   * Espera a outra aba concluir o refresh.
+   *
+   * O `storage` event acorda esta aba na hora em que a dona libera a chave.
+   * O polling anterior (100ms, TTL de 10s) fazia uma aba órfã travar todas
+   * as demais pelo tempo inteiro, e o deadline era herdado do lock vencido.
    */
-  private async request<T>(
+  private async waitForOtherTabRefresh(expiresAt: number): Promise<void> {
+    const deadline = Math.max(0, Math.min(expiresAt, Date.now() + REFRESH_LOCK_TTL_MS) - Date.now());
+    await new Promise<void>((resolve) => {
+      let settled = false;
+      const finish = (): void => {
+        if (settled) return;
+        settled = true;
+        window.removeEventListener('storage', onStorage);
+        clearTimeout(timer);
+        resolve();
+      };
+      const onStorage = (event: StorageEvent): void => {
+        if (event.key === this.refreshLockKey) finish();
+      };
+      window.addEventListener('storage', onStorage);
+      const timer = setTimeout(finish, deadline);
+    });
+  }
+
+  /**
+   * Requisição com as recuperações de sessão/segurança centralizadas:
+   *
+   *  - auto-refresh em 401 (exceto /refresh e /logout);
+   *  - rebootstrap do CSRF quando outra aba renovou o token (403);
+   *  - retry de leitura em 429 respeitando o `Retry-After` curto.
+   *
+   * Um 429 SEMPRE significa "nada aconteceu" (o limiter responde antes do
+   * handler), então repetir a chamada é seguro até para escritas.
+   *
+   * `request()` e `requestRaw()` compartilham este caminho — antes a lógica
+   * estava duplicada, e qualquer correção de resiliência teria que ser feita
+   * em dois lugares (o que explica por que não havia tratamento de 429).
+   */
+  private async sendWithRecovery(
     method: string,
     path: string,
     body?: unknown,
     headers?: Record<string, string>,
-    options?: { skipRefresh?: boolean; skipCsrfRecovery?: boolean }
-  ): Promise<T> {
+    options?: { skipRefresh?: boolean; skipCsrfRecovery?: boolean; skipRateLimitRetry?: boolean; bodyInit?: BodyInit }
+  ): Promise<Response> {
     const url = joinApiUrl(this.baseUrl, path);
 
     const send = async (): Promise<Response> => {
-      const requestHeaders: Record<string, string> = {
-        'Content-Type': 'application/json',
-        ...headers,
-      };
+      const requestHeaders: Record<string, string> = { ...headers };
+      const hasBody = options?.bodyInit !== undefined || body !== undefined;
+      // Sem corpo não há o que serializar — e enviar Content-Type: json em GET
+      // forçava um preflight CORS por requisição no modo cross-origin.
+      if (hasBody) requestHeaders['Content-Type'] = 'application/json';
 
       if (!['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase())) {
         const csrf = await this.ensureCsrfToken();
@@ -414,7 +570,7 @@ export class ApiClient {
         method,
         headers: requestHeaders,
         credentials: 'include',
-        body: body ? JSON.stringify(body) : undefined,
+        body: options?.bodyInit ?? (body !== undefined ? JSON.stringify(body) : undefined),
       });
     };
 
@@ -443,9 +599,34 @@ export class ApiClient {
       }
     }
 
+    // 429: sinaliza globalmente (aviso na UI) e, em espera curta, reenvia
+    // uma única vez. Nada aqui trava a interface esperando dezenas de segundos.
+    if (response.status === 429 && !options?.skipRateLimitRetry) {
+      const retryAfterHeader = response.headers?.get?.('Retry-After') ?? '';
+      const retryAfter = Number(retryAfterHeader);
+      const waitMs = (Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : 1) * 1000;
+      emitRateLimited(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : 1);
+      if (waitMs <= MAX_RATE_LIMIT_WAIT_MS) {
+        await sleep(waitMs + 50);
+        response = await send();
+      }
+    }
+
+    return response;
+  }
+
+  /** Requisição JSON: dispara ApiError com status quando a resposta falha. */
+  private async request<T>(
+    method: string,
+    path: string,
+    body?: unknown,
+    headers?: Record<string, string>,
+    options?: { skipRefresh?: boolean; skipCsrfRecovery?: boolean; skipRateLimitRetry?: boolean }
+  ): Promise<T> {
+    const response = await this.sendWithRecovery(method, path, body, headers, options);
+
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Request failed' }));
-      throw new Error(error.error ?? `Request failed: ${response.status}`);
+      throw await ApiError.fromResponse(response);
     }
 
     return response.json() as Promise<T>;
@@ -457,55 +638,9 @@ export class ApiClient {
     path: string,
     body?: unknown,
     headers?: Record<string, string>,
-    options?: { skipRefresh?: boolean; skipCsrfRecovery?: boolean }
+    options?: { skipRefresh?: boolean; skipCsrfRecovery?: boolean; skipRateLimitRetry?: boolean }
   ): Promise<Response> {
-    const url = joinApiUrl(this.baseUrl, path);
-
-    const send = async (): Promise<Response> => {
-      const requestHeaders: Record<string, string> = {
-        'Content-Type': 'application/json',
-        ...headers,
-      };
-
-      if (!['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase())) {
-        const csrf = await this.ensureCsrfToken();
-        if (csrf) requestHeaders['x-csrf-token'] = csrf;
-      }
-
-      return fetch(url, {
-        method,
-        headers: requestHeaders,
-        credentials: 'include',
-        body: body ? JSON.stringify(body) : undefined,
-      });
-    };
-
-    let response = await send();
-
-    // Auto-refresh em 401 (exceto em /refresh e /logout)
-    if (response.status === 401 && !options?.skipRefresh && !path.includes('/auth/refresh') && !path.includes('/auth/logout')) {
-      await this.refreshTokens();
-      response = await send();
-    }
-
-    // Um token CSRF pode ter sido renovado por outra aba. Rebootstrapa e
-    // repete uma única vez; falha de Origin continua sendo rejeitada.
-    if (response.status === 403 && !options?.skipCsrfRecovery) {
-      let errorCode = '';
-      try {
-        const probe = typeof response.clone === 'function' ? response.clone() : response;
-        const data = await probe.json() as { error?: string };
-        errorCode = data.error ?? '';
-      } catch {
-        // resposta não JSON: segue para o erro original
-      }
-      if (errorCode === 'CSRF_TOKEN_INVALID') {
-        await this.ensureCsrfToken(true);
-        response = await send();
-      }
-    }
-
-    return response;
+    return this.sendWithRecovery(method, path, body, headers, options);
   }
 
   /** Garante um token CSRF sincronizado com o cookie do browser. */
@@ -515,7 +650,9 @@ export class ApiClient {
       this.csrfToken = cookieToken;
       return cookieToken;
     }
-    if (!force && this.csrfToken) return this.csrfToken;
+    // Cookie ilegível: usa o token em memória por até 60s em vez de bater em
+    // /auth/csrf a cada mutação (mais uma requisição por PUT/POST/DELETE).
+    if (!force && this.csrfToken && Date.now() - this.csrfFetchedAt < CSRF_TTL_MS) return this.csrfToken;
 
     try {
       const response = await fetch(joinApiUrl(this.baseUrl, '/api/v1/auth/csrf'), {
@@ -525,6 +662,7 @@ export class ApiClient {
       if (!response.ok) return this.csrfToken;
       const data = await response.json() as { csrfToken?: string };
       this.csrfToken = data.csrfToken ?? this.readCsrfCookie();
+      this.csrfFetchedAt = Date.now();
     } catch {
       // O endpoint pode estar indisponível durante o boot; a API responderá
       // com erro explícito em vez de enviar uma mutação sem proteção.
@@ -547,6 +685,8 @@ export class ApiClient {
     type?: string;
     status?: string;
     search?: string;
+    /** Anexa o autor de cada item numa única query no backend (anti N+1). */
+    includeAuthor?: boolean;
   }): Promise<PaginatedResponse<Content>> {
     const params = new URLSearchParams();
     if (options?.page) params.set('page', String(options.page));
@@ -554,6 +694,7 @@ export class ApiClient {
     if (options?.type) params.set('type', options.type);
     if (options?.status) params.set('status', options.status);
     if (options?.search) params.set('search', options.search);
+    if (options?.includeAuthor) params.set('include', 'author');
 
     return this.request('GET', `/api/v1/content?${params.toString()}`);
   }
@@ -794,42 +935,8 @@ export class ApiClient {
     if (options?.alt) formData.append('alt', options.alt);
     if (options?.caption) formData.append('caption', options.caption);
 
-    const url = joinApiUrl(this.baseUrl, '/api/v1/media/upload');
-    const send = async (): Promise<Response> => {
-      const csrf = await this.ensureCsrfToken();
-      const requestHeaders: Record<string, string> = {};
-      if (csrf) requestHeaders['x-csrf-token'] = csrf;
-      return fetch(url, {
-        method: 'POST',
-        headers: requestHeaders,
-        credentials: 'include',
-        body: formData,
-      });
-    };
-
-    let response = await send();
-    if (response.status === 401) {
-      await this.refreshTokens();
-      response = await send();
-    }
-    if (response.status === 403) {
-      let errorCode = '';
-      try {
-        const data = await response.clone().json() as { error?: string };
-        errorCode = data.error ?? '';
-      } catch {
-        // segue para o erro original
-      }
-      if (errorCode === 'CSRF_TOKEN_INVALID') {
-        await this.ensureCsrfToken(true);
-        response = await send();
-      }
-    }
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: `Upload failed: ${response.status}` }));
-      throw new Error(error.error ?? `Upload failed: ${response.status}`);
-    }
+    const response = await this.sendWithRecovery('POST', '/api/v1/media/upload', undefined, {}, { bodyInit: formData });
+    if (!response.ok) throw await ApiError.fromResponse(response);
     return response.json() as Promise<Media>;
   }
 
@@ -840,31 +947,9 @@ export class ApiClient {
   async replaceMediaFile(id: string, file: File): Promise<Media> {
     const formData = new FormData();
     formData.append('file', file);
-    const url = joinApiUrl(this.baseUrl, `/api/v1/media/${id}/file`);
 
-    const send = async (): Promise<Response> => {
-      const csrf = await this.ensureCsrfToken();
-      const headers: Record<string, string> = {};
-      if (csrf) headers['x-csrf-token'] = csrf;
-      return fetch(url, { method: 'PUT', headers, credentials: 'include', body: formData });
-    };
-
-    let response = await send();
-    if (response.status === 401) {
-      await this.refreshTokens();
-      response = await send();
-    }
-    if (response.status === 403) {
-      const error = await response.clone().json().catch(() => ({})) as { error?: string };
-      if (error.error === 'CSRF_TOKEN_INVALID') {
-        await this.ensureCsrfToken(true);
-        response = await send();
-      }
-    }
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: `Replace failed: ${response.status}` }));
-      throw new Error(error.error ?? `Replace failed: ${response.status}`);
-    }
+    const response = await this.sendWithRecovery('PUT', `/api/v1/media/${id}/file`, undefined, {}, { bodyInit: formData });
+    if (!response.ok) throw await ApiError.fromResponse(response);
     return response.json() as Promise<Media>;
   }
 

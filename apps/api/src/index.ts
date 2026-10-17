@@ -10,7 +10,7 @@ import { bootstrap, getEventBus, registerEventAuditLog, getRegisteredPluginRoute
 import { CMS_VERSION } from '@oktis-works/validation';
 import { loadConfig } from '@oktis-works/config';
 import { traceMiddleware } from './middleware/trace.js';
-import { rateLimitMiddleware } from './middleware/rate-limit.js';
+import { rateLimitMiddleware, loginRateLimitMiddleware } from './middleware/rate-limit.js';
 import { csrfMiddleware } from './middleware/csrf.js';
 import { auditMiddleware } from './middleware/audit.js';
 import authRouter from './routes/auth/index.js';
@@ -93,7 +93,11 @@ async function main() {
   }));
   app.use('*', prettyJSON());
 
-  // rest-api-003: rate limiting global (429 + Retry-After); probes isentos
+  // rest-api-003: rate limiting por classe de tráfego (429 + Retry-After).
+  // Credenciais primeiro: o brute force recebe 429 próprio (por IP e por
+  // e-mail) em vez de esvaziar o orçamento dos clientes legítimos. Depois o
+  // limiter global — anônimo por IP real, autenticado por user id da sessão.
+  app.use('/api/v1/auth/login', loginRateLimitMiddleware());
   app.use('*', rateLimitMiddleware());
 
   app.use('/api/*', csrfMiddleware);

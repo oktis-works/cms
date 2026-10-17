@@ -126,11 +126,16 @@ server {
   # STORAGE_PUBLIC_BASE=/storage → routes the same file to the API.
   # The local driver publishes <base>/<tenant>/<file>, which is exactly the
   # format of /api/v1/media/file/<tenant>/<file>.
+  # X-Real-IP/X-Forwarded-For are forwarded so the API rate limiter sees the
+  # real client (media is exempt from the quota, but every other hop keeps
+  # the correct identity downstream).
   location /storage/ {
     rewrite ^/storage/(.*)$ /api/v1/media/file/$1 break;
     proxy_pass $upstream_api;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_cache_valid 200 30d;
     expires 30d;
@@ -141,6 +146,8 @@ server {
     proxy_pass $upstream_web;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
   }
 

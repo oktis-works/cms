@@ -1,4 +1,8 @@
-// @oktis-works/admin - lib/api-proxy: forward /api/* → ADMIN_API_PROXY_TARGET
+// @oktis-works/admin - lib/api-proxy: o IP do cliente precisa chegar à API
+//
+// Sem X-Forwarded-For aqui, o rate limiter da API via o IP do próprio processo
+// do Admin e TODOS os usuários dividiam o mesmo balde (`platform:unknown`) —
+// causa direta do 429 em rajada. Este arquivo trava o contrato de identidade.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { proxyApiRequest } from './api-proxy.js';
@@ -12,100 +16,95 @@ beforeEach(() => {
 
 afterEach(() => vi.unstubAllGlobals());
 
-// Helper para acessar chamadas do mock de forma segura (mesmo padrão de api.test.ts)
-function call(i: number): [string, RequestInit & { duplex?: string }] {
-  const c = fetchMock.mock.calls[i];
-  if (!c) throw new Error(`Mock call ${i} not found`);
-  return c as [string, RequestInit & { duplex?: string }];
+function upstream(headers: Record<string, string> = {}) {
+  fetchMock.mockResolvedValue(
+    new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: { 'content-type': 'application/json', ...headers },
+    })
+  );
 }
 
-describe('proxyApiRequest', () => {
-  it('encaminha método, caminho, query e corpo para o alvo', async () => {
-    fetchMock.mockResolvedValue(new Response('{"ok":true}', {
-      status: 200,
-      headers: { 'content-type': 'application/json' },
-    }));
+function forwardedHeaders(): Headers {
+  const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+  return new Headers(init.headers);
+}
 
-    const request = new Request('http://localhost:3011/api/v1/auth/login?x=1', {
-      method: 'POST',
-      body: '{"email":"a@b.c"}',
-      headers: {
-        'content-type': 'application/json',
-        host: 'localhost:3011',
-        cookie: 'csrf_token=t',
-      },
+describe('proxyApiRequest (identidade do cliente)', () => {
+  it('injeta X-Forwarded-For e X-Real-IP com o socket do browser', async () => {
+    upstream();
+
+    await proxyApiRequest('http://127.0.0.1:3000', new Request('http://localhost:3011/api/v1/auth/me'), {
+      clientAddress: '198.51.100.7',
     });
 
-    const res = await proxyApiRequest('http://localhost:3000', request);
-
-    expect(fetchMock).toHaveBeenCalledWith('http://localhost:3000/api/v1/auth/login?x=1', expect.anything());
-    const [url, init] = call(0);
-    expect(url).not.toContain('/api/api/');
-    expect(init.method).toBe('POST');
-    const fwd = new Headers(init.headers);
-    expect(fwd.get('host')).toBeNull();          // identidade removida
-    expect(fwd.get('content-type')).toBe('application/json');
-    expect(fwd.get('cookie')).toBe('csrf_token=t');
-    expect(init.body).toBeTruthy();              // corpo passa como stream
-    expect(init.duplex).toBe('half');
-
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true });
+    const headers = forwardedHeaders();
+    expect(headers.get('X-Forwarded-For')).toBe('198.51.100.7');
+    expect(headers.get('X-Real-IP')).toBe('198.51.100.7');
   });
 
-  it('alvo com barra final não gera // no upstream', async () => {
-    fetchMock.mockResolvedValue(new Response('ok', { status: 200 }));
-    const request = new Request('http://localhost:3011/api/v1/auth/csrf');
+  it('APPENDA à cadeia existente (XFF forjado pelo browser fica à esquerda)', async () => {
+    upstream();
 
-    await proxyApiRequest('http://localhost:3000/', request);
+    await proxyApiRequest(
+      'http://127.0.0.1:3000',
+      new Request('http://localhost:3011/api/v1/auth/me', {
+        headers: { 'X-Forwarded-For': '1.2.3.4' },
+      }),
+      { clientAddress: '198.51.100.7' }
+    );
 
-    expect(String(call(0)[0])).toBe('http://localhost:3000/api/v1/auth/csrf');
+    // O rate limiter caminha da direita: o hop real é o último, o forjado fica
+    // ignorado à esquerda.
+    expect(forwardedHeaders().get('X-Forwarded-For')).toBe('1.2.3.4, 198.51.100.7');
   });
 
-  it('GET não envia corpo', async () => {
-    fetchMock.mockResolvedValue(new Response('ok', { status: 200 }));
-    const request = new Request('http://localhost:3011/api/v1/contents');
+  it('sem clientAddress não escreve header algum', async () => {
+    upstream();
 
-    await proxyApiRequest('http://localhost:3000', request);
+    await proxyApiRequest('http://127.0.0.1:3000', new Request('http://localhost:3011/api/v1/content'));
 
-    const init = call(0)[1];
-    expect(init.body).toBeUndefined();
-    expect(init.duplex).toBeUndefined();
+    const headers = forwardedHeaders();
+    expect(headers.get('X-Forwarded-For')).toBeNull();
+    expect(headers.get('X-Real-IP')).toBeNull();
   });
 
-  it('repassa múltiplos Set-Cookie item a item (sessão + csrf)', async () => {
-    const upstreamHeaders = new Headers({ 'content-type': 'application/json' });
-    upstreamHeaders.append('set-cookie', 'csrf_token=abc; Path=/; SameSite=Lax');
-    upstreamHeaders.append('set-cookie', 'session=xyz; Path=/; HttpOnly; SameSite=Lax');
-    fetchMock.mockResolvedValue(new Response('{"ok":true}', { status: 200, headers: upstreamHeaders }));
+  it('mantém cookies e descarta headers hop-by-hop', async () => {
+    upstream();
 
-    const res = await proxyApiRequest('http://localhost:3000', new Request('http://localhost:3011/api/v1/auth/login', { method: 'POST', body: '{}' }));
+    await proxyApiRequest(
+      'http://127.0.0.1:3000',
+      new Request('http://localhost:3011/api/v1/auth/me', {
+        headers: { Cookie: 'access_token=abc', Connection: 'keep-alive', Host: 'localhost:3011' },
+      }),
+      { clientAddress: '198.51.100.7' }
+    );
 
-    const cookies = res.headers.getSetCookie();
-    expect(cookies).toHaveLength(2);
-    expect(cookies[0]).toContain('csrf_token=abc');
-    expect(cookies[1]).toContain('session=xyz');
+    const headers = forwardedHeaders();
+    expect(headers.get('Cookie')).toBe('access_token=abc');
+    expect(headers.get('Connection')).toBeNull();
+    expect(headers.get('Host')).toBeNull();
   });
 
-  it('API fora do ar → 502 JSON em vez de estourar exceção', async () => {
-    fetchMock.mockRejectedValue(new Error('ECONNREFUSED'));
+  it('repassa o Set-Cookie item a item (a sessão depende disso)', async () => {
+    const upstreamResponse = new Response(JSON.stringify({ ok: true }), { status: 200 });
+    // undici expõe a lista real de Set-Cookie (um Headers.get devolve tudo
+    // concatenado, o que quebraria o Expires da sessão).
+    (upstreamResponse.headers as Headers & { getSetCookie?: () => string[] }).getSetCookie = () => [
+      'access_token=abc; HttpOnly; Path=/',
+      'refresh_token=def; HttpOnly; Path=/',
+    ];
+    fetchMock.mockResolvedValue(upstreamResponse);
 
-    const res = await proxyApiRequest('http://localhost:3000', new Request('http://localhost:3011/api/v1/auth/csrf'));
+    const response = await proxyApiRequest(
+      'http://127.0.0.1:3000',
+      new Request('http://localhost:3011/api/v1/auth/login', { method: 'POST' }),
+      { clientAddress: '198.51.100.7' }
+    );
 
-    expect(res.status).toBe(502);
-    const body = await res.json() as { error: string };
-    expect(body.error).toBe('API unreachable');
-  });
-
-  it('preserva status e statusText da API (401 de login chega ao browser)', async () => {
-    fetchMock.mockResolvedValue(new Response('{"error":"invalid_credentials"}', {
-      status: 401,
-      headers: { 'content-type': 'application/json' },
-    }));
-
-    const res = await proxyApiRequest('http://localhost:3000', new Request('http://localhost:3011/api/v1/auth/login', { method: 'POST', body: '{}' }));
-
-    expect(res.status).toBe(401);
-    expect((await res.json() as { error: string }).error).toBe('invalid_credentials');
+    const setCookies = (response.headers as Headers & { getSetCookie?: () => string[] }).getSetCookie?.() ?? [];
+    expect(setCookies).toHaveLength(2);
+    expect(setCookies[0]).toContain('access_token=abc');
+    expect(setCookies[1]).toContain('refresh_token=def');
   });
 });

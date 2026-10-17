@@ -15,6 +15,11 @@ interface Props {
 const { title, description } = Astro.props;
 const { t } = Astro.locals;
 
+// Sessão resolvida no SSR pelo middleware: o AdminBar recebe o usuário pronto
+// e o guarda de sessão não precisa de /auth/me no cliente.
+const sessionUser = (Astro.locals as { user?: { id: string; email: string; name: string; avatar?: string | null } | null }).user ?? null;
+const sessionState = (Astro.locals as { sessionState?: 'anonymous' | 'authenticated' | 'unavailable' }).sessionState ?? 'unavailable';
+
 const pathname = Astro.url.pathname;
 const isActive = (href: string): boolean =>
   href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
@@ -42,10 +47,10 @@ const settingsChildren = [
 ---
 
 <BaseLayout title={title} description={description}>
-  <!-- Top Admin Bar — busca a sessao real (/auth/me) no mount -->
-  <AdminBar client:load />
+  <!-- Top Admin Bar — recebe a sessão resolvida no SSR (sem /auth/me extra) -->
+  <AdminBar client:load user={sessionUser ?? undefined} />
 
-  <div class="layout">
+  <div class="layout" data-session-state={sessionState}>
     <div class="dashboard-body">
     <!-- Sidebar colapsavel — o estado (body.sidebar-collapsed) e aplicado pelo script abaixo -->
     <aside class="sidebar">
@@ -156,14 +161,64 @@ const settingsChildren = [
 </BaseLayout>
 
 <script>
-  import { apiClient } from '../lib/api';
+  import { apiClient, ApiError, RATE_LIMITED_EVENT } from '../lib/api';
   import { createIcons, icons } from 'lucide';
 
-  // Guarda de sessao: verifica /me com cookies HttpOnly (sem localStorage -
-  // o token vive em cookie HttpOnly inacessivel ao JS)
+  // Guarda de sessão — o middleware já resolveu /auth/me no SSR, então:
+  //
+  //  • authenticated → nada a verificar no cliente (antes: 1 /auth/me por página);
+  //  • anonymous    → sem access_token, redireciona SEM chamar a API (antes:
+  //                   era um /auth/me só para ouvir 401);
+  //  • unavailable  → token presente mas a API não respondeu no SSR: o cliente
+  //                   verifica, e SÓ um 401 definitivo leva ao login. 429/5xx
+  //   /rede NÃO deslogam — tratar tudo como "sem sessão" era o que jogava o
+  //                   usuário na tela de login com a sessão ainda válida.
   void (async () => {
-    if (!(await apiClient.isLoggedIn())) {
+    const state = document.querySelector<HTMLElement>('.layout')?.dataset.sessionState ?? 'unavailable';
+    if (state === 'authenticated') return;
+    if (state === 'anonymous') {
       window.location.replace('/login');
+      return;
+    }
+    const session = await apiClient.checkSession();
+    if (session === 'unauthenticated') window.location.replace('/login');
+  })();
+
+  // Refresh proativo do access token (antes do 401): sem isto, voltar à aba
+  // depois de 15min parado disparava ~20 requisições com 401 simultâneas.
+  apiClient.installProactiveRefresh();
+  void apiClient.ensureFreshSession();
+
+  // Aviso não bloqueante de rate limit: a UI explica em vez de falhar em silêncio.
+  let rateLimitNotice: HTMLElement | null = null;
+  let noticeT: ((key: string, params?: Record<string, string | number>) => string) | null = null;
+  const showRateLimitNotice = (retryAfter: number | null): void => {
+    if (!rateLimitNotice) {
+      rateLimitNotice = document.createElement('div');
+      rateLimitNotice.className = 'okcms-rate-limit-notice';
+      rateLimitNotice.setAttribute('role', 'status');
+      rateLimitNotice.setAttribute('aria-live', 'polite');
+      document.body.append(rateLimitNotice);
+    }
+    if (noticeT) {
+      rateLimitNotice.textContent = retryAfter
+        ? noticeT('rateLimit.noticeRetry', { seconds: retryAfter })
+        : noticeT('rateLimit.notice');
+    }
+    rateLimitNotice.classList.add('visible');
+    setTimeout(() => rateLimitNotice?.classList.remove('visible'), Math.min(10_000, (retryAfter ?? 5) * 1000 + 4000));
+  };
+  window.addEventListener(RATE_LIMITED_EVENT, (event) => {
+    showRateLimitNotice((event as CustomEvent<{ retryAfter?: number | null }>).detail?.retryAfter ?? null);
+  });
+  // Texto traduzido carregado fora do caminho quente do evento.
+  void (async () => {
+    try {
+      const locale = ((document.documentElement.lang || 'en') as Locale);
+      const t = await getTFunction(locale);
+      noticeT = t;
+    } catch {
+      // sem tradução: o aviso fica com o texto da API no próprio console
     }
   })();
 

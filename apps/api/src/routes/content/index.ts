@@ -2,13 +2,42 @@
 
 import { Hono } from 'hono';
 import { contentService, contentPublisher, enqueueJob } from '@oktis-works/core';
-import { resolveTenantId } from '@oktis-works/database';
+import { getConnection, resolveTenantId } from '@oktis-works/database';
 import type { ContentStatus } from '@oktis-works/types';
 import { authMiddleware, requirePermission } from '../../middleware/auth.js';
 
 const contentRouter = new Hono();
 
 contentRouter.use('*', authMiddleware);
+
+/**
+ * Expande o autor de um lote de conteúdo em UMA query (anti N+1).
+ * O widget de atividade do dashboard consumia 1 requisição por item para
+ * descobrir o autor — 10 itens = 10 chamadas a /content/:id por carregamento.
+ */
+async function attachAuthors(items: Array<Record<string, unknown>>): Promise<void> {
+  const ids = [...new Set(
+    items
+      .map((item) => (item['author_id'] ?? item['authorId']) as string | undefined)
+      .filter((id): id is string => typeof id === 'string' && id.length > 0)
+  )];
+  if (ids.length === 0) return;
+
+  const rows = await getConnection().unsafe(
+    'SELECT id, name, email, avatar FROM users WHERE id = ANY($1)',
+    [ids]
+  );
+  const byId = new Map(rows.map((row) => [String((row as Record<string, unknown>)['id']), row]));
+
+  for (const item of items) {
+    const authorId = (item['author_id'] ?? item['authorId']) as string | undefined;
+    const row = authorId ? byId.get(authorId) : undefined;
+    const record = row as Record<string, unknown> | undefined;
+    item['author'] = record
+      ? { id: record['id'], name: record['name'], email: record['email'], avatar: record['avatar'] ?? null }
+      : null;
+  }
+}
 
 contentRouter.get('/singleton/:type', requirePermission('read', 'content'), async (c) => {
   const type = c.req.param('type') as string;
@@ -23,8 +52,15 @@ contentRouter.get('/', requirePermission('read', 'content'), async (c) => {
   const type = c.req.query('type') || undefined;
   const status = (c.req.query('status') || undefined) as ContentStatus | undefined;
   const search = c.req.query('search') || undefined;
+  // ?include=author → anexa {author} a cada item em uma única query de users.
+  const includeAuthor = c.req.query('include') === 'author';
 
   const result = await contentService.list({ page, limit, type, status, search });
+
+  if (includeAuthor) {
+    await attachAuthors(result.data as unknown as Array<Record<string, unknown>>);
+  }
+
   return c.json(result);
 });
 

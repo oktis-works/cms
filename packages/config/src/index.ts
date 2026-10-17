@@ -69,15 +69,77 @@ export interface StorageConfig {
   secretKey?: string;
 }
 
+/**
+ * Defaults canônicos do rate limiting — FONTE ÚNICA para a API (`parseRateLimitSettings`),
+ * o wizard da CLI (`env-schema`) e o `.env.example`. Mudar um default aqui muda os três;
+ * o teste de catálogo da CLI (`config-wizard.test.ts`) trava esse vínculo.
+ */
+export const RATE_LIMIT_DEFAULTS = {
+  /** Janela do bucket anônimo (por IP real do cliente). */
+  windowSeconds: 60,
+  /** Bucket anônimo: crawlers, clientes API sem sessão, visitantes do site público. */
+  max: 300,
+  /**
+   * Bucket autenticado (por user id da sessão). Maior que o anônimo porque o
+   * admin gasta ~5 requisições por navegação e não pode competir com tráfego
+   * anônimo — foi exatamente o que produzia 429 + "logout" falso no admin.
+   */
+  authMax: 1200,
+  /** Tentativas de POST /auth/login por e-mail na janela de login. */
+  loginMax: 10,
+  /** Tentativas de POST /auth/login por IP (protege a cauda de e-mails rotativos). */
+  loginMaxPerIp: 100,
+  /** Janela do limiter de credenciais (brute force é lento, não por segundo). */
+  loginWindowSeconds: 300,
+} as const;
+
+export interface RateLimitSettings {
+  windowMs: number;
+  max: number;
+  authMax: number;
+  loginMax: number;
+  loginMaxPerIp: number;
+  loginWindowMs: number;
+}
+
+/**
+ * Lê as variáveis de rate limiting com fallbacks explícitos.
+ *
+ * `RATE_LIMIT_WINDOW_SECONDS` é o nome canônico. `RATE_LIMIT_WINDOW_MS` é
+ * aceito por compatibilidade com `.env` antigos gerados pela CLI (era o nome
+ * gravado no wizard antes da correção) e é convertido para segundos.
+ */
+export function parseRateLimitSettings(
+  env: Record<string, string | undefined> = process.env
+): RateLimitSettings {
+  const positive = (raw: string | undefined, fallback: number): number => {
+    const value = Number(raw);
+    return Number.isFinite(value) && value > 0 ? Math.floor(value) : fallback;
+  };
+
+  const windowSeconds = env['RATE_LIMIT_WINDOW_SECONDS'] !== undefined
+    ? positive(env['RATE_LIMIT_WINDOW_SECONDS'], RATE_LIMIT_DEFAULTS.windowSeconds)
+    : env['RATE_LIMIT_WINDOW_MS'] !== undefined
+      ? positive(env['RATE_LIMIT_WINDOW_MS'], RATE_LIMIT_DEFAULTS.windowSeconds * 1000) / 1000
+      : RATE_LIMIT_DEFAULTS.windowSeconds;
+
+  return {
+    windowMs: Math.max(1, Math.floor(windowSeconds)) * 1000,
+    max: positive(env['RATE_LIMIT_MAX'], RATE_LIMIT_DEFAULTS.max),
+    authMax: positive(env['RATE_LIMIT_AUTH_MAX'], RATE_LIMIT_DEFAULTS.authMax),
+    loginMax: positive(env['RATE_LIMIT_LOGIN_MAX'], RATE_LIMIT_DEFAULTS.loginMax),
+    loginMaxPerIp: positive(env['RATE_LIMIT_LOGIN_MAX_PER_IP'], RATE_LIMIT_DEFAULTS.loginMaxPerIp),
+    loginWindowMs:
+      positive(env['RATE_LIMIT_LOGIN_WINDOW_SECONDS'], RATE_LIMIT_DEFAULTS.loginWindowSeconds) * 1000,
+  };
+}
+
 export interface AppConfig {
   nodeEnv: 'development' | 'production' | 'test';
   port: number;
   host: string;
   corsOrigins: string[];
-  rateLimit: {
-    windowMs: number;
-    max: number;
-  };
+  rateLimit: RateLimitSettings;
 }
 
 export interface WorkerConfig {
@@ -253,10 +315,8 @@ export function loadConfig(): Config {
       port: getEnvInt('PORT', 3000),
       host: getEnv('HOST', '0.0.0.0'),
       corsOrigins: getEnv('CORS_ORIGINS', 'http://localhost:3011,http://127.0.0.1:3011').split(','),
-      rateLimit: {
-        windowMs: getEnvInt('RATE_LIMIT_WINDOW_MS', 60000),
-        max: getEnvInt('RATE_LIMIT_MAX', 100),
-      },
+      // loadProjectEnv() já carregou o .env do projeto — parser lê process.env.
+      rateLimit: parseRateLimitSettings(),
     },
     database: loadDatabaseConfig(),
     redis: {

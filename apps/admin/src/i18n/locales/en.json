@@ -855,6 +855,10 @@
     "goHome": "Back to home",
     "goBack": "Go back"
   },
+  "rateLimit": {
+    "notice": "Request limit reached — wait a few seconds and try again.",
+    "noticeRetry": "Request limit reached — retrying automatically in {seconds}s."
+  },
   "login": {
     "title": "Login",
     "subtitle": "Sign in to your account",

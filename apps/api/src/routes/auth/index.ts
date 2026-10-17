@@ -77,15 +77,38 @@ const REFRESH_OPTS = {
   maxAge: cookieCfg.refreshTokenMaxAge ?? 60 * 60 * 24 * 30, // 30d
 };
 
+/**
+ * Cookie legível pelo JS com o vencimento do access token.
+ *
+ * O access token é HttpOnly (inacessível ao JS), então o admin não tem como
+ * saber quando ele vence e só descobria no primeiro 401 — quando TODAS as
+ * requisições paralelas da página já tinham sido disparadas, gerando o burst
+ * de ~40 chamadas que esvaziava o rate limit. Este cookie permite o refresh
+ * PROATIVO (antes do 401). Não é sensível: só expõe um timestamp.
+ */
+function setSessionExpiryCookie(c: Context): void {
+  const maxAge = cookieCfg.accessTokenMaxAge ?? 60 * 15;
+  setCookie(c, 'session_expires_at', new Date(Date.now() + maxAge * 1000).toISOString(), {
+    httpOnly: false,
+    secure: cookieSecure,
+    sameSite: cookieCfg.sameSite,
+    ...(cookieDomain ? { domain: cookieDomain } : {}),
+    path: '/',
+    maxAge,
+  });
+}
+
 /** Set-Cookie múltiplo: hono/cookie setCookie appenda corretamente. */
 function setAuthCookies(c: Context, accessToken: string, refreshToken: string): void {
   setCookie(c, 'access_token', accessToken, ACCESS_OPTS);
   setCookie(c, 'refresh_token', refreshToken, REFRESH_OPTS);
+  setSessionExpiryCookie(c);
 }
 
 function clearAuthCookies(c: Context): void {
   deleteCookie(c, 'access_token', { path: '/', ...(cookieDomain ? { domain: cookieDomain } : {}) });
   deleteCookie(c, 'refresh_token', { path: '/', ...(cookieDomain ? { domain: cookieDomain } : {}) });
+  deleteCookie(c, 'session_expires_at', { path: '/', ...(cookieDomain ? { domain: cookieDomain } : {}) });
 }
 
 function isBrowserRequest(c: Context): boolean {
@@ -262,8 +285,11 @@ authRouter.get('/me', async (c: Context) => {
     }
 
     const sql = (await import('@oktis-works/database')).getConnection();
+    // `locale` vem junto para que o SSR do admin resolva idioma E sessão em
+    // UMA requisição server-side (antes eram /auth/me + /users/me/locale +
+    // /auth/me de novo no client).
     const rows = await sql.unsafe(
-      'SELECT id, email, name, avatar, status, last_login_at FROM users WHERE id = $1',
+      'SELECT id, email, name, avatar, status, last_login_at, locale FROM users WHERE id = $1',
       [payload.sub]
     );
 

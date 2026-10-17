@@ -9,6 +9,7 @@ import { PassThrough, Writable } from 'node:stream';
 import { runEnvInterview } from './wizard-env.js';
 import { catalogFor } from './wizard-i18n.js';
 import { ENV_FIELDS, ENV_SECTIONS } from './env-schema.js';
+import { RATE_LIMIT_DEFAULTS } from '@oktis-works/config';
 import { looksLikeSecret } from './guards.js';
 import { Prompt, type PromptIO } from './prompt.js';
 
@@ -143,9 +144,29 @@ describe('catalog completeness', () => {
 });
 
 describe('ENV_FIELDS sizing', () => {
-  it('has 48 fields across 10 sections (DB_ENGINE added)', () => {
-    expect(ENV_FIELDS.length).toBe(48);
+  it('has 52 fields across 10 sections (rate-limit classes added)', () => {
+    expect(ENV_FIELDS.length).toBe(52);
     expect(ENV_SECTIONS.length).toBe(10);
+  });
+});
+
+describe('defaults de rate limit (fonte única: @oktis-works/config)', () => {
+  const byKey = (key: string): string | undefined =>
+    ENV_FIELDS.find((field) => field.key === key)?.default;
+
+  it('o wizard grava exatamente os defaults que a API usa', () => {
+    // Regra contra drift: o wizard não pode escrever 100 enquanto o código
+    // assume 300 — foi assim que o .env saía com um budget 3x menor que o
+    // esperado e o admin estourava o limite carregando o dashboard.
+    expect(byKey('RATE_LIMIT_WINDOW_SECONDS')).toBe(String(RATE_LIMIT_DEFAULTS.windowSeconds));
+    expect(byKey('RATE_LIMIT_MAX')).toBe(String(RATE_LIMIT_DEFAULTS.max));
+    expect(byKey('RATE_LIMIT_AUTH_MAX')).toBe(String(RATE_LIMIT_DEFAULTS.authMax));
+    expect(byKey('RATE_LIMIT_LOGIN_MAX')).toBe(String(RATE_LIMIT_DEFAULTS.loginMax));
+    expect(byKey('RATE_LIMIT_LOGIN_WINDOW_SECONDS')).toBe(String(RATE_LIMIT_DEFAULTS.loginWindowSeconds));
+  });
+
+  it('não existe mais a chave antiga RATE_LIMIT_WINDOW_MS (alias só no parser)', () => {
+    expect(ENV_FIELDS.some((field) => field.key === 'RATE_LIMIT_WINDOW_MS')).toBe(false);
   });
 });
 
