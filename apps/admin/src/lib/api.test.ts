@@ -299,8 +299,8 @@ describe('CSRF em memória (evita /auth/csrf por mutação)', () => {
     vi.stubGlobal('document', { cookie: '' });
     fetchMock.mockResolvedValue(respond({ csrfToken: 'tok-2' }));
 
-    await client.updateSettings({ siteName: 'A' });
-    await client.updateSettings({ siteName: 'B' });
+    await client.updateSettings([{ key: 'siteName', value: 'A' }]);
+    await client.updateSettings([{ key: 'siteName', value: 'B' }]);
 
     const urls = fetchMock.mock.calls.map((c) => String(c[0]));
     expect(urls.filter((u) => u === '/api/v1/auth/csrf')).toHaveLength(1);
