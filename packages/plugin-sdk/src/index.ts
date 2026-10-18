@@ -10,6 +10,7 @@ export {
   type RouteDefinition,
   type TenantInfo,
   type UserInfo,
+  type PluginFieldTypeManifest,
 } from './types.js';
 
 export {

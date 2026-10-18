@@ -9,6 +9,20 @@ export interface FieldTypeDefinition {
   icon: string;
   supportsConditions: boolean;
   isLayout: boolean;
+  // Plugin-specific extensions
+  adminComponentPath?: string;      // Path to admin config component (e.g., '@/plugins/meu-plugin/admin/components/MermaidField.tsx')
+  adminRendererPath?: string;       // Path to content editor renderer component
+  configSchema?: Record<string, unknown>; // JSON Schema for field config validation
+  isPluginType?: boolean;           // Flag to identify plugin-registered types
+  pluginName?: string;              // Name of the plugin that registered this type
+}
+
+export interface PluginFieldTypeDefinition extends FieldTypeDefinition {
+  adminComponentPath: string;
+  adminRendererPath?: string;
+  configSchema?: Record<string, unknown>;
+  isPluginType: true;
+  pluginName: string;
 }
 
 export const FIELD_TYPE_CATEGORIES: Array<{ id: FieldCategory; label: string; icon: string }> = [
@@ -91,4 +105,21 @@ export function listFieldTypesByCategory(): Record<FieldCategory, FieldTypeDefin
 
 export function registerFieldType(definition: FieldTypeDefinition): void {
   fieldTypeRegistry.set(definition.type, definition);
+}
+
+export function unregisterFieldType(type: string): boolean {
+  return fieldTypeRegistry.delete(type);
+}
+
+export function isPluginFieldType(type: string): boolean {
+  const def = fieldTypeRegistry.get(type);
+  return def?.isPluginType === true;
+}
+
+export function getPluginFieldTypes(): FieldTypeDefinition[] {
+  return [...fieldTypeRegistry.values()].filter(d => d.isPluginType === true);
+}
+
+export function getBuiltinFieldTypes(): FieldTypeDefinition[] {
+  return [...fieldTypeRegistry.values()].filter(d => d.isPluginType !== true);
 }

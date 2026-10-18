@@ -62,6 +62,7 @@ export type { FieldError, ValidationResult } from './fields/validation.js';
 export { matchLocationRules } from './fields/location-rules.js';
 export type { LocationRule, LocationContext, LocationParam } from './fields/location-rules.js';
 export { fieldGroupService, FieldGroupService } from './fields/service.js';
+export { fieldTypeExtensionService, FieldTypeExtensionService } from './fields/service.js';
 export type { FieldGroup, FieldGroupInput, FieldDefinitionInput, FlexibleLayoutInput } from './fields/service.js';
 
 // Storage

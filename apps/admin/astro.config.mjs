@@ -14,7 +14,13 @@ export default defineConfig({
   integrations: [solid()],
   server: { port: 3011, host: true, allowedHosts: ['admin.lvh.me', 'localhost'] },
   vite: {
-    resolve: { conditions: ['source'] },
+    resolve: {
+      conditions: ['source'],
+      alias: {
+        // Alias for plugin admin components: @/plugins/* -> ../../../plugins/*/admin
+        '@/plugins': new URL('../../../plugins', import.meta.url).pathname,
+      },
+    },
     ssr: { noExternal: ['@oktis-works/types', '@oktis-works/ui'] },
     ...(apiProxyTarget
       ? {

@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/plugin-runtime",
-  "version": "0.5.10",
+  "version": "0.6.0",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -12,12 +12,12 @@
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "rm -rf dist && tsc",
     "clean": "rm -rf dist tsconfig.tsbuildinfo"
   },
   "dependencies": {
-    "@oktis-works/plugin-sdk": "^0.5.8",
-    "@oktis-works/types": "^0.7.0",
+    "@oktis-works/plugin-sdk": "^0.6.0",
+    "@oktis-works/types": "^0.8.0",
     "@oktis-works/validation": "^0.6.0",
     "semver": "7"
   },

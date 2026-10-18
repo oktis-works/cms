@@ -166,6 +166,18 @@ function createApiDeps(tenantId: string | null): Partial<PluginApiDependencies> 
         console.error('[PluginAPI] Falha ao registrar campos de conteúdo:', error);
       }
     },
+    registerFieldTypes: async (fieldTypes) => {
+      try {
+        const { fieldTypeExtensionService } = await import('@oktis-works/core');
+        for (const ft of fieldTypes) {
+          await fieldTypeExtensionService.register(ft as any);
+        }
+        await fieldTypeExtensionService.syncToRegistry();
+        console.debug(`[PluginAPI] ${fieldTypes.length} tipo(s) de campo registrado(s) no registry`);
+      } catch (error) {
+        console.error('[PluginAPI] Falha ao registrar tipos de campo:', error);
+      }
+    },
   };
 }
 

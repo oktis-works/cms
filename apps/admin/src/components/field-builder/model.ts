@@ -37,6 +37,12 @@ export interface EditableField {
   isCoreField?: boolean;
   isLocked?: boolean;
   coreFieldKey?: string;
+  // Plugin-specific extensions
+  adminComponentPath?: string;
+  adminRendererPath?: string;
+  configSchema?: Record<string, unknown>;
+  isPluginType?: boolean;
+  pluginName?: string;
 }
 
 export interface FieldGroupMetadata {
@@ -182,6 +188,12 @@ export function toEditableField(field: FieldDefinition): EditableField {
     isCoreField: field.isCoreField,
     isLocked: field.isLocked,
     coreFieldKey: field.coreFieldKey,
+    // Plugin-specific extensions
+    adminComponentPath: (field.config as any)?.adminComponentPath,
+    adminRendererPath: (field.config as any)?.adminRendererPath,
+    configSchema: (field.config as any)?.configSchema,
+    isPluginType: (field.config as any)?.isPluginType,
+    pluginName: (field.config as any)?.pluginName,
   };
 }
 

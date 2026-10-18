@@ -325,6 +325,7 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
             getUserById: options.apiDeps.getUserById ?? (async () => null),
             registerRoutes: options.apiDeps.registerRoutes ?? (() => {}),
             registerContentFields: options.apiDeps.registerContentFields ?? (() => {}),
+            registerFieldTypes: options.apiDeps.registerFieldTypes ?? (() => {}),
             allowedPermissions: [...policy],
           };
           // Cria a API completa usando a fábrica interna
@@ -340,6 +341,22 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
 
         if (internal) {
           scope.plugins.set(name, { registrations, internal });
+          
+          // Persist field types registered by this plugin
+          if (internal.getFieldTypes && internal.getFieldTypes().length > 0) {
+            const fieldTypes = internal.getFieldTypes();
+            try {
+              // Import fieldTypeExtensionService dynamically to avoid circular deps
+              const { fieldTypeExtensionService } = await import('@oktis-works/core');
+              for (const ft of fieldTypes) {
+                await fieldTypeExtensionService.register(ft as any);
+              }
+              // Sync to in-memory registry
+              await fieldTypeExtensionService.syncToRegistry();
+            } catch (e) {
+              console.warn(`[plugins] Failed to persist field types for ${name}:`, e);
+            }
+          }
         } else {
           scope.plugins.set(name, { registrations });
         }

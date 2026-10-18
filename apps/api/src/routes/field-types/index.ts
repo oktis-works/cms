@@ -2,6 +2,7 @@
 
 import { Hono } from 'hono';
 import { listFieldTypes, listFieldTypesByCategory, FIELD_TYPE_CATEGORIES } from '@oktis-works/core';
+import { fieldTypeExtensionService } from '@oktis-works/core';
 import { authMiddleware, requirePermission } from '../../middleware/auth.js';
 
 const router = new Hono();
@@ -10,6 +11,10 @@ router.use('*', authMiddleware);
 
 router.get('/', requirePermission('read', 'content'), async (c) => {
   const category = c.req.query('category');
+  const tenantId = c.get('tenantId') as string;
+
+  // Sync plugin field types for this tenant
+  await fieldTypeExtensionService.syncToRegistry();
 
   if (category) {
     const grouped = listFieldTypesByCategory();

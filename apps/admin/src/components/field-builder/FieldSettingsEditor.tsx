@@ -14,6 +14,7 @@ import { Tabs } from './primitives/Tabs';
 import { ConditionalLogicEditor } from './ConditionalLogicEditor';
 import { FieldTypePicker } from '../content/FieldTypePicker';
 import { SearchableSelect } from './primitives/SearchableSelect';
+import { PluginFieldConfig } from './PluginFieldConfig';
 
 type TFn = (key: string) => string;
 
@@ -130,6 +131,18 @@ export function FieldSettingsEditor(props: FieldSettingsEditorProps) {
             ]}
             onChange={(v) => setCfg('layout', v)}
             placeholder={L('layout')}
+          />
+        </Field>
+      </Show>
+      {/* Plugin field types - render plugin's custom config component */}
+      <Show when={field.isPluginType && field.adminComponentPath}>
+        <Field label={L('pluginConfig') ?? 'Configuração do Plugin'} wide>
+          <PluginFieldConfig
+            field={field}
+            configSchema={field.configSchema}
+            adminComponentPath={field.adminComponentPath!}
+            onChange={(patch) => props.onChange({ config: { ...field.config, ...patch.config } })}
+            t={props.t}
           />
         </Field>
       </Show>

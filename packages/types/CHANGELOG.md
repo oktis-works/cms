@@ -1,5 +1,19 @@
 # @oktis-works/types
 
+## 0.8.0
+
+### Minor Changes
+
+- feat: add custom field types via plugins
+  
+  - Core: field_type_extensions table, dynamic type registry
+  - Plugin Runtime: addFieldType API, manifest fieldTypes[]
+  - Admin: dynamic component loading for field config/render
+  - Docs: plugin-development.md, PLUGIN.md
+  - Example plugin: mermaid-field
+  
+  BREAKING CHANGE: none
+
 ## 0.7.0
 
 ### Minor Changes

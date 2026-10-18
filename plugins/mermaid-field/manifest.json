@@ -1,0 +1,43 @@
+{
+  "name": "mermaid-field",
+  "version": "1.0.0",
+  "description": "Campo customizado para diagramas Mermaid.js no OkCMS",
+  "type": "plugin",
+  "main": "index.js",
+  "scope": "tenant",
+  "permissions": ["field-types:register"],
+  "compatibility": { "okcms": "^0.16.0" },
+  "fieldTypes": [
+    {
+      "type": "mermaid",
+      "label": "Diagrama Mermaid",
+      "category": "conteudo",
+      "icon": "git-merge",
+      "supportsConditions": true,
+      "isLayout": false,
+      "adminComponentPath": "@/plugins/mermaid-field/admin/components/MermaidField.tsx",
+      "adminRendererPath": "@/plugins/mermaid-field/admin/components/MermaidFieldRenderer.tsx",
+      "configSchema": {
+        "type": "object",
+        "properties": {
+          "theme": {
+            "type": "string",
+            "enum": ["default", "dark", "forest", "neutral"],
+            "default": "default",
+            "title": "Tema do Diagrama"
+          },
+          "editable": {
+            "type": "boolean",
+            "default": true,
+            "title": "Permitir edição no editor de conteúdo"
+          },
+          "diagramCode": {
+            "type": "string",
+            "default": "graph TD\n  A[Início] --> B[Processo]\n  B --> C[Fim]",
+            "title": "Código Mermaid Padrão"
+          }
+        }
+      }
+    }
+  ]
+}

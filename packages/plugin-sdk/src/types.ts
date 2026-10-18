@@ -1,7 +1,12 @@
+// @oktis-works/plugin-sdk - Tipos públicos para desenvolvimento de plugins
+
 import type {
   PluginManifest as CanonicalPluginManifest,
   PluginDependency as CanonicalPluginDependency,
+  PluginFieldTypeManifest,
 } from '@oktis-works/types';
+
+export type { PluginFieldTypeManifest };
 
 /**
  * Plugin lifecycle hook types.
@@ -61,6 +66,7 @@ export enum HookType {
 export type PluginManifest = CanonicalPluginManifest & {
   main: string;
   hooks?: PluginHook[];
+  fieldTypes?: PluginFieldTypeManifest[];
 };
 
 export type PluginDependency = CanonicalPluginDependency;
@@ -91,6 +97,7 @@ export interface PluginAPI {
   registerHook(type: HookType, handler: PluginHookHandler): void;
   addRoute(route: RouteDefinition): void;
   addContentField(field: ContentField): void;
+  addFieldType(definition: PluginFieldTypeManifest): void;
   getSetting(key: string): Promise<unknown>;
   setSetting(key: string, value: unknown): Promise<void>;
   getTenant(): Promise<TenantInfo>;

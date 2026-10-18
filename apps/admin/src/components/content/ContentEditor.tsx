@@ -237,7 +237,7 @@ export function ContentEditor(props: Props) {
           <Show when={groups().length > 0}>
             <section class="card custom-fields">
               <h3>{t('content.editor.customFields')}</h3>
-              <For each={groups()}>{(field) => <FieldRenderer field={field} values={data()} onChange={(name, value) => setData({ ...data(), [name]: value })} />}</For>
+              <For each={groups()}>{(field) => <FieldRenderer field={field} values={data()} onChange={(name, value) => setData({ ...data(), [name]: value })} t={t} />}</For>
             </section>
           </Show>
         </main>

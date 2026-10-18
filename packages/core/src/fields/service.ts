@@ -8,6 +8,7 @@ import { findConditionalIssues } from './conditional.js';
 import type { FieldRefLike } from './conditional.js';
 import type { ValidatableField } from './types/validators/structural.js';
 import { validateContentData } from './validation.js';
+import type { FieldTypeDefinition, PluginFieldTypeDefinition } from './types/registry.js';
 
 export interface FlexibleLayoutInput {
   name: string;
@@ -652,5 +653,154 @@ export class FieldGroupService {
     };
   }
 }
+
+/**
+ * Service for managing plugin-registered field type extensions.
+ * Handles persistence and retrieval of custom field types from the database.
+ */
+export class FieldTypeExtensionService {
+  /**
+   * Register a new field type from a plugin.
+   */
+  async register(definition: PluginFieldTypeDefinition): Promise<void> {
+    const sql = getConnection();
+    await sql.unsafe(
+      `INSERT INTO field_type_extensions (plugin_name, type, label, category, icon, supports_conditions, is_layout, admin_component_path, admin_renderer_path, config_schema)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)
+       ON CONFLICT (type) DO UPDATE SET
+         plugin_name = EXCLUDED.plugin_name,
+         label = EXCLUDED.label,
+         category = EXCLUDED.category,
+         icon = EXCLUDED.icon,
+         supports_conditions = EXCLUDED.supports_conditions,
+         is_layout = EXCLUDED.is_layout,
+         admin_component_path = EXCLUDED.admin_component_path,
+         admin_renderer_path = EXCLUDED.admin_renderer_path,
+         config_schema = EXCLUDED.config_schema,
+         updated_at = NOW()`,
+      [
+        definition.pluginName,
+        definition.type,
+        definition.label,
+        definition.category,
+        definition.icon,
+        definition.supportsConditions,
+        definition.isLayout,
+        definition.adminComponentPath ?? null,
+        definition.adminRendererPath ?? null,
+        definition.configSchema ? JSON.stringify(definition.configSchema) : null,
+      ]
+    );
+  }
+
+  /**
+   * Unregister a field type by plugin name and type.
+   */
+  async unregister(pluginName: string, type: string): Promise<boolean> {
+    const sql = getConnection();
+    const result = await sql.unsafe(
+      'DELETE FROM field_type_extensions WHERE plugin_name = $1 AND type = $2',
+      [pluginName, type]
+    );
+    return result.length > 0;
+  }
+
+  /**
+   * Unregister all field types for a plugin.
+   */
+  async unregisterAllForPlugin(pluginName: string): Promise<number> {
+    const sql = getConnection();
+    const result = await sql.unsafe(
+      'DELETE FROM field_type_extensions WHERE plugin_name = $1',
+      [pluginName]
+    );
+    return result.length;
+  }
+
+  /**
+   * Get all registered plugin field types.
+   */
+  async listAll(): Promise<PluginFieldTypeDefinition[]> {
+    const sql = getConnection();
+    const rows = await sql.unsafe(
+      'SELECT * FROM field_type_extensions ORDER BY category, label'
+    );
+    return (rows as unknown as Array<Record<string, unknown>>).map((row) => ({
+      type: String(row['type']),
+      label: String(row['label']),
+      category: String(row['category']) as PluginFieldTypeDefinition['category'],
+      icon: String(row['icon']),
+      supportsConditions: Boolean(row['supports_conditions']),
+      isLayout: Boolean(row['is_layout']),
+      adminComponentPath: String(row['admin_component_path']),
+      adminRendererPath: row['admin_renderer_path'] ? String(row['admin_renderer_path']) : undefined,
+      configSchema: row['config_schema'] as Record<string, unknown> | undefined,
+      isPluginType: true,
+      pluginName: String(row['plugin_name']),
+    }));
+  }
+
+  /**
+   * Get field types for a specific plugin.
+   */
+  async listForPlugin(pluginName: string): Promise<PluginFieldTypeDefinition[]> {
+    const sql = getConnection();
+    const rows = await sql.unsafe(
+      'SELECT * FROM field_type_extensions WHERE plugin_name = $1 ORDER BY category, label',
+      [pluginName]
+    );
+    return (rows as unknown as Array<Record<string, unknown>>).map((row) => ({
+      type: String(row['type']),
+      label: String(row['label']),
+      category: String(row['category']) as PluginFieldTypeDefinition['category'],
+      icon: String(row['icon']),
+      supportsConditions: Boolean(row['supports_conditions']),
+      isLayout: Boolean(row['is_layout']),
+      adminComponentPath: String(row['admin_component_path']),
+      adminRendererPath: row['admin_renderer_path'] ? String(row['admin_renderer_path']) : undefined,
+      configSchema: row['config_schema'] as Record<string, unknown> | undefined,
+      isPluginType: true,
+      pluginName: String(row['plugin_name']),
+    }));
+  }
+
+  /**
+   * Get a specific field type by type name.
+   */
+  async getByType(type: string): Promise<PluginFieldTypeDefinition | null> {
+    const sql = getConnection();
+    const rows = await sql.unsafe('SELECT * FROM field_type_extensions WHERE type = $1', [type]);
+    const row = rows[0] as Record<string, unknown> | undefined;
+    if (!row) return null;
+    return {
+      type: String(row['type']),
+      label: String(row['label']),
+      category: String(row['category']) as PluginFieldTypeDefinition['category'],
+      icon: String(row['icon']),
+      supportsConditions: Boolean(row['supports_conditions']),
+      isLayout: Boolean(row['is_layout']),
+      adminComponentPath: String(row['admin_component_path']),
+      adminRendererPath: row['admin_renderer_path'] ? String(row['admin_renderer_path']) : undefined,
+      configSchema: row['config_schema'] as Record<string, unknown> | undefined,
+      isPluginType: true,
+      pluginName: String(row['plugin_name']),
+    };
+  }
+
+  /**
+   * Sync plugin field types to the in-memory registry.
+   * Called during plugin bootstrap to make types available globally.
+   */
+  async syncToRegistry(): Promise<void> {
+    const types = await this.listAll();
+    const { fieldTypeRegistry, registerFieldType } = await import('./types/registry.js');
+    
+    for (const type of types) {
+      registerFieldType(type);
+    }
+  }
+}
+
+export const fieldTypeExtensionService = new FieldTypeExtensionService();
 
 export const fieldGroupService = new FieldGroupService();

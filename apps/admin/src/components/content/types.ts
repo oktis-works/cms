@@ -22,4 +22,10 @@ export interface ResolvedFieldDefinition {
     max?: number;
     subFields: ResolvedFieldDefinition[];
   }>;
+  // Plugin-specific extensions
+  adminComponentPath?: string;
+  adminRendererPath?: string;
+  configSchema?: Record<string, unknown>;
+  isPluginType?: boolean;
+  pluginName?: string;
 }

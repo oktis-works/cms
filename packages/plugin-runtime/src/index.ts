@@ -31,6 +31,7 @@ export {
   type PluginApiDependencies,
   type PluginApiInternal,
 } from './plugin-api.js';
+export type { PluginFieldTypeManifest } from '@oktis-works/plugin-sdk';
 export {
   scopePluginCss,
   getPluginScopeAttribute,

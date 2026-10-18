@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/database",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -19,8 +19,8 @@
     "db:rollback": "node --loader ts-node/esm src/migrations/runner.ts rollback"
   },
   "dependencies": {
-    "@oktis-works/types": "^0.7.0",
-    "@oktis-works/config": "^0.6.2",
+    "@oktis-works/types": "^0.8.0",
+    "@oktis-works/config": "^0.6.3",
     "postgres": "3.4.0"
   },
   "devDependencies": {

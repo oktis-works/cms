@@ -1,5 +1,12 @@
 # @oktis-works/config
 
+## 0.6.3
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/types@0.8.0
+
 ## 0.6.2
 
 ### Patch Changes

@@ -1362,6 +1362,12 @@ export interface FieldTypeInfo {
   icon: string;
   isLayout?: boolean;
   supportsConditions?: boolean;
+  // Plugin-specific extensions
+  adminComponentPath?: string;
+  adminRendererPath?: string;
+  configSchema?: Record<string, unknown>;
+  isPluginType?: boolean;
+  pluginName?: string;
 }
 
 export const apiClient = new ApiClient();

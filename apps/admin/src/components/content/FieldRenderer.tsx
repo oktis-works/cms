@@ -4,11 +4,13 @@ import { For, Show, createMemo, createSignal } from 'solid-js';
 import { validateFieldClient } from '../../lib/validation';
 import type { ResolvedFieldDefinition } from './types';
 import { RelationshipPicker } from './RelationshipPicker';
+import { PluginFieldRenderer } from '../../content/PluginFieldRenderer';
 
 export interface FieldRendererProps {
   field: ResolvedFieldDefinition;
   values: Record<string, unknown>;
   onChange: (name: string, value: unknown) => void;
+  t: (key: string) => string;
 }
 
 function isEmpty(value: unknown): boolean {
@@ -534,6 +536,19 @@ function FieldControl(props: FieldControlProps) {
         </fieldset>
       );
     default:
+      // Check if it's a plugin field type
+      if (props.field.isPluginType && (props.field.adminRendererPath || props.field.adminComponentPath)) {
+        return (
+          <PluginFieldRenderer
+            field={props.field}
+            value={props.value}
+            onChange={props.onChange}
+            adminRendererPath={props.field.adminRendererPath}
+            adminComponentPath={props.field.adminComponentPath}
+            t={props.t}
+          />
+        );
+      }
       return (
         <input
           type="text"

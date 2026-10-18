@@ -277,6 +277,32 @@ export interface PluginManifest {
     admin?: string;
   };
   config?: Record<string, unknown>;
+  /** Tipos de campo customizados registrados pelo plugin. */
+  fieldTypes?: PluginFieldTypeManifest[];
+}
+
+/**
+ * Definição de tipo de campo customizado no manifesto do plugin.
+ */
+export interface PluginFieldTypeManifest {
+  /** Identificador único do tipo (ex: 'mermaid', 'chart'). Deve ser único globalmente. */
+  type: string;
+  /** Label amigável exibido no admin. */
+  label: string;
+  /** Categoria do campo (basico, conteudo, escolha, relacional, estrutura). */
+  category: 'basico' | 'conteudo' | 'escolha' | 'relacional' | 'estrutura';
+  /** Ícone Lucide (ex: 'git-merge', 'chart-bar'). */
+  icon: string;
+  /** Se suporta lógica condicional. Default: true. */
+  supportsConditions?: boolean;
+  /** Se é um tipo de layout (message, accordion, tab). Default: false. */
+  isLayout?: boolean;
+  /** Caminho para o componente de configuração no admin (ex: '@/plugins/meu-plugin/admin/components/MermaidField.tsx'). */
+  adminComponentPath: string;
+  /** Caminho para o componente de renderização na edição de conteúdo (opcional). */
+  adminRendererPath?: string;
+  /** JSON Schema para validação da configuração do campo. */
+  configSchema?: Record<string, unknown>;
 }
 
 export interface PluginDependency {

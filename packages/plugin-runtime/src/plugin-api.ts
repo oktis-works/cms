@@ -6,7 +6,7 @@
 
 import { randomUUID } from 'node:crypto';
 import type { HookRegistryLike } from '@oktis-works/plugin-sdk';
-import type { PluginManifest } from '@oktis-works/plugin-sdk';
+import type { PluginManifest, PluginFieldTypeManifest } from '@oktis-works/plugin-sdk';
 
 /** Contexto disponível para o plugin em cada execução de hook. */
 export interface PluginContext {
@@ -61,6 +61,9 @@ export interface PluginAPI {
     options?: Record<string, unknown>;
   }): void;
 
+  /** Registra um novo tipo de campo customizado. */
+  addFieldType(definition: PluginFieldTypeManifest): void;
+
   /** Lê setting do tenant (group/key). */
   getSetting(key: string, group?: string): Promise<unknown>;
 
@@ -83,7 +86,7 @@ export interface PluginAPI {
   addAction(action: string, callback: (...args: unknown[]) => unknown, options?: { priority?: number; acceptedArgs?: number }): void;
   addFilter(filter: string, callback: (value: unknown, ...args: unknown[]) => unknown, options?: { priority?: number; acceptedArgs?: number }): void;
   removeAction(action: string, callback: (...args: unknown[]) => unknown, priority?: number): boolean;
-  removeFilter(filter: string, callback: (...args: unknown[]) => unknown, priority?: number): boolean;
+  removeFilter(filter: string, callback: (value: unknown, ...args: unknown[]) => unknown, priority?: number): boolean;
   hasAction(action: string, callback?: (...args: unknown[]) => unknown): boolean;
   hasFilter(filter: string, callback?: (...args: unknown[]) => unknown): boolean;
   didAction(action: string): number;
@@ -123,6 +126,8 @@ export interface PluginApiDependencies {
   registerRoutes: (routes: RouteDefinition[]) => void;
   /** Registra campos de conteúdo do plugin (o core expõe via field-groups). */
   registerContentFields: (fields: Array<{ name: string; type: string; label: string; required?: boolean; options?: Record<string, unknown> }>) => void;
+  /** Registra tipos de campo do plugin (o core expõe via registry). */
+  registerFieldTypes: (fieldTypes: PluginFieldTypeManifest[]) => void;
   /** Permissões concedidas ao plugin (policy já resolvida). */
   allowedPermissions: string[];
 }
@@ -133,7 +138,7 @@ export interface PluginApiDependencies {
  * Retorna { api: PluginAPI, internal: PluginApiInternal } para separar a API pública dos detalhes internos.
  */
 export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; internal: PluginApiInternal } {
-  const { hooks, manifest, settings, eventBus, db, getTenantId, getUserId, getTenantById, getUserById, allowedPermissions } = deps;
+  const { hooks, manifest, settings, eventBus, db, getTenantId, getUserId, getTenantById, getUserById, allowedPermissions, registerFieldTypes } = deps;
 
   // Valida permissão antes de executar query
   function checkDbPermission(): void {
@@ -144,6 +149,8 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
 
   const registeredRoutes: RouteDefinition[] = [];
   const registeredFields: Array<{ name: string; type: string; label: string; required?: boolean; options?: Record<string, unknown> }> = [];
+  // Runtime type includes pluginName and isPluginType added during registration
+  const registeredFieldTypes: Array<PluginFieldTypeManifest & { pluginName: string; isPluginType: true }> = [];
 
   // Build the public API object
   const api: PluginAPI = {
@@ -224,6 +231,24 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
       registeredFields.push(field);
     },
 
+    addFieldType(definition: PluginFieldTypeManifest): void {
+      if (!allowedPermissions.includes('field-types:register')) {
+        throw new Error('Plugin permission denied: field-types:register');
+      }
+      // Validar se o tipo já existe (built-in ou outro plugin)
+      const existing = registeredFieldTypes.find(f => f.type === definition.type);
+      if (existing) {
+        throw new Error(`Field type "${definition.type}" already registered by plugin "${existing.pluginName || 'unknown'}"`);
+      }
+      const withPluginName = {
+        ...definition,
+        pluginName: manifest.name,
+        isPluginType: true as const,
+      };
+      registeredFieldTypes.push(withPluginName);
+      registerFieldTypes(registeredFieldTypes);
+    },
+
     async getSetting(key: string, group?: string): Promise<unknown> {
       if (!allowedPermissions.includes('settings:read')) {
         throw new Error('Plugin permission denied: settings:read');
@@ -300,6 +325,7 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
     internal: {
       getRoutes: () => registeredRoutes,
       getFields: () => registeredFields,
+      getFieldTypes: () => registeredFieldTypes,
     },
   };
 }
@@ -308,4 +334,5 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
 export interface PluginApiInternal {
   getRoutes: () => RouteDefinition[];
   getFields: () => Array<{ name: string; type: string; label: string; required?: boolean; options?: Record<string, unknown> }>;
+  getFieldTypes: () => Array<PluginFieldTypeManifest & { pluginName: string; isPluginType: true }>;
 }

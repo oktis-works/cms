@@ -555,6 +555,124 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:3000/api/v1/minha-ferram
 
 ---
 
+## Tipos de Campo Customizados (Custom Field Types)
+
+Plugins podem registrar **novos tipos de campo** que aparecem no editor de Custom Fields (`/settings/custom-fields`) e renderizam componentes customizados na edição de conteúdo.
+
+### 1. Declarar no Manifest
+
+```json
+{
+  "name": "meu-plugin",
+  "version": "1.0.0",
+  "fieldTypes": [
+    {
+      "type": "mermaid",
+      "label": "Diagrama Mermaid",
+      "category": "conteudo",
+      "icon": "git-merge",
+      "supportsConditions": true,
+      "adminComponentPath": "@/plugins/meu-plugin/admin/components/MermaidField.tsx",
+      "adminRendererPath": "@/plugins/meu-plugin/admin/components/MermaidFieldRenderer.tsx",
+      "configSchema": {
+        "type": "object",
+        "properties": {
+          "theme": { "type": "string", "enum": ["default", "dark"], "default": "default" },
+          "editable": { "type": "boolean", "default": true }
+        }
+      }
+    }
+  ],
+  "permissions": ["field-types:register"]
+}
+```
+
+### 2. Componente de Configuração (`adminComponentPath`)
+
+Usado quando o admin cria/edita o campo no Custom Fields:
+
+```tsx
+// plugins/meu-plugin/admin/components/MermaidField.tsx
+import { createSignal } from 'solid-js';
+import { Select, Textarea, Card } from '@oktis-works/ui';
+
+export default function MermaidFieldConfig(props) {
+  const { config, onChange } = props;
+  const [theme, setTheme] = createSignal(config.theme ?? 'default');
+  const [code, setCode] = createSignal(config.diagramCode ?? '');
+
+  const sync = () => onChange({ config: { theme: theme(), diagramCode: code() } });
+
+  return (
+    <Card>
+      <Select value={theme()} onChange={(v) => { setTheme(v); sync(); }}
+        options={[{value:'default',label:'Default'},{value:'dark',label:'Dark'}]} />
+      <Textarea value={code()} onInput={(e) => { setCode(e.currentTarget.value); sync(); }} rows={10} />
+    </Card>
+  );
+}
+```
+
+**Props:** `config`, `schema`, `onChange(patch)`, `t`
+
+### 3. Componente de Renderização (`adminRendererPath`)
+
+Usado na edição de conteúdo (`/content/*/edit`):
+
+```tsx
+// plugins/meu-plugin/admin/components/MermaidFieldRenderer.tsx
+import { onMount } from 'solid-js';
+import mermaid from 'mermaid';
+
+export default function MermaidFieldRenderer(props) {
+  const { field, value, onChange, disabled } = props;
+  const [svg, setSvg] = createSignal('');
+
+  onMount(async () => {
+    if (!value) return;
+    mermaid.initialize({ theme: field.config?.theme ?? 'default', securityLevel: 'loose' });
+    const { svg: s } = await mermaid.render(`m-${field.name}`, value);
+    setSvg(s);
+  });
+
+  return (
+    <div class="mermaid-renderer">
+      {svg() ? <div innerHTML={svg()} /> : <div>Carregando...</div>}
+      <textarea class="input" value={value} onInput={(e) => onChange(e.currentTarget.value)}
+        disabled={disabled} rows={8} placeholder="graph TD\n  A --> B" />
+    </div>
+  );
+}
+```
+
+**Props:** `field`, `value`, `onChange`, `disabled`, `t`
+
+### 4. Permissão Obrigatória
+
+```json
+{ "permissions": ["field-types:register"] }
+```
+
+### 5. Convenção de Arquivos
+
+```
+plugins/meu-plugin/
+├── manifest.json
+├── index.js
+└── admin/
+    └── components/
+        ├── MermaidField.tsx          # Config no Custom Fields
+        └── MermaidFieldRenderer.tsx  # Render na edição de conteúdo
+```
+
+### 6. Fallbacks
+
+- Se componente falhar ao carregar → editor JSON bruto (config) / textarea (render)
+- Plugin desativado → tipo fica `deprecated`, não aparece para novos campos
+- Plugin desinstalado → campos existentes mantêm dados, renderizam fallback texto
+
+---
+
 ## Limitações & Boas Práticas
 
 | Tópico | Detalhe |

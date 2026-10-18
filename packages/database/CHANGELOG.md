@@ -1,5 +1,13 @@
 # @oktis-works/database
 
+## 0.7.1
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/types@0.8.0
+  - @oktis-works/config@0.6.3
+
 ## 0.7.0
 
 ### Minor Changes

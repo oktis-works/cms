@@ -1,6 +1,6 @@
 {
   "name": "okcms",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "private": true,
   "description": "Hybrid, modular, API-first CMS",
   "engines": {
@@ -31,7 +31,7 @@
   },
   "devDependencies": {
     "@oktis-works/api-client": "workspace:*",
-    "@oktis-works/cms": "^0.9.5",
+    "@oktis-works/cms": "^0.9.6",
     "@changesets/changelog-github": "^1.0.1",
     "@changesets/cli": "^3.0.3",
     "@types/node": "22.0.0",
