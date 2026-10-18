@@ -8,7 +8,7 @@
  * rotas, etc.
  */
 
-module.exports.register = function register(api) {
+module.exports.register = function register(_api) {
   // O field type 'mermaid' já é registrado automaticamente via manifest.json
   // fieldTypes[] durante o bootstrap do plugin.
 

@@ -8,7 +8,7 @@ import { findConditionalIssues } from './conditional.js';
 import type { FieldRefLike } from './conditional.js';
 import type { ValidatableField } from './types/validators/structural.js';
 import { validateContentData } from './validation.js';
-import type { FieldTypeDefinition, PluginFieldTypeDefinition } from './types/registry.js';
+import type { PluginFieldTypeDefinition } from './types/registry.js';
 
 export interface FlexibleLayoutInput {
   name: string;
@@ -793,7 +793,7 @@ export class FieldTypeExtensionService {
    */
   async syncToRegistry(): Promise<void> {
     const types = await this.listAll();
-    const { fieldTypeRegistry, registerFieldType } = await import('./types/registry.js');
+    const { registerFieldType } = await import('./types/registry.js');
     
     for (const type of types) {
       registerFieldType(type);

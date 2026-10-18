@@ -12,7 +12,7 @@
     }
   },
   "scripts": {
-    "build": "tsc && cp src/schema/schema.sql dist/schema/schema.sql",
+    "build": "tsc && mkdir -p dist/schema && cp src/schema/schema.sql dist/schema/schema.sql",
     "dev": "tsc --watch",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "db:migrate": "node --loader ts-node/esm src/migrations/runner.ts",

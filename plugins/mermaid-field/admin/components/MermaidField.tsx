@@ -1,11 +1,11 @@
 // @oktis-works/mermaid-field - Componente de configuração do campo Mermaid
 // Usado no admin: /settings/custom-fields/new ou /edit
 
-import { createSignal, onMount } from 'solid-js';
+import { createSignal } from 'solid-js';
 import { Card, Select, Textarea, Switch, Label } from '@oktis-works/ui';
 
 export default function MermaidFieldConfig(props) {
-  const { config, schema, onChange, t } = props;
+  const { config, _schema, onChange, _t } = props;
 
   const [theme, setTheme] = createSignal(config.theme ?? 'default');
   const [editable, setEditable] = createSignal(config.editable ?? true);

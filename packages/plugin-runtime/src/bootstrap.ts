@@ -190,21 +190,21 @@ function recordingRegistry(
     explicit ?? callback.length;
 
   return {
-    addAction(action, callback, options) {
+    addAction(action: string, callback: (...args: unknown[]) => unknown, options?: { priority?: number; acceptedArgs?: number }) {
       const wrapped = sandbox.wrapCallback(callback);
       sink.push({ type: 'action', name: action, callback: wrapped, priority: options?.priority ?? 10 });
       registry.addAction(action, wrapped, { ...options, acceptedArgs: acceptedArgsOf(callback, options?.acceptedArgs) });
     },
-    addFilter(filter, callback, options) {
+    addFilter(filter: string, callback: (...args: unknown[]) => unknown, options?: { priority?: number; acceptedArgs?: number }) {
       const wrapped = sandbox.wrapCallback(callback);
       sink.push({ type: 'filter', name: filter, callback: wrapped, priority: options?.priority ?? 10 });
       registry.addFilter(filter, wrapped, { ...options, acceptedArgs: acceptedArgsOf(callback, options?.acceptedArgs) });
     },
-    removeAction: (action, callback, priority) => registry.removeAction(action, callback, priority),
-    removeFilter: (action, callback, priority) => registry.removeFilter(action, callback, priority),
-    hasAction: (action, callback) => registry.hasAction(action, callback),
-    hasFilter: (action, callback) => registry.hasFilter(action, callback),
-    didAction: (action) => registry.didAction(action),
+    removeAction: (action: string, callback: (...args: unknown[]) => unknown, priority?: number) => registry.removeAction(action, callback, priority),
+    removeFilter: (action: string, callback: (...args: unknown[]) => unknown, priority?: number) => registry.removeFilter(action, callback, priority),
+    hasAction: (action: string, callback?: (...args: unknown[]) => unknown) => registry.hasAction(action, callback),
+    hasFilter: (action: string, callback?: (...args: unknown[]) => unknown) => registry.hasFilter(action, callback),
+    didAction: (action: string) => registry.didAction(action),
     getCurrentHook: () => registry.getCurrentHook(),
   };
 }
@@ -347,7 +347,9 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
             const fieldTypes = internal.getFieldTypes();
             try {
               // Import fieldTypeExtensionService dynamically to avoid circular deps
-              const { fieldTypeExtensionService } = await import('@oktis-works/core');
+              // Using require to avoid TypeScript checking the import at compile time
+              const core = require('@oktis-works/core');
+              const { fieldTypeExtensionService } = core;
               for (const ft of fieldTypes) {
                 await fieldTypeExtensionService.register(ft as any);
               }

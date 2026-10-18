@@ -1,7 +1,7 @@
 // @oktis-works/mermaid-field - Componente de renderização do campo Mermaid
 // Usado no editor de conteúdo: /content/*/edit
 
-import { onMount, createSignal, createEffect } from 'solid-js';
+import { createSignal, createEffect } from 'solid-js';
 import mermaid from 'mermaid';
 
 export default function MermaidFieldRenderer(props) {
@@ -134,7 +134,7 @@ export default function MermaidFieldRenderer(props) {
               <input
                 type="checkbox"
                 checked={true}
-                onChange={(e) => {}}
+                onChange={(_e) => {}}
                 class="mermaid-source-toggle"
               />
               {t('settings.customFields.mermaid.showCode') ?? 'Mostrar código fonte'}

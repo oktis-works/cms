@@ -11,7 +11,7 @@ router.use('*', authMiddleware);
 
 router.get('/', requirePermission('read', 'content'), async (c) => {
   const category = c.req.query('category');
-  const tenantId = c.get('tenantId') as string;
+  const _tenantId = c.get('tenantId') as string;
 
   // Sync plugin field types for this tenant
   await fieldTypeExtensionService.syncToRegistry();

@@ -1,8 +1,7 @@
 // @oktis-works/admin - Plugin Field Renderer Component
 // Dynamic component loader for plugin field type rendering in content editor
 
-import { For, Show, createSignal, onMount } from 'solid-js';
-import { createIcons, icons } from 'lucide';
+import { Show, createSignal, onMount } from 'solid-js';
 
 interface PluginFieldRendererProps {
   field: {
@@ -113,7 +112,7 @@ function FallbackRenderer(props: {
   disabled?: boolean;
   t: (key: string) => string;
 }) {
-  const { field, value, onChange, disabled, t } = props;
+  const { field, value, onChange, disabled } = props;
 
   // Try to infer input type from config or use textarea as default
   const inputType = field.config?.inputType as string || 'textarea';

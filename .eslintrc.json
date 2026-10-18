@@ -14,7 +14,7 @@
   "extends": [
     "eslint:recommended"
   ],
-  "ignorePatterns": ["dist/", "node_modules/", "*.config.*", "*.mjs", "*.cjs", "*.d.ts"],
+  "ignorePatterns": ["dist/", "node_modules/", "*.config.*", "*.mjs", "*.cjs", "*.d.ts", "**/scaffold.test.js", "packages/cli/src/scaffold.test.js", "packages/cli/src/scaffold.test.js"],
   "rules": {
     "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
     "@typescript-eslint/no-explicit-any": "warn",
@@ -25,6 +25,12 @@
       "files": ["**/*.js"],
       "rules": {
         "@typescript-eslint/no-require-imports": "off"
+      }
+    },
+    {
+      "files": ["packages/cli/src/scaffold.test.js"],
+      "rules": {
+        "parser": "espree"
       }
     }
   ]

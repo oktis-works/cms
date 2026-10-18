@@ -1,8 +1,7 @@
 // @oktis-works/admin - Plugin Field Config Component
 // Dynamic component loader for plugin field type configuration in custom fields editor
 
-import { For, Show, createSignal, onMount } from 'solid-js';
-import { createIcons, icons } from 'lucide';
+import { Show, createSignal, onMount } from 'solid-js';
 
 interface PluginFieldConfigProps {
   field: {
@@ -118,7 +117,7 @@ function FallbackJsonEditor(props: {
     try {
       JSON.parse(value);
       setParseError(null);
-    } catch (e) {
+    } catch {
       setParseError('JSON inválido');
     }
   };

@@ -18,3 +18,79 @@ Before preparing or recommending a push to GitHub, evaluate if the updates trigg
 ### Individual Package Management via Changeset
 * **Verification:** Always check for package updates using `changeset`.
 * **Flow:** Ensure changesets are generated for individual packages when changes occur, and that they are consumed (`changeset version`) to bump the package versions independently before the final publish execution.
+
+## 3. Custom Field Types via Plugins
+When implementing custom field types via plugins, follow these rules:
+
+### Backend (Core + API + Plugin Runtime)
+- **Field Type Registry:** New field types are registered in `field_type_extensions` table via `FieldTypeExtensionService`.
+- **Plugin API:** Plugins register field types via `api.addFieldType(definition)` in their `register()` function.
+- **Manifest:** Field types are declared in `manifest.json` under `fieldTypes[]` array.
+- **Permissions:** Require `field-types:register` permission in manifest.
+- **Build Order:** Packages must be built in dependency order (validation → types → config → database → auth → plugin-sdk → plugin-runtime → core → theme-sdk → theme-runtime → api-client → ui → cli).
+
+### Admin Frontend
+- **FieldTypePicker:** Automatically loads plugin field types from `/api/v1/field-types`.
+- **FieldSettingsEditor:** Renders plugin config component via dynamic import of `adminComponentPath`.
+- **FieldRenderer:** Renders plugin renderer component via dynamic import of `adminRendererPath` (fallback to `adminComponentPath`).
+- **Vite Alias:** `@/plugins/*` resolves to `../../../plugins/*/admin` for dynamic imports.
+- **Fallbacks:** If plugin component fails to load, show JSON editor (config) or textarea (renderer).
+
+### Plugin Development
+- **Manifest:** Declare `fieldTypes[]` with `type`, `label`, `category`, `icon`, `adminComponentPath`, `adminRendererPath`, `configSchema`.
+- **Components:** Create `admin/components/FieldName.tsx` (config) and `admin/components/FieldNameRenderer.tsx` (renderer).
+- **Permissions:** Declare `field-types:register` in manifest permissions.
+- **Example:** See `plugins/mermaid-field/` for complete example.
+
+### Versioning & Release
+1. Bump version in root `package.json` (Minor for new features).
+2. Run `bun run sync-version --write` to sync `CMS_VERSION`.
+3. Create changeset: `bun run changeset` (select affected packages).
+4. Run `bun run version-packages` to consume changesets and bump versions.
+5. Commit with conventional commit message.
+6. Tag: `git tag vX.Y.Z`.
+7. Push: `git push origin main --tags`.
+
+## 4. Build & Lint Rules
+* **Build Order:** Always use `bun run build` which builds packages in dependency order.
+* **Typecheck:** Run `bun run typecheck` (excludes plugins directory).
+* **Lint:** Run `bun run lint` (ignores `packages/cli/src/scaffold.test.js`).
+* **Tests:** Run `bun run test:run` before committing.
+
+## 5. Custom Field Types via Plugins
+When implementing custom field types via plugins, follow these rules:
+
+### Backend (Core + API + Plugin Runtime)
+- **Field Type Registry:** New field types are registered in `field_type_extensions` table via `FieldTypeExtensionService`.
+- **Plugin API:** Plugins register field types via `api.addFieldType(definition)` in their `register()` function.
+- **Manifest:** Field types are declared in `manifest.json` under `fieldTypes[]` array.
+- **Permissions:** Require `field-types:register` permission in manifest.
+- **Build Order:** Packages must be built in dependency order (validation → types → config → database → auth → plugin-sdk → plugin-runtime → core → theme-sdk → theme-runtime → api-client → ui → cli).
+
+### Admin Frontend
+- **FieldTypePicker:** Automatically loads plugin field types from `/api/v1/field-types`.
+- **FieldSettingsEditor:** Renders plugin config component via dynamic import of `adminComponentPath`.
+- **FieldRenderer:** Renders plugin renderer component via dynamic import of `adminRendererPath` (fallback to `adminComponentPath`).
+- **Vite Alias:** `@/plugins/*` resolves to `../../../plugins/*/admin` for dynamic imports.
+- **Fallbacks:** If plugin component fails to load, show JSON editor (config) or textarea (renderer).
+
+### Plugin Development
+- **Manifest:** Declare `fieldTypes[]` with `type`, `label`, `category`, `icon`, `adminComponentPath`, `adminRendererPath`, `configSchema`.
+- **Components:** Create `admin/components/FieldName.tsx` (config) and `admin/components/FieldNameRenderer.tsx` (renderer).
+- **Permissions:** Declare `field-types:register` in manifest permissions.
+- **Example:** See `plugins/mermaid-field/` for complete example.
+
+### Versioning & Release
+1. Bump version in root `package.json` (Minor for new features).
+2. Run `bun run sync-version --write` to sync `CMS_VERSION`.
+3. Create changeset: `bun run changeset` (select affected packages).
+4. Run `bun run version-packages` to consume changesets and bump versions.
+5. Commit with conventional commit message.
+6. Tag: `git tag vX.Y.Z`.
+7. Push: `git push origin main --tags`.
+
+## 6. Build & Lint Rules
+* **Build Order:** Always use `bun run build` which builds packages in dependency order.
+* **Typecheck:** Run `bun run typecheck` (excludes plugins directory).
+* **Lint:** Run `bun run lint` (ignores `packages/cli/src/scaffold.test.js`).
+* **Tests:** Run `bun run test:run` before committing.
