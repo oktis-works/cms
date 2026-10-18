@@ -12,10 +12,10 @@ describe('PluginSandbox', () => {
     it('should create a sandbox with custom config', () => {
         const sandbox = new PluginSandbox({
             timeoutMs: 10000,
-            maxMemoryMb: 256,
-            allowedPermissions: ['content.read', 'media.upload'],
+            allowedPermissions: ['content:read', 'media:write'],
         });
         expect(sandbox).toBeDefined();
+        expect(sandbox.getPolicy().timeoutMs).toBe(10000);
     });
     it('should load a plugin via sandbox', () => {
         const sandbox = new PluginSandbox({
