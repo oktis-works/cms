@@ -3,6 +3,7 @@
 import { For, Show, createSignal, onMount } from 'solid-js';
 import { createIcons, icons } from 'lucide';
 import type { FieldCategoryInfo, FieldTypeInfo } from '../../lib/api';
+import { FloatingPanel } from '../ui/FloatingPanel';
 
 export interface FieldTypePickerProps {
   categories: FieldCategoryInfo[];
@@ -14,6 +15,7 @@ export interface FieldTypePickerProps {
 export function FieldTypePicker(props: FieldTypePickerProps) {
   const [open, setOpen] = createSignal(false);
   const [query, setQuery] = createSignal('');
+  const [trigger, setTrigger] = createSignal<HTMLButtonElement | undefined>(undefined);
 
   const selected = () => props.types.find((type) => type.type === props.value);
 
@@ -40,6 +42,7 @@ export function FieldTypePicker(props: FieldTypePickerProps) {
           refreshIcons();
         }}
         aria-expanded={open()}
+        ref={setTrigger}
       >
         <span class="field-type-picker__selected">
           <i data-lucide={selected()?.icon ?? 'box'} aria-hidden="true"></i>
@@ -48,8 +51,14 @@ export function FieldTypePicker(props: FieldTypePickerProps) {
         <span aria-hidden="true">{open() ? '▴' : '▾'}</span>
       </button>
 
-      <Show when={open()}>
-        <div class="field-type-picker__panel" role="listbox">
+      <FloatingPanel
+        open={open()}
+        trigger={trigger()}
+        onClose={() => { setOpen(false); setQuery(''); }}
+        class="field-type-picker__panel"
+        role="listbox"
+        minWidth={280}
+      >
           <input
             type="search"
             class="field-type-picker__search"
@@ -101,8 +110,7 @@ export function FieldTypePicker(props: FieldTypePickerProps) {
               );
             }}
           </For>
-        </div>
-      </Show>
+      </FloatingPanel>
     </div>
   );
 }

@@ -6,7 +6,8 @@
 // topo; a lista é ordenada por offset e depois pelo nome da zona. O valor
 // salvo é o id IANA (ex.: `America/Sao_Paulo`), como no WordPress.
 
-import { For, Show, createMemo, createSignal, onCleanup, onMount } from 'solid-js';
+import { For, Show, createMemo, createSignal } from 'solid-js';
+import { FloatingPanel } from '../../ui/FloatingPanel';
 
 export interface TimezoneSelectProps {
   value: string;
@@ -64,6 +65,7 @@ export function TimezoneSelect(props: TimezoneSelectProps) {
   const [open, setOpen] = createSignal(false);
   const [query, setQuery] = createSignal('');
   let root: HTMLDivElement | undefined;
+  const [trigger, setTrigger] = createSignal<HTMLButtonElement | undefined>(undefined);
 
   const options = createMemo(() => buildTimezoneOptions());
   const selected = createMemo(() => options().find((option) => option.tz === props.value));
@@ -74,20 +76,8 @@ export function TimezoneSelect(props: TimezoneSelectProps) {
     return options().filter((option) => normalize(option.label).includes(q));
   });
 
-  onMount(() => {
-    const close = (event: MouseEvent): void => {
-      if (root && !root.contains(event.target as Node)) setOpen(false);
-    };
-    const onKey = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', onKey);
-    onCleanup(() => {
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('keydown', onKey);
-    });
-  });
+  // Fechar por clique fora / Escape / scroll fica com o FloatingPanel — o
+  // painel é portalado para o body e nenhum `overflow` do formulário o corta.
 
   return (
     <div class="tz-select" ref={root}>
@@ -96,49 +86,55 @@ export function TimezoneSelect(props: TimezoneSelectProps) {
         class="input tz-select__trigger"
         aria-haspopup="listbox"
         aria-expanded={open()}
+        ref={setTrigger}
         onClick={() => setOpen(!open())}
       >
         <span class="tz-select__value">{selected()?.label ?? props.placeholder ?? ''}</span>
         <span aria-hidden="true">{open() ? '▴' : '▾'}</span>
       </button>
 
-      <Show when={open()}>
-        <div class="tz-select__panel" role="listbox">
-          <input
-            type="search"
-            class="input tz-select__search"
-            placeholder={props.searchPlaceholder ?? props.placeholder ?? ''}
-            value={query()}
-            onInput={(event) => setQuery(event.currentTarget.value)}
-            autofocus
-          />
-          <div class="tz-select__options">
-            <Show
-              when={filtered().length > 0}
-              fallback={<p class="tz-select__empty">—</p>}
-            >
-              <For each={filtered()}>
-                {(option) => (
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={props.value === option.tz}
-                    class="tz-select__option"
-                    classList={{ 'is-selected': props.value === option.tz }}
-                    onClick={() => {
-                      props.onChange(option.tz);
-                      setOpen(false);
-                      setQuery('');
-                    }}
-                  >
-                    {option.label}
-                  </button>
-                )}
-              </For>
-            </Show>
-          </div>
+      <FloatingPanel
+        open={open()}
+        trigger={trigger()}
+        onClose={() => { setOpen(false); setQuery(''); }}
+        class="tz-select__panel"
+        role="listbox"
+        minWidth={320}
+      >
+        <input
+          type="search"
+          class="input tz-select__search"
+          placeholder={props.searchPlaceholder ?? props.placeholder ?? ''}
+          value={query()}
+          onInput={(event) => setQuery(event.currentTarget.value)}
+          ref={(element) => queueMicrotask(() => element.focus())}
+        />
+        <div class="tz-select__options">
+          <Show
+            when={filtered().length > 0}
+            fallback={<p class="tz-select__empty">—</p>}
+          >
+            <For each={filtered()}>
+              {(option) => (
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={props.value === option.tz}
+                  class="tz-select__option"
+                  classList={{ 'is-selected': props.value === option.tz }}
+                  onClick={() => {
+                    props.onChange(option.tz);
+                    setOpen(false);
+                    setQuery('');
+                  }}
+                >
+                  {option.label}
+                </button>
+              )}
+            </For>
+          </Show>
         </div>
-      </Show>
+      </FloatingPanel>
     </div>
   );
 }

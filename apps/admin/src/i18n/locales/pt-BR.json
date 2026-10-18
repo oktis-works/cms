@@ -369,12 +369,6 @@
         "valuePlaceholder": "Digite um valor ou slug",
         "showIf": "Mostrar se",
         "removeRule": "Remover regra",
-        "showIf": "Mostrar se",
-        "removeRule": "Remover regra",
-        "showIf": "Mostrar se",
-        "removeRule": "Remover regra",
-        "showIf": "Mostrar se",
-        "removeRule": "Remover regra",
         "required": "Adicione um valor a todas as regras de localização.",
         "addRule": "Adicionar condição",
         "addGroup": "Adicionar grupo OU",
@@ -432,12 +426,6 @@
         "editTitle": "Editar grupo de campos",
         "title": "Nome do grupo",
         "titlePlaceholder": "Ex.: Detalhes do produto",
-        "displayTitle": "Título exibido",
-        "active": "Ativo",
-        "displayTitle": "Título exibido",
-        "active": "Ativo",
-        "displayTitle": "Título exibido",
-        "active": "Ativo",
         "displayTitle": "Título exibido",
         "active": "Ativo",
         "backToGroups": "Voltar aos grupos",
@@ -507,30 +495,6 @@
         "deleted": "Grupo de campos excluído."
       },
       "listEyebrow": "Estrutura de conteúdo",
-      "validation": {
-        "titleRequired": "O nome do grupo é obrigatório."
-      },
-      "tabs": {
-        "locationRules": "Regras de localização",
-        "presentation": "Apresentação",
-        "groupSettings": "Configurações do grupo"
-      },
-      "validation": {
-        "titleRequired": "O nome do grupo é obrigatório."
-      },
-      "tabs": {
-        "locationRules": "Regras de localização",
-        "presentation": "Apresentação",
-        "groupSettings": "Configurações do grupo"
-      },
-      "validation": {
-        "titleRequired": "O nome do grupo é obrigatório."
-      },
-      "tabs": {
-        "locationRules": "Regras de localização",
-        "presentation": "Apresentação",
-        "groupSettings": "Configurações do grupo"
-      },
       "validation": {
         "titleRequired": "O nome do grupo é obrigatório."
       },
@@ -651,88 +615,19 @@
         "fieldType": "Tipo",
         "fieldNameHint": "Apenas letras, números e sublinhados.",
         "ariaLabel": "Configurações do campo",
-        "choicesHint": "Uma opção por linha no formato valor|Rótulo.",
-        "cloneSource": "Grupo ou campo de origem",
-        "cloneSourceHint": "Chave do grupo ou nome do campo de onde copiar os campos.",
-        "requiredOn": "Obrigatório",
-        "requiredOff": "Não obrigatório",
-        "libraryAll": "Toda a biblioteca",
-        "libraryUploaded": "Enviados neste conteúdo",
-        "ui": "UI aprimorada",
-        "uiHint": "Usa estilo aprimorado para o dropdown.",
-        "wrapperClass": "Classe do wrapper",
-        "wrapperWidthHint": "Largura CSS do wrapper do campo, ex.: 50%.",
-        "collapsedHint": "Nome do subcampo usado como título da linha.",
-        "conditionalActive": "Ativa",
-        "showIf": "Mostrar se",
-        "removeRule": "Remover regra",
-        "and": "E",
-        "or": "OU",
-        "noLayouts": "Nenhum layout ainda.",
-        "validation": "Validação",
-        "advanced": "Avançado",
-        "fieldType": "Tipo",
-        "fieldNameHint": "Apenas letras, números e sublinhados.",
-        "ariaLabel": "Configurações do campo",
-        "choicesHint": "Uma opção por linha no formato valor|Rótulo.",
-        "cloneSource": "Grupo ou campo de origem",
-        "cloneSourceHint": "Chave do grupo ou nome do campo de onde copiar os campos.",
-        "requiredOn": "Obrigatório",
-        "requiredOff": "Não obrigatório",
-        "libraryAll": "Toda a biblioteca",
-        "libraryUploaded": "Enviados neste conteúdo",
-        "ui": "UI aprimorada",
-        "uiHint": "Usa estilo aprimorado para o dropdown.",
-        "wrapperClass": "Classe do wrapper",
-        "wrapperWidthHint": "Largura CSS do wrapper do campo, ex.: 50%.",
-        "collapsedHint": "Nome do subcampo usado como título da linha.",
-        "conditionalActive": "Ativa",
-        "showIf": "Mostrar se",
-        "removeRule": "Remover regra",
-        "and": "E",
-        "or": "OU",
-        "noLayouts": "Nenhum layout ainda.",
-        "validation": "Validação",
-        "advanced": "Avançado",
-        "fieldType": "Tipo",
-        "fieldNameHint": "Apenas letras, números e sublinhados.",
-        "ariaLabel": "Configurações do campo",
-        "choicesHint": "Uma opção por linha no formato valor|Rótulo.",
-        "cloneSource": "Grupo ou campo de origem",
-        "cloneSourceHint": "Chave do grupo ou nome do campo de onde copiar os campos.",
-        "requiredOn": "Obrigatório",
-        "requiredOff": "Não obrigatório",
-        "libraryAll": "Toda a biblioteca",
-        "libraryUploaded": "Enviados neste conteúdo",
-        "ui": "UI aprimorada",
-        "uiHint": "Usa estilo aprimorado para o dropdown.",
-        "wrapperClass": "Classe do wrapper",
-        "wrapperWidthHint": "Largura CSS do wrapper do campo, ex.: 50%.",
-        "collapsedHint": "Nome do subcampo usado como título da linha.",
-        "conditionalActive": "Ativa",
-        "showIf": "Mostrar se",
-        "removeRule": "Remover regra",
-        "and": "E",
-        "or": "OU",
-        "noLayouts": "Nenhum layout ainda.",
-        "validation": "Validação",
-        "advanced": "Avançado",
-        "fieldType": "Tipo",
-        "fieldNameHint": "Apenas letras, números e sublinhados.",
-        "ariaLabel": "Configurações do campo",
-        "operators": { "eq": "é igual a", "neq": "não é igual a", "gt": "é maior que", "lt": "é menor que", "contains": "contém", "hasAny": "tem algum valor", "hasNone": "está vazio" }
+        "operators": {
+          "eq": "é igual a",
+          "neq": "não é igual a",
+          "gt": "é maior que",
+          "lt": "é menor que",
+          "contains": "contém",
+          "hasAny": "tem algum valor",
+          "hasNone": "está vazio"
+        }
       },
       "actions": {
         "delete": "Excluir",
         "confirmDelete": "Excluir este grupo de campos?",
-        "edit": "Editar",
-        "duplicate": "Duplicar",
-        "activate": "Ativar",
-        "deactivate": "Desativar",
-        "edit": "Editar",
-        "duplicate": "Duplicar",
-        "activate": "Ativar",
-        "deactivate": "Desativar",
         "edit": "Editar",
         "duplicate": "Duplicar",
         "activate": "Ativar",
@@ -810,25 +705,63 @@
   },
   "resources": {
     "title": "Recursos de conteúdo",
-    "description": "Gerencie categorias, tags, menus e termos de taxonomias.",
-    "tabs": { "category": "Categorias", "tag": "Tags", "menu": "Menus" },
+    "description": "Descrição",
+    "tabs": {
+      "category": "Categorias",
+      "tag": "Tags",
+      "menu": "Menus"
+    },
     "new": "Novo recurso",
     "name": "Nome",
     "slug": "Slug",
-    "description": "Descrição",
     "items": "Itens do menu (JSON)",
     "saved": "Recurso salvo.",
     "confirmDelete": "Excluir este recurso?",
-    "form": { "new": "Criar recurso", "edit": "Editar recurso" },
-    "terms": { "title": "Termos de taxonomia", "choose": "Escolha uma taxonomia", "new": "Novo termo" }
+    "form": {
+      "new": "Criar recurso",
+      "edit": "Editar recurso"
+    },
+    "terms": {
+      "title": "Termos de taxonomia",
+      "choose": "Escolha uma taxonomia",
+      "new": "Novo termo"
+    }
   },
   "access": {
     "title": "Acesso",
     "description": "Gerencie papéis, permissões e tenants.",
     "roles": "Papéis",
     "tenants": "Tenants",
-    "permissions": "Permissões (separadas por vírgula)",
-    "domain": "Domínio"
+    "permissions": "Permissões",
+    "domain": "Domínio",
+    "permissionsPlaceholder": "Nenhuma permissão selecionada",
+    "permissionsSummary": "{resources} recursos · {count} permissões",
+    "permissionSearch": "Filtrar recursos…",
+    "permissionNoMatches": "Nenhum recurso corresponde.",
+    "customPermissions": "Permissões personalizadas",
+    "customPermission": "ação:recurso",
+    "permissionsSelected": "{count} selecionadas",
+    "newRole": "Novo papel",
+    "editRole": "Editar papel",
+    "newTenant": "Novo tenant",
+    "editTenant": "Editar tenant",
+    "resources": {
+      "content": "Conteúdo",
+      "media": "Mídia",
+      "category": "Categorias",
+      "tag": "Tags",
+      "menu": "Menus",
+      "user": "Usuários",
+      "roles": "Papéis",
+      "theme": "Temas",
+      "plugin": "Plugins",
+      "setting": "Configurações",
+      "webhook": "Webhooks",
+      "tenants": "Tenants",
+      "audit": "Auditoria",
+      "build": "Builds",
+      "system": "Sistema"
+    }
   },
   "logs": {
     "title": "Logs",
@@ -843,7 +776,14 @@
     "loading": "Carregando logs…",
     "empty": "Nenhuma ação registrada ainda.",
     "system": "Sistema",
-    "columns": { "date": "Data", "action": "Ação", "resource": "Recurso", "user": "Usuário", "status": "Status", "ip": "IP" }
+    "columns": {
+      "date": "Data",
+      "action": "Ação",
+      "resource": "Recurso",
+      "user": "Usuário",
+      "status": "Status",
+      "ip": "IP"
+    }
   },
   "webhooks": {
     "title": "Webhooks",
@@ -870,14 +810,33 @@
     "keepExisting": "Deixe em branco para manter o valor atual",
     "loading": "Carregando webhooks…",
     "empty": "Nenhum webhook configurado.",
-    "auth": { "none": "Nenhuma", "bearer": "Token Bearer", "basic": "Autenticação básica", "apiKey": "API key", "hmac_sha256": "HMAC SHA-256" }
+    "auth": {
+      "none": "Nenhuma",
+      "bearer": "Token Bearer",
+      "basic": "Autenticação básica",
+      "apiKey": "API key",
+      "hmac_sha256": "HMAC SHA-256"
+    }
   },
   "plugins": {
     "title": "Plugins",
     "description": "Gerencie os plugins instalados.",
     "directoryHint": "Detectados automaticamente no diretório plugins/ do projeto. Use a CLI ou o deploy para adicionar extensões.",
-    "columns": { "name": "Nome", "version": "Versão", "status": "Status", "enabled": "Ativo no tenant", "actions": "Ações" },
-    "status": { "active": "Ativo", "installed": "Instalado", "inactive": "Inativo", "quarantined": "Em quarentena", "missing": "Ausente", "loadFailed": "Falha ao carregar" },
+    "columns": {
+      "name": "Nome",
+      "version": "Versão",
+      "status": "Status",
+      "enabled": "Ativo no tenant",
+      "actions": "Ações"
+    },
+    "status": {
+      "active": "Ativo",
+      "installed": "Instalado",
+      "inactive": "Inativo",
+      "quarantined": "Em quarentena",
+      "missing": "Ausente",
+      "loadFailed": "Falha ao carregar"
+    },
     "activate": "Ativar",
     "deactivate": "Desativar",
     "install": "Instalar plugin",
@@ -905,7 +864,11 @@
     "directoryHint": "Detectados automaticamente no diretório themes/ do projeto. Use a CLI ou o deploy para adicionar temas.",
     "version": "Versão",
     "active": "Ativo",
-    "status": { "active": "Ativo", "installed": "Instalado", "inactive": "Inativo" },
+    "status": {
+      "active": "Ativo",
+      "installed": "Instalado",
+      "inactive": "Inativo"
+    },
     "activate": "Ativar",
     "deactivate": "Desativar",
     "install": "Instalar tema",
@@ -984,7 +947,8 @@
     },
     "language": "Idioma",
     "refresh": "Atualizar",
-    "actions": "Ações"
+    "actions": "Ações",
+    "add": "Adicionar"
   },
   "activity": {
     "justNow": "agora mesmo",

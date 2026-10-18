@@ -15,6 +15,7 @@
 
 import { For, Show, createEffect, createMemo, createSignal, onCleanup, onMount } from 'solid-js';
 import { icons } from 'lucide';
+import { FloatingPanel } from '../../ui/FloatingPanel';
 
 export interface IconPickerProps {
   /** Nome kebab-case salvo (ex.: "shopping-bag"). */
@@ -103,6 +104,7 @@ export function IconPicker(props: IconPickerProps) {
   const [scrollTop, setScrollTop] = createSignal(0);
   const [cols, setCols] = createSignal(6); // 6 até o ResizeObserver medir de verdade
   const [gridEl, setGridEl] = createSignal<HTMLDivElement | undefined>(undefined);
+  const [trigger, setTrigger] = createSignal<HTMLButtonElement | undefined>(undefined);
 
   let root: HTMLDivElement | undefined;
   let scroller: HTMLDivElement | undefined;
@@ -236,20 +238,9 @@ export function IconPicker(props: IconPickerProps) {
       });
     }
     measure(gridEl());
-
-    const closeOnOutside = (event: MouseEvent): void => {
-      if (root && !root.contains(event.target as Node)) setOpen(false);
-    };
-    const closeOnEscape = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('mousedown', closeOnOutside);
-    document.addEventListener('keydown', closeOnEscape);
-    onCleanup(() => {
-      document.removeEventListener('mousedown', closeOnOutside);
-      document.removeEventListener('keydown', closeOnEscape);
-      observer?.disconnect();
-    });
+    // Fechar por clique fora / Escape fica com o FloatingPanel (o painel mora
+    // num portal, fora de `root`).
+    onCleanup(() => observer?.disconnect());
   });
 
   // Mede o grid assim que o painel abre (e reobserva, pois o nó é novo).
@@ -288,6 +279,7 @@ export function IconPicker(props: IconPickerProps) {
         class="input icon-picker__trigger"
         aria-haspopup="dialog"
         aria-expanded={open()}
+        ref={setTrigger}
         onClick={() => setOpen(!open())}
       >
         <span class="icon-picker__value">
@@ -297,8 +289,16 @@ export function IconPicker(props: IconPickerProps) {
         <span class="icon-picker__caret" aria-hidden="true">{open() ? '▴' : '▾'}</span>
       </button>
 
-      <Show when={open()}>
-        <div class="icon-picker__panel" role="dialog" aria-label={props.label} onKeyDown={onPanelKeyDown}>
+      <FloatingPanel
+        open={open()}
+        trigger={trigger()}
+        onClose={() => setOpen(false)}
+        class="icon-picker__panel"
+        role="dialog"
+        aria-label={props.label}
+        minWidth={360}
+        onKeyDown={onPanelKeyDown}
+      >
           <input
             type="search"
             class="input icon-picker__search"
@@ -355,8 +355,7 @@ export function IconPicker(props: IconPickerProps) {
           <Show when={props.countLabel && filtered().length > 0}>
             <p class="icon-picker__count">{props.countLabel?.(filtered().length)}</p>
           </Show>
-        </div>
-      </Show>
+      </FloatingPanel>
     </div>
   );
 }

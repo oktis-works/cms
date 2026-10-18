@@ -288,25 +288,29 @@ const settingsChildren = [
         row.append(typeLink);
 
         const attached = taxonomies.filter((taxonomy) => taxonomy.attachTo?.includes(type.slug));
-        if (attached.length > 0) {
-          const taxonomyToggle = document.createElement('button');
-          taxonomyToggle.className = 'nav-taxonomy-toggle';
-          taxonomyToggle.type = 'button';
-          taxonomyToggle.textContent = '⌄';
-          taxonomyToggle.setAttribute('aria-label', `Toggle ${type.pluralLabel || type.name} taxonomies`);
-          row.append(taxonomyToggle);
-          entry.append(row);
+        entry.append(row);
 
+        if (attached.length > 0) {
           const taxonomyMenu = document.createElement('div');
           taxonomyMenu.className = 'nav-taxonomy-menu';
           const shouldOpen = currentParams.get('type') === type.slug || window.location.pathname.startsWith(`/content/${type.slug}`);
-          taxonomyMenu.classList.toggle('open', shouldOpen);
-          taxonomyToggle.setAttribute('aria-expanded', String(shouldOpen));
-          taxonomyToggle.addEventListener('click', () => {
-            const open = !taxonomyMenu.classList.contains('open');
+
+          // Sem botão separado: a seta é decorativa DENTRO do link. Clicar no
+          // link navega para o content type E abre o dropdown das taxonomias ao
+          // mesmo tempo (a navegação é MPA, então o estado já reabre correto).
+          const caret = document.createElement('span');
+          caret.className = 'nav-type-caret';
+          caret.setAttribute('aria-hidden', 'true');
+          caret.textContent = '▾';
+          typeLink.classList.add('has-taxonomies');
+          typeLink.append(caret);
+
+          const setMenuOpen = (open: boolean): void => {
             taxonomyMenu.classList.toggle('open', open);
-            taxonomyToggle.setAttribute('aria-expanded', String(open));
-          });
+            typeLink.classList.toggle('is-expanded', open);
+          };
+          setMenuOpen(shouldOpen);
+          typeLink.addEventListener('click', () => setMenuOpen(true));
 
           for (const taxonomy of attached) {
             const label = taxonomy.labels?.['plural_name'] ?? taxonomy.labels?.['name'] ?? taxonomy.name;
@@ -323,8 +327,6 @@ const settingsChildren = [
             taxonomyMenu.append(taxonomyLink);
           }
           entry.append(taxonomyMenu);
-        } else {
-          entry.append(row);
         }
 
         target.append(entry);
@@ -336,6 +338,15 @@ const settingsChildren = [
   };
 
   setupNavGroups();
+
+  // Link "Settings" navega E abre o dropdown do grupo ao mesmo tempo —
+  // sem seta separada (mesmo padrão dos content types com taxonomias).
+  {
+    const settingsGroup = document.querySelector<HTMLElement>('[data-nav-group="settings"]');
+    const settingsLink = settingsGroup?.querySelector<HTMLAnchorElement>(':scope > .nav-group-header a.nav-item');
+    settingsLink?.addEventListener('click', () => settingsGroup?.classList.add('open'));
+  }
+
   createIcons({ icons });
   void renderContentTypes();
   window.addEventListener('okcms:content-models-changed', () => void renderContentTypes());
@@ -416,7 +427,8 @@ const settingsChildren = [
 
   body.sidebar-collapsed .sidebar-nav .nav-item span,
   body.sidebar-collapsed .nav-submenu,
-  body.sidebar-collapsed .nav-group-toggle {
+  body.sidebar-collapsed .nav-group-toggle,
+  body.sidebar-collapsed .nav-type-caret {
     display: none;
   }
 
@@ -510,8 +522,7 @@ const settingsChildren = [
 
   .nav-group:not(.open) > .nav-submenu { display: none; }
 
-  .nav-group-toggle,
-  .nav-taxonomy-toggle {
+  .nav-group-toggle {
     border: 0;
     background: transparent;
     color: rgba(255,255,255,0.62);
@@ -522,11 +533,25 @@ const settingsChildren = [
     border-radius: var(--radius-sm);
   }
 
-  .nav-group-toggle:hover,
-  .nav-taxonomy-toggle:hover {
+  .nav-group-toggle:hover {
     background: rgba(255,255,255,0.1);
     color: #fff;
   }
+
+  /* Seta decorativa dentro do link de content type com taxonomias: clicar
+     navega e abre o dropdown ao mesmo tempo (não é mais um botão separado). */
+  .nav-type-caret {
+    margin-left: auto;
+    padding-left: 0.35rem;
+    font-size: 0.7rem;
+    line-height: 1;
+    opacity: 0.65;
+    transform: rotate(0deg);
+    transition: transform 0.15s ease;
+    flex-shrink: 0;
+  }
+
+  .nav-type-link.is-expanded .nav-type-caret { transform: rotate(180deg); }
 
   .nav-type-row {
     display: flex;

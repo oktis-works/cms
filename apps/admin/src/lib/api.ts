@@ -173,7 +173,8 @@ export interface Role {
   name: string;
   slug: string;
   is_system?: boolean;
-  permissions?: unknown[];
+  /** Strings `ação:recurso` (ex.: `read:content`) — vocabulário da API. */
+  permissions?: string[];
   created_at?: string;
 }
 
