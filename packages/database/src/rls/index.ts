@@ -56,4 +56,6 @@ export async function enableRLS(): Promise<void> {
   await sql`ALTER TABLE migrations ENABLE ROW LEVEL SECURITY`;
   await sql`ALTER TABLE sessions ENABLE ROW LEVEL SECURITY`;
   await sql`ALTER TABLE webhooks ENABLE ROW LEVEL SECURITY`;
+  await sql`ALTER TABLE api_keys ENABLE ROW LEVEL SECURITY`;
+  await sql`ALTER TABLE api_keys FORCE ROW LEVEL SECURITY`;
 }

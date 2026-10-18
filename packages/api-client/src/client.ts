@@ -30,6 +30,8 @@ import type {
   CreateMenuRequest,
   UpdateSettingRequest,
   CreateDeploymentRequest,
+  ApiKey,
+  ApiKeyCreated,
 } from '@oktis-works/types';
 
 export interface OkCMSClientOptions {
@@ -93,6 +95,32 @@ export class OkCMSClient {
     const res = await this.request<LoginResponse>('POST', '/api/v1/auth/login', { email, password, tenantId });
     this.setTokens(res.accessToken, res.refreshToken);
     return res;
+  }
+
+  /**
+   * Troca uma API key (formato okcms_<prefix>_<secret>) por access JWT +
+   * refresh token. A key é usada somente aqui — depois disso o client opera
+   * com Bearer e auto-refresh, como no login por e-mail/senha.
+   */
+  async loginWithApiKey(apiKey: string): Promise<LoginResponse> {
+    const res = await this.request<LoginResponse>('POST', '/api/v1/auth/api-key-login', { apiKey });
+    this.setTokens(res.accessToken, res.refreshToken);
+    return res;
+  }
+
+  // ---------------------------------------------------------- API keys ---
+  async listApiKeys(): Promise<ApiKey[]> {
+    return this.request<ApiKey[]>('GET', '/api/v1/api-keys');
+  }
+
+  /** Cria uma key — `plaintext` vem só nesta resposta; guarde antes de sair. */
+  async createApiKey(data: { name: string; userId?: string; oneTime?: boolean; expiresAt?: string }): Promise<ApiKeyCreated> {
+    return this.request<ApiKeyCreated>('POST', '/api/v1/api-keys', data);
+  }
+
+  /** Revogação lógica: a key deixa de ser aceita no login imediatamente. */
+  async revokeApiKey(id: string): Promise<void> {
+    await this.request('DELETE', `/api/v1/api-keys/${id}`);
   }
 
   async register(email: string, password: string, name: string): Promise<UserResponse> {

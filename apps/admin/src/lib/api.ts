@@ -560,7 +560,10 @@ export class ApiClient {
       const hasBody = options?.bodyInit !== undefined || body !== undefined;
       // Sem corpo não há o que serializar — e enviar Content-Type: json em GET
       // forçava um preflight CORS por requisição no modo cross-origin.
-      if (hasBody) requestHeaders['Content-Type'] = 'application/json';
+      // bodyInit (FormData no upload de mídia) NÃO recebe o header: o fetch
+      // precisa gerar o multipart boundary sozinho — forçar application/json
+      // fazia a API cair no branch JSON e responder 400.
+      if (hasBody && options?.bodyInit === undefined) requestHeaders['Content-Type'] = 'application/json';
 
       if (!['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase())) {
         const csrf = await this.ensureCsrfToken();
@@ -905,6 +908,20 @@ export class ApiClient {
 
   async deleteWebhook(id: string): Promise<void> {
     await this.request('DELETE', `/api/v1/webhooks/${id}`);
+  }
+
+  // API keys (login via API para clientes externos)
+  async getApiKeys(): Promise<ApiKey[]> {
+    return this.request('GET', '/api/v1/api-keys');
+  }
+
+  /** A resposta traz `plaintext` — único momento em que o valor claro existe. */
+  async createApiKey(data: { name: string; userId?: string; oneTime?: boolean; expiresAt?: string }): Promise<ApiKeyCreated> {
+    return this.request('POST', '/api/v1/api-keys', data);
+  }
+
+  async deleteApiKey(id: string): Promise<void> {
+    await this.request('DELETE', `/api/v1/api-keys/${id}`);
   }
 
   // Media (upload real: multipart → disco → URL pública)
@@ -1257,6 +1274,26 @@ export interface Webhook {
 export interface WebhookEventOption {
   value: string;
   label: string;
+}
+
+export interface ApiKey {
+  id?: string;
+  tenant_id?: string;
+  user_id?: string;
+  name: string;
+  key_prefix?: string;
+  one_time?: boolean;
+  expires_at?: string | null;
+  last_used_at?: string | null;
+  use_count?: number;
+  revoked_at?: string | null;
+  created_by?: string | null;
+  created_at?: string;
+}
+
+export interface ApiKeyCreated extends ApiKey {
+  /** Valor completo — guarde agora; a API nunca mais o devolve. */
+  plaintext: string;
 }
 
 export interface FieldGroupSummary {

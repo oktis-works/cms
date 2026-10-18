@@ -569,6 +569,31 @@ CREATE INDEX IF NOT EXISTS idx_sessions_refresh_hash ON sessions(refresh_token_h
 CREATE INDEX IF NOT EXISTS idx_sessions_refresh_family ON sessions(refresh_family_id);
 
 -- ============================================================
+-- API Keys (login via API para clientes API-first)
+-- A key NUNCA autoriza requests: troca por access JWT + refresh token em
+-- POST /api/v1/auth/api-key-login. Guardamos só o hash sha256.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS api_keys (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  key_prefix VARCHAR(32) NOT NULL,
+  key_hash VARCHAR(128) NOT NULL,
+  one_time BOOLEAN NOT NULL DEFAULT false,
+  expires_at TIMESTAMP WITH TIME ZONE,
+  last_used_at TIMESTAMP WITH TIME ZONE,
+  use_count INTEGER NOT NULL DEFAULT 0,
+  revoked_at TIMESTAMP WITH TIME ZONE,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_api_keys_prefix ON api_keys(tenant_id, key_prefix);
+CREATE INDEX IF NOT EXISTS idx_api_keys_tenant ON api_keys(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_api_keys_user ON api_keys(user_id);
+
+-- ============================================================
 -- Custom Taxonomies (SDD ENTI-025)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS taxonomies (
@@ -978,6 +1003,36 @@ BEGIN
     WHERE policyname = 'tenant_isolation_webhooks' AND tablename = 'webhooks'
   ) THEN
     CREATE POLICY tenant_isolation_webhooks ON webhooks USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+  END IF;
+END $$;
+
+-- Lookup da API key acontece ANTES do contexto de tenant do access token
+-- existir (é o próprio login). O app seta este hash transacional somente na
+-- operação de auth, então o RLS ainda permite exatamente UM lookup por
+-- prefixo sem expor a tabela a requisições de outro tenant.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE policyname = 'api_key_prefix_lookup' AND tablename = 'api_keys'
+  ) THEN
+    CREATE POLICY api_key_prefix_lookup ON api_keys
+      USING (
+        key_prefix = NULLIF(current_setting('app.current_api_key_prefix', true), '')
+      )
+      WITH CHECK (
+        tenant_id = current_setting('app.current_tenant_id', true)::uuid
+      );
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE policyname = 'tenant_isolation_api_keys' AND tablename = 'api_keys'
+  ) THEN
+    CREATE POLICY tenant_isolation_api_keys ON api_keys USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
   END IF;
 END $$;
 

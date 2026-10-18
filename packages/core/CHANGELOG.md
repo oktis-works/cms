@@ -1,5 +1,15 @@
 # @oktis-works/core
 
+## 0.5.14
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/types@0.6.0
+  - @oktis-works/database@0.6.0
+  - @oktis-works/config@0.6.1
+  - @oktis-works/plugin-runtime@0.5.9
+
 ## 0.5.13
 
 ### Patch Changes

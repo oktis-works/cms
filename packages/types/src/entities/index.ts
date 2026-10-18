@@ -495,6 +495,38 @@ export interface WebhookAuthConfig {
 }
 
 // ============================================================
+// ApiKey
+// ============================================================
+
+/**
+ * Credencial de login para clientes API-first. A key NUNCA autoriza requests:
+ * é trocada por access JWT + refresh token em POST /api/v1/auth/api-key-login.
+ * O valor claro existe apenas na criação (campo `plaintext` da resposta).
+ */
+export interface ApiKey {
+  id: UUID;
+  tenantId: UUID;
+  /** Identidade que o login via key assume. */
+  userId: UUID;
+  name: string;
+  /** Trecho em claro usado para localizar a row (não é segredo). */
+  keyPrefix: string;
+  /** Revoga a key após o primeiro uso no login. */
+  oneTime: boolean;
+  expiresAt?: Date | null;
+  lastUsedAt?: Date | null;
+  useCount: number;
+  revokedAt?: Date | null;
+  createdBy?: UUID | null;
+  createdAt: Date;
+}
+
+/** Resposta do POST /api-keys — única vez que o valor claro aparece. */
+export interface ApiKeyCreated extends ApiKey {
+  plaintext: string;
+}
+
+// ============================================================
 // ContentType
 // ============================================================
 

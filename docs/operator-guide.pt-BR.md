@@ -197,6 +197,39 @@ npx okcms db:migrate
 npx okcms stop && npx okcms start
 ```
 
+## API keys (clientes API-first)
+
+Aplicações externas autenticam em dois passos: trocam uma **API key** por
+JWTs e depois usam o ciclo normal de Bearer + refresh. A key em si nunca
+aparece em headers `Authorization`.
+
+```bash
+# 1. emitir a key (admin: Settings → API keys, ou com token de sessão)
+curl -X POST http://localhost:3000/api/v1/api-keys \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"name":"backend-mobile","oneTime":true}'
+# → 201 { ..., "plaintext": "okcms_<prefix>_<secret>" }   ← copie agora, exibida uma única vez
+
+# 2. trocá-la uma vez por JWTs
+curl -X POST http://localhost:3000/api/v1/auth/api-key-login \
+  -H 'Content-Type: application/json' \
+  -d '{"apiKey":"okcms_<prefix>_<secret>"}'
+# → 200 { accessToken, refreshToken, user, tenantId }
+
+# 3. a partir daí: fluxo API-first normal
+curl http://localhost:3000/api/v1/content -H "Authorization: Bearer $ACCESS"
+```
+
+- Só o hash SHA-256 é persistido (`api_keys.key_hash`); o prefixo fica em
+  claro apenas para localizar a row.
+- Keys `oneTime` são revogadas automaticamente após o primeiro login bem-
+  sucedido; `expiresAt` define data de expiração. `DELETE /api/v1/api-keys/:id`
+  revoga imediatamente.
+- Tentativas falhas são limitadas por prefixo de key (além do limite por IP) —
+  um 429 traz `Retry-After`.
+- A identidade da key (`userId`) e seus papéis vêm do vínculo ativo do usuário
+  no tenant (`tenant_users`), exatamente como no login por senha.
+
 ## Atualização
 
 ```bash

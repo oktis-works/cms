@@ -86,6 +86,10 @@ describe('media upload', () => {
     expect(c[0]).toContain('/api/v1/media/upload');
     expect(c[1].body).toBeInstanceOf(FormData);
     expect(c[1].credentials).toBe('include');
+    // Regressão: forçar application/json no FormData fazia a API cair no
+    // branch JSON e responder 400 — o fetch precisa gerar o boundary.
+    const sentHeaders = c[1].headers as Record<string, string> | undefined;
+    expect(sentHeaders?.['Content-Type']).toBeUndefined();
   });
 
   it('listMedia/updateMedia/deleteMedia batem nos endpoints certos', async () => {

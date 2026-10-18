@@ -22,6 +22,7 @@ const RESOURCES = [
   ['themes', 'Temas — ciclo de vida'],
   ['builds', 'Builds (imagens Docker)'],
   ['webhooks', 'Webhooks assináveis'],
+  ['api-keys', 'API keys (login via API para clientes externos)'],
   ['content-types', 'Content Types'],
   ['taxonomies', 'Taxonomias'],
   ['field-groups', 'Field Groups + location rules'],
@@ -45,6 +46,32 @@ function buildOpenApiDocument(origin: string): Record<string, unknown> {
         summary: 'Catálogo de hooks gerado a partir do registry',
         tags: ['meta'],
         responses: { '200': { description: 'Lista de hooks conhecidos e registrados' } },
+      },
+    },
+    '/api/v1/auth/api-key-login': {
+      post: {
+        summary: 'Troca uma API key por access JWT + refresh token',
+        description:
+          'A API key é usada somente aqui; depois disso o cliente opera com Authorization: Bearer e POST /api/v1/auth/refresh. Keys single-use são revogadas após o primeiro uso.',
+        tags: ['auth'],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['apiKey'],
+                properties: { apiKey: { type: 'string', description: 'Valor completo no formato okcms_<prefix>_<secret>' } },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': { description: 'Tokens no body (clientes sem Origin) ou em cookies HttpOnly (browser)' },
+          '400': { description: 'Body sem apiKey' },
+          '401': { description: 'Key inválida, expirada ou revogada' },
+          '429': { description: 'Rate limit de credenciais excedido (Retry-After)' },
+        },
       },
     },
   };

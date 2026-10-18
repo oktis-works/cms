@@ -101,7 +101,11 @@ export async function csrfMiddleware(c: Context, next: Next): Promise<Response |
   // Login ainda não possui sessão para emitir um token CSRF. A validação
   // estrita de Origin protege contra login-CSRF; as demais mutações exigem o
   // par cookie + header abaixo.
-  if (c.req.path === '/api/v1/auth/login' || c.req.path === '/api/v1/auth/register') {
+  if (
+    c.req.path === '/api/v1/auth/login' ||
+    c.req.path === '/api/v1/auth/register' ||
+    c.req.path === '/api/v1/auth/api-key-login'
+  ) {
     if (!isSameOrigin(c)) {
       return c.json(
         { error: 'CSRF_TOKEN_INVALID', message: 'CSRF validation failed.' },

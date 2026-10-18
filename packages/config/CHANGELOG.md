@@ -1,5 +1,12 @@
 # @oktis-works/config
 
+## 0.6.1
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/types@0.6.0
+
 ## 0.6.0
 
 ### Minor Changes

@@ -444,8 +444,26 @@ Edite com o wizard: `okcms config`.
 ### Authentication
 - `POST /api/v1/auth/register` - Register user
 - `POST /api/v1/auth/login` - Login
+- `POST /api/v1/auth/api-key-login` - Troca uma API key por access + refresh JWT (veja abaixo)
 - `POST /api/v1/auth/refresh` - Refresh token
 - `POST /api/v1/auth/logout` - Logout
+
+### API Keys (clientes API-first)
+- `GET /api/v1/api-keys` - Lista as keys emitidas (requer `read:apikey`)
+- `POST /api/v1/api-keys` - Emite uma key (requer `create:apikey`) — o valor claro é retornado **uma única vez**
+- `DELETE /api/v1/api-keys/:id` - Revoga uma key (requer `delete:apikey`)
+
+A key nunca autoriza requests diretamente. Use-a uma vez para obter os JWTs:
+
+```bash
+curl -X POST http://localhost:3000/api/v1/auth/api-key-login \
+  -H 'Content-Type: application/json' \
+  -d '{"apiKey":"okcms_<prefix>_<secret>"}'
+# → { accessToken, refreshToken, user, tenantId }
+# depois use Authorization: Bearer <accessToken> e POST /api/v1/auth/refresh
+```
+
+Keys podem ser de uso único (`oneTime`) e/ou expirar em data definida. Apenas o hash SHA-256 é persistido; gerencie as keys no admin em **Settings → API keys**.
 
 ### Content
 - `GET /api/v1/content` - List content

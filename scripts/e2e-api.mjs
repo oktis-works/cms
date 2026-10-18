@@ -294,6 +294,56 @@ async function main() {
   const viaClient = await client.publishContent(content.id);
   expect(viaClient.content?.status === 'PUBLISHED', 'api-client publish híbrido (Bearer + cookies)');
 
+  // ---------- API KEYS: emitir → login → Bearer → refresh → revogar ----------
+  const apiKeyRes = await fetch(`${API}/api/v1/api-keys`, {
+    method: 'POST',
+    headers: bearer,
+    body: JSON.stringify({ name: 'E2E API key', userId: registerBody.user?.id }),
+  });
+  expect(apiKeyRes.status === 201, 'POST /api/v1/api-keys → 201');
+  const apiKeyBody = await apiKeyRes.json();
+  expect(typeof apiKeyBody.plaintext === 'string' && apiKeyBody.plaintext.startsWith('okcms_'),
+    'criação devolve o valor claro UMA vez (okcms_<prefix>_<secret>)');
+  expect(!JSON.stringify(apiKeyBody).includes(apiKeyBody.key_hash ?? 'never'),
+    'resposta não expõe key_hash');
+
+  const listedKeys = await (await fetch(`${API}/api/v1/api-keys`, { headers: bearer })).json();
+  expect(listedKeys.some((k) => k.id === apiKeyBody.id && !('plaintext' in k)),
+    'GET /api/v1/api-keys não devolve valor claro nem hash');
+
+  // Login via API key: sem Origin/Sec-Fetch → tokens no body.
+  const keyLoginRes = await fetch(`${API}/api/v1/auth/api-key-login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ apiKey: apiKeyBody.plaintext }),
+  });
+  const keyLoginBody = await keyLoginRes.json();
+  expect(keyLoginRes.status === 200 && !!keyLoginBody.accessToken,
+    'api-key-login troca a key por access JWT');
+  const keyBearer = { Authorization: `Bearer ${keyLoginBody.accessToken}`, 'Content-Type': 'application/json' };
+
+  const contentViaKey = await fetch(`${API}/api/v1/content/${content.id}`, { headers: keyBearer });
+  expect(contentViaKey.status === 200, 'Bearer obtido via API key acessa a content API');
+
+  // Refresh híbrido também funciona com o refresh token vindo da key-login.
+  const keyRefresh = await fetch(`${API}/api/v1/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken: keyLoginBody.refreshToken }),
+  });
+  expect(keyRefresh.status === 200, 'refresh via token emitido no api-key-login');
+
+  // Revogação: a key deixa de ser aceita imediatamente.
+  const revokeRes = await fetch(`${API}/api/v1/api-keys/${apiKeyBody.id}`, { method: 'DELETE', headers: bearer });
+  expect(revokeRes.status === 200, 'DELETE /api/v1/api-keys/:id revoga');
+
+  const keyLoginAfterRevoke = await fetch(`${API}/api/v1/auth/api-key-login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ apiKey: apiKeyBody.plaintext }),
+  });
+  expect(keyLoginAfterRevoke.status === 401, 'key revogada não loga mais (401)');
+
   return finish();
 }
 

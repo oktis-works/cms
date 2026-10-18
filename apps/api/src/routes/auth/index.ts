@@ -218,6 +218,52 @@ authRouter.post('/login', async (c: Context) => {
   }
 });
 
+// POST /auth/api-key-login — troca uma API key por access JWT + refresh token.
+// Clientes API-first: usam a key UMA vez aqui e depois operam com Bearer +
+// /auth/refresh (rotação e reuse-detection herdam de sessions). Um browser
+// também pode chamar (recebe tokens em cookie, como o /login).
+authRouter.post('/api-key-login', async (c: Context) => {
+  try {
+    const body = await c.req.json().catch(() => ({})) as Record<string, unknown>;
+    const apiKey = typeof body['apiKey'] === 'string' ? body['apiKey'].trim() : '';
+
+    if (!apiKey) {
+      return c.json({ error: 'Missing API key' }, 400);
+    }
+
+    const host = c.req.header('host') ?? '';
+    const tenant = await resolveTenantFromHost(host);
+    if (!tenant) {
+      return c.json({ error: 'Tenant not found for this host' }, 404);
+    }
+
+    await establishTenantContext(tenant.id);
+    c.set('tenantId', tenant.id);
+
+    const result = await authService.loginWithApiKey({
+      apiKey,
+      tenantId: tenant.id,
+      ipAddress: c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip'),
+      userAgent: c.req.header('user-agent'),
+    });
+    if (!result) {
+      return c.json({ error: 'Invalid or expired API key' }, 401);
+    }
+
+    const userId = (result.user as { id?: string }).id ?? '';
+    if (!userId) return c.json({ error: 'User ID not found' }, 500);
+    c.set('userId', userId);
+
+    setAuthCookies(c, result.accessToken, result.refreshToken);
+    setCsrfCookie(c);
+
+    return c.json(authResponse(c, result));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'API key login failed';
+    return c.json({ error: message }, 401);
+  }
+});
+
 // POST /auth/refresh — híbrido: refreshToken do cookie (browser) OU body (API-first);
 // retorna tokens no body (clientes externos) E seta cookies (browser)
 authRouter.post('/refresh', async (c: Context) => {

@@ -341,4 +341,24 @@ describe('loginRateLimitMiddleware (brute force)', () => {
     }
     expect((await app.request('/api/v1/auth/login', attempt('qualquer@b.c'))).status).toBe(429);
   });
+
+  it('login via api-key-login usa o balde do prefixo da key (brute force por key)', async () => {
+    const app = buildLoginApp({ loginMax: 2, loginMaxPerIp: 100 });
+    app.post('/api/v1/auth/api-key-login', (c) => c.json({ ok: true }));
+    const attempt = (apiKey: string) => ({
+      method: 'POST' as const,
+      headers: { 'X-Forwarded-For': '203.0.113.6' },
+      body: JSON.stringify({ apiKey }),
+    });
+
+    expect((await app.request('/api/v1/auth/api-key-login', attempt('okcms_aaa111_x'))).status).toBe(200);
+    expect((await app.request('/api/v1/auth/api-key-login', attempt('okcms_aaa111_y'))).status).toBe(200);
+    // Terceira tentativa com o MESMO prefixo estoura o balde loginMax.
+    const blocked = await app.request('/api/v1/auth/api-key-login', attempt('okcms_aaa111_z'));
+    expect(blocked.status).toBe(429);
+    expect(Number(blocked.headers.get('Retry-After'))).toBeGreaterThan(0);
+
+    // Outro prefixo não é pego pelo balde do primeiro.
+    expect((await app.request('/api/v1/auth/api-key-login', attempt('okcms_bbb222_x'))).status).toBe(200);
+  });
 });

@@ -1,5 +1,26 @@
 # @oktis-works/auth
 
+## 0.6.0
+
+### Minor Changes
+
+- API keys for API-first clients. A key is exchanged once at
+  `POST /api/v1/auth/api-key-login` for an access JWT + refresh token (normal
+  Bearer + refresh cycle afterwards with reuse detection); it never authorizes
+  requests directly. Adds `api_keys` (SHA-256 hash only, RLS per tenant,
+  optional single-use/expiry), `GET/POST /api/v1/api-keys`,
+  `DELETE /api/v1/api-keys/:id`, `OkCMSClient.loginWithApiKey`, and an admin
+  screen at Settings → API keys. Rate limited per key prefix on top of the
+  per-IP login bucket.
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/types@0.6.0
+  - @oktis-works/database@0.6.0
+  - @oktis-works/config@0.6.1
+  - @oktis-works/core@0.5.14
+
 ## 0.5.6
 
 ### Patch Changes

@@ -818,6 +818,48 @@
       "hmac_sha256": "HMAC SHA-256"
     }
   },
+  "apiKeys": {
+    "title": "API keys",
+    "description": "Emita credenciais para aplicações externas trocarem uma API key por access e refresh JWT e consumirem a API de conteúdo.",
+    "howItWorks": "A key é usada somente uma vez, em POST /api/v1/auth/api-key-login, para obter JWTs. Ela nunca autoriza requests diretamente.",
+    "listTitle": "Keys emitidas",
+    "new": "Nova API key",
+    "create": "Criar API key",
+    "createSubmit": "Criar key",
+    "prefix": "Prefixo",
+    "lastUsed": "Último uso",
+    "neverUsed": "Nunca usada",
+    "revoke": "Revogar",
+    "revoked": "API key revogada.",
+    "loading": "Carregando API keys…",
+    "empty": "Nenhuma API key emitida.",
+    "status": {
+      "active": "Ativa",
+      "oneTime": "Uso único",
+      "expired": "Expirada",
+      "revoked": "Revogada"
+    },
+    "form": {
+      "name": "Nome",
+      "namePlaceholder": "ex.: Backend do app mobile",
+      "user": "Identidade (usuário)",
+      "currentUser": "Usuário atual",
+      "expiresAt": "Expira em (opcional)",
+      "oneTime": "Uso único (revoga automaticamente após o primeiro login)",
+      "oneTimeHint": "Recomendado para integrações que conseguem trocar a key por JWTs imediatamente."
+    },
+    "errors": {
+      "nameRequired": "O nome é obrigatório."
+    },
+    "created": {
+      "title": "API key criada",
+      "warning": "Copie este valor agora — ele nunca mais será exibido. Se perder, revogue a key e crie outra.",
+      "value": "API key",
+      "howToUse": "Use-a uma vez para obter os JWTs:",
+      "copy": "Copiar",
+      "copied": "Copiado!"
+    }
+  },
   "plugins": {
     "title": "Plugins",
     "description": "Gerencie os plugins instalados.",

@@ -1,0 +1,13 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { ApiKeysManager } from '../../components/apps/settings/ApiKeysManager';
+import { PageHeader } from '../../components/shared/PageHeader';
+const { t } = Astro.locals;
+---
+<DashboardLayout title={t('apiKeys.title')}>
+  <PageHeader
+    title={t('apiKeys.title')}
+    description={t('apiKeys.description')}
+  />
+  <ApiKeysManager client:load />
+</DashboardLayout>

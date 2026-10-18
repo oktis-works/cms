@@ -30,6 +30,7 @@ import pluginsRouter from './routes/plugins/index.js';
 import themesRouter from './routes/themes/index.js';
 import buildsRouter from './routes/builds/index.js';
 import webhooksRouter from './routes/webhooks/index.js';
+import apiKeysRouter from './routes/api-keys/index.js';
 import contentTypesRouter from './routes/content-types/index.js';
 import taxonomiesRouter from './routes/taxonomies/index.js';
 import fieldGroupsRouter from './routes/field-groups/index.js';
@@ -98,6 +99,7 @@ async function main() {
   // e-mail) em vez de esvaziar o orçamento dos clientes legítimos. Depois o
   // limiter global — anônimo por IP real, autenticado por user id da sessão.
   app.use('/api/v1/auth/login', loginRateLimitMiddleware());
+  app.use('/api/v1/auth/api-key-login', loginRateLimitMiddleware());
   app.use('*', rateLimitMiddleware());
 
   app.use('/api/*', csrfMiddleware);
@@ -125,6 +127,7 @@ async function main() {
   app.route('/api/v1/themes', themesRouter);
   app.route('/api/v1/builds', buildsRouter);
   app.route('/api/v1/webhooks', webhooksRouter);
+  app.route('/api/v1/api-keys', apiKeysRouter);
   app.route('/api/v1/content-types', contentTypesRouter);
   app.route('/api/v1/taxonomies', taxonomiesRouter);
   app.route('/api/v1/field-groups', fieldGroupsRouter);
@@ -158,6 +161,7 @@ async function main() {
         themes: '/api/v1/themes',
         builds: '/api/v1/builds',
         webhooks: '/api/v1/webhooks',
+        apiKeys: '/api/v1/api-keys',
         contentTypes: '/api/v1/content-types',
         taxonomies: '/api/v1/taxonomies',
         fieldGroups: '/api/v1/field-groups',

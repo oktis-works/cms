@@ -394,8 +394,14 @@ export function loginRateLimitMiddleware(options: RateLimitOptions = {}) {
     }
 
     const ip = resolveClientIp(c);
-    const body = await c.req.json().catch(() => null) as { email?: unknown } | null;
+    const body = await c.req.json().catch(() => null) as { email?: unknown; apiKey?: unknown } | null;
     const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase().slice(0, 254) : '';
+    // Login via API key (POST /auth/api-key-login) não tem e-mail; o prefixo
+    // (em claro, não é segredo) vira a chave do balde para segurar brute force
+    // de uma key específica além do limite por IP.
+    const apiKeyPrefix = typeof body?.apiKey === 'string'
+      ? (body.apiKey.trim().split('_')[1] ?? '').slice(0, 32)
+      : '';
     const now = Date.now();
 
     const ipKey = `login:ip:${ip}`;
@@ -409,6 +415,13 @@ export function loginRateLimitMiddleware(options: RateLimitOptions = {}) {
       const emailResult = consume(emailKey, 1, windowMs, now);
       if (emailResult.count > loginMax) {
         return rateLimitResponse(c, loginMax, emailResult.resetAt);
+      }
+    }
+
+    if (apiKeyPrefix) {
+      const keyResult = consume(`login:key:${apiKeyPrefix}`, 1, windowMs, now);
+      if (keyResult.count > loginMax) {
+        return rateLimitResponse(c, loginMax, keyResult.resetAt);
       }
     }
 

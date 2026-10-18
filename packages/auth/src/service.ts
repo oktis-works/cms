@@ -8,6 +8,7 @@ import { hashPassword, verifyPassword } from './password/index.js';
 import { JWTService } from './jwt/index.js';
 import { SessionService } from './sessions/index.js';
 import { RBACService } from './rbac/index.js';
+import { ApiKeyService } from './api-keys/index.js';
 
 export interface AuthResult {
   user: User;
@@ -34,6 +35,14 @@ export interface LoginInput {
   userAgent?: string;
 }
 
+export interface ApiKeyLoginInput {
+  apiKey: string;
+  /** UUID real do tenant (resolve o slug antes de chamar). */
+  tenantId: string;
+  ipAddress?: string;
+  userAgent?: string;
+}
+
 /** Remove credenciais de um usuário vindo de SELECT ou RETURNING * (o casing do driver varia). */
 function sanitizeUser(user: User): User {
   const clone = { ...user } as Record<string, unknown>;
@@ -46,6 +55,7 @@ export class AuthService {
   private jwt: JWTService;
   private session: SessionService;
   private rbac: RBACService;
+  private apiKeys: ApiKeyService;
   private config: AuthConfig;
 
   constructor(config: AuthConfig) {
@@ -53,6 +63,7 @@ export class AuthService {
     this.jwt = new JWTService(config);
     this.session = new SessionService();
     this.rbac = new RBACService();
+    this.apiKeys = new ApiKeyService();
   }
 
   async register(input: RegisterInput): Promise<User> {
@@ -165,6 +176,60 @@ export class AuthService {
       [user.id, tenantId]
     );
 
+    const userRoles = roles.map((r: Record<string, unknown>) => r['slug'] as string);
+
+    const accessToken = await this.jwt.generateAccessToken({
+      sub: user.id,
+      email: user.email,
+      tenantId,
+      roles: userRoles,
+    });
+
+    const session = await this.session.create(user.id, tenantId, {
+      ipAddress: input.ipAddress,
+      userAgent: input.userAgent,
+      expiresInSeconds: this.config.cookie.refreshTokenMaxAge ?? 60 * 60 * 24 * 30,
+    });
+
+    await sql.unsafe('UPDATE users SET last_login_at = NOW() WHERE id = $1', [user.id]);
+
+    return {
+      user: sanitizeUser(user),
+      accessToken,
+      refreshToken: session.refreshToken,
+      sessionId: session.id,
+      tenantId,
+    };
+  }
+
+  /**
+   * Troca uma API key por access JWT + refresh token. A key é validada e
+   * consumida (single-use revoga aqui); a partir daí o cliente opera com o
+   * mesmo ciclo de sessão (refresh + reuse-detection) de um login normal.
+   */
+  async loginWithApiKey(input: ApiKeyLoginInput): Promise<AuthResult | null> {
+    const sql = getConnection();
+    const tenantId = await resolveTenantId(input.tenantId);
+    await setTenantContext(tenantId);
+
+    const key = await this.apiKeys.verify(input.apiKey, tenantId);
+    if (!key) return null;
+
+    const users = await sql.unsafe(
+      'SELECT * FROM users WHERE id = $1 AND status = $2',
+      [key.userId, 'ACTIVE']
+    );
+    if (users.length === 0) return null;
+
+    const user = users[0] as unknown as User;
+
+    const roles = await sql.unsafe(
+      `SELECT r.slug
+       FROM roles r
+       JOIN tenant_users tu ON tu.role_id = r.id
+       WHERE tu.user_id = $1 AND tu.tenant_id = $2 AND tu.status = 'ACTIVE'`,
+      [user.id, tenantId]
+    );
     const userRoles = roles.map((r: Record<string, unknown>) => r['slug'] as string);
 
     const accessToken = await this.jwt.generateAccessToken({
