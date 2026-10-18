@@ -1,5 +1,20 @@
 # @oktis-works/api
 
+## 0.11.0
+
+### Minor Changes
+
+- Fix version bump: release 0.15.0 instead of reusing 0.14.0 tag.
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/auth@0.7.0
+  - @oktis-works/types@0.7.0
+  - @oktis-works/database@0.7.0
+  - @oktis-works/config@0.6.2
+  - @oktis-works/core@0.5.15
+
 ## 0.10.0
 
 ### Minor Changes

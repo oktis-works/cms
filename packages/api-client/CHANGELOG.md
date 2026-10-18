@@ -1,5 +1,16 @@
 # @oktis-works/api-client
 
+## 0.7.0
+
+### Minor Changes
+
+- Fix version bump: release 0.15.0 instead of reusing 0.14.0 tag.
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/types@0.7.0
+
 ## 0.6.0
 
 ### Minor Changes

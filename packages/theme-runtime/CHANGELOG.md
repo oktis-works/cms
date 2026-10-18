@@ -1,5 +1,12 @@
 # @oktis-works/theme-runtime
 
+## 0.6.2
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/types@0.7.0
+
 ## 0.6.1
 
 ### Patch Changes

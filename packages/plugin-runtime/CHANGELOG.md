@@ -1,5 +1,13 @@
 # @oktis-works/plugin-runtime
 
+## 0.5.10
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/types@0.7.0
+  - @oktis-works/plugin-sdk@0.5.8
+
 ## 0.5.9
 
 ### Patch Changes
