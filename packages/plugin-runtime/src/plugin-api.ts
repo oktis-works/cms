@@ -6,7 +6,7 @@
 
 import { randomUUID } from 'node:crypto';
 import type { HookRegistryLike } from '@oktis-works/plugin-sdk';
-import type { PluginManifest, PluginFieldTypeManifest, PluginPostTypeDeclaration, PluginTaxonomyDeclaration, PluginBlockManifest, PluginCacheApi, PluginJobsApi, PluginJobHandler, PluginHttpApi, PluginAdminApi, AdminExtensionsState } from '@oktis-works/plugin-sdk';
+import type { PluginManifest, PluginFieldTypeManifest, PluginPostTypeDeclaration, PluginTaxonomyDeclaration, PluginBlockManifest, PluginPatternManifest, PluginCacheApi, PluginJobsApi, PluginJobHandler, PluginHttpApi, PluginAdminApi, AdminExtensionsState } from '@oktis-works/plugin-sdk';
 import { PERMISSIONS, createPluginAdminApi } from '@oktis-works/plugin-sdk';
 import { createHttpApi } from './http.js';
 
@@ -74,6 +74,9 @@ export interface PluginAPI {
 
   /** Registra um bloco do editor (permissão blocks:register). Data plane: sem tabela — vive enquanto o plugin está ativo. */
   registerBlock(block: PluginBlockManifest): void;
+
+  /** Registra um pattern do editor (permissão patterns:register). Data plane: sem tabela — vive enquanto o plugin está ativo. */
+  registerPattern(pattern: PluginPatternManifest): void;
 
   /** Cache/transient por plugin (permissões cache:read/cache:write). */
   readonly cache: PluginCacheApi;
@@ -232,6 +235,7 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
   const registeredPostTypes: Array<PluginPostTypeDeclaration & { pluginName: string }> = [];
   const registeredTaxonomies: Array<PluginTaxonomyDeclaration & { pluginName: string }> = [];
   const registeredBlocks: Array<PluginBlockManifest & { pluginName: string }> = [];
+  const registeredPatterns: Array<PluginPatternManifest & { pluginName: string }> = [];
 
   // ── api.admin (FEAT-098/DECI-027): slots declarativos registrados em
   // runtime; o endpoint /api/v1/plugins/extensions mescla com manifest.admin.
@@ -543,6 +547,26 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
       registeredBlocks.push({ ...block, pluginName: manifest.name });
     },
 
+    registerPattern(pattern: PluginPatternManifest): void {
+      if (!allowedPermissions.includes(PERMISSIONS.PATTERNS_REGISTER)) {
+        throw new Error(`Plugin permission denied: ${PERMISSIONS.PATTERNS_REGISTER}`);
+      }
+      if (!pattern?.name || typeof pattern.name !== 'string') {
+        throw new Error('Pattern "name" is required');
+      }
+      if (!pattern.label || typeof pattern.label !== 'string') {
+        throw new Error('Pattern "label" is required');
+      }
+      if (!pattern.content || typeof pattern.content !== 'string') {
+        throw new Error('Pattern "content" is required');
+      }
+      const existing = registeredPatterns.find((registered) => registered.name === pattern.name);
+      if (existing) {
+        throw new Error(`Pattern name "${pattern.name}" already registered by plugin "${existing.pluginName || 'unknown'}"`);
+      }
+      registeredPatterns.push({ ...pattern, pluginName: manifest.name });
+    },
+
     cache: cacheApi,
     jobs: jobsApi,
     http: httpApi,
@@ -630,6 +654,7 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
       getJobHandlers: () => jobHandlers,
       getAdminState: () => adminApi.state,
       getBlocks: () => registeredBlocks,
+      getPatterns: () => registeredPatterns,
     },
   };
 }
@@ -647,4 +672,6 @@ export interface PluginApiInternal {
   getAdminState: () => AdminExtensionsState;
   /** Blocos do editor registrados em runtime via api.registerBlock. */
   getBlocks: () => Array<PluginBlockManifest & { pluginName: string }>;
+  /** Patterns do editor registrados em runtime via api.registerPattern. */
+  getPatterns: () => Array<PluginPatternManifest & { pluginName: string }>;
 }

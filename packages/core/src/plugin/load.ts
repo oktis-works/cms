@@ -47,7 +47,7 @@ import { getCache } from '../cache/index.js';
 import { queueProducer } from '../queue/producer.js';
 import { getCurrentTenantIdSync, getCurrentUserIdSync, getCurrentRequestIdSync } from '../tenant/context.js';
 import type { RouteDefinition, PluginBootstrapResult, PluginApiDependencies } from '@oktis-works/plugin-runtime';
-import type { AdminExtensionsState, PluginBlockManifest } from '@oktis-works/types';
+import type { AdminExtensionsState, PluginBlockManifest, PluginPatternManifest } from '@oktis-works/types';
 
 // Dynamic imports for circular dependency with plugin-runtime
 // Using require with computed string to avoid TypeScript compile-time checking
@@ -71,6 +71,7 @@ const getLoadedPluginRoutes = async () => (await getPluginRuntimeCached()).getLo
 const getLoadedPluginJobHandlers = async () => (await getPluginRuntimeCached()).getLoadedPluginJobHandlers;
 const getLoadedPluginAdminExtensions = async () => (await getPluginRuntimeCached()).getLoadedPluginAdminExtensions;
 const getLoadedPluginBlocks = async () => (await getPluginRuntimeCached()).getLoadedPluginBlocks;
+const getLoadedPluginPatterns = async () => (await getPluginRuntimeCached()).getLoadedPluginPatterns;
 
 /** Handler de job de plugin (dispatch do worker). */
 export type PluginJobHandlerFn = (
@@ -131,6 +132,21 @@ export async function getPluginBlocks(
 ): Promise<Array<{ pluginName: string; blocks: Array<PluginBlockManifest & { pluginName: string }> }>> {
   try {
     return await (await getLoadedPluginBlocks())(scopeKey(tenantId));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Patterns registered at runtime by the loaded plugins of a scope — feeds
+ * GET /api/v1/patterns together with `manifest.patterns`. Never throws:
+ * runtime unavailability becomes an empty list.
+ */
+export async function getPluginPatterns(
+  tenantId: string | null
+): Promise<Array<{ pluginName: string; patterns: Array<PluginPatternManifest & { pluginName: string }> }>> {
+  try {
+    return await (await getLoadedPluginPatterns())(scopeKey(tenantId));
   } catch {
     return [];
   }

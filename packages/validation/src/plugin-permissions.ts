@@ -31,6 +31,7 @@ export const PLUGIN_PERMISSIONS = [
   'jobs:schedule',
   // ── Editor de blocos ────────────────────────────────────────────────────
   'blocks:register',
+  'patterns:register',
   // ── Paridade WordPress: roles, assets, mail, health ─────────────────────
   'roles:create',
   'assets:enqueue',

@@ -5,6 +5,7 @@ import type {
   PluginDependency as CanonicalPluginDependency,
   PluginFieldTypeManifest,
   PluginBlockManifest,
+  PluginPatternManifest,
   PluginPostTypeDeclaration,
   PluginTaxonomyDeclaration,
   PluginJobDeclaration,
@@ -15,6 +16,7 @@ import type { PluginAdminApi } from './admin.js';
 export type {
   PluginFieldTypeManifest,
   PluginBlockManifest,
+  PluginPatternManifest,
   PluginPostTypeDeclaration,
   PluginTaxonomyDeclaration,
   PluginJobDeclaration,
@@ -115,6 +117,8 @@ export interface PluginAPI {
   addTaxonomy(declaration: PluginTaxonomyDeclaration): void;
   /** Registers an editor block (permission blocks:register) — data plane, no table. */
   registerBlock(block: PluginBlockManifest): void;
+  /** Registers an editor pattern (permission patterns:register) — data plane, no table. */
+  registerPattern(pattern: PluginPatternManifest): void;
   /** Cache/transient por plugin (namespaced, permissão cache:read/cache:write). */
   cache: PluginCacheApi;
   /** Jobs/cron por plugin (permissão jobs:schedule). */

@@ -12,6 +12,7 @@ export {
   type UserInfo,
   type PluginFieldTypeManifest,
   type PluginBlockManifest,
+  type PluginPatternManifest,
   type PluginPostTypeDeclaration,
   type PluginTaxonomyDeclaration,
   type PluginJobDeclaration,

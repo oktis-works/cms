@@ -103,6 +103,18 @@ describe('validateManifestV2 - admin (FEAT-098)', () => {
     expect(issues.some((issue) => issue.includes('admin.editors[1].mode'))).toBe(true);
     expect(issues.some((issue) => issue.includes('admin.editors[1].priority'))).toBe(true);
   });
+
+  it('validates manifest patterns[] (identity and non-empty content)', () => {
+    const issues = validateManifestV2({
+      ...base,
+      patterns: [
+        { name: 'hero', label: 'Hero', content: '<section/>' },
+        { name: 'bad', label: 'Bad' }, // no content
+      ],
+    });
+    expect(issues).toContain('pattern missing valid name/label/content');
+    expect(issues).toHaveLength(1);
+  });
 });
 
 describe('readPluginManifest - modo leniente', () => {

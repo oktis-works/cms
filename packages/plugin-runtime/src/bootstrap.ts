@@ -17,7 +17,7 @@
 //   - **por escopo**: o estado de carga é indexado por escopo (platform ou um
 //     tenant), então ativar/desativar num tenant não afeta outro.
 
-import { createPluginHooksApi, type HookRegistryLike, type PluginJobHandler, type AdminExtensionsState, type PluginBlockManifest } from '@oktis-works/plugin-sdk';
+import { createPluginHooksApi, type HookRegistryLike, type PluginJobHandler, type AdminExtensionsState, type PluginBlockManifest, type PluginPatternManifest } from '@oktis-works/plugin-sdk';
 import { PLUGIN_PERMISSION_DEFAULT } from '@oktis-works/validation';
 import { PluginLoader, type DiscoveredPlugin } from './loader.js';
 import { PluginSandbox } from './sandbox.js';
@@ -198,6 +198,26 @@ export function getLoadedPluginBlocks(scopeKey: string): Array<{
   for (const [pluginName, entry] of scope.plugins) {
     const blocks = entry.internal?.getBlocks?.();
     if (blocks && blocks.length > 0) result.push({ pluginName, blocks });
+  }
+  return result;
+}
+
+/**
+ * Patterns registered at runtime via `api.registerPattern` by the plugins
+ * loaded in a scope — consumed by GET /api/v1/patterns, which merges them
+ * with `manifest.patterns`. Only plugins with at least one pattern are
+ * returned.
+ */
+export function getLoadedPluginPatterns(scopeKey: string): Array<{
+  pluginName: string;
+  patterns: Array<PluginPatternManifest & { pluginName: string }>;
+}> {
+  const scope = loadedScopes.get(scopeKey);
+  if (!scope) return [];
+  const result: Array<{ pluginName: string; patterns: Array<PluginPatternManifest & { pluginName: string }> }> = [];
+  for (const [pluginName, entry] of scope.plugins) {
+    const patterns = entry.internal?.getPatterns?.();
+    if (patterns && patterns.length > 0) result.push({ pluginName, patterns });
   }
   return result;
 }

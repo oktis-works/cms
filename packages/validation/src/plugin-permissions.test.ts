@@ -49,6 +49,7 @@ describe('plugin permissions catalog', () => {
       'jobs:schedule',
       'http:outbound',
       'blocks:register',
+      'patterns:register',
       'roles:create',
       'assets:enqueue',
       'mail:send',

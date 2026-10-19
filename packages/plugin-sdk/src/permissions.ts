@@ -45,6 +45,7 @@ export const PERMISSIONS = {
   JOBS_SCHEDULE: 'jobs:schedule',
   // ── Fase 2: editor de blocos ──
   BLOCKS_REGISTER: 'blocks:register',
+  PATTERNS_REGISTER: 'patterns:register',
   // ── Fase 3/4: roles, assets, mail, health ──
   ROLES_CREATE: 'roles:create',
   ASSETS_ENQUEUE: 'assets:enqueue',

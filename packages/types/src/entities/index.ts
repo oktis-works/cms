@@ -283,6 +283,7 @@ export interface PluginManifest {
   manifestVersion?: 1 | 2;
   /** Blocos customizados do editor (manifesto v2). */
   blocks?: PluginBlockManifest[];
+  patterns?: PluginPatternManifest[];
   /** Custom Post Types declarados (manifesto v2). */
   postTypes?: PluginPostTypeDeclaration[];
   /** Custom Taxonomies declaradas (manifesto v2). */
@@ -471,6 +472,29 @@ export interface PluginBlockManifest {
   rendererPath?: string;
   /** Suporta campos customizados dentro do bloco. Default: false. */
   supports?: { fields?: boolean };
+}
+
+/**
+ * Editor pattern declared in the manifest (v2) — WordPress-parity item 13.
+ * Editor-agnostic data plane: `content` is opaque to the platform (HTML or a
+ * serialized document), interpreted by the plugin-built editor. Bare names
+ * are namespaced with the plugin name at merge time (`namespace/name`).
+ */
+export interface PluginPatternManifest {
+  /** Unique pattern name (e.g. 'hero-section'; bare names get the plugin namespace). */
+  name: string;
+  /** Friendly label shown in the editor's pattern picker. */
+  label: string;
+  /** Lucide icon (e.g. 'layout'). */
+  icon?: string;
+  /** Grouping category in the picker. */
+  category?: string;
+  /** Pattern payload — opaque to the platform (HTML or serialized document). */
+  content: string;
+  /** Content types served (or `['*']` for all). */
+  screens?: string[];
+  /** Preview thumbnail path (optional). */
+  previewPath?: string;
 }
 
 /** Custom Post Type declarado no manifesto (manifesto v2). */

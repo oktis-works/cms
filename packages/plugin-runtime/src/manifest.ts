@@ -64,6 +64,15 @@ export function validateManifestV2(merged: Record<string, unknown>): string[] {
     }
   }
 
+  const patterns = merged['patterns'];
+  if (Array.isArray(patterns)) {
+    for (const pattern of patterns) {
+      if (!isRecord(pattern) || !isString(pattern['name']) || !isString(pattern['label']) || !isString(pattern['content']) || (pattern['content'] as string).length === 0) {
+        issues.push('pattern missing valid name/label/content');
+      }
+    }
+  }
+
   const postTypes = merged['postTypes'];
   if (Array.isArray(postTypes)) {
     for (const postType of postTypes) {
