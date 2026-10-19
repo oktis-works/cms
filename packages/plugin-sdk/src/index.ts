@@ -19,6 +19,7 @@ export {
   type PluginHttpPolicy,
   type PluginCacheApi,
   type PluginJobsApi,
+  type PluginRolesApi,
   type PluginJobHandler,
   type PluginHttpApi,
   type PluginHttpOptions,

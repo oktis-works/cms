@@ -43,6 +43,7 @@ import { userService } from '../user/service.js';
 import { fieldGroupService } from '../fields/service.js';
 import { postTypeRegistry } from '../content/post-types.js';
 import { taxonomyService } from '../taxonomies/service.js';
+import { pluginRolesService } from '../role/plugin-roles.js';
 import { getCache } from '../cache/index.js';
 import { queueProducer } from '../queue/producer.js';
 import { getCurrentTenantIdSync, getCurrentUserIdSync, getCurrentRequestIdSync } from '../tenant/context.js';
@@ -408,6 +409,11 @@ function createApiDeps(tenantId: string | null): Partial<PluginApiDependencies> 
           { tenantId: ctx.tenantId ?? 'default' }
         );
       },
+    },
+    roles: {
+      add: (input) => pluginRolesService.add(input),
+      remove: (input) => pluginRolesService.remove(input),
+      addPermission: (input) => pluginRolesService.addPermission(input),
     },
   };
 }

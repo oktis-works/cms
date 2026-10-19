@@ -6,7 +6,7 @@
 
 import { randomUUID } from 'node:crypto';
 import type { HookRegistryLike } from '@oktis-works/plugin-sdk';
-import type { PluginManifest, PluginFieldTypeManifest, PluginPostTypeDeclaration, PluginTaxonomyDeclaration, PluginBlockManifest, PluginPatternManifest, PluginCacheApi, PluginJobsApi, PluginJobHandler, PluginHttpApi, PluginAdminApi, AdminExtensionsState } from '@oktis-works/plugin-sdk';
+import type { PluginManifest, PluginFieldTypeManifest, PluginPostTypeDeclaration, PluginTaxonomyDeclaration, PluginBlockManifest, PluginPatternManifest, PluginCacheApi, PluginJobsApi, PluginJobHandler, PluginHttpApi, PluginAdminApi, PluginRolesApi, AdminExtensionsState } from '@oktis-works/plugin-sdk';
 import { PERMISSIONS, createPluginAdminApi } from '@oktis-works/plugin-sdk';
 import { createHttpApi } from './http.js';
 
@@ -88,6 +88,9 @@ export interface PluginAPI {
   readonly http: PluginHttpApi;
   /** Slots declarativos do admin (FEAT-098 / DECI-027). */
   readonly admin: PluginAdminApi;
+
+  /** Gestão de roles do tenant (Item 6 — escopo tenant, anti-escalada, audit). */
+  readonly roles: PluginRolesApi;
 
   /** Lê setting do tenant (group/key). */
   getSetting(key: string, group?: string): Promise<unknown>;
@@ -186,6 +189,15 @@ export interface PluginApiDependencies {
   };
   /** Permissões concedidas ao plugin (policy já resolvida). */
   allowedPermissions: string[];
+  /**
+   * Backend de roles do core (Item 6 — persiste + audita com anti-escalada).
+   * Ausente → api.roles lança erro claro (backend não conectado).
+   */
+  roles?: {
+    add(input: { tenantId: string; pluginName: string; name: string; slug?: string; permissions?: string[] }): Promise<{ id: string; name: string; slug: string; permissions: string[] }>;
+    remove(input: { tenantId: string; pluginName: string; slug: string }): Promise<boolean>;
+    addPermission(input: { tenantId: string; pluginName: string; slug: string; permission: string }): Promise<boolean>;
+  };
 }
 
 /**
@@ -383,6 +395,63 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
     requirePermission,
   });
 
+  // ── api.roles (Item 6): gestão de roles do tenant, anti-escalada + audit.
+  // A permissão, o escopo tenant e a presença do backend são validados aqui;
+  // as regras de escalada (nomes reservados, wildcards, ops de plataforma)
+  // ficam no serviço do core — um único ponto de enforcement.
+  function rolesBackend(): NonNullable<PluginApiDependencies['roles']> {
+    if (!deps.roles) {
+      throw new Error('api.roles is not available (roles backend not wired)');
+    }
+    return deps.roles;
+  }
+
+  function requireTenantScopeForRoles(): string {
+    const tenantId = getTenantId();
+    if (!tenantId) {
+      throw new Error('api.roles requires a tenant scope (platform plugins cannot manage roles)');
+    }
+    return tenantId;
+  }
+
+  const rolesApi: PluginRolesApi = {
+    async add(input) {
+      requirePermission(PERMISSIONS.ROLES_CREATE);
+      const tenantId = requireTenantScopeForRoles();
+      if (!input || typeof input.name !== 'string' || input.name.trim().length === 0) {
+        throw new Error('Role "name" is required');
+      }
+      return rolesBackend().add({
+        tenantId,
+        pluginName: manifest.name,
+        name: input.name,
+        slug: input.slug,
+        permissions: input.permissions,
+      });
+    },
+
+    async remove(slug) {
+      requirePermission(PERMISSIONS.ROLES_CREATE);
+      const tenantId = requireTenantScopeForRoles();
+      if (!slug || typeof slug !== 'string') {
+        throw new Error('Role "slug" is required');
+      }
+      return rolesBackend().remove({ tenantId, pluginName: manifest.name, slug });
+    },
+
+    async addPermission(slug, permission) {
+      requirePermission(PERMISSIONS.ROLES_CREATE);
+      const tenantId = requireTenantScopeForRoles();
+      if (!slug || typeof slug !== 'string') {
+        throw new Error('Role "slug" is required');
+      }
+      if (!permission || typeof permission !== 'string') {
+        throw new Error('Permission must be an "action:resource" string');
+      }
+      return rolesBackend().addPermission({ tenantId, pluginName: manifest.name, slug, permission });
+    },
+  };
+
   // Build the public API object
   const api: PluginAPI = {
     registerHook(type: string, handler: (context: PluginContext, payload: unknown) => void | Promise<void>): void {
@@ -571,6 +640,7 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
     jobs: jobsApi,
     http: httpApi,
     admin: adminApi,
+    roles: rolesApi,
 
     async getSetting(key: string, group?: string): Promise<unknown> {
       if (!allowedPermissions.includes('settings:read')) {

@@ -127,6 +127,8 @@ export interface PluginAPI {
   http: PluginHttpApi;
   /** Slots declarativos do admin (menu/widgets/metaboxes/notices/colunas) — FEAT-098. */
   admin: PluginAdminApi;
+  /** Gestão de roles do tenant (Item 6 — escopo tenant, anti-escalada, audit). */
+  roles: PluginRolesApi;
   getSetting(key: string): Promise<unknown>;
   setSetting(key: string, value: unknown): Promise<void>;
   getTenant(): Promise<TenantInfo>;
@@ -224,6 +226,21 @@ export interface PluginHttpApi {
   request(url: string, options?: PluginHttpOptions): Promise<PluginHttpResponse>;
   get(url: string, options?: Omit<PluginHttpOptions, 'method' | 'body'>): Promise<PluginHttpResponse>;
   post(url: string, body: string, options?: Omit<PluginHttpOptions, 'method' | 'body'>): Promise<PluginHttpResponse>;
+}
+
+/**
+ * Roles API for plugins (Item 6 — tenant-scoped, audited, anti-escalation).
+ * All operations require `roles:create`, a tenant context and block
+ * escalation: reserved/system role names, wildcard permissions and
+ * platform-only operations (create/update/delete plugin) are rejected.
+ */
+export interface PluginRolesApi {
+  /** Creates a tenant role. Permissions are `action:resource` strings. */
+  add(input: { name: string; slug?: string; permissions?: string[] }): Promise<{ id: string; name: string; slug: string; permissions: string[] }>;
+  /** Removes a non-system tenant role by slug. */
+  remove(slug: string): Promise<boolean>;
+  /** Grants one extra permission (`action:resource`) to a tenant role. */
+  addPermission(slug: string, permission: string): Promise<boolean>;
 }
 
 export interface RouteDefinition {
