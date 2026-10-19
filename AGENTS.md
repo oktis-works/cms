@@ -77,3 +77,10 @@ A package may only statically import packages that build BEFORE it in the build 
 * **plugin-runtime must never statically import `@oktis-works/core`** (no `require()`, no literal `import()`): use a non-literal dynamic import (`const id = '@oktis-works/core'; await import(id)`) so `tsc` cannot resolve it at build time.
 * **Never self-import a package by name from inside itself** (e.g. `await import('@oktis-works/core')` inside core): use relative imports (`../fields/service.js`). A self-import does not resolve on a fresh checkout where `dist/` does not exist yet.
 * `require()` is unavailable in Node ESM (`"type": "module"`) — prefer `await import()` for runtime-only resolution.
+
+## 7. Language Standard (English everywhere)
+Everything the agent writes in this repository is **English-only**:
+* **Commit messages:** English, full Conventional Commits (see §1).
+* **Code comments:** every comment, JSDoc block, docstring and inline note in source files must be written in English — no Portuguese (or other natural language) comments in code.
+* **Identifiers & docs:** variable/function/type names, string literals exposed to users of the API, and developer documentation (PLUGIN.md, README, ADRs, plan/scratch files committed to the repo) are written in English.
+* Existing legacy comments in other languages may remain untouched unless the task explicitly includes translating them.
