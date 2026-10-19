@@ -22,7 +22,7 @@ import { PLUGIN_PERMISSION_DEFAULT } from '@oktis-works/validation';
 import { PluginLoader, type DiscoveredPlugin } from './loader.js';
 import { PluginSandbox } from './sandbox.js';
 import { getHookRegistry, getHookRegistryStore, type HookRegistry } from './hook-registry.js';
-import type { PluginApiDependencies, PluginApiInternal, RouteDefinition } from './plugin-api.js';
+import type { PluginApiDependencies, PluginApiInternal, PluginAPI, RouteDefinition } from './plugin-api.js';
 
 export interface BootstrapPluginsSql {
   unsafe(text: string, params?: unknown[]): Promise<unknown>;
@@ -326,6 +326,8 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
             registerRoutes: options.apiDeps.registerRoutes ?? (() => {}),
             registerContentFields: options.apiDeps.registerContentFields ?? (() => {}),
             registerFieldTypes: options.apiDeps.registerFieldTypes ?? (() => {}),
+            registerPostTypes: options.apiDeps.registerPostTypes ?? (() => {}),
+            registerTaxonomies: options.apiDeps.registerTaxonomies ?? (() => {}),
             allowedPermissions: [...policy],
           };
           // Cria a API completa usando a fábrica interna
@@ -337,11 +339,38 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
           apiToPass = createPluginHooksApi(name, recordingRegistry(registry, registrations, sandbox));
         }
 
-        (register as (registry: unknown) => void)(apiToPass);
+        // register() pode ser assíncrono — aguardamos (com o mesmo timeout de
+        // hooks) para que rejeições virem "failed isolado" em vez de unhandled
+        // rejection: antes, um async register() que lançava escapava do
+        // try/catch e virava erro não tratado no processo.
+        await Promise.race([
+          Promise.resolve((register as (registry: unknown) => unknown)(apiToPass)),
+          new Promise<never>((_, reject) => {
+            const timer = setTimeout(() => reject(new Error(`register() excedeu ${timeoutMs}ms`)), timeoutMs);
+            (timer as unknown as { unref?: () => void }).unref?.();
+          }),
+        ]);
 
         if (internal) {
           scope.plugins.set(name, { registrations, internal });
-          
+
+          // Registro declarativo do manifesto (v2): postTypes/taxonomies passam
+          // pela mesma validação da API (permissão, slug, conflito) e a factory
+          // persiste via registerPostTypes/registerTaxonomies do core.
+          if (entry.manifest.postTypes?.length || entry.manifest.taxonomies?.length) {
+            try {
+              const typedApi = apiToPass as PluginAPI;
+              for (const postType of entry.manifest.postTypes ?? []) {
+                typedApi.addPostType(postType);
+              }
+              for (const taxonomy of entry.manifest.taxonomies ?? []) {
+                typedApi.addTaxonomy(taxonomy);
+              }
+            } catch (e) {
+              console.warn(`[plugins] Failed to register declared post types/taxonomies for ${name}:`, e);
+            }
+          }
+
           // Persist field types registered by this plugin
           if (internal.getFieldTypes && internal.getFieldTypes().length > 0) {
             const fieldTypes = internal.getFieldTypes();

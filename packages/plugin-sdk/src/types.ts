@@ -110,6 +110,8 @@ export interface PluginAPI {
   addRoute(route: RouteDefinition): void;
   addContentField(field: ContentField): void;
   addFieldType(definition: PluginFieldTypeManifest): void;
+  addPostType(declaration: PluginPostTypeDeclaration): void;
+  addTaxonomy(declaration: PluginTaxonomyDeclaration): void;
   getSetting(key: string): Promise<unknown>;
   setSetting(key: string, value: unknown): Promise<void>;
   getTenant(): Promise<TenantInfo>;

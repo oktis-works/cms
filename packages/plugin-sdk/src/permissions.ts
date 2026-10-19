@@ -1,76 +1,72 @@
-// @oktis-works/plugin-sdk - Catálogo centralizado de permissões de plugin
+// @oktis-works/plugin-sdk - Constantes ergonômicas do catálogo de permissões
 //
-// Fonte ÚNICA das permissões que um manifesto pode declarar. O sandbox, a
-// PluginAPI e a validação de manifesto consultam este catálogo — nunca strings
-// espalhadas pelo código. Toda permissão nova entra aqui primeiro (F0.1 do
-// plugin-parity-plan).
+// A fonte ÚNICA é `@oktis-works/validation` (`PLUGIN_PERMISSIONS`): é ela que
+// governa instalação (QUARANTINED fora do catálogo), sync, política do
+// sandbox e policy do PluginAPI. Aqui só expomos constantes nomeadas para o
+// código e `satisfies` garante que NENHUMA constante exista fora do catálogo
+// (o drift que colocou `field-types:register` fora da política e trancou o
+// mermaid-field em quarentena não se repete).
+
+import {
+  PLUGIN_PERMISSIONS,
+  isKnownPluginPermission,
+  unknownPluginPermissions,
+  type PluginPermission,
+} from '@oktis-works/validation';
 
 /**
- * Catálogo de permissões. Chave = constante, valor = string canônica.
+ * Constantes nomeadas de permissão. Valores tipados como `Permission`
+ * (união do catálogo de validation) — um typo não compila.
  *
  * Uso no manifesto:  { "permissions": ["db:query", "cache:read"] }
  * Uso no código:     allowedPermissions.includes(PERMISSIONS.DB_QUERY)
  */
 export const PERMISSIONS = {
-  // ── Existente ──────────────────────────────────────────────────────────
-  /** Executa SQL no schema do plugin com RLS do tenant. */
-  DB_QUERY: 'db:query',
-  /** Lê settings do tenant. */
+  // ── Core ──
+  CONTENT_READ: 'content:read',
+  CONTENT_WRITE: 'content:write',
   SETTINGS_READ: 'settings:read',
-  /** Escreve settings do tenant. */
   SETTINGS_WRITE: 'settings:write',
-  /** Emite eventos no barramento interno. */
   EVENTS_EMIT: 'events:emit',
-  /** Registra tipos de campo customizados. */
+  STORAGE_READ: 'storage:read',
+  STORAGE_WRITE: 'storage:write',
+  HTTP_OUTBOUND: 'http:outbound',
+  DB_QUERY: 'db:query',
+  DB_WRITE: 'db:write',
+  ROUTES_REGISTER: 'routes:register',
+  ADMIN_UI: 'admin:ui',
+  // ── Field types ──
   FIELD_TYPES_REGISTER: 'field-types:register',
-
-  // ── Fase 1 (Plugin API ALTA) ───────────────────────────────────────────
-  /** Registra Custom Post Types via api.addPostType. */
+  // ── Fase 1: CPTs / taxonomias / cache / jobs ──
   POST_TYPES_REGISTER: 'post-types:register',
-  /** Registra Custom Taxonomies via api.addTaxonomy. */
   TAXONOMIES_REGISTER: 'taxonomies:register',
-  /** Lê cache/transient do plugin. */
   CACHE_READ: 'cache:read',
-  /** Escreve cache/transient do plugin. */
   CACHE_WRITE: 'cache:write',
-  /** Agenda jobs/cron via api.jobs. */
   JOBS_SCHEDULE: 'jobs:schedule',
-  /** Faz requisições HTTP externas via api.http. */
-  HTTP_FETCH: 'http:fetch',
-
-  // ── Fase 2 (Editor de blocos) ──────────────────────────────────────────
-  /** Registra blocos customizados para o editor. */
+  // ── Fase 2: editor de blocos ──
   BLOCKS_REGISTER: 'blocks:register',
-
-  // ── Fase 3 (Paridade média) ────────────────────────────────────────────
-  /** Cria/gerencia roles dentro do escopo do tenant. */
+  // ── Fase 3/4: roles, assets, mail, health ──
   ROLES_CREATE: 'roles:create',
-  /** Enfileira assets (CSS/JS) no front-end. */
   ASSETS_ENQUEUE: 'assets:enqueue',
-
-  // ── Fase 4 (nice-to-have) ──────────────────────────────────────────────
-  /** Envia emails transacionais via api.mail. */
   MAIL_SEND: 'mail:send',
-  /** Registra health checks próprios. */
   HEALTH_REGISTER: 'health:register',
-} as const;
+} as const satisfies Record<string, PluginPermission>;
 
-/** Valor de permissão (string canônica). */
-export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
+/** Valor de permissão (string canônica do catálogo). */
+export type Permission = PluginPermission;
 
-/** Array com TODAS as permissões conhecidas (para validação de manifesto). */
-export const ALL_PERMISSIONS: readonly Permission[] = Object.values(PERMISSIONS);
+/** Array com TODAS as permissões conhecidas (catálogo de validation). */
+export const ALL_PERMISSIONS: readonly Permission[] = PLUGIN_PERMISSIONS;
 
 /**
  * Valida uma lista de permissões declaradas em manifesto.
- * Retorna as permissões desconhecidas (vazia = tudo válido).
+ * Retorna as desconhecidas (vazia = tudo válido).
  */
 export function validatePermissions(declared: string[]): string[] {
-  const known = new Set<string>(ALL_PERMISSIONS);
-  return declared.filter((permission) => !known.has(permission));
+  return unknownPluginPermissions(declared);
 }
 
 /** Checa se uma permissão faz parte do catálogo. */
 export function isKnownPermission(permission: string): permission is Permission {
-  return (ALL_PERMISSIONS as readonly string[]).includes(permission);
+  return isKnownPluginPermission(permission);
 }

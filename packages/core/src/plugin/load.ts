@@ -41,6 +41,8 @@ import { getEventBus } from '../events/bus.js';
 import { tenantService } from '../tenant/service.js';
 import { userService } from '../user/service.js';
 import { fieldGroupService } from '../fields/service.js';
+import { postTypeRegistry } from '../content/post-types.js';
+import { taxonomyService } from '../taxonomies/service.js';
 import { getCurrentTenantIdSync, getCurrentUserIdSync, getCurrentRequestIdSync } from '../tenant/context.js';
 import type { RouteDefinition, PluginBootstrapResult, PluginApiDependencies } from '@oktis-works/plugin-runtime';
 
@@ -207,6 +209,86 @@ function createApiDeps(tenantId: string | null): Partial<PluginApiDependencies> 
         console.debug(`[PluginAPI] ${fieldTypes.length} tipo(s) de campo registrado(s) no registry`);
       } catch (error) {
         console.error('[PluginAPI] Falha ao registrar tipos de campo:', error);
+      }
+    },
+    registerPostTypes: async (postTypes) => {
+      // Persistência idempotente de Custom Post Types de plugin (Item 1 do
+      // plugin-parity-plan): existe com mesmo sourceId → atualiza; existe com
+      // outra origem (CORE/ADMIN/outro plugin) → warn + skip (nunca rouba).
+      try {
+        for (const type of postTypes) {
+          const supports: Array<'title' | 'editor' | 'revisions'> = ['title', 'editor'];
+          if (type.revisions) supports.push('revisions');
+
+          const existing = await postTypeRegistry.getBySlug(type.key);
+          if (existing) {
+            if (existing.source === 'PLUGIN' && existing.sourceId === type.pluginName) {
+              await postTypeRegistry.update(type.key, {
+                singularLabel: type.label,
+                pluralLabel: type.plural ?? existing.pluralLabel,
+                menuIcon: type.icon ?? existing.menuIcon,
+                supports,
+              });
+            } else {
+              console.warn(
+                `[PluginAPI] Post type "${type.key}" já existe (${existing.source}) — "${type.pluginName}" não pode reivindicá-lo`
+              );
+            }
+            continue;
+          }
+          await postTypeRegistry.create({
+            name: type.key,
+            slug: type.key,
+            pluralLabel: type.plural ?? `${type.label}s`,
+            singularLabel: type.label,
+            source: 'PLUGIN',
+            sourceId: type.pluginName,
+            supports,
+            hasArchive: true,
+            menuIcon: type.icon ?? 'box',
+            singleton: false,
+            public: true,
+          });
+        }
+        console.debug(`[PluginAPI] ${postTypes.length} post type(s) de plugin persistido(s)`);
+      } catch (error) {
+        console.error('[PluginAPI] Falha ao registrar post types:', error);
+      }
+    },
+    registerTaxonomies: async (taxonomies) => {
+      // Persistência idempotente de Custom Taxonomies de plugin — ownership
+      // gravado em meta.plugin (schema não tem sourceId para taxonomias).
+      try {
+        for (const taxonomy of taxonomies) {
+          const existing = await taxonomyService.getBySlug(taxonomy.key);
+          if (existing) {
+            const owner = (existing.meta as Record<string, unknown> | undefined)?.['plugin'];
+            if (owner !== undefined && owner !== taxonomy.pluginName) {
+              console.warn(
+                `[PluginAPI] Taxonomy "${taxonomy.key}" pertence ao plugin "${String(owner)}" — "${taxonomy.pluginName}" não pode reivindicá-la`
+              );
+              continue;
+            }
+            await taxonomyService.update(taxonomy.key, {
+              name: taxonomy.label,
+              hierarchical: taxonomy.hierarchical ?? false,
+              attachTo: taxonomy.postTypes,
+              meta: { ...((existing.meta as Record<string, unknown>) ?? {}), plugin: taxonomy.pluginName },
+            });
+            continue;
+          }
+          await taxonomyService.create({
+            name: taxonomy.label,
+            slug: taxonomy.key,
+            hierarchical: taxonomy.hierarchical ?? false,
+            attachTo: taxonomy.postTypes,
+            meta: { plugin: taxonomy.pluginName },
+            source: 'PLUGIN',
+          });
+        }
+        console.debug(`[PluginAPI] ${taxonomies.length} taxonomia(s) de plugin persistida(s)`);
+      } catch (error) {
+        console.error('[PluginAPI] Falha ao registrar taxonomias:', error);
       }
     },
   };

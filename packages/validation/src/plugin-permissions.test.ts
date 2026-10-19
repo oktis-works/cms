@@ -35,4 +35,25 @@ describe('plugin permissions catalog', () => {
   it('aceita lista já separada', () => {
     expect(resolvePluginPermissionPolicy(['settings:read']).allowed).toEqual(['settings:read']);
   });
+
+  // Regressão do bug real: field-types:register não existia no catálogo →
+  // o sync colocava o mermaid-field em QUARANTINED e o sandbox rejeitava no
+  // boot, isolando silenciosamente todo plugin de tipo de campo.
+  it('field-types:register e todas as permissões do plano de paridade estão no catálogo', () => {
+    const required = [
+      'field-types:register',
+      'post-types:register',
+      'taxonomies:register',
+      'cache:read',
+      'cache:write',
+      'jobs:schedule',
+      'http:outbound',
+      'blocks:register',
+      'roles:create',
+      'assets:enqueue',
+      'mail:send',
+      'health:register',
+    ];
+    expect(unknownPluginPermissions(required)).toEqual([]);
+  });
 });

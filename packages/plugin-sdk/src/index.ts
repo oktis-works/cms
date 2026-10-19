@@ -11,6 +11,11 @@ export {
   type TenantInfo,
   type UserInfo,
   type PluginFieldTypeManifest,
+  type PluginBlockManifest,
+  type PluginPostTypeDeclaration,
+  type PluginTaxonomyDeclaration,
+  type PluginJobDeclaration,
+  type PluginHttpPolicy,
 } from './types.js';
 
 export {

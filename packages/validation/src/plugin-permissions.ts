@@ -7,6 +7,7 @@
 // instalação/sync (falhar cedo, não no boot).
 
 export const PLUGIN_PERMISSIONS = [
+  // ── Core ────────────────────────────────────────────────────────────────
   'content:read',
   'content:write',
   'settings:read',
@@ -19,6 +20,22 @@ export const PLUGIN_PERMISSIONS = [
   'db:write',
   'routes:register',
   'admin:ui',
+  // ── Field types (registrado via api.addFieldType) ───────────────────────
+  'field-types:register',
+  // ── Paridade WordPress: Custom Post Types / Taxonomies ──────────────────
+  'post-types:register',
+  'taxonomies:register',
+  // ── Paridade WordPress: cache/transient, jobs/cron ──────────────────────
+  'cache:read',
+  'cache:write',
+  'jobs:schedule',
+  // ── Editor de blocos ────────────────────────────────────────────────────
+  'blocks:register',
+  // ── Paridade WordPress: roles, assets, mail, health ─────────────────────
+  'roles:create',
+  'assets:enqueue',
+  'mail:send',
+  'health:register',
 ] as const;
 
 export type PluginPermission = (typeof PLUGIN_PERMISSIONS)[number];

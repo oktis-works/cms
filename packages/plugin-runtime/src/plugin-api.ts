@@ -6,7 +6,8 @@
 
 import { randomUUID } from 'node:crypto';
 import type { HookRegistryLike } from '@oktis-works/plugin-sdk';
-import type { PluginManifest, PluginFieldTypeManifest } from '@oktis-works/plugin-sdk';
+import type { PluginManifest, PluginFieldTypeManifest, PluginPostTypeDeclaration, PluginTaxonomyDeclaration } from '@oktis-works/plugin-sdk';
+import { PERMISSIONS, isKnownPermission } from '@oktis-works/plugin-sdk';
 
 /** Contexto disponível para o plugin em cada execução de hook. */
 export interface PluginContext {
@@ -63,6 +64,12 @@ export interface PluginAPI {
 
   /** Registra um novo tipo de campo customizado. */
   addFieldType(definition: PluginFieldTypeManifest): void;
+
+  /** Registra um Custom Post Type (permissão post-types:register). */
+  addPostType(declaration: PluginPostTypeDeclaration): void;
+
+  /** Registra uma Custom Taxonomy (permissão taxonomies:register). */
+  addTaxonomy(declaration: PluginTaxonomyDeclaration): void;
 
   /** Lê setting do tenant (group/key). */
   getSetting(key: string, group?: string): Promise<unknown>;
@@ -128,6 +135,10 @@ export interface PluginApiDependencies {
   registerContentFields: (fields: Array<{ name: string; type: string; label: string; required?: boolean; options?: Record<string, unknown> }>) => void;
   /** Registra tipos de campo do plugin (o core expõe via registry). */
   registerFieldTypes: (fieldTypes: PluginFieldTypeManifest[]) => void;
+  /** Registra Custom Post Types do plugin (o core persiste via postTypeRegistry). */
+  registerPostTypes?: (postTypes: Array<PluginPostTypeDeclaration & { pluginName: string }>) => void;
+  /** Registra Custom Taxonomies do plugin (o core persiste via taxonomyService). */
+  registerTaxonomies?: (taxonomies: Array<PluginTaxonomyDeclaration & { pluginName: string }>) => void;
   /** Permissões concedidas ao plugin (policy já resolvida). */
   allowedPermissions: string[];
 }
@@ -138,7 +149,7 @@ export interface PluginApiDependencies {
  * Retorna { api: PluginAPI, internal: PluginApiInternal } para separar a API pública dos detalhes internos.
  */
 export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; internal: PluginApiInternal } {
-  const { hooks, manifest, settings, eventBus, db, getTenantId, getUserId, getTenantById, getUserById, allowedPermissions, registerFieldTypes } = deps;
+  const { hooks, manifest, settings, eventBus, db, getTenantId, getUserId, getTenantById, getUserById, allowedPermissions, registerFieldTypes, registerPostTypes, registerTaxonomies } = deps;
 
   // Valida permissão antes de executar query
   function checkDbPermission(): void {
@@ -151,6 +162,13 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
   const registeredFields: Array<{ name: string; type: string; label: string; required?: boolean; options?: Record<string, unknown> }> = [];
   // Runtime type includes pluginName and isPluginType added during registration
   const registeredFieldTypes: Array<PluginFieldTypeManifest & { pluginName: string; isPluginType: true }> = [];
+  const registeredPostTypes: Array<PluginPostTypeDeclaration & { pluginName: string }> = [];
+  const registeredTaxonomies: Array<PluginTaxonomyDeclaration & { pluginName: string }> = [];
+
+  /** Slugs de CPT/taxonomia: minúsculas, dígitos, underscore e hífen (estilo WP). */
+  const SLUG_PATTERN = /^[a-z][a-z0-9_-]*$/;
+  /** Slugs reservados que nenhum plugin pode reivindicar. */
+  const RESERVED_SLUGS = new Set(['post', 'page', 'media', 'user', 'content', 'attachment', 'category', 'tag']);
 
   // Build the public API object
   const api: PluginAPI = {
@@ -249,6 +267,53 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
       registerFieldTypes(registeredFieldTypes);
     },
 
+    addPostType(declaration: PluginPostTypeDeclaration): void {
+      if (!allowedPermissions.includes(PERMISSIONS.POST_TYPES_REGISTER)) {
+        throw new Error(`Plugin permission denied: ${PERMISSIONS.POST_TYPES_REGISTER}`);
+      }
+      if (!SLUG_PATTERN.test(declaration.key)) {
+        throw new Error(`Invalid post type key "${declaration.key}" (expected ${SLUG_PATTERN})`);
+      }
+      if (RESERVED_SLUGS.has(declaration.key)) {
+        throw new Error(`Post type key "${declaration.key}" is reserved`);
+      }
+      if (!declaration.label || typeof declaration.label !== 'string') {
+        throw new Error('Post type "label" is required');
+      }
+      const existing = registeredPostTypes.find((type) => type.key === declaration.key);
+      if (existing) {
+        throw new Error(`Post type "${declaration.key}" already registered by plugin "${existing.pluginName || 'unknown'}"`);
+      }
+      const withPluginName = { ...declaration, pluginName: manifest.name };
+      registeredPostTypes.push(withPluginName);
+      registerPostTypes?.([...registeredPostTypes]);
+    },
+
+    addTaxonomy(declaration: PluginTaxonomyDeclaration): void {
+      if (!allowedPermissions.includes(PERMISSIONS.TAXONOMIES_REGISTER)) {
+        throw new Error(`Plugin permission denied: ${PERMISSIONS.TAXONOMIES_REGISTER}`);
+      }
+      if (!SLUG_PATTERN.test(declaration.key)) {
+        throw new Error(`Invalid taxonomy key "${declaration.key}" (expected ${SLUG_PATTERN})`);
+      }
+      if (RESERVED_SLUGS.has(declaration.key)) {
+        throw new Error(`Taxonomy key "${declaration.key}" is reserved`);
+      }
+      if (!declaration.label || typeof declaration.label !== 'string') {
+        throw new Error('Taxonomy "label" is required');
+      }
+      if (!Array.isArray(declaration.postTypes) || declaration.postTypes.length === 0) {
+        throw new Error(`Taxonomy "${declaration.key}" requires a non-empty postTypes[]`);
+      }
+      const existing = registeredTaxonomies.find((taxonomy) => taxonomy.key === declaration.key);
+      if (existing) {
+        throw new Error(`Taxonomy "${declaration.key}" already registered by plugin "${existing.pluginName || 'unknown'}"`);
+      }
+      const withPluginName = { ...declaration, pluginName: manifest.name };
+      registeredTaxonomies.push(withPluginName);
+      registerTaxonomies?.([...registeredTaxonomies]);
+    },
+
     async getSetting(key: string, group?: string): Promise<unknown> {
       if (!allowedPermissions.includes('settings:read')) {
         throw new Error('Plugin permission denied: settings:read');
@@ -326,6 +391,8 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
       getRoutes: () => registeredRoutes,
       getFields: () => registeredFields,
       getFieldTypes: () => registeredFieldTypes,
+      getPostTypes: () => registeredPostTypes,
+      getTaxonomies: () => registeredTaxonomies,
     },
   };
 }
@@ -335,4 +402,6 @@ export interface PluginApiInternal {
   getRoutes: () => RouteDefinition[];
   getFields: () => Array<{ name: string; type: string; label: string; required?: boolean; options?: Record<string, unknown> }>;
   getFieldTypes: () => Array<PluginFieldTypeManifest & { pluginName: string; isPluginType: true }>;
+  getPostTypes: () => Array<PluginPostTypeDeclaration & { pluginName: string }>;
+  getTaxonomies: () => Array<PluginTaxonomyDeclaration & { pluginName: string }>;
 }

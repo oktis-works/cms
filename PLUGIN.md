@@ -334,7 +334,9 @@ plugins/meu-plugin/
 
 ## 6. Permissões Necessárias
 
-Catálogo centralizado em `@oktis-works/plugin-sdk` (`PERMISSIONS`). Permissões
+Catálogo centralizado em `@oktis-works/validation` (`PLUGIN_PERMISSIONS`) —
+mesmo catálogo que governa instalação, sync e política do sandbox; o
+`@oktis-works/plugin-sdk` expõe as constantes nomeadas (`PERMISSIONS`). Permissões
 desconhecadas são **rejeitadas na instalação** (validação em modo strict).
 
 | Permissão | Uso |
@@ -347,7 +349,7 @@ desconhecadas são **rejeitadas na instalação** (validação em modo strict).
 | `taxonomies:register` | Para `api.addTaxonomy()` |
 | `cache:read` / `cache:write` | Para `api.cache.*` (transient por plugin) |
 | `jobs:schedule` | Para `api.jobs.*` (cron/filas) |
-| `http:fetch` | Para `api.http.*` (requisições externas protegidas contra SSRF) |
+| `http:outbound` | Para `api.http.*` (requisições externas protegidas contra SSRF) |
 | `blocks:register` | Para `api.registerBlock()` (editor de blocos) |
 | `roles:create` | Para `api.roles.add()` |
 | `assets:enqueue` | Para `api.assets.enqueueStyle/Script` |
