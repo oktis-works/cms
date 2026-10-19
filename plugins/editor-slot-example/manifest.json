@@ -1,0 +1,39 @@
+{
+  "name": "editor-slot-example",
+  "version": "1.0.0",
+  "description": "Minimal wiring example for a plugin-built block editor (editor slot + block/pattern registry + save-time compilation hook)",
+  "type": "plugin",
+  "main": "index.js",
+  "manifestVersion": 2,
+  "scope": "tenant",
+  "permissions": ["blocks:register", "patterns:register", "admin:ui"],
+  "compatibility": { "okcms": "^0.16.0" },
+  "admin": {
+    "editors": [
+      {
+        "id": "example-editor",
+        "label": "Example Blocks",
+        "screens": ["*"],
+        "mode": "below",
+        "componentId": "editor-slot-example:ExampleEditor"
+      }
+    ]
+  },
+  "blocks": [
+    {
+      "type": "example-note",
+      "label": "Example Note",
+      "icon": "sticky-note",
+      "category": "example",
+      "adminComponentPath": "editor-slot-example:ExampleNoteBlock"
+    }
+  ],
+  "patterns": [
+    {
+      "name": "example-cta",
+      "label": "Example CTA",
+      "content": "<a class=\"example-cta\">Call to action</a>",
+      "screens": ["*"]
+    }
+  ]
+}

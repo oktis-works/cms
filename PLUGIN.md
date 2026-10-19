@@ -85,6 +85,7 @@ use os campos adicionais:
 | Campo | Descrição |
 |-------|-----------|
 | `blocks[]` | Blocos customizados do editor: `{ type, label, icon, category?, attrsSchema?, adminComponentPath, rendererPath?, supports?: { fields?: boolean } }` |
+| `patterns[]` | Editor patterns: `{ name, label, icon?, category?, content, screens?, previewPath? }` (E4 — catálogo em `GET /api/v1/patterns`) |
 | `postTypes[]` | Custom Post Types declarados: `{ key, label, plural?, icon?, hierarchy?, revisions?, restBase? }` |
 | `taxonomies[]` | Custom Taxonomies: `{ key, label, postTypes: string[], hierarchical? }` |
 | `scheduleJobs[]` | Jobs recorrentes: `{ name, every (ms) \| cron }` |
@@ -666,6 +667,50 @@ Subscribe inside `register(api)` via `api.addFilter('before_save_content_post', 
 
 Prefer save-time compilation: render-time filters run on every page view,
 while save-time runs once per save.
+
+## 14. Building a block editor (Gutenberg-like) as a plugin
+
+The platform ships **no native block editor**. The admin body area is an
+extension point (§12.5) and the data plane it needs is fully open — a block
+editor is a regular plugin built on top of the surfaces below. Reference
+wiring: `plugins/editor-slot-example/`.
+
+**1. Editor slot (§12.5).** Declare `admin.editors[]` (or
+`api.admin.addEditor`) with `mode: 'replace-body'` to take over the body
+area for your target screens. Your component receives
+`{ editorId, contentType, contentId, body, setBody, disabled }` and
+serializes its document with `setBody(html)`.
+
+**2. Block registry (E3).** Declare `blocks[]` in the manifest (or
+`api.registerBlock`, requires `blocks:register`). A block carries
+`adminComponentPath` (editor UI mounted by your editor), optional
+`attrsSchema` (drive the inspector automatically) and optional
+`rendererPath` (SSR markup for the public site). Your editor fetches
+**`GET /api/v1/blocks`** to build its block palette; entries are
+namespaced (`namespace/block`) and deduped.
+
+**3. Pattern registry (E4).** Declare `patterns[]` (or
+`api.registerPattern`, requires `patterns:register`) — pre-composed
+snippets your editor can insert. Catalog: **`GET /api/v1/patterns`**.
+
+**4. Field groups inside blocks (E7).** Field groups support the `block`
+location parameter: a group with `block = namespace/block` resolves when
+the editing context carries that block type. Your editor passes
+`{ contentType, block: 'namespace/block' }` when resolving groups and
+mounts the platform `FieldRenderer` for the matched fields.
+
+**5. Storage (§12.6).** Keep the document in an undeclared body key
+(convention: `body._editor = { editor, mode }`), next to the compiled
+`body.content` HTML that themes consume. Validation ignores undeclared
+keys — no migration needed.
+
+**6. Compilation (§13).** Compile document → HTML with the save-time
+filter `before_save_content_<type>` (preferred — runs once per save) or
+the render-time filters `theme:before:render` / `theme:after:render`
+(fallback — runs on every page view).
+
+**Permissions summary:** `admin:ui` (slots), `blocks:register`,
+`patterns:register` — declare them in `manifest.permissions`.
 
 ---
 
