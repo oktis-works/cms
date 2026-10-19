@@ -85,6 +85,7 @@ export const LOCATION_PARAMS: LocationRule['param'][] = [
   'user_role',
   'page_template',
   'post_status',
+  'block',
 ];
 
 // Field types that can hold sub-fields (repeater + group). `clone` reuses an

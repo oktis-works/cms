@@ -1313,7 +1313,7 @@ export interface FieldGroupSummary {
 }
 
 export interface LocationRule {
-  param: 'content_type' | 'content_slug' | 'taxonomy' | 'term' | 'user_role' | 'page_template' | 'post_status';
+  param: 'content_type' | 'content_slug' | 'taxonomy' | 'term' | 'user_role' | 'page_template' | 'post_status' | 'block';
   operator: 'eq' | 'neq';
   value: string;
 }

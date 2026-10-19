@@ -7,7 +7,8 @@ export type LocationParam =
   | 'term'
   | 'user_role'
   | 'page_template'
-  | 'post_status';
+  | 'post_status'
+  | 'block';
 
 export interface LocationRule {
   param: LocationParam;
@@ -23,6 +24,8 @@ export interface LocationContext {
   userRole?: string;
   pageTemplate?: string;
   postStatus?: string;
+  /** Editor block type being rendered/edited (E7) — namespaced `namespace/block`. */
+  block?: string;
 }
 
 function matchesRule(rule: LocationRule, context: LocationContext): boolean {
@@ -34,6 +37,7 @@ function matchesRule(rule: LocationRule, context: LocationContext): boolean {
     user_role: context.userRole,
     page_template: context.pageTemplate,
     post_status: context.postStatus,
+    block: context.block,
   };
 
   const expected = actual[rule.param];

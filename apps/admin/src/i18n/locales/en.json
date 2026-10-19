@@ -382,7 +382,8 @@
           "term": "Term slug",
           "user_role": "User role",
           "page_template": "Page template",
-          "post_status": "Post status"
+          "post_status": "Post status",
+          "block": "Block"
         },
         "operators": {
           "eq": "is",

@@ -382,7 +382,8 @@
           "term": "Slug do termo",
           "user_role": "Papel do usuário",
           "page_template": "Template da página",
-          "post_status": "Status do post"
+          "post_status": "Status do post",
+          "block": "Bloco"
         },
         "operators": {
           "eq": "é",
