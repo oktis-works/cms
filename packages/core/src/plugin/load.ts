@@ -197,7 +197,9 @@ function createApiDeps(tenantId: string | null): Partial<PluginApiDependencies> 
     },
     registerFieldTypes: async (fieldTypes) => {
       try {
-        const { fieldTypeExtensionService } = await import('@oktis-works/core');
+        // Same package — relative import (a self-import of '@oktis-works/core'
+        // does not resolve on a fresh checkout, where dist/ does not exist yet).
+        const { fieldTypeExtensionService } = await import('../fields/service.js');
         for (const ft of fieldTypes) {
           await fieldTypeExtensionService.register(ft as any);
         }

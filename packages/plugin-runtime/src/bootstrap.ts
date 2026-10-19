@@ -346,9 +346,18 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
           if (internal.getFieldTypes && internal.getFieldTypes().length > 0) {
             const fieldTypes = internal.getFieldTypes();
             try {
-              // Import fieldTypeExtensionService dynamically to avoid circular deps
-              // Using require with dynamic string to avoid TypeScript compile-time checking
-              const core = require('@oktis-works/core');
+              // Import fieldTypeExtensionService dynamically to avoid circular deps:
+              // core depends on plugin-runtime, so plugin-runtime cannot declare core
+              // as a dependency (and packages/core/dist does not exist yet when this
+              // package is built). A non-literal specifier keeps TypeScript from
+              // resolving the module at compile time; resolution happens at runtime.
+              const coreModuleId = '@oktis-works/core';
+              const core = (await import(coreModuleId)) as {
+                fieldTypeExtensionService: {
+                  register: (fieldType: unknown) => Promise<unknown>;
+                  syncToRegistry: () => Promise<void>;
+                };
+              };
               const { fieldTypeExtensionService } = core;
               for (const ft of fieldTypes) {
                 await fieldTypeExtensionService.register(ft as any);

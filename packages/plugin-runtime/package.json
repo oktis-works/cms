@@ -12,7 +12,7 @@
     }
   },
   "scripts": {
-    "build": "rm -rf dist && tsc",
+    "build": "rm -rf dist tsconfig.tsbuildinfo && ./node_modules/.bin/tsc",
     "clean": "rm -rf dist tsconfig.tsbuildinfo"
   },
   "dependencies": {

@@ -1,7 +1,8 @@
 // @oktis-works/admin - Plugin Field Renderer Component
 // Dynamic component loader for plugin field type rendering in content editor
 
-import { Show, createSignal, onMount } from 'solid-js';
+import { Show, Switch, Match, createSignal, onMount } from 'solid-js';
+import { Dynamic } from 'solid-js/web';
 
 interface PluginFieldRendererProps {
   field: {
@@ -36,7 +37,7 @@ export function PluginFieldRenderer(props: PluginFieldRendererProps) {
     for (const path of pathsToTry) {
       try {
         const module = await import(path);
-        const Comp = module.default || module.PluginFieldRenderer || module.PluginFieldConfig || module[Object.keys(module)[0]];
+        const Comp = module.default || module.PluginFieldRenderer || module.PluginFieldConfig || Object.values(module)[0];
         if (Comp) {
           setComponent(Comp);
           setLoading(false);
@@ -62,45 +63,44 @@ export function PluginFieldRenderer(props: PluginFieldRendererProps) {
     props.onChange(newValue);
   };
 
-  if (loading) {
-    return (
-      <div class="fb-plugin-field-renderer fb-plugin-field-renderer--loading">
-        <div class="fb-spinner" aria-hidden="true"></div>
-        <span>Carregando editor...</span>
-      </div>
-    );
-  }
-
-  if (error || !Component) {
-    return (
-      <div class="fb-plugin-field-renderer fb-plugin-field-renderer--fallback">
-        <Show when={error()}>
-          <div class="fb-renderer-error">
-            <i data-lucide="alert-circle" aria-hidden="true"></i>
-            <span>{error()}</span>
-          </div>
-        </Show>
-        <FallbackRenderer
-          field={props.field}
-          value={props.value}
-          onChange={handleValueChange}
-          disabled={props.disabled}
-          _t={props._t}
-        />
-      </div>
-    );
-  }
-
   return (
-    <div class="fb-plugin-field-renderer">
-      <Component
-        field={props.field}
-        value={props.value}
-        onChange={handleValueChange}
-        disabled={props.disabled}
-        _t={props._t}
-      />
-    </div>
+    <Switch>
+      <Match when={loading()}>
+        <div class="fb-plugin-field-renderer fb-plugin-field-renderer--loading">
+          <div class="fb-spinner" aria-hidden="true"></div>
+          <span>Carregando editor...</span>
+        </div>
+      </Match>
+      <Match when={error() || !Component()}>
+        <div class="fb-plugin-field-renderer fb-plugin-field-renderer--fallback">
+          <Show when={error()}>
+            <div class="fb-renderer-error">
+              <i data-lucide="alert-circle" aria-hidden="true"></i>
+              <span>{error()}</span>
+            </div>
+          </Show>
+          <FallbackRenderer
+            field={props.field}
+            value={props.value}
+            onChange={handleValueChange}
+            disabled={props.disabled}
+            _t={props._t}
+          />
+        </div>
+      </Match>
+      <Match when={true}>
+        <div class="fb-plugin-field-renderer">
+          <Dynamic
+            component={Component()}
+            field={props.field}
+            value={props.value}
+            onChange={handleValueChange}
+            disabled={props.disabled}
+            _t={props._t}
+          />
+        </div>
+      </Match>
+    </Switch>
   );
 }
 
@@ -115,9 +115,9 @@ function FallbackRenderer(props: {
   const { field, value, onChange, disabled } = props;
 
   // Try to infer input type from config or use textarea as default
-  const inputType = field.config?.inputType as string || 'textarea';
-  const placeholder = field.config?.placeholder as string || '';
-  const rows = (field.config?.rows as number) || 4;
+  const inputType = (field.config?.['inputType'] as string) || 'textarea';
+  const placeholder = (field.config?.['placeholder'] as string) || '';
+  const rows = (field.config?.['rows'] as number) || 4;
 
   if (inputType === 'textarea' || inputType === 'code' || inputType === 'markdown') {
     return (

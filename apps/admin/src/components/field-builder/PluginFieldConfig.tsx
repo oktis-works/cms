@@ -1,7 +1,8 @@
 // @oktis-works/admin - Plugin Field Config Component
 // Dynamic component loader for plugin field type configuration in custom fields editor
 
-import { Show, createSignal, onMount } from 'solid-js';
+import { Show, Switch, Match, createSignal, onMount } from 'solid-js';
+import { Dynamic } from 'solid-js/web';
 
 interface PluginFieldConfigProps {
   field: {
@@ -24,7 +25,7 @@ export function PluginFieldConfig(props: PluginFieldConfigProps) {
       // Dynamic import of the plugin's admin config component
       // The path format: @/plugins/{plugin-name}/admin/components/{ComponentName}.tsx
       const module = await import(props.adminComponentPath);
-      const Comp = module.default || module.PluginFieldConfig || module[Object.keys(module)[0]];
+      const Comp = module.default || module.PluginFieldConfig || Object.values(module)[0];
       if (Comp) {
         setComponent(Comp);
       } else {
@@ -41,64 +42,43 @@ export function PluginFieldConfig(props: PluginFieldConfigProps) {
     props.onChange({ config: newConfig });
   };
 
-  if (loading) {
-    return (
-      <div class="fb-plugin-field-config fb-plugin-field-config--loading">
-        <div class="fb-spinner" aria-hidden="true"></div>
-        <span>Carregando configuração do plugin...</span>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div class="fb-plugin-field-config fb-plugin-field-config--error">
-        <i data-lucide="alert-triangle" aria-hidden="true"></i>
-        <div>
-          <strong>Não foi possível carregar o componente de configuração</strong>
-          <p class="muted">{error}</p>
-          <details class="fb-fallback-config">
-            <summary>Usar editor JSON bruto (fallback)</summary>
-            <FallbackJsonEditor
-              config={props.field.config}
-              schema={props.configSchema}
-              onChange={handleConfigChange}
-            />
-          </details>
-        </div>
-      </div>
-    );
-  }
-
-  if (!Component) {
-    return (
-      <div class="fb-plugin-field-config fb-plugin-field-config--error">
-        <i data-lucide="alert-triangle" aria-hidden="true"></i>
-        <div>
-          <strong>Componente não exportado corretamente</strong>
-          <p class="muted">O plugin deve exportar um componente padrão ou nomeado 'PluginFieldConfig'</p>
-          <details class="fb-fallback-config">
-            <summary>Usar editor JSON bruto (fallback)</summary>
-            <FallbackJsonEditor
-              config={props.field.config}
-              schema={props.configSchema}
-              onChange={handleConfigChange}
-            />
-          </details>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div class="fb-plugin-field-config">
-      <Component
-        config={props.field.config}
-        schema={props.configSchema}
-        onChange={handleConfigChange}
-        t={props.t}
-      />
-    </div>
+    <Switch>
+      <Match when={loading()}>
+        <div class="fb-plugin-field-config fb-plugin-field-config--loading">
+          <div class="fb-spinner" aria-hidden="true"></div>
+          <span>Carregando configuração do plugin...</span>
+        </div>
+      </Match>
+      <Match when={error() || !Component()}>
+        <div class="fb-plugin-field-config fb-plugin-field-config--error">
+          <i data-lucide="alert-triangle" aria-hidden="true"></i>
+          <div>
+            <strong>Não foi possível carregar o componente de configuração</strong>
+            <p class="muted">{error() ?? 'Componente não exportado corretamente'}</p>
+            <details class="fb-fallback-config">
+              <summary>Usar editor JSON bruto (fallback)</summary>
+              <FallbackJsonEditor
+                config={props.field.config}
+                schema={props.configSchema}
+                onChange={handleConfigChange}
+              />
+            </details>
+          </div>
+        </div>
+      </Match>
+      <Match when={true}>
+        <div class="fb-plugin-field-config">
+          <Dynamic
+            component={Component()}
+            config={props.field.config}
+            schema={props.configSchema}
+            onChange={handleConfigChange}
+            t={props.t}
+          />
+        </div>
+      </Match>
+    </Switch>
   );
 }
 

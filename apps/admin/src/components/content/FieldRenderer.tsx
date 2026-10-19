@@ -125,7 +125,7 @@ export function FieldRenderer(props: FieldRendererProps) {
           <p class="field-renderer__instructions">{props.field.instructions}</p>
         </Show>
 
-        <FieldControl field={props.field} value={valueFor()} onChange={setValue} values={props.values} />
+        <FieldControl field={props.field} value={valueFor()} onChange={setValue} values={props.values} t={props.t} />
 
         <Show when={validationError()}>
           <p class="field-renderer__error" role="alert">
@@ -142,6 +142,7 @@ interface FieldControlProps {
   value: unknown;
   values: Record<string, unknown>;
   onChange: (value: unknown) => void;
+  t: (key: string) => string;
 }
 
 function FieldControl(props: FieldControlProps) {
@@ -390,6 +391,7 @@ function FieldControl(props: FieldControlProps) {
                 field={props.field}
                 row={row}
                 index={index()}
+                t={props.t}
                 onUpdate={(updated) => {
                   const next = [...rows()];
                   next[index()] = updated;
@@ -485,6 +487,7 @@ function FieldControl(props: FieldControlProps) {
                         <FieldRenderer
                           field={sub}
                           values={rowData()}
+                          t={props.t}
                           onChange={(name, value) => {
                             const current = [...(Array.isArray(props.value) ? props.value : [])] as Record<string, unknown>[];
                             current[index()] = { ...current[index()], [name]: value };
@@ -524,6 +527,7 @@ function FieldControl(props: FieldControlProps) {
               <FieldRenderer
                 field={sub}
                 values={((props.value as Record<string, unknown>) ?? {})}
+                t={props.t}
                 onChange={(name, val) =>
                   props.onChange({
                     ...((props.value as Record<string, unknown>) ?? {}),
@@ -545,7 +549,7 @@ function FieldControl(props: FieldControlProps) {
             onChange={props.onChange}
             adminRendererPath={props.field.adminRendererPath}
             adminComponentPath={props.field.adminComponentPath}
-            t={props.t}
+            _t={props.t}
           />
         );
       }
@@ -563,6 +567,7 @@ interface RepeaterRowProps {
   field: ResolvedFieldDefinition;
   row: Record<string, unknown>;
   index: number;
+  t: (key: string) => string;
   onUpdate: (row: Record<string, unknown>) => void;
   onRemove: () => void;
 }
@@ -581,6 +586,7 @@ function RepeaterRow(props: RepeaterRowProps) {
           <FieldRenderer
             field={sub}
             values={props.row}
+            t={props.t}
             onChange={(name, value) => props.onUpdate({ ...props.row, [name]: value })}
           />
         )}
