@@ -47,7 +47,7 @@ import { getCache } from '../cache/index.js';
 import { queueProducer } from '../queue/producer.js';
 import { getCurrentTenantIdSync, getCurrentUserIdSync, getCurrentRequestIdSync } from '../tenant/context.js';
 import type { RouteDefinition, PluginBootstrapResult, PluginApiDependencies } from '@oktis-works/plugin-runtime';
-import type { AdminExtensionsState } from '@oktis-works/types';
+import type { AdminExtensionsState, PluginBlockManifest } from '@oktis-works/types';
 
 // Dynamic imports for circular dependency with plugin-runtime
 // Using require with computed string to avoid TypeScript compile-time checking
@@ -70,6 +70,7 @@ const unloadTenant = async () => (await getPluginRuntimeCached()).unloadTenant;
 const getLoadedPluginRoutes = async () => (await getPluginRuntimeCached()).getLoadedPluginRoutes;
 const getLoadedPluginJobHandlers = async () => (await getPluginRuntimeCached()).getLoadedPluginJobHandlers;
 const getLoadedPluginAdminExtensions = async () => (await getPluginRuntimeCached()).getLoadedPluginAdminExtensions;
+const getLoadedPluginBlocks = async () => (await getPluginRuntimeCached()).getLoadedPluginBlocks;
 
 /** Handler de job de plugin (dispatch do worker). */
 export type PluginJobHandlerFn = (
@@ -115,6 +116,21 @@ export async function getPluginAdminExtensions(
 ): Promise<Array<{ pluginName: string; state: AdminExtensionsState }>> {
   try {
     return await (await getLoadedPluginAdminExtensions())(scopeKey(tenantId));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Blocks registered at runtime by the loaded plugins of a scope — feeds
+ * GET /api/v1/blocks together with `manifest.blocks`. Never throws: runtime
+ * unavailability becomes an empty list.
+ */
+export async function getPluginBlocks(
+  tenantId: string | null
+): Promise<Array<{ pluginName: string; blocks: Array<PluginBlockManifest & { pluginName: string }> }>> {
+  try {
+    return await (await getLoadedPluginBlocks())(scopeKey(tenantId));
   } catch {
     return [];
   }

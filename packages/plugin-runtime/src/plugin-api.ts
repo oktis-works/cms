@@ -6,7 +6,7 @@
 
 import { randomUUID } from 'node:crypto';
 import type { HookRegistryLike } from '@oktis-works/plugin-sdk';
-import type { PluginManifest, PluginFieldTypeManifest, PluginPostTypeDeclaration, PluginTaxonomyDeclaration, PluginCacheApi, PluginJobsApi, PluginJobHandler, PluginHttpApi, PluginAdminApi, AdminExtensionsState } from '@oktis-works/plugin-sdk';
+import type { PluginManifest, PluginFieldTypeManifest, PluginPostTypeDeclaration, PluginTaxonomyDeclaration, PluginBlockManifest, PluginCacheApi, PluginJobsApi, PluginJobHandler, PluginHttpApi, PluginAdminApi, AdminExtensionsState } from '@oktis-works/plugin-sdk';
 import { PERMISSIONS, createPluginAdminApi } from '@oktis-works/plugin-sdk';
 import { createHttpApi } from './http.js';
 
@@ -71,6 +71,9 @@ export interface PluginAPI {
 
   /** Registra uma Custom Taxonomy (permissão taxonomies:register). */
   addTaxonomy(declaration: PluginTaxonomyDeclaration): void;
+
+  /** Registra um bloco do editor (permissão blocks:register). Data plane: sem tabela — vive enquanto o plugin está ativo. */
+  registerBlock(block: PluginBlockManifest): void;
 
   /** Cache/transient por plugin (permissões cache:read/cache:write). */
   readonly cache: PluginCacheApi;
@@ -228,6 +231,7 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
   const registeredFieldTypes: Array<PluginFieldTypeManifest & { pluginName: string; isPluginType: true }> = [];
   const registeredPostTypes: Array<PluginPostTypeDeclaration & { pluginName: string }> = [];
   const registeredTaxonomies: Array<PluginTaxonomyDeclaration & { pluginName: string }> = [];
+  const registeredBlocks: Array<PluginBlockManifest & { pluginName: string }> = [];
 
   // ── api.admin (FEAT-098/DECI-027): slots declarativos registrados em
   // runtime; o endpoint /api/v1/plugins/extensions mescla com manifest.admin.
@@ -519,6 +523,26 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
       registerTaxonomies?.([...registeredTaxonomies]);
     },
 
+    registerBlock(block: PluginBlockManifest): void {
+      if (!allowedPermissions.includes(PERMISSIONS.BLOCKS_REGISTER)) {
+        throw new Error(`Plugin permission denied: ${PERMISSIONS.BLOCKS_REGISTER}`);
+      }
+      if (!block?.type || typeof block.type !== 'string') {
+        throw new Error('Block "type" is required');
+      }
+      if (!block.label || typeof block.label !== 'string') {
+        throw new Error('Block "label" is required');
+      }
+      if (!block.adminComponentPath || typeof block.adminComponentPath !== 'string') {
+        throw new Error('Block "adminComponentPath" is required');
+      }
+      const existing = registeredBlocks.find((registered) => registered.type === block.type);
+      if (existing) {
+        throw new Error(`Block type "${block.type}" already registered by plugin "${existing.pluginName || 'unknown'}"`);
+      }
+      registeredBlocks.push({ ...block, pluginName: manifest.name });
+    },
+
     cache: cacheApi,
     jobs: jobsApi,
     http: httpApi,
@@ -605,6 +629,7 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
       getTaxonomies: () => registeredTaxonomies,
       getJobHandlers: () => jobHandlers,
       getAdminState: () => adminApi.state,
+      getBlocks: () => registeredBlocks,
     },
   };
 }
@@ -620,4 +645,6 @@ export interface PluginApiInternal {
   getJobHandlers: () => Map<string, PluginJobHandler>;
   /** Slots declarativos registrados em runtime via api.admin.*. */
   getAdminState: () => AdminExtensionsState;
+  /** Blocos do editor registrados em runtime via api.registerBlock. */
+  getBlocks: () => Array<PluginBlockManifest & { pluginName: string }>;
 }

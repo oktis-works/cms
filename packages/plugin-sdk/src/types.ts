@@ -113,6 +113,8 @@ export interface PluginAPI {
   addFieldType(definition: PluginFieldTypeManifest): void;
   addPostType(declaration: PluginPostTypeDeclaration): void;
   addTaxonomy(declaration: PluginTaxonomyDeclaration): void;
+  /** Registers an editor block (permission blocks:register) — data plane, no table. */
+  registerBlock(block: PluginBlockManifest): void;
   /** Cache/transient por plugin (namespaced, permissão cache:read/cache:write). */
   cache: PluginCacheApi;
   /** Jobs/cron por plugin (permissão jobs:schedule). */

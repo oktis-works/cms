@@ -17,7 +17,7 @@
 //   - **por escopo**: o estado de carga é indexado por escopo (platform ou um
 //     tenant), então ativar/desativar num tenant não afeta outro.
 
-import { createPluginHooksApi, type HookRegistryLike, type PluginJobHandler, type AdminExtensionsState } from '@oktis-works/plugin-sdk';
+import { createPluginHooksApi, type HookRegistryLike, type PluginJobHandler, type AdminExtensionsState, type PluginBlockManifest } from '@oktis-works/plugin-sdk';
 import { PLUGIN_PERMISSION_DEFAULT } from '@oktis-works/validation';
 import { PluginLoader, type DiscoveredPlugin } from './loader.js';
 import { PluginSandbox } from './sandbox.js';
@@ -179,6 +179,25 @@ export function getLoadedPluginAdminExtensions(scopeKey: string): Array<{
       Object.keys(state.columns).length > 0 ||
       Object.keys(state.columnRenderers).length > 0;
     if (hasEntries) result.push({ pluginName, state });
+  }
+  return result;
+}
+
+/**
+ * Blocks registered at runtime via `api.registerBlock` by the plugins loaded
+ * in a scope — consumed by GET /api/v1/blocks, which merges them with
+ * `manifest.blocks`. Only plugins with at least one block are returned.
+ */
+export function getLoadedPluginBlocks(scopeKey: string): Array<{
+  pluginName: string;
+  blocks: Array<PluginBlockManifest & { pluginName: string }>;
+}> {
+  const scope = loadedScopes.get(scopeKey);
+  if (!scope) return [];
+  const result: Array<{ pluginName: string; blocks: Array<PluginBlockManifest & { pluginName: string }> }> = [];
+  for (const [pluginName, entry] of scope.plugins) {
+    const blocks = entry.internal?.getBlocks?.();
+    if (blocks && blocks.length > 0) result.push({ pluginName, blocks });
   }
   return result;
 }

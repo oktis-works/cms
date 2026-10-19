@@ -35,6 +35,7 @@ import contentTypesRouter from './routes/content-types/index.js';
 import taxonomiesRouter from './routes/taxonomies/index.js';
 import fieldGroupsRouter from './routes/field-groups/index.js';
 import fieldTypesRouter from './routes/field-types/index.js';
+import blocksRouter from './routes/blocks/index.js';
 import metricsRouter from './routes/metrics/index.js';
 import auditLogsRouter from './routes/audit-logs/index.js';
 import docsRouter from './routes/docs/index.js';
@@ -132,6 +133,7 @@ async function main() {
   app.route('/api/v1/taxonomies', taxonomiesRouter);
   app.route('/api/v1/field-groups', fieldGroupsRouter);
   app.route('/api/v1/field-types', fieldTypesRouter);
+  app.route('/api/v1/blocks', blocksRouter);
   app.route('/api/v1/health', healthRouter);
   app.route('/api/v1/metrics', metricsRouter);
   app.route('/api/v1/audit-logs', auditLogsRouter);
@@ -166,6 +168,7 @@ async function main() {
         taxonomies: '/api/v1/taxonomies',
         fieldGroups: '/api/v1/field-groups',
         fieldTypes: '/api/v1/field-types',
+        blocks: '/api/v1/blocks',
       },
     });
   });
