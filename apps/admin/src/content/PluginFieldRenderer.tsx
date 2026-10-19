@@ -17,7 +17,7 @@ interface PluginFieldRendererProps {
   adminRendererPath?: string;
   adminComponentPath?: string;
   disabled?: boolean;
-  t: (key: string) => string;
+  _t: (key: string) => string;
 }
 
 export function PluginFieldRenderer(props: PluginFieldRendererProps) {
@@ -85,7 +85,7 @@ export function PluginFieldRenderer(props: PluginFieldRendererProps) {
           value={props.value}
           onChange={handleValueChange}
           disabled={props.disabled}
-          t={props.t}
+          _t={props._t}
         />
       </div>
     );
@@ -98,7 +98,7 @@ export function PluginFieldRenderer(props: PluginFieldRendererProps) {
         value={props.value}
         onChange={handleValueChange}
         disabled={props.disabled}
-        t={props.t}
+        _t={props._t}
       />
     </div>
   );
@@ -110,7 +110,7 @@ function FallbackRenderer(props: {
   value: unknown;
   onChange: (value: unknown) => void;
   disabled?: boolean;
-  t: (key: string) => string;
+  _t: (key: string) => string;
 }) {
   const { field, value, onChange, disabled } = props;
 

@@ -30,8 +30,8 @@ export function PluginFieldConfig(props: PluginFieldConfigProps) {
       } else {
         setError('Componente de configuração não encontrado no módulo');
       }
-    } catch (e) {
-      setError(`Erro ao carregar componente: ${e instanceof Error ? e.message : String(e)}`);
+    } catch (_e) {
+      setError(`Erro ao carregar componente: ${_e instanceof Error ? _e.message : String(_e)}`);
     } finally {
       setLoading(false);
     }
