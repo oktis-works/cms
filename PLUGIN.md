@@ -77,6 +77,21 @@ Este documento foca na **especificação completa** para desenvolvedores de plug
 | `adminRendererPath` | Não | Caminho para componente de renderização na edição de conteúdo. Se omitido, usa `adminComponentPath` como fallback. |
 | `configSchema` | Não | JSON Schema para validação da configuração do campo no admin. |
 
+### 2.1 Manifesto v2 (retrocompatível)
+
+Opcional — um manifesto v1 continua válido. Declare `"manifestVersion": 2` e
+use os campos adicionais:
+
+| Campo | Descrição |
+|-------|-----------|
+| `blocks[]` | Blocos customizados do editor: `{ type, label, icon, category?, attrsSchema?, adminComponentPath, rendererPath?, supports?: { fields?: boolean } }` |
+| `postTypes[]` | Custom Post Types declarados: `{ key, label, plural?, icon?, hierarchy?, revisions?, restBase? }` |
+| `taxonomies[]` | Custom Taxonomies: `{ key, label, postTypes: string[], hierarchical? }` |
+| `scheduleJobs[]` | Jobs recorrentes: `{ name, every (ms) \| cron }` |
+| `httpPolicy` | `{ allowHosts?: string[] }` — allowlist estrita para `api.http` |
+| `rateLimit` | `{ rpm?: number }` — limite das rotas do plugin |
+| `migrations[]` | Caminhos de arquivos SQL aplicados em ordem no `onInstall` (relativos ao plugin) |
+
 ---
 
 ## 3. Entrypoint do Plugin (`index.js`)
@@ -319,12 +334,25 @@ plugins/meu-plugin/
 
 ## 6. Permissões Necessárias
 
+Catálogo centralizado em `@oktis-works/plugin-sdk` (`PERMISSIONS`). Permissões
+desconhecadas são **rejeitadas na instalação** (validação em modo strict).
+
 | Permissão | Uso |
 |-----------|-----|
 | `field-types:register` | **Obrigatória** para usar `api.addFieldType()` |
 | `db:query` | Para migrations, queries customizadas |
 | `settings:read` / `settings:write` | Para settings do plugin |
 | `events:emit` | Para disparar eventos internos |
+| `post-types:register` | Para `api.addPostType()` |
+| `taxonomies:register` | Para `api.addTaxonomy()` |
+| `cache:read` / `cache:write` | Para `api.cache.*` (transient por plugin) |
+| `jobs:schedule` | Para `api.jobs.*` (cron/filas) |
+| `http:fetch` | Para `api.http.*` (requisições externas protegidas contra SSRF) |
+| `blocks:register` | Para `api.registerBlock()` (editor de blocos) |
+| `roles:create` | Para `api.roles.add()` |
+| `assets:enqueue` | Para `api.assets.enqueueStyle/Script` |
+| `mail:send` | Para `api.mail.send()` |
+| `health:register` | Para `api.health.register()` |
 
 Declare no `manifest.json`:
 

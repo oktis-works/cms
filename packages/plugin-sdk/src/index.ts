@@ -20,6 +20,14 @@ export {
 export type { PluginHooksApi, HookRegistration, HookRegistryLike } from './hooks.js';
 
 export {
+  PERMISSIONS,
+  ALL_PERMISSIONS,
+  validatePermissions,
+  isKnownPermission,
+} from './permissions.js';
+export type { Permission } from './permissions.js';
+
+export {
   createPluginAdminApi,
 } from './admin.js';
 export type {

@@ -16,6 +16,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { PluginManifest } from '@oktis-works/plugin-sdk';
+import { validatePermissions } from '@oktis-works/plugin-sdk';
 
 export type ManifestSource = 'manifest.json' | 'package.json';
 
@@ -28,6 +29,102 @@ export interface ReadManifestResult {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+/**
+ * Valida os campos do schema v2 (tudo opcional — um manifesto v1 continua
+ * válido). Retorna as issues encontradas; vazio = válido.
+ */
+export function validateManifestV2(merged: Record<string, unknown>): string[] {
+  const issues: string[] = [];
+
+  const manifestVersion = merged['manifestVersion'];
+  if (manifestVersion !== undefined && manifestVersion !== 1 && manifestVersion !== 2) {
+    issues.push(`manifestVersion "${String(manifestVersion)}" inválida (esperado 1 ou 2)`);
+  }
+
+  // Permissões: desconhecidas são rejeitadas (catálogo do plugin-sdk).
+  const permissions = merged['permissions'];
+  if (Array.isArray(permissions)) {
+    for (const unknown of validatePermissions(permissions.filter(isString))) {
+      issues.push(`permissão desconhecida "${unknown}"`);
+    }
+  }
+
+  const blocks = merged['blocks'];
+  if (Array.isArray(blocks)) {
+    for (const block of blocks) {
+      if (!isRecord(block) || !isString(block['type']) || !isString(block['label']) || !isString(block['icon']) || !isString(block['adminComponentPath'])) {
+        issues.push('block sem type/label/icon/adminComponentPath válidos');
+      }
+    }
+  }
+
+  const postTypes = merged['postTypes'];
+  if (Array.isArray(postTypes)) {
+    for (const postType of postTypes) {
+      if (!isRecord(postType) || !isString(postType['key']) || !isString(postType['label'])) {
+        issues.push('postType sem key/label válidos');
+      }
+    }
+  }
+
+  const taxonomies = merged['taxonomies'];
+  if (Array.isArray(taxonomies)) {
+    for (const taxonomy of taxonomies) {
+      if (!isRecord(taxonomy) || !isString(taxonomy['key']) || !isString(taxonomy['label']) || !Array.isArray(taxonomy['postTypes'])) {
+        issues.push('taxonomy sem key/label/postTypes válidos');
+      }
+    }
+  }
+
+  const scheduleJobs = merged['scheduleJobs'];
+  if (Array.isArray(scheduleJobs)) {
+    for (const job of scheduleJobs) {
+      if (!isRecord(job) || !isString(job['name'])) {
+        issues.push('scheduleJob sem nome');
+        continue;
+      }
+      const hasEvery = typeof job['every'] === 'number' && (job['every'] as number) > 0;
+      const hasCron = isString(job['cron']);
+      if (hasEvery === hasCron) {
+        issues.push(`scheduleJob "${job['name']}" precisa de exatamente um de: every | cron`);
+      }
+    }
+  }
+
+  const httpPolicy = merged['httpPolicy'];
+  if (httpPolicy !== undefined) {
+    if (!isRecord(httpPolicy)) {
+      issues.push('httpPolicy inválida');
+    } else if (httpPolicy['allowHosts'] !== undefined && !Array.isArray(httpPolicy['allowHosts'])) {
+      issues.push('httpPolicy.allowHosts deve ser array de hosts');
+    }
+  }
+
+  const rateLimit = merged['rateLimit'];
+  if (rateLimit !== undefined) {
+    if (!isRecord(rateLimit)) {
+      issues.push('rateLimit inválido');
+    } else if (rateLimit['rpm'] !== undefined && !(typeof rateLimit['rpm'] === 'number' && (rateLimit['rpm'] as number) > 0)) {
+      issues.push('rateLimit.rpm deve ser número positivo');
+    }
+  }
+
+  const migrations = merged['migrations'];
+  if (migrations !== undefined) {
+    if (!Array.isArray(migrations) || !migrations.every(isString)) {
+      issues.push('migrations deve ser array de caminhos SQL válidos');
+    } else if (migrations.some((path) => path.includes('..') || path.startsWith('/'))) {
+      issues.push('migrations com caminho fora do diretório do plugin');
+    }
+  }
+
+  return issues;
 }
 
 async function readJson(dir: string, file: string): Promise<Record<string, unknown> | null> {
@@ -76,6 +173,18 @@ export async function readPluginManifest(
   const main = merged['main'];
   if (options.strict && typeof main !== 'string') {
     issues.push('manifest sem "main" (entrypoint)');
+  }
+
+  // Campos do schema v2: em strict (sync/instalação) bloqueiam; no loader
+  // (runtime) apenas avisam — um plugin com campo v2 malformado não pode
+  // impedir o boot dos demais.
+  const v2Issues = validateManifestV2(merged);
+  if (options.strict) {
+    issues.push(...v2Issues);
+  } else {
+    for (const issue of v2Issues) {
+      console.warn(`[manifest] ${merged['name'] ?? '?'}: ${issue}`);
+    }
   }
 
   if (issues.length > 0) {

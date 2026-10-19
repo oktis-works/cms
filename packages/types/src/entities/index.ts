@@ -279,6 +279,79 @@ export interface PluginManifest {
   config?: Record<string, unknown>;
   /** Tipos de campo customizados registrados pelo plugin. */
   fieldTypes?: PluginFieldTypeManifest[];
+  /** Versão do schema do manifesto. Ausente = v1 (retrocompatível). */
+  manifestVersion?: 1 | 2;
+  /** Blocos customizados do editor (manifesto v2). */
+  blocks?: PluginBlockManifest[];
+  /** Custom Post Types declarados (manifesto v2). */
+  postTypes?: PluginPostTypeDeclaration[];
+  /** Custom Taxonomies declaradas (manifesto v2). */
+  taxonomies?: PluginTaxonomyDeclaration[];
+  /** Jobs/cron declarados no manifesto (manifesto v2). */
+  scheduleJobs?: PluginJobDeclaration[];
+  /** Política HTTP para api.http (manifesto v2). */
+  httpPolicy?: PluginHttpPolicy;
+  /** Rate-limit das rotas do plugin (manifesto v2). */
+  rateLimit?: { rpm?: number };
+  /** Arquivos de migração SQL (relativos ao plugin), aplicados em ordem. */
+  migrations?: string[];
+}
+
+/**
+ * Bloco customizado do editor de blocos (manifesto v2).
+ * Espelha o formato já consolidado de `fieldTypes`.
+ */
+export interface PluginBlockManifest {
+  /** Identificador único do bloco (ex: 'product-card'). */
+  type: string;
+  /** Label amigável exibido na paleta de blocos. */
+  label: string;
+  /** Ícone Lucide (ex: 'credit-card'). */
+  icon: string;
+  /** Categoria de organização na paleta. */
+  category?: string;
+  /** JSON Schema dos atributos do bloco (gera o inspector automaticamente). */
+  attrsSchema?: Record<string, unknown>;
+  /** Componente React/Solid do bloco no editor. */
+  adminComponentPath: string;
+  /** Renderizador SSR no front-end (opcional — default: HTML serializado). */
+  rendererPath?: string;
+  /** Suporta campos customizados dentro do bloco. Default: false. */
+  supports?: { fields?: boolean };
+}
+
+/** Custom Post Type declarado no manifesto (manifesto v2). */
+export interface PluginPostTypeDeclaration {
+  key: string;
+  label: string;
+  plural?: string;
+  icon?: string;
+  hierarchy?: boolean;
+  revisions?: boolean;
+  restBase?: string;
+}
+
+/** Custom Taxonomy declarada no manifesto (manifesto v2). */
+export interface PluginTaxonomyDeclaration {
+  key: string;
+  label: string;
+  postTypes: string[];
+  hierarchical?: boolean;
+}
+
+/** Job declarado no manifesto (manifesto v2). */
+export interface PluginJobDeclaration {
+  name: string;
+  /** Intervalo fixo em milissegundos. */
+  every?: number;
+  /** Expressão cron (conflita com `every`). */
+  cron?: string;
+}
+
+/** Política HTTP do plugin (manifesto v2). */
+export interface PluginHttpPolicy {
+  /** Allowlist estrita de hosts — se presente, só estes são permitidos. */
+  allowHosts?: string[];
 }
 
 /**

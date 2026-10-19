@@ -4,9 +4,21 @@ import type {
   PluginManifest as CanonicalPluginManifest,
   PluginDependency as CanonicalPluginDependency,
   PluginFieldTypeManifest,
+  PluginBlockManifest,
+  PluginPostTypeDeclaration,
+  PluginTaxonomyDeclaration,
+  PluginJobDeclaration,
+  PluginHttpPolicy,
 } from '@oktis-works/types';
 
-export type { PluginFieldTypeManifest };
+export type {
+  PluginFieldTypeManifest,
+  PluginBlockManifest,
+  PluginPostTypeDeclaration,
+  PluginTaxonomyDeclaration,
+  PluginJobDeclaration,
+  PluginHttpPolicy,
+};
 
 /**
  * Plugin lifecycle hook types.
