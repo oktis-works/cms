@@ -132,6 +132,29 @@ export function renderContentPage(input: ContentPageRenderInput): string {
 
   const row = input.contentRow ?? {};
   const title = toText(row['title']) || input.settings.siteTitle;
+
+  // E5 (FEAT-100): render/save hook surface for plugin-built editors.
+  // `theme:before:render` filters the render data right before templating —
+  // the preferred place for a plugin to compile its block document into HTML
+  // (e.g. body._editor document → body.content) when save-time compilation
+  // (before_save_content_*/after_save_content_*) is not enough.
+  // `theme:after:render` filters the final document (post-processing, e.g.
+  // hydration scripts or placeholder replacement).
+  const registry = getHookRegistry();
+  const hookContext = {
+    template: file,
+    contentType: input.resolution.contentType ?? '',
+    slug: input.resolution.slug ?? '',
+    activeTheme: input.activeTheme,
+    settings: input.settings,
+    contentRow: row,
+  };
+  const renderData = (registry.applyFilters(
+    HOOK_POINTS.THEME_BEFORE_RENDER,
+    { ...input.data },
+    hookContext
+  ) as Record<string, unknown> | undefined) ?? input.data;
+
   const context: Record<string, unknown> = {
     site: {
       title: input.settings.siteTitle,
@@ -145,8 +168,8 @@ export function renderContentPage(input: ContentPageRenderInput): string {
       type: input.resolution.contentType ?? '',
       slug: input.resolution.slug ?? '',
     },
-    content: { ...input.data, ...plainColumns(row) },
-    fields: input.data,
+    content: { ...renderData, ...plainColumns(row) },
+    fields: renderData,
     items: input.items ?? [],
     menus: input.themeData?.menus ?? { all: [], bySlug: {} },
     contentTypes: input.themeData?.contentTypes ?? [],
@@ -158,7 +181,8 @@ export function renderContentPage(input: ContentPageRenderInput): string {
 
   const body = themeRenderer.renderString(template, context, row);
   const stylesheet = resolveThemeStylesheet(input.themesRoot, input.activeTheme);
-  return wrapDocument(body, title, input.settings, input.activeTheme, stylesheet);
+  const html = wrapDocument(body, title, input.settings, input.activeTheme, stylesheet);
+  return registry.applyFilters(HOOK_POINTS.THEME_AFTER_RENDER, html, hookContext) as string;
 }
 
 /**

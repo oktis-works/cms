@@ -628,6 +628,45 @@ contenteditable syncs, so the save flow keeps sanitizing and persisting
 document to HTML on save (or keep a JSON document under an undeclared
 `body._editor` key; undeclared body keys are preserved as-is).
 
+### 12.6 Content body conventions (plugin editors)
+
+`content.body` is an open JSONB column: server-side validation only checks
+**declared** custom fields, and any extra key is preserved as-is. Plugin
+editors keep their document in a reserved, plugin-prefixed key (convention:
+`body._editor = { editor: '<namespaced editor id>', mode: 'replace-body' }`)
+next to the compiled `body.content` HTML that themes consume. Never store
+under bare keys that could collide with field names.
+
+## 13. Render & save hooks (document compilation)
+
+Two complementary surfaces let a plugin compile its editor document into the
+HTML that themes render:
+
+**Save-time (preferred).** Content service hooks:
+
+- `before_save_content_<type>` — **filter** over `input.body`, applied
+  **before** custom-field validation and persist. A plugin editor compiles
+  `body._editor` (document) → `body.content` (HTML) here, so storage keeps a
+  canonical HTML fallback.
+- `after_save_content_<type>` — **action** with the saved content row
+  (post-processing: warm caches, derive previews).
+
+Subscribe inside `register(api)` via `api.addFilter('before_save_content_post', (body, ctx) => transformedBody)`
+(filters must return the new body) and `api.addAction('after_save_content_post', (content, ctx) => { ... })`.
+
+**Render-time (fallback).** Applied by the public site renderer
+(`apps/web → renderContentPage`):
+
+- `theme:before:render` — **filter** over the render data with context
+  `{ template, contentType, slug, activeTheme, settings, contentRow }`.
+  Compile-on-render happens here when content was saved by other means
+  (imports, seeds) and the document has no compiled HTML yet.
+- `theme:after:render` — **filter** over the final HTML document
+  (post-processing: hydration scripts, placeholder replacement).
+
+Prefer save-time compilation: render-time filters run on every page view,
+while save-time runs once per save.
+
 ---
 
 *Documentação gerada automaticamente — mantenha sincronizada com o código.*

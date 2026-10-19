@@ -10,16 +10,27 @@ vi.mock('@oktis-works/database', () => ({
     unsafe: vi.fn(async () => []),
   })),
 }));
-vi.mock('@oktis-works/plugin-runtime', () => ({
-  getHookRegistry: vi.fn(() => ({
+
+// Shared registry instance: renderContentPage calls getHookRegistry() at
+// render time, so tests must mutate THIS object (not a per-call fresh one).
+const { sharedRegistry } = vi.hoisted(() => ({
+  sharedRegistry: {
     addFilter: vi.fn(),
     doAction: vi.fn(),
-    applyFilters: vi.fn((hook, value) => value),
-  })),
+    applyFilters: vi.fn((hook: string, value: unknown, ..._rest: unknown[]) => value),
+  },
+}));
+
+vi.mock('@oktis-works/plugin-runtime', () => ({
+  getHookRegistry: vi.fn(() => sharedRegistry),
 }));
 vi.mock('@oktis-works/core', () => ({
   postTypeRegistry: { list: vi.fn(async () => []) },
-  HOOK_POINTS: {},
+  HOOK_POINTS: {
+    THEME_HEAD: 'theme:head',
+    THEME_BEFORE_RENDER: 'theme:before:render',
+    THEME_AFTER_RENDER: 'theme:after:render',
+  },
 }));
 
 import {
@@ -32,6 +43,7 @@ import {
   contentTypeForAsset,
   wrapDocument,
 } from './rendering.js';
+import { getHookRegistry } from '@oktis-works/plugin-runtime';
 import { CMS_VERSION } from '@oktis-works/validation';
 
 let themesRoot: string;
@@ -332,5 +344,88 @@ describe('contentTypeForAsset — B2 mime types', () => {
     expect(contentTypeForAsset('logo.svg')).toContain('image/svg');
     expect(contentTypeForAsset('font.woff2')).toContain('font/woff2');
     expect(contentTypeForAsset('arquivo.desconhecido')).toBe('application/octet-stream');
+  });
+});
+
+describe('renderContentPage — E5 render hooks (theme:before/after:render)', () => {
+  const hookSettings = { siteTitle: 'Hook Site', siteDescription: '', language: 'pt-BR' };
+
+  function withApplyFilters(
+    impl: (hook: string, value: unknown, ...rest: unknown[]) => unknown,
+    run: () => void
+  ): void {
+    const registry = getHookRegistry() as unknown as { applyFilters: ReturnType<typeof vi.fn> };
+    const original = registry.applyFilters.getMockImplementation();
+    registry.applyFilters.mockImplementation(impl);
+    try {
+      run();
+    } finally {
+      registry.applyFilters.mockImplementation(original ?? ((_hook: string, value: unknown) => value));
+    }
+  }
+
+  it('theme:before:render lets a plugin transform the render data (document → HTML)', () => {
+    writeFileSync(
+      join(themesRoot, 'mytheme', 'hookdata.astro'),
+      '<main data-hook>{{content.compiled}}</main>'
+    );
+    withApplyFilters(
+      (hook, value) =>
+        hook === 'theme:before:render' && value && typeof value === 'object'
+          ? { ...(value as Record<string, unknown>), compiled: 'COMPILED-HTML' }
+          : value,
+      () => {
+        const html = renderContentPage({
+          resolution: { matched: true, template: 'hookdata.astro', contentType: 'post', slug: 'hooked' },
+          contentRow: { title: 'Hooked', slug: 'hooked', type: 'post' },
+          data: {},
+          settings: hookSettings,
+          themesRoot,
+          activeTheme: 'mytheme',
+        });
+        expect(html).toContain('COMPILED-HTML');
+      }
+    );
+  });
+
+  it('theme:after:render lets a plugin post-process the final document', () => {
+    withApplyFilters(
+      (hook, value) => (hook === 'theme:after:render' ? `${String(value)}<!--after-hook-->'` : value),
+      () => {
+        const html = renderContentPage({
+          resolution: { matched: true, template: 'post.astro', contentType: 'post', slug: 'ola' },
+          contentRow,
+          data: { html: '<p>x</p>' },
+          settings: hookSettings,
+          themesRoot,
+          activeTheme: 'mytheme',
+        });
+        expect(html).toContain('<!--after-hook-->');
+      }
+    );
+  });
+
+  it('passes hook context (template/contentType/slug/activeTheme) to both filters', () => {
+    const seen: Array<{ hook: string; context: Record<string, unknown> }> = [];
+    withApplyFilters(
+      (hook, value, context) => {
+        if (hook === 'theme:before:render' || hook === 'theme:after:render') {
+          seen.push({ hook, context: (context ?? {}) as Record<string, unknown> });
+        }
+        return value;
+      },
+      () => {
+        renderContentPage({
+          resolution: { matched: true, template: 'post.astro', contentType: 'post', slug: 'ola' },
+          contentRow,
+          data: {},
+          settings: hookSettings,
+          themesRoot,
+          activeTheme: 'mytheme',
+        });
+      }
+    );
+    expect(seen.map((entry) => entry.hook)).toEqual(['theme:before:render', 'theme:after:render']);
+    expect(seen[0]?.context).toMatchObject({ template: 'post.astro', contentType: 'post', slug: 'ola', activeTheme: 'mytheme' });
   });
 });
