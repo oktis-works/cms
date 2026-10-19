@@ -45,6 +45,9 @@ temp/
 
 # Compiled TypeScript
 *.tsbuildinfo
+*.d.ts
+*.d.ts.map
+*.js.map
 
 # Package manager
 # bun.lock should be committed

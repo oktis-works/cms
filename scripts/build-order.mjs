@@ -49,6 +49,7 @@ const packages = [
   'ui',
   // Level 4/5: Depends on multiple
   'theme-runtime',
+  // Level 5: Depends on theme-runtime
   'cli',
 ];
 

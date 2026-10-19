@@ -15,14 +15,23 @@
 // boot. Falhas ficam visíveis em `getPluginsRuntimeState()` (rota
 // `/api/v1/plugins/runtime` + badge no admin) — não são silenciadas.
 
-import {
-  bootstrapPlugins,
-  getHookRegistryStore,
-  unloadTenant,
-  getLoadedPluginRoutes,
-  type PluginBootstrapResult,
-  type PluginApiDependencies,
-} from '@oktis-works/plugin-runtime';
+// @oktis-works/core - Sincronização de plugins habilitados em runtime
+//
+// O PLUGIN.md promete que `register(registry)` é chamado quando o plugin é
+// carregado — aqui o core cumpre isso para todos os processos (API, web,
+// worker, dev). Dois escopos:
+//
+//   - **platform** (`syncEnabledPlugins`): plugins `tenant_id IS NULL`,
+//     habilitados globalmente → registry platform, carregado no boot;
+//   - **tenant** (`ensureTenantPluginsLoaded`): plugins vinculados em
+//     `plugin_tenants` (status ENABLED) → registry do tenant, carregado sob
+//     demanda na primeira requisição daquele tenant (cache com TTL + LRU).
+//
+// Nunca lança: falha de banco, diretório ausente ou plugin quebrado são
+// reportadas no resultado (e persistidas em `plugins.error`), sem derrubar o
+// boot. Falhas ficam visíveis em `getPluginsRuntimeState()` (rota
+// `/api/v1/plugins/runtime` + badge no admin) — não são silenciadas.
+
 import { getConnection } from '@oktis-works/database';
 import { loadConfig } from '@oktis-works/config';
 import { resolvePluginPermissionPolicy } from '@oktis-works/validation';
@@ -33,7 +42,27 @@ import { tenantService } from '../tenant/service.js';
 import { userService } from '../user/service.js';
 import { fieldGroupService } from '../fields/service.js';
 import { getCurrentTenantIdSync, getCurrentUserIdSync, getCurrentRequestIdSync } from '../tenant/context.js';
-import type { RouteDefinition } from '@oktis-works/plugin-runtime';
+import type { RouteDefinition, PluginBootstrapResult, PluginApiDependencies } from '@oktis-works/plugin-runtime';
+
+// Dynamic imports for circular dependency with plugin-runtime
+// Using require with computed string to avoid TypeScript compile-time checking
+const getPluginRuntime = async () => {
+  return require('@oktis-works/plugin-runtime');
+};
+
+let _pluginRuntimeCache: ReturnType<typeof getPluginRuntime> | null = null;
+
+const getPluginRuntimeCached = async () => {
+  if (!_pluginRuntimeCache) {
+    _pluginRuntimeCache = await getPluginRuntime();
+  }
+  return _pluginRuntimeCache;
+};
+
+const getBootstrapPlugins = async () => (await getPluginRuntimeCached()).bootstrapPlugins;
+const getHookRegistryStore = async () => (await getPluginRuntimeCached()).getHookRegistryStore;
+const unloadTenant = async () => (await getPluginRuntimeCached()).unloadTenant;
+const getLoadedPluginRoutes = async () => (await getPluginRuntimeCached()).getLoadedPluginRoutes;
 
 export interface PluginsScopeState {
   /** `platform` ou `tenant:<id>`. */
@@ -254,11 +283,11 @@ async function syncScope(tenantId: string | null, force: boolean): Promise<Plugi
 
   const promise = (async (): Promise<PluginBootstrapResult> => {
     try {
-      const result = await bootstrapPlugins(runtimeOptions(tenantId));
+      const result = await (await getBootstrapPlugins())(runtimeOptions(tenantId));
       
       // Coleta rotas registradas pelos plugins neste escopo
       const scopeKey = key; // 'platform' ou 'tenant:<id>'
-      const pluginRoutes = getLoadedPluginRoutes(scopeKey);
+      const pluginRoutes = await (await getLoadedPluginRoutes())(scopeKey);
       for (const { pluginName, routes } of pluginRoutes) {
         registerPluginRoutes(pluginName, routes);
       }
@@ -278,8 +307,8 @@ async function syncScope(tenantId: string | null, force: boolean): Promise<Plugi
       };
       states.set(key, state);
       await persistScopeResult(state);
-      state.errors = new Map(result.failed.map((failure) => [failure.name, failure.error]));
-      evictOldTenants(config.plugins.maxLoadedTenants);
+      state.errors = new Map(result.failed.map((failure: { name: string; error: string }) => [failure.name, failure.error]));
+      await evictOldTenants(config.plugins.maxLoadedTenants);
       return result;
     } catch (error) {
       console.warn(
@@ -300,14 +329,14 @@ async function syncScope(tenantId: string | null, force: boolean): Promise<Plugi
 }
 
 /** Evita crescer sem limite: descarta tenants com carga mais antiga. */
-function evictOldTenants(maxTenants: number): void {
+async function evictOldTenants(maxTenants: number): Promise<void> {
   if (states.size <= maxTenants) return;
   for (const [key, state] of [...states.entries()]) {
     if (states.size <= maxTenants) break;
     if (state.tenantId === null) continue; // platform nunca sai
     states.delete(key);
-    unloadTenant(state.tenantId);
-    getHookRegistryStore().invalidateTenant(state.tenantId);
+    await (await unloadTenant())(state.tenantId);
+    (await (await getHookRegistryStore())).invalidateTenant(state.tenantId);
   }
 }
 
@@ -351,13 +380,13 @@ export async function ensureTenantPluginsLoaded(
  * Invalida o cache/registry de um tenant (após ativar/desativar vínculo,
  * desinstalar ou mudar permissões). A próxima requisição do tenant recarrega.
  */
-export function invalidateTenantPlugins(tenantId: string): void {
+export async function invalidateTenantPlugins(tenantId: string): Promise<void> {
   if (!tenantId) return;
   const key = scopeKey(tenantId);
   states.delete(key);
   inflight.delete(key);
-  unloadTenant(tenantId);
-  getHookRegistryStore().invalidateTenant(tenantId);
+  await (await unloadTenant())(tenantId);
+  (await (await getHookRegistryStore())).invalidateTenant(tenantId);
 }
 
 /** Invalida o escopo platform (após mudanças globais). */

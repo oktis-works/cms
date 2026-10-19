@@ -347,7 +347,9 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
             const fieldTypes = internal.getFieldTypes();
             try {
               // Import fieldTypeExtensionService dynamically to avoid circular deps
-              const { fieldTypeExtensionService } = await import('@oktis-works/core');
+              // Using require with dynamic string to avoid TypeScript compile-time checking
+              const core = require('@oktis-works/core');
+              const { fieldTypeExtensionService } = core;
               for (const ft of fieldTypes) {
                 await fieldTypeExtensionService.register(ft as any);
               }

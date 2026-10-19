@@ -5,10 +5,15 @@ import { getConnection, runPluginMigrations, rollbackPluginMigrations, type Migr
 import type { Plugin } from '@oktis-works/types';
 import { satisfies, validRange } from 'semver';
 import { CMS_VERSION, unknownPluginPermissions } from '@oktis-works/validation';
-import { readPluginManifest } from '@oktis-works/plugin-runtime';
 import { auditService } from '../observability/index.js';
 import { getEventBus } from '../events/bus.js';
 import { resolveExtensionDirectory } from '../extensions/project-directories.js';
+
+// Dynamic import for circular dependency with plugin-runtime
+const readPluginManifest = async (dir: string, options?: { strict?: boolean }) => {
+  const mod = await import('@oktis-works/plugin-runtime');
+  return mod.readPluginManifest(dir, options);
+};
 
 export interface PluginDependencyInput {
   name: string;
