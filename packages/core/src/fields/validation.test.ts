@@ -184,3 +184,32 @@ describe('validateContentData', () => {
     expect(validateContentData([messageField], {}).valid).toBe(true);
   });
 });
+
+describe('validateContentData — E6 open body contract', () => {
+  it('ignores undeclared keys (open JSONB body — plugin editor storage)', () => {
+    const fields = [base({ type: 'text', name: 'titulo', label: 'Title', required: true })];
+
+    const result = validateContentData(fields, {
+      titulo: 'Hello',
+      // reserved editor key + plugin-namespaced key are NOT declared fields
+      // and must pass validation untouched (editor slot storage convention).
+      _editor: { editor: 'my-plugin:blocks', mode: 'replace-body' },
+      'my-plugin/document': { blocks: [{ type: 'paragraph' }] },
+    });
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual([]);
+  });
+
+  it('still validates declared fields next to undeclared editor keys', () => {
+    const fields = [base({ type: 'email', name: 'email', required: true })];
+
+    const result = validateContentData(fields, {
+      _editor: { editor: 'my-plugin:blocks' },
+      email: 'not-an-email',
+    });
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((error) => error.code === 'INVALID_EMAIL')).toBe(true);
+  });
+});
