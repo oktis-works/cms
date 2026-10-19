@@ -50,17 +50,32 @@ describe('manifestAdminAsState', () => {
     expect(state.notices[0]?.id).toMatch(/^m\d+$/);
   });
 
-  it('descarta entradas malformadas em vez de lançar', () => {
+  it('drops malformed entries instead of throwing', () => {
     const state = manifestAdminAsState({
-      menuPages: [{ slug: 'x', label: 'X' }], // sem capability
-      dashboardWidgets: [{ id: 'w1' }], // sem title/componentId
-      notices: [{ level: 'info' }], // sem message
+      menuPages: [{ slug: 'x', label: 'X' }], // no capability
+      dashboardWidgets: [{ id: 'w1' }], // no title/componentId
+      notices: [{ level: 'info' }], // no message
       columns: [{ label: 'Sem identidade' }],
     } as never);
     expect(state.menuPages).toHaveLength(0);
     expect(state.dashboardWidgets).toHaveLength(0);
     expect(state.notices).toHaveLength(0);
     expect(Object.keys(state.columns)).toHaveLength(0);
+  });
+
+  it('keeps valid editors and drops malformed ones', () => {
+    const state = manifestAdminAsState({
+      editors: [
+        { id: 'blocks', componentId: 'p:Blocks', mode: 'replace-body', screens: ['post'], priority: 2 },
+        { componentId: 'p:NoId', mode: 'below', screens: ['post'] }, // no id
+        { id: 'bad', componentId: 'p:Bad', mode: 'sidebar', screens: ['post'] }, // invalid mode
+        { id: 'noscreens', componentId: 'p:NS', mode: 'below', screens: [] }, // empty screens
+      ],
+    } as never);
+    expect(state.editors).toHaveLength(1);
+    expect(state.editors[0]?.id).toBe('blocks');
+    expect(state.editors[0]?.mode).toBe('replace-body');
+    expect(state.editors[0]?.priority).toBe(2);
   });
 });
 
@@ -131,5 +146,26 @@ describe('mergePluginAdminState', () => {
     expect(target.columns['post']?.[0]?.key).toBe('a');
     // componentId relativo ganha o prefixo do plugin
     expect(target.columnRenderers['post']?.['a']).toBe('p:CellA');
+  });
+
+  it('namespaces editor ids/componentIds and dedupes manifest vs runtime', () => {
+    const target = emptyAdminExtensionsState();
+    const decl = manifestAdminAsState({
+      editors: [{ id: 'blocks', componentId: 'BlocksEditor', mode: 'replace-body', screens: ['post'] }],
+    });
+    const runtime = emptyAdminExtensionsState();
+    runtime.editors.push({
+      id: 'blocks',
+      componentId: 'BlocksEditor',
+      mode: 'replace-body',
+      screens: ['post'],
+    });
+
+    mergePluginAdminState(target, decl, 'p');
+    mergePluginAdminState(target, runtime, 'p');
+
+    expect(target.editors).toHaveLength(1);
+    expect(target.editors[0]?.id).toBe('p:blocks');
+    expect(target.editors[0]?.componentId).toBe('p:BlocksEditor');
   });
 });

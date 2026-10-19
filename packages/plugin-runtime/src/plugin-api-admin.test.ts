@@ -85,6 +85,12 @@ describe('api.admin', () => {
     api.admin.manageColumns('post', { key: 'visitas', label: 'Visitas' });
     api.admin.renderColumn('post', 'visitas', 'admin-plugin:VisitasCell');
     api.admin.addActionLinks([{ label: 'Docs', url: 'https://example.com' }]);
+    api.admin.addEditor({
+      id: 'blocks',
+      componentId: 'admin-plugin:BlocksEditor',
+      screens: ['post'],
+      mode: 'replace-body',
+    });
 
     const state = internal.getAdminState();
     expect(state.menuPages).toHaveLength(1);
@@ -95,6 +101,9 @@ describe('api.admin', () => {
     expect(state.columns['post']).toHaveLength(1);
     expect(state.columnRenderers['post']?.['visitas']).toBe('admin-plugin:VisitasCell');
     expect(state.actionLinks).toHaveLength(1);
+    expect(state.editors).toHaveLength(1);
+    expect(state.editors[0]?.id).toBe('blocks');
+    expect(state.editors[0]?.mode).toBe('replace-body');
 
     // removeNotice limpa a entrada
     api.admin.removeNotice(state.notices[0]!.id);
@@ -107,6 +116,16 @@ describe('api.admin', () => {
     expect(() =>
       api.admin.addSubmenuPage({ parentSlug: 'x', slug: 'y', label: 'Y' } as never)
     ).toThrow(/capability/);
+  });
+
+  it('validates addEditor registrations (id, componentId, screens, mode)', () => {
+    const { api } = createPluginApi(createDeps());
+    const valid = { id: 'e', componentId: 'p:E', screens: ['post'], mode: 'below' as const };
+    expect(() => api.admin.addEditor({ ...valid, id: '' })).toThrow(/id and componentId/);
+    expect(() => api.admin.addEditor({ ...valid, componentId: '' })).toThrow(/id and componentId/);
+    expect(() => api.admin.addEditor({ ...valid, screens: [] })).toThrow(/screens/);
+    expect(() => api.admin.addEditor({ ...valid, mode: 'sidebar' } as never)).toThrow(/mode/);
+    expect(() => api.admin.addEditor(valid)).not.toThrow();
   });
 });
 
@@ -131,6 +150,23 @@ describe('getLoadedPluginAdminExtensions', () => {
     expect(entries[0]?.pluginName).toBe('admin-plugin');
     expect(entries[0]?.state.menuPages[0]?.slug).toBe('tools');
     expect(entries[0]?.state.dashboardWidgets[0]?.id).toBe('widget-1');
+  });
+
+  it('reports a plugin whose only slot registrations are editors', async () => {
+    writePlugin(
+      'editor-plugin',
+      `
+      export async function register(api) {
+        api.admin.addEditor({ id: 'blocks', componentId: 'editor-plugin:Blocks', screens: ['post'], mode: 'replace-body' });
+      }
+      `
+    );
+    const sql = sqlWith([{ name: 'editor-plugin' }]);
+    await bootstrapPlugins({ pluginsDir, sql, registry, apiDeps: createDeps() });
+
+    const entries = getLoadedPluginAdminExtensions('platform');
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.state.editors).toHaveLength(1);
   });
 
   it('não reporta plugins sem nenhuma entrada de slot (estado vazio)', async () => {

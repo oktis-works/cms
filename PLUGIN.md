@@ -524,6 +524,7 @@ revalida tudo no servidor — RBAC).
 | Colunas da listagem | Cabeçalho da tabela de conteúdo | `admin.columns[]` | `api.admin.manageColumns()` |
 | Renderizador de coluna | Célula da coluna (componente recebe `{ row }`) | `admin.columnRenderers[]` | `api.admin.renderColumn()` |
 | Action links | Topo da listagem de conteúdo | `admin.actionLinks[]` | `api.admin.addActionLinks()` |
+| Editor slot | Editing screen (replaces or follows the classic body) | `admin.editors[]` | `api.admin.addEditor()` |
 
 ### 12.2 Manifesto (`manifest.json`)
 
@@ -540,7 +541,10 @@ revalida tudo no servidor — RBAC).
     ],
     "columns": [{ "contentType": "post", "key": "visitas", "label": "Visitas", "position": "after_title" }],
     "columnRenderers": [{ "contentType": "post", "key": "visitas", "componentId": "meu-plugin:VisitasCell" }],
-    "actionLinks": [{ "label": "Importar", "url": "https://meu-plugin.local/import" }]
+    "actionLinks": [{ "label": "Importar", "url": "https://meu-plugin.local/import" }],
+    "editors": [
+      { "id": "blocks", "label": "Blocos", "screens": ["post"], "mode": "replace-body", "priority": 0, "componentId": "meu-plugin:BlocksEditor" }
+    ]
   }
 }
 ```
@@ -554,7 +558,9 @@ Regras de validação (bloqueiam instalação/sync; no boot viram aviso):
   `high|default|low` quando presentes;
 - `notices`: `message` obrigatório, `level` ∈ `info|success|warning|error`;
 - `dashboardWidgets`: `render`, quando presente, precisa ser `"component"`;
-- `columns`/`columnRenderers`/`actionLinks`: identidade obrigatória.
+- `columns`/`columnRenderers`/`actionLinks`: identidade obrigatória;
+- `editors`: `id`/`componentId`/`mode` obrigatórios, `screens` array de strings
+  não vazio, `mode` ∈ `replace-body|below`, `priority` número quando presente.
 
 ### 12.3 Runtime (`index.js`)
 
@@ -566,10 +572,13 @@ export async function register(api) {
   api.admin.addNotice({ level: 'success', message: 'Registrado!' });
   api.admin.manageColumns('post', { key: 'visitas', label: 'Visitas' });
   api.admin.renderColumn('post', 'visitas', 'meu-plugin:VisitasCell');
+  api.admin.addEditor({ id: 'blocks', label: 'Blocos', screens: ['post'], mode: 'replace-body', componentId: 'meu-plugin:BlocksEditor' });
 }
 ```
 
 `addMenuPage`/`addSubmenuPage` **lançam** sem `capability` explícita.
+`addEditor` **throws** without `id`/`componentId`, with an empty `screens`
+array, or with a `mode` other than `replace-body`/`below`.
 
 ### 12.4 Convenção de `componentId`
 
@@ -585,6 +594,39 @@ O componente recebe `extraProps` do slot (ex.: células de coluna recebem
 `{ row }`). Erro de carregamento vira fallback visível com o `componentId` —
 nunca derruba o admin. Componentes de **menu/notice/action link** não têm
 componente (renderizam link/texto puro).
+
+### 12.5 Editor slot (content body)
+
+The editor slot lets a plugin take over the body area of the editing screen —
+e.g. a Gutenberg-like block editor implemented **outside** the core, as a
+separate plugin (see item E2/E8 of the parity plan).
+
+**Activation.** Registrations whose `screens` contain the current content type
+(or the `'*'` wildcard) compete by `priority` (lowest runs first); only the
+first match renders. `mode` decides placement:
+
+- `replace-body` — hides the classic toolbar + contenteditable and renders the
+  plugin component in its place;
+- `below` — renders the plugin component under the classic body area.
+
+**Component props contract.** The component receives:
+
+```ts
+{
+  editorId: string;      // namespaced editor id (e.g. "meu-plugin:blocks")
+  contentType: string;   // current content type slug
+  contentId: string;     // existing content id ('' for new content)
+  body: string;          // current HTML body (body.content)
+  setBody: (html: string) => void;
+  disabled: boolean;     // true while the form is saving
+}
+```
+
+`setBody(html)` writes to the **same** `content` signal the classic
+contenteditable syncs, so the save flow keeps sanitizing and persisting
+`body.content` with **no storage change** — a block editor can serialize its
+document to HTML on save (or keep a JSON document under an undeclared
+`body._editor` key; undeclared body keys are preserved as-is).
 
 ---
 

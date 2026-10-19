@@ -392,6 +392,30 @@ export interface AdminActionLink {
 }
 
 /**
+ * Registro de editor de conteúdo por plugin (slot de editor — FEAT-098).
+ * Permite que um plugin assuma o corpo da tela de edição (ex.: editor de
+ * blocos/Gutenberg implementado FORA do core, como plugin separado):
+ *   - `mode: 'replace-body'` substitui a área de corpo clássica;
+ *   - `mode: 'below'` renderiza a UI do plugin abaixo do corpo clássico.
+ * O componente recebe `{ editorId, contentType, contentId, body, setBody,
+ * disabled }` — `setBody(html)` grava no MESMO fluxo do editor clássico, então
+ * o save continua sanitizando e persistindo `body.content` sem migração.
+ */
+export interface AdminEditorRegistration {
+  /** Identificador único do editor (namespaced pelo plugin no merge). */
+  id: string;
+  /** Rótulo exibido (ex.: "Blocos"). */
+  label?: string;
+  /** Content types atendidos (ou `['*']` para todos). */
+  screens: string[];
+  mode: 'replace-body' | 'below';
+  /** Precedência entre editores do mesmo screen (menor roda primeiro; default 0). */
+  priority?: number;
+  /** Componente que renderiza a UI do editor. */
+  componentId: string;
+}
+
+/**
  * Bloco `admin` do manifesto v2 — declarações estáticas de slots.
  * Cada entrada é namespaced pelo nome do plugin no merge do endpoint
  * (ids/slugs ganham o prefixo `plugin:` quando não trouxerem).
@@ -406,6 +430,8 @@ export interface PluginManifestAdmin {
   columns?: AdminColumnDeclaration[];
   columnRenderers?: AdminColumnRendererDeclaration[];
   actionLinks?: AdminActionLink[];
+  /** Editores de conteúdo declarados no manifesto (slot de editor). */
+  editors?: AdminEditorRegistration[];
 }
 
 /**
@@ -421,6 +447,7 @@ export interface AdminExtensionsState {
   columns: Record<string, AdminColumnDefinition[]>;
   columnRenderers: Record<string, Record<string, string>>;
   actionLinks: AdminActionLink[];
+  editors: AdminEditorRegistration[];
 }
 
 /**

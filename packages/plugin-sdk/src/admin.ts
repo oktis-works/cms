@@ -13,6 +13,7 @@ import type {
   AdminMetaBox,
   AdminNotice,
   AdminColumnDefinition,
+  AdminEditorRegistration,
 } from '@oktis-works/types';
 
 export type {
@@ -28,6 +29,7 @@ export type {
   AdminActionLink,
   AdminColumnDeclaration,
   AdminColumnRendererDeclaration,
+  AdminEditorRegistration,
   PluginManifestAdmin,
 } from '@oktis-works/types';
 
@@ -46,6 +48,8 @@ export interface PluginAdminApi {
   manageColumns(contentType: string, column: AdminColumnDefinition): void;
   renderColumn(contentType: string, columnKey: string, componentId: string): void;
   addActionLinks(links: Array<{ label: string; url: string }>): void;
+  /** Registers a content editor for the editing screen (editor slot — see types docs). */
+  addEditor(editor: AdminEditorRegistration): void;
 }
 
 export function createPluginAdminApi(pluginId: string, state: AdminExtensionsState = emptyState()): PluginAdminApi & { state: AdminExtensionsState } {
@@ -53,13 +57,13 @@ export function createPluginAdminApi(pluginId: string, state: AdminExtensionsSta
     state,
     addMenuPage(page) {
       if (!page.capability || page.capability.length === 0) {
-        throw new Error(`[${pluginId}] addMenuPage exige uma capability explícita`);
+        throw new Error(`[${pluginId}] addMenuPage requires an explicit capability`);
       }
       state.menuPages.push(page);
     },
     addSubmenuPage(page) {
       if (!page.capability || page.capability.length === 0) {
-        throw new Error(`[${pluginId}] addSubmenuPage exige uma capability explícita`);
+        throw new Error(`[${pluginId}] addSubmenuPage requires an explicit capability`);
       }
       state.submenuPages.push(page);
     },
@@ -86,6 +90,18 @@ export function createPluginAdminApi(pluginId: string, state: AdminExtensionsSta
     addActionLinks(links) {
       state.actionLinks.push(...links);
     },
+    addEditor(editor) {
+      if (!editor.id || !editor.componentId) {
+        throw new Error(`[${pluginId}] addEditor requires id and componentId`);
+      }
+      if (!Array.isArray(editor.screens) || editor.screens.length === 0) {
+        throw new Error(`[${pluginId}] addEditor requires a non-empty screens array`);
+      }
+      if (editor.mode !== 'replace-body' && editor.mode !== 'below') {
+        throw new Error(`[${pluginId}] addEditor mode must be "replace-body" or "below"`);
+      }
+      state.editors.push(editor);
+    },
   };
 
   return api;
@@ -101,5 +117,6 @@ export function emptyState(): AdminExtensionsState {
     columns: {},
     columnRenderers: {},
     actionLinks: [],
+    editors: [],
   };
 }

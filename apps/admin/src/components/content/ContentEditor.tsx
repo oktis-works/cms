@@ -1,6 +1,6 @@
 // @oktis-works/admin - Classic editor inspired content workspace
 
-import { For, Show, createSignal, onMount } from 'solid-js';
+import { For, Show, createMemo, createSignal, onMount } from 'solid-js';
 import { expandCloneFields } from '../../lib/validation';
 import { sanitizeHtml } from '../../lib/sanitize';
 import { apiClient, type ThemeInfo, type ContentType } from '../../lib/api';
@@ -8,7 +8,7 @@ import { FieldRenderer } from './FieldRenderer';
 import type { ResolvedFieldDefinition } from './types';
 import { useTranslation } from '../../i18n';
 import type { AdminExtensionsState } from '@oktis-works/plugin-sdk';
-import { MetaBoxesSlot } from '../../ext/slots';
+import { MetaBoxesSlot, PluginComponentHost } from '../../ext/slots';
 import { emptyExtensionsState, loadExtensions } from '../../ext/store';
 
 interface Draft {
@@ -47,6 +47,29 @@ export function ContentEditor(props: Props) {
   const supports = (): Set<string> =>
     new Set(types().find((type) => type.slug === draft().type)?.supports ?? ['title', 'editor']);
   const hasSupport = (support: string): boolean => supports().has(support);
+
+  // Active plugin editor for this screen (editor slot — FEAT-098): registrations
+  // matching the current content type (or the '*' wildcard) sorted by priority
+  // (lowest runs first); the first match takes over the body area.
+  const activeEditor = createMemo(() => {
+    const screen = draft().type;
+    const matches = (extensions().editors ?? [])
+      .filter((editor) => editor.screens.includes('*') || editor.screens.includes(screen))
+      .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
+    return matches[0] ?? null;
+  });
+
+  // Contract handed to the plugin editor component: setBody(html) writes the
+  // same `data().content` signal the classic contenteditable syncs, so save
+  // keeps sanitizing and persisting `body.content` with no storage change.
+  const editorSlotProps = (): Record<string, unknown> => ({
+    editorId: activeEditor()!.id,
+    contentType: draft().type,
+    contentId: draft().id ?? '',
+    body: editorContent(),
+    setBody: (html: string) => setData({ ...data(), content: html }),
+    disabled: saving(),
+  });
 
   const typeListFallback = (available: ContentType[], requested?: string): string =>
     requested || available[0]?.slug || 'post';
@@ -211,26 +234,42 @@ export function ContentEditor(props: Props) {
             </div>
 
             <Show when={hasSupport('editor')}>
-              <div class="classic-editor__toolbar" role="toolbar" aria-label={t('content.editor.toolbar')}>
-                <button type="button" onClick={() => formatEditor('bold')}><strong>B</strong></button>
-                <button type="button" onClick={() => formatEditor('italic')}><em>I</em></button>
-                <button type="button" onClick={() => formatEditor('underline')}><u>U</u></button>
-                <span class="classic-editor__toolbar-divider" />
-                <button type="button" onClick={() => formatEditor('formatBlock', 'blockquote')}>❝</button>
-                <button type="button" onClick={() => formatEditor('insertUnorderedList')}>• List</button>
-                <button type="button" onClick={() => formatEditor('insertOrderedList')}>1. List</button>
-                <button type="button" onClick={() => formatEditor('createLink', window.prompt(t('content.editor.linkPrompt')) || '')}>Link</button>
+              <Show
+                when={activeEditor()?.mode !== 'replace-body'}
+                fallback={
+                  <div class="plugin-editor" data-plugin-editor={activeEditor()!.id}>
+                    <PluginComponentHost componentId={activeEditor()!.componentId} extraProps={editorSlotProps()} />
+                  </div>
+                }
+              >
+                <div class="classic-editor__toolbar" role="toolbar" aria-label={t('content.editor.toolbar')}>
+                  <button type="button" onClick={() => formatEditor('bold')}><strong>B</strong></button>
+                  <button type="button" onClick={() => formatEditor('italic')}><em>I</em></button>
+                  <button type="button" onClick={() => formatEditor('underline')}><u>U</u></button>
+                  <span class="classic-editor__toolbar-divider" />
+                  <button type="button" onClick={() => formatEditor('formatBlock', 'blockquote')}>❝</button>
+                  <button type="button" onClick={() => formatEditor('insertUnorderedList')}>• List</button>
+                  <button type="button" onClick={() => formatEditor('insertOrderedList')}>1. List</button>
+                  <button type="button" onClick={() => formatEditor('createLink', window.prompt(t('content.editor.linkPrompt')) || '')}>Link</button>
+                </div>
+                <div
+                  class="classic-editor__body"
+                  contentEditable={true}
+                  data-classic-editor
+                  role="textbox"
+                  aria-multiline="true"
+                  data-placeholder={t('content.editor.bodyPlaceholder')}
+                  innerHTML={sanitizeHtml(editorContent())}
+                  onInput={(event) => syncEditorContent(event.currentTarget)}
+                />
+              </Show>
+            </Show>
+
+            {/* Editor slot, below mode — plugin UI under the classic body area */}
+            <Show when={activeEditor()?.mode === 'below'}>
+              <div class="plugin-editor plugin-editor--below" data-plugin-editor={activeEditor()!.id}>
+                <PluginComponentHost componentId={activeEditor()!.componentId} extraProps={editorSlotProps()} />
               </div>
-              <div
-                class="classic-editor__body"
-                contentEditable={true}
-                data-classic-editor
-                role="textbox"
-                aria-multiline="true"
-                data-placeholder={t('content.editor.bodyPlaceholder')}
-                innerHTML={sanitizeHtml(editorContent())}
-                onInput={(event) => syncEditorContent(event.currentTarget)}
-              />
             </Show>
 
             <Show when={hasSupport('excerpt')}>

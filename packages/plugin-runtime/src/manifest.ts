@@ -124,25 +124,25 @@ export function validateManifestV2(merged: Record<string, unknown>): string[] {
     }
   }
 
-  // Slots declarativos do admin (FEAT-098 / DECI-027): identidade obrigatória,
-  // capability obrigatória em menus (gating por capability no slot) e screens
-  // não vazio em metaBoxes. context/priority/render, quando presentes, precisam
-  // ser valores conhecidos (o merge no endpoint aplica defaults).
+  // Declarative admin UI slots (FEAT-098 / DECI-027): identity is mandatory,
+  // capability is mandatory on menus (slot-level capability gating) and
+  // metaBoxes need a non-empty screens array. context/priority/render/mode,
+  // when present, must be known values (the endpoint merge applies defaults).
   const admin = merged['admin'];
   if (admin !== undefined) {
     if (!isRecord(admin)) {
-      issues.push('admin deve ser objeto');
+      issues.push('admin must be an object');
     } else {
       const checkList = (key: string, fields: string[]): void => {
         const list = admin[key];
         if (list === undefined) return;
         if (!Array.isArray(list)) {
-          issues.push(`admin.${key} deve ser array`);
+          issues.push(`admin.${key} must be an array`);
           return;
         }
         list.forEach((entry, index) => {
           if (!isRecord(entry) || fields.some((field) => !isString(entry[field]) || (entry[field] as string).length === 0)) {
-            issues.push(`admin.${key}[${index}] sem ${fields.join('/')} válidos`);
+            issues.push(`admin.${key}[${index}] missing valid ${fields.join('/')}`);
           }
         });
       };
@@ -153,17 +153,18 @@ export function validateManifestV2(merged: Record<string, unknown>): string[] {
       checkList('columns', ['contentType', 'key', 'label']);
       checkList('columnRenderers', ['contentType', 'key', 'componentId']);
       checkList('actionLinks', ['label', 'url']);
+      checkList('editors', ['id', 'componentId', 'mode']);
 
       const notices = admin['notices'];
       if (notices !== undefined) {
         if (!Array.isArray(notices)) {
-          issues.push('admin.notices deve ser array');
+          issues.push('admin.notices must be an array');
         } else {
           notices.forEach((entry, index) => {
             if (!isRecord(entry) || !isString(entry['message'])) {
-              issues.push(`admin.notices[${index}] sem message`);
+              issues.push(`admin.notices[${index}] missing message`);
             } else if (!['info', 'success', 'warning', 'error'].includes(String(entry['level']))) {
-              issues.push(`admin.notices[${index}].level inválido`);
+              issues.push(`admin.notices[${index}].level invalid`);
             }
           });
         }
@@ -175,13 +176,13 @@ export function validateManifestV2(merged: Record<string, unknown>): string[] {
           if (!isRecord(entry)) return;
           const screens = entry['screens'];
           if (!Array.isArray(screens) || screens.length === 0 || !screens.every(isString)) {
-            issues.push(`admin.metaBoxes[${index}].screens deve ser array de strings não vazio`);
+            issues.push(`admin.metaBoxes[${index}].screens must be a non-empty array of strings`);
           }
           if (entry['context'] !== undefined && !['normal', 'side', 'advanced'].includes(String(entry['context']))) {
-            issues.push(`admin.metaBoxes[${index}].context inválido`);
+            issues.push(`admin.metaBoxes[${index}].context invalid`);
           }
           if (entry['priority'] !== undefined && !['high', 'default', 'low'].includes(String(entry['priority']))) {
-            issues.push(`admin.metaBoxes[${index}].priority inválido`);
+            issues.push(`admin.metaBoxes[${index}].priority invalid`);
           }
         });
       }
@@ -190,7 +191,24 @@ export function validateManifestV2(merged: Record<string, unknown>): string[] {
       if (Array.isArray(widgets)) {
         widgets.forEach((entry, index) => {
           if (isRecord(entry) && entry['render'] !== undefined && entry['render'] !== 'component') {
-            issues.push(`admin.dashboardWidgets[${index}].render inválido (esperado "component")`);
+            issues.push(`admin.dashboardWidgets[${index}].render invalid (expected "component")`);
+          }
+        });
+      }
+
+      const editors = admin['editors'];
+      if (Array.isArray(editors)) {
+        editors.forEach((entry, index) => {
+          if (!isRecord(entry)) return;
+          const screens = entry['screens'];
+          if (!Array.isArray(screens) || screens.length === 0 || !screens.every(isString)) {
+            issues.push(`admin.editors[${index}].screens must be a non-empty array of strings`);
+          }
+          if (entry['mode'] !== undefined && !['replace-body', 'below'].includes(String(entry['mode']))) {
+            issues.push(`admin.editors[${index}].mode invalid (expected "replace-body" or "below")`);
+          }
+          if (entry['priority'] !== undefined && !(typeof entry['priority'] === 'number')) {
+            issues.push(`admin.editors[${index}].priority must be a number`);
           }
         });
       }

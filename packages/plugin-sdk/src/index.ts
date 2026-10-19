@@ -58,6 +58,7 @@ export type {
   AdminActionLink,
   AdminColumnDeclaration,
   AdminColumnRendererDeclaration,
+  AdminEditorRegistration,
   PluginManifestAdmin,
 } from './admin.js';
 

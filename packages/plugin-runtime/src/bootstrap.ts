@@ -153,9 +153,10 @@ export function getLoadedPluginJobHandlers(scopeKey: string): Array<{
 }
 
 /**
- * Estados `api.admin` dos plugins carregados em um escopo (slots registrados
- * em runtime) — consumido por GET /api/v1/plugins/extensions, que mescla com
- * `manifest.admin`. Só retorna estados com alguma entrada preenchida.
+ * Runtime `api.admin` state of the plugins loaded in a scope (slots
+ * registered at runtime) — consumed by GET /api/v1/plugins/extensions, which
+ * merges it with `manifest.admin`. Only states with at least one entry are
+ * returned.
  */
 export function getLoadedPluginAdminExtensions(scopeKey: string): Array<{
   pluginName: string;
@@ -174,6 +175,7 @@ export function getLoadedPluginAdminExtensions(scopeKey: string): Array<{
       state.metaBoxes.length > 0 ||
       state.notices.length > 0 ||
       state.actionLinks.length > 0 ||
+      (state.editors?.length ?? 0) > 0 ||
       Object.keys(state.columns).length > 0 ||
       Object.keys(state.columnRenderers).length > 0;
     if (hasEntries) result.push({ pluginName, state });

@@ -25,13 +25,14 @@ describe('validateManifestV2 - admin (FEAT-098)', () => {
         columns: [{ contentType: 'post', key: 'visits', label: 'Visits' }],
         columnRenderers: [{ contentType: 'post', key: 'visits', componentId: 'p:Cell' }],
         actionLinks: [{ label: 'Docs', url: 'https://example.com' }],
+        editors: [{ id: 'blocks', componentId: 'p:BlocksEditor', mode: 'replace-body', screens: ['post'], priority: 1 }],
       },
     });
     expect(issues).toEqual([]);
   });
 
-  it('rejeita admin que não é objeto', () => {
-    expect(validateManifestV2({ ...base, admin: 'nope' })).toContain('admin deve ser objeto');
+  it('rejects admin that is not an object', () => {
+    expect(validateManifestV2({ ...base, admin: 'nope' })).toContain('admin must be an object');
   });
 
   it('exige capability em menuPages e submenuPages', () => {
@@ -85,6 +86,22 @@ describe('validateManifestV2 - admin (FEAT-098)', () => {
     expect(issues.some((issue) => issue.includes('admin.columns[0]'))).toBe(true);
     expect(issues.some((issue) => issue.includes('admin.columnRenderers[0]'))).toBe(true);
     expect(issues.some((issue) => issue.includes('admin.actionLinks[0]'))).toBe(true);
+  });
+
+  it('validates admin.editors entries (identity, screens, mode, priority)', () => {
+    const issues = validateManifestV2({
+      ...base,
+      admin: {
+        editors: [
+          { componentId: 'p:Editor', mode: 'replace-body', screens: ['post'] },
+          { id: 'e2', componentId: 'p:E2', mode: 'sidebar', screens: [], priority: 'high' },
+        ],
+      },
+    });
+    expect(issues.some((issue) => issue.includes('admin.editors[0]'))).toBe(true);
+    expect(issues.some((issue) => issue.includes('admin.editors[1].screens'))).toBe(true);
+    expect(issues.some((issue) => issue.includes('admin.editors[1].mode'))).toBe(true);
+    expect(issues.some((issue) => issue.includes('admin.editors[1].priority'))).toBe(true);
   });
 });
 

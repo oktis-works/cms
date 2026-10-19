@@ -20,6 +20,7 @@ export function emptyExtensionsState(): AdminExtensionsState {
     columns: {},
     columnRenderers: {},
     actionLinks: [],
+    editors: [],
   };
 }
 

@@ -1,18 +1,19 @@
-// @oktis-works/api - Estado declarativo dos slots de admin (FEAT-098 / DECI-027)
+// @oktis-works/api - Admin UI extension state (FEAT-098 / DECI-027)
 //
-// `GET /plugins/extensions` mescla duas fontes em um único AdminExtensionsState:
-//   1. `manifest.admin` — declarado no manifesto e persistido em plugins.manifest;
-//   2. `api.admin.*`   — registrado em runtime pelo bootstrap (escopo platform + tenant).
+// `GET /plugins/extensions` merges two sources into a single AdminExtensionsState:
+//   1. `manifest.admin` — static declarations persisted in plugins.manifest;
+//   2. `api.admin.*`   — runtime registrations from the plugin bootstrap
+//      (platform + tenant scopes).
 //
-// Namespacing: ids/slugs/componentIds ganham o prefixo do plugin (`plugin/`,
-// `plugin:`) quando o autor não trouxer — dois plugins nunca colidem num slot.
-// A validação do manifesto (plugin-runtime/manifest.ts) exige capability nos
-// menus; aqui reaplicamos as regras defensivamente (o endpoint nunca quebra
-// por entrada malformada vinda do banco).
+// Namespacing: ids/slugs/componentIds get the plugin prefix (`plugin/`,
+// `plugin:`) when the author does not provide one — two plugins never collide
+// in a slot. Manifest validation (plugin-runtime/manifest.ts) requires
+// capability on menus; the same rules are re-applied defensively here (the
+// endpoint must never break on malformed rows coming from the database).
 
 import type { AdminExtensionsState, PluginManifestAdmin } from '@oktis-works/types'
 
-/** Statuses em que o plugin roda de verdade (enabledStatuses do bootstrap). */
+/** Statuses where the plugin actually runs (bootstrap enabledStatuses). */
 export function isPluginActive(status: string | undefined | null): boolean {
   return status === 'ACTIVATED' || status === 'RUNNING'
 }
@@ -27,10 +28,11 @@ export function emptyAdminExtensionsState(): AdminExtensionsState {
     columns: {},
     columnRenderers: {},
     actionLinks: [],
+    editors: [],
   }
 }
 
-/** `plugin:Component` ou caminho completo (`@/...`, `.../x.tsx`) intactos. */
+/** `plugin:Component` or full paths (`@/...`, `.../x.tsx`) stay untouched. */
 function componentIdFor(slug: string, componentId: string): string {
   if (componentId.startsWith('@') || componentId.includes('/')) return componentId
   return componentId.includes(':') ? componentId : `${slug}:${componentId}`
@@ -45,8 +47,8 @@ function menuSlugFor(slug: string, value: string): string {
 }
 
 /**
- * Converte o bloco `admin` do manifesto (forma flat de columns/notices) no
- * formato de estado do endpoint. Namespacing/dedupe acontecem no merge.
+ * Converts the manifest `admin` block (flat columns/notices/editors form)
+ * into the endpoint state format. Namespacing/dedupe happen in the merge.
  */
 export function manifestAdminAsState(decl: PluginManifestAdmin): AdminExtensionsState {
   const state = emptyAdminExtensionsState()
@@ -87,6 +89,14 @@ export function manifestAdminAsState(decl: PluginManifestAdmin): AdminExtensions
       dismissible: notice.dismissible,
       id: notice.id ?? `m${index}`,
     }))
+  state.editors = (decl.editors ?? []).filter(
+    (editor) =>
+      typeof editor?.id === 'string' &&
+      typeof editor?.componentId === 'string' &&
+      Array.isArray(editor.screens) &&
+      editor.screens.length > 0 &&
+      (editor.mode === 'replace-body' || editor.mode === 'below')
+  )
 
   for (const column of decl.columns ?? []) {
     if (typeof column?.contentType !== 'string' || typeof column?.key !== 'string' || typeof column?.label !== 'string') continue
@@ -111,8 +121,8 @@ export function manifestAdminAsState(decl: PluginManifestAdmin): AdminExtensions
 }
 
 /**
- * Mescla o estado de UM plugin (manifesto normalizado ou runtime) no estado
- * agregado, aplicando namespacing e dedupe por id/slug/chave.
+ * Merges ONE plugin's state (normalized manifest or runtime) into the
+ * aggregated state, applying namespacing and dedupe by id/slug/key.
  */
 export function mergePluginAdminState(target: AdminExtensionsState, source: AdminExtensionsState, pluginName: string): void {
   const slug = pluginName
@@ -160,6 +170,13 @@ export function mergePluginAdminState(target: AdminExtensionsState, source: Admi
     const id = idFor(slug, notice.id)
     if (target.notices.some((existing) => existing.id === id)) continue
     target.notices.push({ ...notice, id })
+  }
+  for (const editor of source.editors ?? []) {
+    if (!editor?.id || !editor?.componentId || !Array.isArray(editor.screens) || editor.screens.length === 0) continue
+    if (editor.mode !== 'replace-body' && editor.mode !== 'below') continue
+    const id = idFor(slug, editor.id)
+    if (target.editors.some((existing) => existing.id === id)) continue
+    target.editors.push({ ...editor, id, componentId: componentIdFor(slug, editor.componentId) })
   }
   for (const [contentType, columns] of Object.entries(source.columns ?? {})) {
     const list = target.columns[contentType] ?? []
