@@ -1,6 +1,7 @@
 // API Client for Admin Dashboard (HttpOnly cookies + CSRF + auto-refresh)
 
 import { joinApiUrl } from './api-url.js';
+import type { AdminExtensionsState } from '@oktis-works/plugin-sdk';
 
 /**
  * Erro tipado da API: o STATUS é o contrato, não a string do corpo.
@@ -1136,6 +1137,11 @@ export class ApiClient {
       enabled: plugin['enabled'] === true,
       manifest: (plugin['manifest'] as PluginInfo['manifest']) ?? null,
     }));
+  }
+
+  /** Slots declarativos do admin (FEAT-098): manifest.admin + api.admin (runtime). */
+  async getAdminExtensions(): Promise<AdminExtensionsState> {
+    return this.request('GET', '/api/v1/plugins/extensions');
   }
 
   async activatePlugin(id: string, tenantId: string): Promise<PluginInfo> {

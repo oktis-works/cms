@@ -7,9 +7,11 @@
 // - Operações de vínculo correm em runWithTenantTransaction(tenantId) p/ RLS
 
 import { Hono } from 'hono'
-import { pluginService, syncEnabledPlugins, ensureTenantPluginsLoaded, getPluginsRuntimeState } from '@oktis-works/core'
+import { pluginService, syncEnabledPlugins, ensureTenantPluginsLoaded, getPluginsRuntimeState, getPluginAdminExtensions } from '@oktis-works/core'
 import { authMiddleware, requirePermission } from '../../middleware/auth.js'
 import { runWithTenantTransaction } from '@oktis-works/database'
+import type { PluginManifest } from '@oktis-works/types'
+import { emptyAdminExtensionsState, isPluginActive, manifestAdminAsState, mergePluginAdminState } from './extensions.js'
 
 const plugins = new Hono()
 
@@ -38,6 +40,50 @@ plugins.get('/runtime', requirePermission('read', 'plugin'), async (c) => {
     return c.json(state)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to get runtime state'
+    return c.json({ error: message }, 500)
+  }
+})
+
+// GET /plugins/extensions — estado declarativo agregado dos slots de admin
+// (FEAT-098 / DECI-027): manifest.admin (ativo para o tenant) + api.admin.*
+// registrado em runtime (escopo platform + tenant). O admin renderiza os slots
+// a partir deste payload; capability gating de menu acontece no cliente.
+plugins.get('/extensions', requirePermission('read', 'plugin'), async (c) => {
+  try {
+    const userRoles = c.get('userRoles')
+    const sessionTenant = c.get('tenantId')
+    const tenantId = userRoles.includes('SUPER_ADMIN') ? c.req.query('tenantId') ?? sessionTenant : sessionTenant
+
+    const state = emptyAdminExtensionsState()
+
+    const rows = await pluginService.list(tenantId)
+    for (const row of rows) {
+      if (!isPluginActive(row.status)) continue
+      const adminDecl = (row.manifest as PluginManifest | undefined | null)?.admin
+      if (adminDecl) mergePluginAdminState(state, manifestAdminAsState(adminDecl), row.name)
+    }
+
+    // Runtime (api.admin.*): best-effort — garante o escopo do tenant carregado;
+    // falha não derruba o endpoint (o manifesto segue válido sozinho).
+    if (tenantId) {
+      try {
+        await ensureTenantPluginsLoaded(tenantId)
+      } catch {
+        // runtime indisponível — segue só com o manifesto
+      }
+    }
+    for (const entry of await getPluginAdminExtensions(null)) {
+      mergePluginAdminState(state, entry.state, entry.pluginName)
+    }
+    if (tenantId) {
+      for (const entry of await getPluginAdminExtensions(tenantId)) {
+        mergePluginAdminState(state, entry.state, entry.pluginName)
+      }
+    }
+
+    return c.json(state)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to collect admin extensions'
     return c.json({ error: message }, 500)
   }
 })

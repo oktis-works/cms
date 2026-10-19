@@ -370,3 +370,26 @@ describe('lock de refresh entre abas (sem polling)', () => {
     expect(urls().some((url) => url.includes('/auth/refresh'))).toBe(false);
   });
 });
+
+describe('admin extensions (FEAT-098)', () => {
+  it('getAdminExtensions busca GET /api/v1/plugins/extensions', async () => {
+    const payload = {
+      menuPages: [{ slug: 'p/tools', label: 'Tools', capability: 'manage_options' }],
+      submenuPages: [],
+      dashboardWidgets: [],
+      metaBoxes: [],
+      notices: [],
+      columns: {},
+      columnRenderers: {},
+      actionLinks: [],
+    };
+    fetchMock.mockResolvedValueOnce(respond(payload));
+
+    const state = await apiClient.getAdminExtensions();
+
+    expect(state.menuPages[0]?.slug).toBe('p/tools');
+    const [url, init] = call(fetchMock.mock.calls.length - 1);
+    expect(String(url)).toContain('/api/v1/plugins/extensions');
+    expect((init as RequestInit).method).toBe('GET');
+  });
+});

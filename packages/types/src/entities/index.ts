@@ -295,6 +295,132 @@ export interface PluginManifest {
   rateLimit?: { rpm?: number };
   /** Arquivos de migração SQL (relativos ao plugin), aplicados em ordem. */
   migrations?: string[];
+  /**
+   * Extensões de UI do admin — slots declarativos consumidos pelo shell via
+   * `GET /api/v1/plugins/extensions` (FEAT-098 / DECI-027; manifesto v2).
+   * Registrados também em runtime via `api.admin.*` — o endpoint mescla os dois.
+   */
+  admin?: PluginManifestAdmin;
+}
+
+// ============================================================
+// Admin UI extensions (FEAT-098 / DECI-027) — slots declarativos
+// ============================================================
+
+/** Página de menu no admin (slot sidebar). */
+export interface AdminMenuPage {
+  slug: string;
+  label: string;
+  /** Capability obrigatória no manifesto — o slot só renderiza para quem tem. */
+  capability?: string;
+  icon?: string;
+  position?: number;
+}
+
+/** Subpágina de menu no admin (filha de uma menuPage). */
+export interface AdminSubmenuPage {
+  parentSlug: string;
+  slug: string;
+  label: string;
+  capability?: string;
+  position?: number;
+}
+
+/** Widget de dashboard (slot dashboard). */
+export interface DashboardWidget {
+  id: string;
+  title: string;
+  render: 'component';
+  componentId: string;
+  columnsSpan?: 1 | 2 | 3 | 4;
+}
+
+/** Widget declarado no manifesto (render pode omitir — default "component" no merge). */
+export type DashboardWidgetDeclaration = Omit<DashboardWidget, 'render'> & { render?: 'component' };
+
+/** Meta box na tela de edição de conteúdo (slots normal/side/advanced). */
+export interface AdminMetaBox {
+  id: string;
+  title: string;
+  /** Tipos de conteúdo onde a caixa aparece (ex.: ['post', 'page']). */
+  screens: string[];
+  context: 'normal' | 'side' | 'advanced';
+  priority: 'high' | 'default' | 'low';
+  componentId: string;
+}
+
+/**
+ * Meta box declarada no manifesto (context/priority podem omitir — defaults
+ * "normal"/"default" aplicados no merge do endpoint).
+ */
+export type AdminMetaBoxDeclaration = Omit<AdminMetaBox, 'context' | 'priority'> & {
+  context?: AdminMetaBox['context'];
+  priority?: AdminMetaBox['priority'];
+};
+
+/** Notícia/admin notice exibida no topo do admin. */
+export interface AdminNotice {
+  id: string;
+  level: 'info' | 'success' | 'warning' | 'error';
+  message: string;
+  dismissible?: boolean;
+}
+
+/** Coluna customizada na listagem de um content type. */
+export interface AdminColumnDefinition {
+  key: string;
+  label: string;
+  position?: 'before_title' | 'after_title' | 'end';
+}
+
+/** Coluna declarada no manifesto (forma flat; o merge agrupa por contentType). */
+export interface AdminColumnDeclaration extends AdminColumnDefinition {
+  contentType: string;
+}
+
+/** Renderizador de coluna declarado no manifesto (componentId por coluna). */
+export interface AdminColumnRendererDeclaration {
+  contentType: string;
+  key: string;
+  componentId: string;
+}
+
+/** Link de ação extra na listagem principal. */
+export interface AdminActionLink {
+  label: string;
+  url: string;
+}
+
+/**
+ * Bloco `admin` do manifesto v2 — declarações estáticas de slots.
+ * Cada entrada é namespaced pelo nome do plugin no merge do endpoint
+ * (ids/slugs ganham o prefixo `plugin:` quando não trouxerem).
+ */
+export interface PluginManifestAdmin {
+  menuPages?: AdminMenuPage[];
+  submenuPages?: AdminSubmenuPage[];
+  dashboardWidgets?: DashboardWidgetDeclaration[];
+  metaBoxes?: AdminMetaBoxDeclaration[];
+  notices?: Array<Omit<AdminNotice, 'id'> & { id?: string }>;
+  /** Forma flat por contentType; o merge agrupa em AdminExtensionsState.columns. */
+  columns?: AdminColumnDeclaration[];
+  columnRenderers?: AdminColumnRendererDeclaration[];
+  actionLinks?: AdminActionLink[];
+}
+
+/**
+ * Estado declarativo agregado dos slots, servido por
+ * `GET /api/v1/plugins/extensions` e consumido pelo admin (DECI-027).
+ */
+export interface AdminExtensionsState {
+  menuPages: AdminMenuPage[];
+  submenuPages: AdminSubmenuPage[];
+  dashboardWidgets: DashboardWidget[];
+  metaBoxes: AdminMetaBox[];
+  notices: AdminNotice[];
+  columns: Record<string, AdminColumnDefinition[]>;
+  columnRenderers: Record<string, Record<string, string>>;
+  actionLinks: AdminActionLink[];
 }
 
 /**

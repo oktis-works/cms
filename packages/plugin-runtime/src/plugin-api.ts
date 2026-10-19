@@ -6,8 +6,8 @@
 
 import { randomUUID } from 'node:crypto';
 import type { HookRegistryLike } from '@oktis-works/plugin-sdk';
-import type { PluginManifest, PluginFieldTypeManifest, PluginPostTypeDeclaration, PluginTaxonomyDeclaration, PluginCacheApi, PluginJobsApi, PluginJobHandler, PluginHttpApi } from '@oktis-works/plugin-sdk';
-import { PERMISSIONS } from '@oktis-works/plugin-sdk';
+import type { PluginManifest, PluginFieldTypeManifest, PluginPostTypeDeclaration, PluginTaxonomyDeclaration, PluginCacheApi, PluginJobsApi, PluginJobHandler, PluginHttpApi, PluginAdminApi, AdminExtensionsState } from '@oktis-works/plugin-sdk';
+import { PERMISSIONS, createPluginAdminApi } from '@oktis-works/plugin-sdk';
 import { createHttpApi } from './http.js';
 
 /** Contexto disponível para o plugin em cada execução de hook. */
@@ -80,6 +80,8 @@ export interface PluginAPI {
 
   /** HTTP externo protegido contra SSRF (permissão http:outbound). */
   readonly http: PluginHttpApi;
+  /** Slots declarativos do admin (FEAT-098 / DECI-027). */
+  readonly admin: PluginAdminApi;
 
   /** Lê setting do tenant (group/key). */
   getSetting(key: string, group?: string): Promise<unknown>;
@@ -226,6 +228,10 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
   const registeredFieldTypes: Array<PluginFieldTypeManifest & { pluginName: string; isPluginType: true }> = [];
   const registeredPostTypes: Array<PluginPostTypeDeclaration & { pluginName: string }> = [];
   const registeredTaxonomies: Array<PluginTaxonomyDeclaration & { pluginName: string }> = [];
+
+  // ── api.admin (FEAT-098/DECI-027): slots declarativos registrados em
+  // runtime; o endpoint /api/v1/plugins/extensions mescla com manifest.admin.
+  const adminApi = createPluginAdminApi(manifest.name);
 
   /** Slugs de CPT/taxonomia: minúsculas, dígitos, underscore e hífen (estilo WP). */
   const SLUG_PATTERN = /^[a-z][a-z0-9_-]*$/;
@@ -516,6 +522,7 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
     cache: cacheApi,
     jobs: jobsApi,
     http: httpApi,
+    admin: adminApi,
 
     async getSetting(key: string, group?: string): Promise<unknown> {
       if (!allowedPermissions.includes('settings:read')) {
@@ -597,6 +604,7 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
       getPostTypes: () => registeredPostTypes,
       getTaxonomies: () => registeredTaxonomies,
       getJobHandlers: () => jobHandlers,
+      getAdminState: () => adminApi.state,
     },
   };
 }
@@ -610,4 +618,6 @@ export interface PluginApiInternal {
   getTaxonomies: () => Array<PluginTaxonomyDeclaration & { pluginName: string }>;
   /** Handlers de jobs declarados via api.jobs.on (dispatch no worker). */
   getJobHandlers: () => Map<string, PluginJobHandler>;
+  /** Slots declarativos registrados em runtime via api.admin.*. */
+  getAdminState: () => AdminExtensionsState;
 }

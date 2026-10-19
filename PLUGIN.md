@@ -497,6 +497,95 @@ module.exports.register = function register(api) {
 |--------------|----------|
 | `0.16.0` | Introduzido `fieldTypes[]` no manifest, `addFieldType()`, componentes dinâmicos |
 
+## 12. Extensões de UI do Admin (Slots — FEAT-098 / DECI-027)
+
+O admin renderiza slots declarativos para os plugins. O estado agregado é
+servido por **`GET /api/v1/plugins/extensions`** (permissão `read plugin`),
+mesclando duas fontes:
+
+1. **`manifest.admin`** — declarações estáticas no `manifest.json` (manifesto v2);
+2. **`api.admin.*`** — registros dinâmicos feitos dentro de `register(api)`.
+
+O servidor faz **namespacing** (ids/slugs/componentIds ganham o prefixo do
+plugin quando o autor não traz um) e **dedupe** — dois plugins nunca colidem
+num slot. A validação do manifesto exige `capability` explícita em todas as
+páginas de menu; o gating por capability na sidebar é cosmético (a API
+revalida tudo no servidor — RBAC).
+
+### 12.1 Slots disponíveis
+
+| Slot | Onde renderiza | Manifesto | Runtime |
+|------|----------------|-----------|---------|
+| Menu de plugin | Sidebar do admin | `admin.menuPages[]` | `api.admin.addMenuPage()` |
+| Submenu | Sob o item de menu pai | `admin.submenuPages[]` | `api.admin.addSubmenuPage()` |
+| Notices | Topo da sidebar | `admin.notices[]` | `api.admin.addNotice()` |
+| Dashboard widgets | Grade de widgets do dashboard | `admin.dashboardWidgets[]` | `api.admin.addDashboardWidget()` |
+| Meta boxes | Tela de edição (contexts `normal`/`side`/`advanced`) | `admin.metaBoxes[]` | `api.admin.addMetaBox()` |
+| Colunas da listagem | Cabeçalho da tabela de conteúdo | `admin.columns[]` | `api.admin.manageColumns()` |
+| Renderizador de coluna | Célula da coluna (componente recebe `{ row }`) | `admin.columnRenderers[]` | `api.admin.renderColumn()` |
+| Action links | Topo da listagem de conteúdo | `admin.actionLinks[]` | `api.admin.addActionLinks()` |
+
+### 12.2 Manifesto (`manifest.json`)
+
+```json
+{
+  "manifestVersion": 2,
+  "admin": {
+    "menuPages": [{ "slug": "tools", "label": "Ferramentas", "capability": "manage_options", "icon": "⚙" }],
+    "submenuPages": [{ "parentSlug": "tools", "slug": "audit", "label": "Auditoria", "capability": "read" }],
+    "notices": [{ "level": "info", "message": "Plugin ativo", "dismissible": true }],
+    "dashboardWidgets": [{ "id": "stats", "title": "Stats", "componentId": "meu-plugin:Stats" }],
+    "metaBoxes": [
+      { "id": "seo", "title": "SEO", "screens": ["post", "page"], "context": "side", "priority": "high", "componentId": "meu-plugin:Seo" }
+    ],
+    "columns": [{ "contentType": "post", "key": "visitas", "label": "Visitas", "position": "after_title" }],
+    "columnRenderers": [{ "contentType": "post", "key": "visitas", "componentId": "meu-plugin:VisitasCell" }],
+    "actionLinks": [{ "label": "Importar", "url": "https://meu-plugin.local/import" }]
+  }
+}
+```
+
+Regras de validação (bloqueiam instalação/sync; no boot viram aviso):
+
+- `menuPages`/`submenuPages`: `slug`/`label`/`capability` (e `parentSlug`)
+  obrigatórios e não vazios;
+- `metaBoxes`: `id`/`title`/`componentId` obrigatórios, `screens` array de
+  strings não vazio; `context` ∈ `normal|side|advanced` e `priority` ∈
+  `high|default|low` quando presentes;
+- `notices`: `message` obrigatório, `level` ∈ `info|success|warning|error`;
+- `dashboardWidgets`: `render`, quando presente, precisa ser `"component"`;
+- `columns`/`columnRenderers`/`actionLinks`: identidade obrigatória.
+
+### 12.3 Runtime (`index.js`)
+
+```js
+export async function register(api) {
+  // Mesmas entradas do manifesto, mas dinâmicas (decididas em tempo de boot)
+  api.admin.addMenuPage({ slug: 'tools', label: 'Ferramentas', capability: 'manage_options' });
+  api.admin.addDashboardWidget({ id: 'stats', title: 'Stats', render: 'component', componentId: 'meu-plugin:Stats' });
+  api.admin.addNotice({ level: 'success', message: 'Registrado!' });
+  api.admin.manageColumns('post', { key: 'visitas', label: 'Visitas' });
+  api.admin.renderColumn('post', 'visitas', 'meu-plugin:VisitasCell');
+}
+```
+
+`addMenuPage`/`addSubmenuPage` **lançam** sem `capability` explícita.
+
+### 12.4 Convenção de `componentId`
+
+O admin monta o componente via import dinâmico (alias Vite `@/plugins/*`):
+
+| `componentId` | Caminho resolvido |
+|---------------|-------------------|
+| `meu-plugin:Stats` | `@/plugins/meu-plugin/admin/components/Stats.tsx` |
+| `meu-plugin:admin/components/X.tsx` | `@/plugins/meu-plugin/admin/components/X.tsx` |
+| `@/plugins/meu-plugin/admin/components/X.tsx` | usado como está |
+
+O componente recebe `extraProps` do slot (ex.: células de coluna recebem
+`{ row }`). Erro de carregamento vira fallback visível com o `componentId` —
+nunca derruba o admin. Componentes de **menu/notice/action link** não têm
+componente (renderizam link/texto puro).
+
 ---
 
 *Documentação gerada automaticamente — mantenha sincronizada com o código.*

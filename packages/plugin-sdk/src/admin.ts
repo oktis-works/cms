@@ -1,77 +1,51 @@
 // @oktis-works/plugin-sdk - Admin UI Extension Points (declarative slots)
+//
+// Os tipos canônicos vivem em `@oktis-works/types` (o barrel é a fonte única
+// do wire format servido por GET /api/v1/plugins/extensions). Aqui
+// re-exportamos os nomes históricos do SDK (API pública estável) e mantemos a
+// fábrica de estado usada pelo runtime (`api.admin`).
 
-export interface AdminMenuPage {
-  slug: string;
-  label: string;
-  capability?: string;
-  icon?: string;
-  position?: number;
-}
+import type {
+  AdminExtensionsState,
+  AdminMenuPage,
+  AdminSubmenuPage,
+  DashboardWidget,
+  AdminMetaBox,
+  AdminNotice,
+  AdminColumnDefinition,
+} from '@oktis-works/types';
 
-export interface AdminSubmenuPage {
-  parentSlug: string;
-  slug: string;
-  label: string;
-  capability?: string;
-  position?: number;
-}
+export type {
+  AdminExtensionsState,
+  AdminMenuPage,
+  AdminSubmenuPage,
+  DashboardWidget,
+  DashboardWidgetDeclaration,
+  AdminMetaBox,
+  AdminMetaBoxDeclaration,
+  AdminNotice,
+  AdminColumnDefinition,
+  AdminActionLink,
+  AdminColumnDeclaration,
+  AdminColumnRendererDeclaration,
+  PluginManifestAdmin,
+} from '@oktis-works/types';
 
-export interface DashboardWidget {
-  id: string;
-  title: string;
-  render: 'component';
-  componentId: string;
-  columnsSpan?: 1 | 2 | 3 | 4;
-}
-
-export interface MetaBox {
-  id: string;
-  title: string;
-  /** Tipos de conteúdo onde a caixa aparece (ex.: ['post', 'page']). */
-  screens: string[];
-  context: 'normal' | 'side' | 'advanced';
-  priority: 'high' | 'default' | 'low';
-  componentId: string;
-}
-
-export interface AdminNotice {
-  id: string;
-  level: 'info' | 'success' | 'warning' | 'error';
-  message: string;
-  dismissible?: boolean;
-}
-
-export interface ColumnDefinition {
-  key: string;
-  label: string;
-  position?: 'before_title' | 'after_title' | 'end';
-}
+/** Nome histórico do SDK — canônico em types como `AdminMetaBox`. */
+export type MetaBox = AdminMetaBox;
+/** Nome histórico do SDK — canônico em types como `AdminColumnDefinition`. */
+export type ColumnDefinition = AdminColumnDefinition;
 
 export interface PluginAdminApi {
   addMenuPage(page: AdminMenuPage): void;
   addSubmenuPage(page: AdminSubmenuPage): void;
   addDashboardWidget(widget: DashboardWidget): void;
-  addMetaBox(box: MetaBox): void;
+  addMetaBox(box: AdminMetaBox): void;
   addNotice(notice: Omit<AdminNotice, 'id'> & { id?: string }): void;
   removeNotice(noticeId: string): void;
-  manageColumns(contentType: string, column: ColumnDefinition): void;
+  manageColumns(contentType: string, column: AdminColumnDefinition): void;
   renderColumn(contentType: string, columnKey: string, componentId: string): void;
   addActionLinks(links: Array<{ label: string; url: string }>): void;
-}
-
-/**
- * Estado declarativo coletado pelos pontos de extensão e consumido
- * pelo app admin via slots nomeados (FEAT-098 / DECI-027).
- */
-export interface AdminExtensionsState {
-  menuPages: AdminMenuPage[];
-  submenuPages: AdminSubmenuPage[];
-  dashboardWidgets: DashboardWidget[];
-  metaBoxes: MetaBox[];
-  notices: AdminNotice[];
-  columns: Record<string, ColumnDefinition[]>;
-  columnRenderers: Record<string, Record<string, string>>;
-  actionLinks: Array<{ label: string; url: string }>;
 }
 
 export function createPluginAdminApi(pluginId: string, state: AdminExtensionsState = emptyState()): PluginAdminApi & { state: AdminExtensionsState } {
@@ -117,7 +91,7 @@ export function createPluginAdminApi(pluginId: string, state: AdminExtensionsSta
   return api;
 }
 
-function emptyState(): AdminExtensionsState {
+export function emptyState(): AdminExtensionsState {
   return {
     menuPages: [],
     submenuPages: [],

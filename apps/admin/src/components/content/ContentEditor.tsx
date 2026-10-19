@@ -7,6 +7,9 @@ import { apiClient, type ThemeInfo, type ContentType } from '../../lib/api';
 import { FieldRenderer } from './FieldRenderer';
 import type { ResolvedFieldDefinition } from './types';
 import { useTranslation } from '../../i18n';
+import type { AdminExtensionsState } from '@oktis-works/plugin-sdk';
+import { MetaBoxesSlot } from '../../ext/slots';
+import { emptyExtensionsState, loadExtensions } from '../../ext/store';
 
 interface Draft {
   id?: string;
@@ -33,6 +36,7 @@ export function ContentEditor(props: Props) {
   const [errors, setErrors] = createSignal<string[]>([]);
   const [saving, setSaving] = createSignal(false);
   const [message, setMessage] = createSignal('');
+  const [extensions, setExtensions] = createSignal<AdminExtensionsState>(emptyExtensionsState());
 
   const [draft, setDraft] = createSignal<Draft>({
     type: props.initialType || 'post',
@@ -74,6 +78,9 @@ export function ContentEditor(props: Props) {
   };
 
   onMount(async () => {
+    // Slots de plugin (metaboxes) — opcional, estado compartilhado entre telas.
+    void loadExtensions().then(setExtensions);
+
     let typeList: ContentType[] = [];
     try {
       const [typeCatalog, themeList] = await Promise.all([
@@ -240,6 +247,9 @@ export function ContentEditor(props: Props) {
               <For each={groups()}>{(field) => <FieldRenderer field={field} values={data()} onChange={(name, value) => setData({ ...data(), [name]: value })} t={t} />}</For>
             </section>
           </Show>
+
+          {/* Metaboxes de plugin (context normal) — FEAT-098 / DECI-027 */}
+          <MetaBoxesSlot extensions={extensions()} screen={draft().type} context="normal" />
         </main>
 
         <aside class="classic-editor__sidebar">
@@ -276,8 +286,14 @@ export function ContentEditor(props: Props) {
               </label>
             </section>
           </Show>
+
+          {/* Metaboxes de plugin (context side) — FEAT-098 / DECI-027 */}
+          <MetaBoxesSlot extensions={extensions()} screen={draft().type} context="side" />
         </aside>
       </div>
+
+      {/* Metaboxes de plugin (context advanced) — FEAT-098 / DECI-027 */}
+      <MetaBoxesSlot extensions={extensions()} screen={draft().type} context="advanced" />
     </form>
   );
 }

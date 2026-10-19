@@ -47,6 +47,7 @@ import { getCache } from '../cache/index.js';
 import { queueProducer } from '../queue/producer.js';
 import { getCurrentTenantIdSync, getCurrentUserIdSync, getCurrentRequestIdSync } from '../tenant/context.js';
 import type { RouteDefinition, PluginBootstrapResult, PluginApiDependencies } from '@oktis-works/plugin-runtime';
+import type { AdminExtensionsState } from '@oktis-works/types';
 
 // Dynamic imports for circular dependency with plugin-runtime
 // Using require with computed string to avoid TypeScript compile-time checking
@@ -68,6 +69,7 @@ const getHookRegistryStore = async () => (await getPluginRuntimeCached()).getHoo
 const unloadTenant = async () => (await getPluginRuntimeCached()).unloadTenant;
 const getLoadedPluginRoutes = async () => (await getPluginRuntimeCached()).getLoadedPluginRoutes;
 const getLoadedPluginJobHandlers = async () => (await getPluginRuntimeCached()).getLoadedPluginJobHandlers;
+const getLoadedPluginAdminExtensions = async () => (await getPluginRuntimeCached()).getLoadedPluginAdminExtensions;
 
 /** Handler de job de plugin (dispatch do worker). */
 export type PluginJobHandlerFn = (
@@ -100,6 +102,21 @@ export async function getPluginJobHandler(
     return null;
   } catch {
     return null;
+  }
+}
+
+/**
+ * Slots `api.admin` carregados em um escopo (platform `null` ou `tenant:<id>`)
+ * — alimenta GET /api/v1/plugins/extensions junto com `manifest.admin`.
+ * Nunca lança: indisponibilidade do runtime vira lista vazia.
+ */
+export async function getPluginAdminExtensions(
+  tenantId: string | null
+): Promise<Array<{ pluginName: string; state: AdminExtensionsState }>> {
+  try {
+    return await (await getLoadedPluginAdminExtensions())(scopeKey(tenantId));
+  } catch {
+    return [];
   }
 }
 

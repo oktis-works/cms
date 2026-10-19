@@ -40,6 +40,7 @@ export type { Permission } from './permissions.js';
 
 export {
   createPluginAdminApi,
+  emptyState as createEmptyAdminExtensionsState,
 } from './admin.js';
 export type {
   PluginAdminApi,
@@ -47,9 +48,17 @@ export type {
   AdminMenuPage,
   AdminSubmenuPage,
   DashboardWidget,
+  DashboardWidgetDeclaration,
   MetaBox,
+  AdminMetaBox,
+  AdminMetaBoxDeclaration,
   AdminNotice,
   ColumnDefinition,
+  AdminColumnDefinition,
+  AdminActionLink,
+  AdminColumnDeclaration,
+  AdminColumnRendererDeclaration,
+  PluginManifestAdmin,
 } from './admin.js';
 
 // Style isolation helpers (re-export do plugin-runtime para uso sem dependência circular)

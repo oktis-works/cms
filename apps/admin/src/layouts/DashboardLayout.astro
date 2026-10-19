@@ -1,6 +1,6 @@
 ---
 import BaseLayout from './BaseLayout.astro';
-import { PluginExtensionsSlot } from '../ext/extensions';
+import { PluginExtensionsSlot, PluginDashboardWidgetsSlot } from '../ext/extensions';
 import { AdminBar } from '../components/admin-bar/AdminBar';
 import { AtGlanceWidget } from '../components/dashboard-widgets/AtGlanceWidget';
 import { QuickDraftWidget } from '../components/dashboard-widgets/QuickDraftWidget';
@@ -147,6 +147,7 @@ const settingsChildren = [
                 <AtGlanceWidget client:load />
                 <QuickDraftWidget client:load />
                 <ActivityWidget client:load />
+                <PluginDashboardWidgetsSlot client:load />
               </div>
             </div>
           )}

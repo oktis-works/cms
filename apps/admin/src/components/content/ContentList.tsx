@@ -6,6 +6,9 @@ import { Button, Input, Select, Card, Table, Pagination, Badge } from '@oktis-wo
 import type { TableColumn } from '@oktis-works/ui';
 import { apiClient, type Content, type ContentType } from '../../lib/api';
 import { useTranslation } from '../../i18n';
+import type { AdminExtensionsState } from '@oktis-works/plugin-sdk';
+import { ActionLinksSlot, PluginComponentHost } from '../../ext/slots';
+import { emptyExtensionsState, loadExtensions } from '../../ext/store';
 
 function raw(row: Content): Record<string, unknown> {
   return row as unknown as Record<string, unknown>;
@@ -30,6 +33,7 @@ export function ContentList(props: { contentType: string }) {
   const [error, setError] = createSignal('');
   const [info, setInfo] = createSignal('');
   const [busyId, setBusyId] = createSignal('');
+  const [extensions, setExtensions] = createSignal<AdminExtensionsState>(emptyExtensionsState());
 
   const limit = 20;
 
@@ -50,6 +54,9 @@ export function ContentList(props: { contentType: string }) {
   };
 
   onMount(async () => {
+    // Slots de plugin (colunas + action links) — opcional, estado compartilhado.
+    void loadExtensions().then(setExtensions);
+
     const query = new URLSearchParams(window.location.search);
     setStatus(query.get('status') ?? '');
     setSearch(query.get('search') ?? '');
@@ -97,46 +104,84 @@ export function ContentList(props: { contentType: string }) {
     }
   };
 
-  const columns = createMemo<TableColumn[]>(() => [
-    { key: 'title', label: t('content.list.columns.title') },
-    { key: 'type', label: t('content.list.columns.type') },
-    {
-      key: 'status',
-      label: t('content.list.columns.status'),
+  const columns = createMemo<TableColumn[]>(() => {
+    const pluginDefs = extensions().columns[type()] ?? [];
+    const pluginRenderers = extensions().columnRenderers[type()] ?? {};
+
+    const pluginColumn = (def: { key: string; label: string }): TableColumn => ({
+      key: def.key,
+      label: def.label,
       render: (_value, row) => {
-        const statusValue = String((row as Record<string, unknown>)['status'] ?? '');
-        const variant = statusValue === 'PUBLISHED' ? 'success' : statusValue === 'ARCHIVED' ? 'warning' : 'secondary';
-        return <Badge variant={variant}>{statusValue}</Badge>;
+        const rendererId = pluginRenderers[def.key];
+        if (rendererId) {
+          const pluginName = rendererId.split(':')[0] ?? '';
+          return <PluginComponentHost componentId={rendererId} plugin={pluginName} extraProps={{ row }} />;
+        }
+        const value = (row as Record<string, unknown>)[def.key];
+        if (value == null) return <span class="muted">—</span>;
+        if (typeof value === 'object') return <span class="muted">{JSON.stringify(value)}</span>;
+        return <span>{String(value)}</span>;
       },
-    },
-    { key: 'updated_at', label: t('content.list.columns.updated'), render: (_value, row) => <span class="muted">{formatDate(row as Content)}</span> },
-    {
-      key: 'actions',
-      label: '',
-      render: (_value, row) => {
-        const content = row as Content;
-        const isPublished = raw(content)['status'] === 'PUBLISHED';
-        return (
-          <div class="users-table__actions">
-            <a class="btn btn-secondary btn-sm" href={`/content/${encodeURIComponent(content.type || type())}/edit?id=${encodeURIComponent(content.id)}`}>
-              {t('content.list.actions.edit')}
-            </a>
-            <Button
-              variant={isPublished ? 'secondary' : 'primary'}
-              size="sm"
-              loading={busyId() === content.id}
-              onClick={() => void togglePublish(content)}
-            >
-              {isPublished ? t('content.list.actions.unpublish') : t('content.list.actions.publish')}
-            </Button>
-            <Button variant="danger" size="sm" onClick={() => void remove(content)}>
-              {t('content.list.actions.delete')}
-            </Button>
-          </div>
-        );
+    });
+
+    const beforeTitle = pluginDefs.filter((def) => def.position === 'before_title').map(pluginColumn);
+    const afterTitle = pluginDefs.filter((def) => def.position === 'after_title').map(pluginColumn);
+    const implicit = pluginDefs.filter((def) => !def.position).map(pluginColumn);
+    const atEnd = pluginDefs.filter((def) => def.position === 'end').map(pluginColumn);
+
+    const core: TableColumn[] = [
+      { key: 'title', label: t('content.list.columns.title') },
+      { key: 'type', label: t('content.list.columns.type') },
+      {
+        key: 'status',
+        label: t('content.list.columns.status'),
+        render: (_value, row) => {
+          const statusValue = String((row as Record<string, unknown>)['status'] ?? '');
+          const variant = statusValue === 'PUBLISHED' ? 'success' : statusValue === 'ARCHIVED' ? 'warning' : 'secondary';
+          return <Badge variant={variant}>{statusValue}</Badge>;
+        },
       },
-    },
-  ]);
+      { key: 'updated_at', label: t('content.list.columns.updated'), render: (_value, row) => <span class="muted">{formatDate(row as Content)}</span> },
+      {
+        key: 'actions',
+        label: '',
+        render: (_value, row) => {
+          const content = row as Content;
+          const isPublished = raw(content)['status'] === 'PUBLISHED';
+          return (
+            <div class="users-table__actions">
+              <a class="btn btn-secondary btn-sm" href={`/content/${encodeURIComponent(content.type || type())}/edit?id=${encodeURIComponent(content.id)}`}>
+                {t('content.list.actions.edit')}
+              </a>
+              <Button
+                variant={isPublished ? 'secondary' : 'primary'}
+                size="sm"
+                loading={busyId() === content.id}
+                onClick={() => void togglePublish(content)}
+              >
+                {isPublished ? t('content.list.actions.unpublish') : t('content.list.actions.publish')}
+              </Button>
+              <Button variant="danger" size="sm" onClick={() => void remove(content)}>
+                {t('content.list.actions.delete')}
+              </Button>
+            </div>
+          );
+        },
+      },
+    ];
+
+    return [
+      ...beforeTitle,
+      core[0]!,
+      ...afterTitle,
+      core[1]!,
+      core[2]!,
+      core[3]!,
+      ...implicit,
+      core[4]!,
+      ...atEnd,
+    ];
+  });
 
   return (
     <div class="content-list">
@@ -182,6 +227,9 @@ export function ContentList(props: { contentType: string }) {
           {t('content.list.buttons.search')}
         </Button>
       </div>
+
+      {/* Action links de plugin (FEAT-098 / DECI-027) */}
+      <ActionLinksSlot extensions={extensions()} />
 
       <Card>
         <Table

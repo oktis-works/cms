@@ -17,7 +17,7 @@
 //   - **por escopo**: o estado de carga é indexado por escopo (platform ou um
 //     tenant), então ativar/desativar num tenant não afeta outro.
 
-import { createPluginHooksApi, type HookRegistryLike, type PluginJobHandler } from '@oktis-works/plugin-sdk';
+import { createPluginHooksApi, type HookRegistryLike, type PluginJobHandler, type AdminExtensionsState } from '@oktis-works/plugin-sdk';
 import { PLUGIN_PERMISSION_DEFAULT } from '@oktis-works/validation';
 import { PluginLoader, type DiscoveredPlugin } from './loader.js';
 import { PluginSandbox } from './sandbox.js';
@@ -89,8 +89,11 @@ interface LoadedScope {
 /** Estado de carga por escopo (`''` = platform, `tenant:<id>` = tenant). */
 const loadedScopes = new Map<string, LoadedScope>();
 
+/** Escopo platform usa a mesma chave do core ('platform') — lookups externos batem. */
+const PLATFORM_SCOPE = 'platform';
+
 function scopeKeyOf(tenantId?: string | null): string {
-  return tenantId ? `tenant:${tenantId}` : '';
+  return tenantId ? `tenant:${tenantId}` : PLATFORM_SCOPE;
 }
 
 function getScope(scopeKey: string, registry: HookRegistry): LoadedScope {
@@ -145,6 +148,35 @@ export function getLoadedPluginJobHandlers(scopeKey: string): Array<{
         result.push({ pluginName, handlers });
       }
     }
+  }
+  return result;
+}
+
+/**
+ * Estados `api.admin` dos plugins carregados em um escopo (slots registrados
+ * em runtime) — consumido por GET /api/v1/plugins/extensions, que mescla com
+ * `manifest.admin`. Só retorna estados com alguma entrada preenchida.
+ */
+export function getLoadedPluginAdminExtensions(scopeKey: string): Array<{
+  pluginName: string;
+  state: AdminExtensionsState;
+}> {
+  const scope = loadedScopes.get(scopeKey);
+  if (!scope) return [];
+  const result: Array<{ pluginName: string; state: AdminExtensionsState }> = [];
+  for (const [pluginName, entry] of scope.plugins) {
+    const state = entry.internal?.getAdminState?.();
+    if (!state) continue;
+    const hasEntries =
+      state.menuPages.length > 0 ||
+      state.submenuPages.length > 0 ||
+      state.dashboardWidgets.length > 0 ||
+      state.metaBoxes.length > 0 ||
+      state.notices.length > 0 ||
+      state.actionLinks.length > 0 ||
+      Object.keys(state.columns).length > 0 ||
+      Object.keys(state.columnRenderers).length > 0;
+    if (hasEntries) result.push({ pluginName, state });
   }
   return result;
 }

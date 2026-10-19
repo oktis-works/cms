@@ -124,6 +124,79 @@ export function validateManifestV2(merged: Record<string, unknown>): string[] {
     }
   }
 
+  // Slots declarativos do admin (FEAT-098 / DECI-027): identidade obrigatória,
+  // capability obrigatória em menus (gating por capability no slot) e screens
+  // não vazio em metaBoxes. context/priority/render, quando presentes, precisam
+  // ser valores conhecidos (o merge no endpoint aplica defaults).
+  const admin = merged['admin'];
+  if (admin !== undefined) {
+    if (!isRecord(admin)) {
+      issues.push('admin deve ser objeto');
+    } else {
+      const checkList = (key: string, fields: string[]): void => {
+        const list = admin[key];
+        if (list === undefined) return;
+        if (!Array.isArray(list)) {
+          issues.push(`admin.${key} deve ser array`);
+          return;
+        }
+        list.forEach((entry, index) => {
+          if (!isRecord(entry) || fields.some((field) => !isString(entry[field]) || (entry[field] as string).length === 0)) {
+            issues.push(`admin.${key}[${index}] sem ${fields.join('/')} válidos`);
+          }
+        });
+      };
+      checkList('menuPages', ['slug', 'label', 'capability']);
+      checkList('submenuPages', ['parentSlug', 'slug', 'label', 'capability']);
+      checkList('dashboardWidgets', ['id', 'title', 'componentId']);
+      checkList('metaBoxes', ['id', 'title', 'componentId']);
+      checkList('columns', ['contentType', 'key', 'label']);
+      checkList('columnRenderers', ['contentType', 'key', 'componentId']);
+      checkList('actionLinks', ['label', 'url']);
+
+      const notices = admin['notices'];
+      if (notices !== undefined) {
+        if (!Array.isArray(notices)) {
+          issues.push('admin.notices deve ser array');
+        } else {
+          notices.forEach((entry, index) => {
+            if (!isRecord(entry) || !isString(entry['message'])) {
+              issues.push(`admin.notices[${index}] sem message`);
+            } else if (!['info', 'success', 'warning', 'error'].includes(String(entry['level']))) {
+              issues.push(`admin.notices[${index}].level inválido`);
+            }
+          });
+        }
+      }
+
+      const metaBoxes = admin['metaBoxes'];
+      if (Array.isArray(metaBoxes)) {
+        metaBoxes.forEach((entry, index) => {
+          if (!isRecord(entry)) return;
+          const screens = entry['screens'];
+          if (!Array.isArray(screens) || screens.length === 0 || !screens.every(isString)) {
+            issues.push(`admin.metaBoxes[${index}].screens deve ser array de strings não vazio`);
+          }
+          if (entry['context'] !== undefined && !['normal', 'side', 'advanced'].includes(String(entry['context']))) {
+            issues.push(`admin.metaBoxes[${index}].context inválido`);
+          }
+          if (entry['priority'] !== undefined && !['high', 'default', 'low'].includes(String(entry['priority']))) {
+            issues.push(`admin.metaBoxes[${index}].priority inválido`);
+          }
+        });
+      }
+
+      const widgets = admin['dashboardWidgets'];
+      if (Array.isArray(widgets)) {
+        widgets.forEach((entry, index) => {
+          if (isRecord(entry) && entry['render'] !== undefined && entry['render'] !== 'component') {
+            issues.push(`admin.dashboardWidgets[${index}].render inválido (esperado "component")`);
+          }
+        });
+      }
+    }
+  }
+
   return issues;
 }
 

@@ -10,6 +10,7 @@ import type {
   PluginJobDeclaration,
   PluginHttpPolicy,
 } from '@oktis-works/types';
+import type { PluginAdminApi } from './admin.js';
 
 export type {
   PluginFieldTypeManifest,
@@ -118,6 +119,8 @@ export interface PluginAPI {
   jobs: PluginJobsApi;
   /** HTTP externo protegido contra SSRF (permissão http:outbound). */
   http: PluginHttpApi;
+  /** Slots declarativos do admin (menu/widgets/metaboxes/notices/colunas) — FEAT-098. */
+  admin: PluginAdminApi;
   getSetting(key: string): Promise<unknown>;
   setSetting(key: string, value: unknown): Promise<void>;
   getTenant(): Promise<TenantInfo>;
