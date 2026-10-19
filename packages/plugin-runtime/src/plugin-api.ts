@@ -6,8 +6,9 @@
 
 import { randomUUID } from 'node:crypto';
 import type { HookRegistryLike } from '@oktis-works/plugin-sdk';
-import type { PluginManifest, PluginFieldTypeManifest, PluginPostTypeDeclaration, PluginTaxonomyDeclaration } from '@oktis-works/plugin-sdk';
-import { PERMISSIONS, isKnownPermission } from '@oktis-works/plugin-sdk';
+import type { PluginManifest, PluginFieldTypeManifest, PluginPostTypeDeclaration, PluginTaxonomyDeclaration, PluginCacheApi, PluginJobsApi, PluginJobHandler, PluginHttpApi } from '@oktis-works/plugin-sdk';
+import { PERMISSIONS } from '@oktis-works/plugin-sdk';
+import { createHttpApi } from './http.js';
 
 /** Contexto disponível para o plugin em cada execução de hook. */
 export interface PluginContext {
@@ -70,6 +71,15 @@ export interface PluginAPI {
 
   /** Registra uma Custom Taxonomy (permissão taxonomies:register). */
   addTaxonomy(declaration: PluginTaxonomyDeclaration): void;
+
+  /** Cache/transient por plugin (permissões cache:read/cache:write). */
+  readonly cache: PluginCacheApi;
+
+  /** Jobs/cron por plugin (permissão jobs:schedule). */
+  readonly jobs: PluginJobsApi;
+
+  /** HTTP externo protegido contra SSRF (permissão http:outbound). */
+  readonly http: PluginHttpApi;
 
   /** Lê setting do tenant (group/key). */
   getSetting(key: string, group?: string): Promise<unknown>;
@@ -139,6 +149,33 @@ export interface PluginApiDependencies {
   registerPostTypes?: (postTypes: Array<PluginPostTypeDeclaration & { pluginName: string }>) => void;
   /** Registra Custom Taxonomies do plugin (o core persiste via taxonomyService). */
   registerTaxonomies?: (taxonomies: Array<PluginTaxonomyDeclaration & { pluginName: string }>) => void;
+  /**
+   * Backend de cache do core (Redis/memória) — operações BRUTAS, sem
+   * namespace (o namespace plugin/tenant e as tags são do PluginAPI).
+   * Ausente → fallback memória por processo (dev/legado, nunca lança).
+   */
+  cache?: {
+    get<T>(key: string): Promise<T | null>;
+    set<T>(key: string, value: T, ttlSeconds?: number): Promise<void>;
+    del(key: string): Promise<void>;
+  };
+  /**
+   * Backend de jobs do core (fila `plugins`). Ausente → schedule/enqueue/
+   * cancel retornam false (fila opcional, nunca lança — degradação A3).
+   */
+  jobs?: {
+    schedule(
+      jobName: string,
+      spec: { every?: number; cron?: string },
+      ctx: { pluginName: string; tenantId: string | null }
+    ): Promise<boolean>;
+    cancel(jobName: string, ctx: { pluginName: string; tenantId: string | null }): Promise<boolean>;
+    enqueue(
+      jobName: string,
+      payload: Record<string, unknown>,
+      ctx: { pluginName: string; tenantId: string | null }
+    ): Promise<boolean>;
+  };
   /** Permissões concedidas ao plugin (policy já resolvida). */
   allowedPermissions: string[];
 }
@@ -148,6 +185,31 @@ export interface PluginApiDependencies {
  * Chamado pelo core no bootstrap (não pelo plugin-runtime diretamente).
  * Retorna { api: PluginAPI, internal: PluginApiInternal } para separar a API pública dos detalhes internos.
  */
+/**
+ * Fallback de cache em memória quando o core não forneceu backend (dev ou
+ * API legado). Sempre disponível — `api.cache` nunca lança por indisponibilidade.
+ */
+function createMemoryCacheBackend(): NonNullable<PluginApiDependencies['cache']> {
+  const store = new Map<string, { value: unknown; expiresAt: number }>();
+  return {
+    get: async <T>(key: string): Promise<T | null> => {
+      const entry = store.get(key);
+      if (!entry) return null;
+      if (Date.now() > entry.expiresAt) {
+        store.delete(key);
+        return null;
+      }
+      return entry.value as T;
+    },
+    set: async <T>(key: string, value: T, ttlSeconds?: number): Promise<void> => {
+      store.set(key, { value, expiresAt: Date.now() + (ttlSeconds ?? 300) * 1000 });
+    },
+    del: async (key: string): Promise<void> => {
+      store.delete(key);
+    },
+  };
+}
+
 export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; internal: PluginApiInternal } {
   const { hooks, manifest, settings, eventBus, db, getTenantId, getUserId, getTenantById, getUserById, allowedPermissions, registerFieldTypes, registerPostTypes, registerTaxonomies } = deps;
 
@@ -169,6 +231,143 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
   const SLUG_PATTERN = /^[a-z][a-z0-9_-]*$/;
   /** Slugs reservados que nenhum plugin pode reivindicar. */
   const RESERVED_SLUGS = new Set(['post', 'page', 'media', 'user', 'content', 'attachment', 'category', 'tag']);
+
+  // ── api.cache (Item 2): namespace plugin:{tenant}:{plugin}:{chave} + tags ──
+  const cacheBackend = deps.cache ?? createMemoryCacheBackend();
+
+  function cacheKeyFor(key: string): string {
+    if (typeof key !== 'string' || key.trim().length === 0) {
+      throw new Error('cache key must be a non-empty string');
+    }
+    if (key.length > 200) {
+      throw new Error('cache key too long (max 200 chars)');
+    }
+    return `plugin:${getTenantId() ?? 'platform'}:${manifest.name}:${key}`;
+  }
+
+  function tagIndexKeyFor(tag: string): string {
+    return `plugin:${getTenantId() ?? 'platform'}:${manifest.name}:__tag__:${tag}`;
+  }
+
+  function requirePermission(permission: string): void {
+    if (!allowedPermissions.includes(permission)) {
+      throw new Error(`Plugin permission denied: ${permission}`);
+    }
+  }
+
+  const cacheApi: PluginCacheApi = {
+    async get<T>(key: string): Promise<T | null> {
+      requirePermission(PERMISSIONS.CACHE_READ);
+      return cacheBackend.get<T>(cacheKeyFor(key));
+    },
+
+    async set(key: string, value: unknown, options?: { ttlSeconds?: number; tags?: string[] }): Promise<void> {
+      requirePermission(PERMISSIONS.CACHE_WRITE);
+      const fullKey = cacheKeyFor(key);
+      const ttl = options?.ttlSeconds;
+      await cacheBackend.set(fullKey, value, ttl);
+      // Índice tag → chaves (TTL acompanhando o valor; índice expira junto e as
+      // chaves órfãs expiram sozinhas pelo TTL do próprio valor).
+      for (const tag of options?.tags ?? []) {
+        if (typeof tag !== 'string' || tag.trim().length === 0) {
+          throw new Error('cache tag must be a non-empty string');
+        }
+        const indexKey = tagIndexKeyFor(tag);
+        const indexed = (await cacheBackend.get<string[]>(indexKey)) ?? [];
+        if (!indexed.includes(fullKey)) indexed.push(fullKey);
+        await cacheBackend.set(indexKey, indexed, ttl);
+      }
+    },
+
+    async delete(key: string): Promise<void> {
+      requirePermission(PERMISSIONS.CACHE_WRITE);
+      await cacheBackend.del(cacheKeyFor(key));
+    },
+
+    async wrap<T>(key: string, ttlSeconds: number, producer: () => Promise<T>): Promise<T> {
+      requirePermission(PERMISSIONS.CACHE_WRITE);
+      const fullKey = cacheKeyFor(key);
+      const cached = await cacheBackend.get<T>(fullKey);
+      if (cached !== null) return cached;
+      const value = await producer();
+      await cacheBackend.set(fullKey, value, ttlSeconds);
+      return value;
+    },
+
+    async invalidateTags(tags: string[]): Promise<void> {
+      requirePermission(PERMISSIONS.CACHE_WRITE);
+      for (const tag of tags) {
+        const indexKey = tagIndexKeyFor(tag);
+        const indexed = (await cacheBackend.get<string[]>(indexKey)) ?? [];
+        for (const key of indexed) {
+          await cacheBackend.del(key);
+        }
+        await cacheBackend.del(indexKey);
+      }
+    },
+  };
+
+  // ── api.jobs (Item 3): handlers locais + fila `plugins` (repeat/one-shot) ──
+  const JOB_NAME_PATTERN = /^[a-zA-Z][a-zA-Z0-9_.-]{0,63}$/;
+  const MAX_SCHEDULED_JOBS = 10;
+  const jobHandlers = new Map<string, PluginJobHandler>();
+  const scheduledJobNames = new Set<string>();
+  const jobsCtx = () => ({ pluginName: manifest.name, tenantId: getTenantId() });
+
+  const jobsApi: PluginJobsApi = {
+    on(jobName: string, handler: PluginJobHandler): void {
+      if (!JOB_NAME_PATTERN.test(jobName)) {
+        throw new Error(`Invalid job name "${jobName}" (expected ${JOB_NAME_PATTERN})`);
+      }
+      if (typeof handler !== 'function') {
+        throw new Error(`Job handler for "${jobName}" must be a function`);
+      }
+      jobHandlers.set(jobName, handler);
+    },
+
+    async schedule(jobName: string, spec: { every?: number; cron?: string }): Promise<boolean> {
+      requirePermission(PERMISSIONS.JOBS_SCHEDULE);
+      if (!JOB_NAME_PATTERN.test(jobName)) {
+        throw new Error(`Invalid job name "${jobName}" (expected ${JOB_NAME_PATTERN})`);
+      }
+      const hasEvery = typeof spec?.every === 'number' && spec.every > 0;
+      const hasCron = typeof spec?.cron === 'string' && spec.cron.trim().length > 0;
+      if (hasEvery === hasCron) {
+        throw new Error(`schedule("${jobName}") requires exactly one of: every | cron`);
+      }
+      // Teto por plugin — só conta agendas novas (re-agendar o mesmo nome é grátis)
+      if (!scheduledJobNames.has(jobName)) {
+        if (scheduledJobNames.size >= MAX_SCHEDULED_JOBS) {
+          throw new Error(`Job schedule limit reached (${MAX_SCHEDULED_JOBS} per plugin)`);
+        }
+        scheduledJobNames.add(jobName);
+      }
+      if (!deps.jobs) return false; // fila indisponível: degradação, nunca throw
+      return deps.jobs.schedule(jobName, hasCron ? { cron: spec.cron } : { every: spec.every }, jobsCtx());
+    },
+
+    async cancel(jobName: string): Promise<boolean> {
+      requirePermission(PERMISSIONS.JOBS_SCHEDULE);
+      scheduledJobNames.delete(jobName);
+      if (!deps.jobs) return false;
+      return deps.jobs.cancel(jobName, jobsCtx());
+    },
+
+    async enqueue(jobName: string, payload: Record<string, unknown> = {}): Promise<boolean> {
+      requirePermission(PERMISSIONS.JOBS_SCHEDULE);
+      if (!JOB_NAME_PATTERN.test(jobName)) {
+        throw new Error(`Invalid job name "${jobName}" (expected ${JOB_NAME_PATTERN})`);
+      }
+      if (!deps.jobs) return false;
+      return deps.jobs.enqueue(jobName, payload, jobsCtx());
+    },
+  };
+
+  // ── api.http (Item 4 + Item 16): anti-SSRF com allowlist do manifesto ──
+  const httpApi: PluginHttpApi = createHttpApi({
+    allowHosts: manifest.httpPolicy?.allowHosts,
+    requirePermission,
+  });
 
   // Build the public API object
   const api: PluginAPI = {
@@ -314,6 +513,10 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
       registerTaxonomies?.([...registeredTaxonomies]);
     },
 
+    cache: cacheApi,
+    jobs: jobsApi,
+    http: httpApi,
+
     async getSetting(key: string, group?: string): Promise<unknown> {
       if (!allowedPermissions.includes('settings:read')) {
         throw new Error('Plugin permission denied: settings:read');
@@ -393,6 +596,7 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
       getFieldTypes: () => registeredFieldTypes,
       getPostTypes: () => registeredPostTypes,
       getTaxonomies: () => registeredTaxonomies,
+      getJobHandlers: () => jobHandlers,
     },
   };
 }
@@ -404,4 +608,6 @@ export interface PluginApiInternal {
   getFieldTypes: () => Array<PluginFieldTypeManifest & { pluginName: string; isPluginType: true }>;
   getPostTypes: () => Array<PluginPostTypeDeclaration & { pluginName: string }>;
   getTaxonomies: () => Array<PluginTaxonomyDeclaration & { pluginName: string }>;
+  /** Handlers de jobs declarados via api.jobs.on (dispatch no worker). */
+  getJobHandlers: () => Map<string, PluginJobHandler>;
 }

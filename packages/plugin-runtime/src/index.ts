@@ -15,7 +15,7 @@ export {
   getCurrentHookTenantId,
 } from './hook-registry.js';
 export type { AddHookOptions, AuditLogEntry, HookCallback } from './hook-registry.js';
-export { bootstrapPlugins, resetLoadedPlugins, listLoadedScopes, unloadScope, unloadTenant, getLoadedPluginRoutes } from './bootstrap.js';
+export { bootstrapPlugins, resetLoadedPlugins, listLoadedScopes, unloadScope, unloadTenant, getLoadedPluginRoutes, getLoadedPluginJobHandlers } from './bootstrap.js';
 export type {
   BootstrapPluginsOptions,
   BootstrapPluginsSql,

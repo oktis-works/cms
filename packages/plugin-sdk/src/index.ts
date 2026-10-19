@@ -16,6 +16,12 @@ export {
   type PluginTaxonomyDeclaration,
   type PluginJobDeclaration,
   type PluginHttpPolicy,
+  type PluginCacheApi,
+  type PluginJobsApi,
+  type PluginJobHandler,
+  type PluginHttpApi,
+  type PluginHttpOptions,
+  type PluginHttpResponse,
 } from './types.js';
 
 export {

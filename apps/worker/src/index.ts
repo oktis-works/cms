@@ -15,6 +15,7 @@ import {
   cleanupExpiredSessionsHandler,
   cleanupExpiredAuditLogsHandler,
   cacheInvalidateHandler,
+  pluginJobHandler,
 } from './jobs/handlers.js';
 
 async function main() {
@@ -44,6 +45,7 @@ async function main() {
   queueManager.registerHandler('cleanup.expired_sessions', cleanupExpiredSessionsHandler);
   queueManager.registerHandler('cleanup.expired_audit_logs', cleanupExpiredAuditLogsHandler);
   queueManager.registerHandler('cache.invalidate', cacheInvalidateHandler);
+  queueManager.registerHandler('plugin.job', pluginJobHandler);
 
   await queueManager.startWorker('content');
   await queueManager.startWorker('media');
@@ -51,6 +53,7 @@ async function main() {
   await queueManager.startWorker('deployments');
   await queueManager.startWorker('webhooks');
   await queueManager.startWorker('system');
+  await queueManager.startWorker('plugins');
 
   // `stats.queues` só tem as filas com Queue de PRODUÇÃO criada (o addJob do
   // scheduler cria depois); os workers recém-iniciados ficam em `workers`.

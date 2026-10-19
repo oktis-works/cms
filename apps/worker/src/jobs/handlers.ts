@@ -7,7 +7,7 @@ import { isAbsolute, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import sharp from 'sharp';
 import { getConnection } from '@oktis-works/database';
-import { getCache, auditService } from '@oktis-works/core';
+import { getCache, auditService, getPluginJobHandler, ensureTenantPluginsLoaded } from '@oktis-works/core';
 import { getEventBus, trackDeploymentProgress, contentPublisher } from '@oktis-works/core';
 import type { JobHandler, JobResult } from '../jobs/types.js';
 
@@ -526,3 +526,35 @@ async function rollbackPreviousDeployment(sql: { unsafe(q: string, v?: unknown[]
 function generateSignature(payload: string, secret: string): string {
   return `sha256=${createHmac('sha256', secret).update(payload).digest('hex')}`;
 }
+
+/**
+ * Dispatch de jobs de plugin (fila `plugins`, job name `plugin.job` — Item 3
+ * do plugin-parity-plan). O producer grava payload `{ plugin, job, data }` no
+ * envelope `{ payload, tenantId }`.
+ *
+ * Handler ausente (plugin desabilitado/desinstalado) → retorna erro SEM retry:
+ * repetir não fará o plugin reaparecer. Falha do handler → retry do padrão
+ * (3 tentativas, backoff exponencial do QueueManager).
+ */
+export const pluginJobHandler: JobHandler = async (job): Promise<JobResult> => {
+  const { plugin, job: jobName, data } = job.payload as { plugin?: unknown; job?: unknown; data?: unknown };
+  if (typeof plugin !== 'string' || typeof jobName !== 'string') {
+    return { success: false, error: 'plugin job payload inválido (esperado { plugin, job, data })' };
+  }
+
+  try {
+    const tenantId = job.tenantId && job.tenantId !== 'default' ? job.tenantId : null;
+    if (tenantId) {
+      // Handlers moram no escopo do tenant — garante a carga sob demanda
+      await ensureTenantPluginsLoaded(tenantId);
+    }
+    const handler = await getPluginJobHandler(tenantId, plugin, jobName);
+    if (!handler) {
+      return { success: false, error: `sem handler para ${plugin}:${jobName} (plugin desabilitado?)` };
+    }
+    await handler(data ?? {}, { tenantId, plugin, jobName });
+    return { success: true, data: { plugin, job: jobName } };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+};

@@ -146,6 +146,32 @@ module.exports.register = function register(api) {
 |--------|-----------|
 | `addFieldType(definition)` | Registra novo tipo de campo. Requer permissão `field-types:register`. |
 
+### PluginAPI — superfície da Fase 1 (paridade WordPress)
+
+| Método | Descrição | Permissão |
+|--------|-----------|-----------|
+| `addPostType(declaration)` | Custom Post Type (WP `register_post_type`). Também declarável em `postTypes[]` no manifesto. Persistência idempotente (`source: PLUGIN` + `sourceId`); conflito com origem estranha → warn + skip. | `post-types:register` |
+| `addTaxonomy(declaration)` | Custom Taxonomy (WP `register_taxonomy`). Também declarável em `taxonomies[]`. Ownership gravado em `meta.plugin`. | `taxonomies:register` |
+| `cache.get/set/delete/wrap/invalidateTags` | Transient por plugin, namespaced `plugin:{tenant}:{plugin}:{chave}` (RLS: um tenant não lê o cache de outro). `set` aceita `{ ttlSeconds, tags }`; `invalidateTags` derruba todas as chaves da tag. Sem backend do core → fallback memória por processo. | `cache:read` (get) / `cache:write` (demais) |
+| `jobs.on(jobName, handler)` | Handler executado pelo worker na fila `plugins` (payload `{ plugin, job, data }`). | — |
+| `jobs.schedule/cancel/enqueue` | Recorrência (`every` ms OU `cron`, exatamente um) / cancela / execução única. Teto de **10 agendas por plugin**; jobId determinístico idempotente; fila indisponível → `false` (nunca lança). Jobs também declaráveis em `scheduleJobs[]` no manifesto. | `jobs:schedule` |
+| `http.request/get/post` | HTTP externo anti-SSRF: allowlist `httpPolicy.allowHosts` (exato ou `*.dominio`), só http/https, DNS pré-validado com IP público (bloqueia RFC1918/loopback/169.254.169.254 metadata/CGNAT/ULA), DNS pinning no connect, máx 3 redirects com re-validação por hop, timeout (10s padrão) e teto de corpo (5 MB); retentativas em rede/5xx (GET/HEAD padrão, POST não). | `http:outbound` |
+
+Exemplo:
+
+```javascript
+module.exports.register = function register(api) {
+  api.addPostType({ key: 'book', label: 'Book', plural: 'Books', icon: 'book' });
+  api.addTaxonomy({ key: 'genre', label: 'Genre', postTypes: ['book'], hierarchical: true });
+
+  api.jobs.on('sync-catalog', async (payload) => { /* roda no worker */ });
+  await api.jobs.schedule('sync-catalog', { cron: '0 4 * * *' });
+
+  const cached = await api.cache.wrap('stats', 300, async () => computeStats());
+  const res = await api.http.get('https://api.example.com/v1/status');
+};
+```
+
 ---
 
 ## 4. Componentes Admin (SolidJS)

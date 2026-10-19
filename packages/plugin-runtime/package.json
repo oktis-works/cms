@@ -19,7 +19,8 @@
     "@oktis-works/plugin-sdk": "^0.6.0",
     "@oktis-works/types": "^0.8.0",
     "@oktis-works/validation": "^0.6.0",
-    "semver": "7"
+    "semver": "7",
+    "undici": "^8.11.2"
   },
   "devDependencies": {
     "typescript": "5.7.3"

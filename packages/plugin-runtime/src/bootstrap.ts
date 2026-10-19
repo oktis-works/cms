@@ -17,7 +17,7 @@
 //   - **por escopo**: o estado de carga é indexado por escopo (platform ou um
 //     tenant), então ativar/desativar num tenant não afeta outro.
 
-import { createPluginHooksApi, type HookRegistryLike } from '@oktis-works/plugin-sdk';
+import { createPluginHooksApi, type HookRegistryLike, type PluginJobHandler } from '@oktis-works/plugin-sdk';
 import { PLUGIN_PERMISSION_DEFAULT } from '@oktis-works/validation';
 import { PluginLoader, type DiscoveredPlugin } from './loader.js';
 import { PluginSandbox } from './sandbox.js';
@@ -121,6 +121,28 @@ export function getLoadedPluginRoutes(scopeKey: string): Array<{ pluginName: str
       const routes = entry.internal.getRoutes();
       if (routes.length > 0) {
         result.push({ pluginName, routes });
+      }
+    }
+  }
+  return result;
+}
+
+/**
+ * Handlers de jobs dos plugins em um escopo (dispatch pelo worker:
+ * `plugin:{tenant}:{plugin}:{jobName}` → handler).
+ */
+export function getLoadedPluginJobHandlers(scopeKey: string): Array<{
+  pluginName: string;
+  handlers: Map<string, PluginJobHandler>;
+}> {
+  const scope = loadedScopes.get(scopeKey);
+  if (!scope) return [];
+  const result: Array<{ pluginName: string; handlers: Map<string, PluginJobHandler> }> = [];
+  for (const [pluginName, entry] of scope.plugins) {
+    if (entry.internal) {
+      const handlers = entry.internal.getJobHandlers?.();
+      if (handlers && handlers.size > 0) {
+        result.push({ pluginName, handlers });
       }
     }
   }
@@ -328,6 +350,10 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
             registerFieldTypes: options.apiDeps.registerFieldTypes ?? (() => {}),
             registerPostTypes: options.apiDeps.registerPostTypes ?? (() => {}),
             registerTaxonomies: options.apiDeps.registerTaxonomies ?? (() => {}),
+            // Backend de cache do core; ausente → fallback memória no factory
+            cache: options.apiDeps.cache,
+            // Backend de jobs do core; ausente → schedule/enqueue retornam false
+            jobs: options.apiDeps.jobs,
             allowedPermissions: [...policy],
           };
           // Cria a API completa usando a fábrica interna
@@ -368,6 +394,19 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
               }
             } catch (e) {
               console.warn(`[plugins] Failed to register declared post types/taxonomies for ${name}:`, e);
+            }
+          }
+
+          // Jobs declarados no manifesto (v2): agenda recorrente via api.jobs
+          // (mesma validação/permissão/teto do caminho imperativo).
+          if (entry.manifest.scheduleJobs?.length) {
+            const typedApi = apiToPass as PluginAPI;
+            for (const job of entry.manifest.scheduleJobs) {
+              try {
+                await typedApi.jobs.schedule(job.name, { every: job.every, cron: job.cron });
+              } catch (e) {
+                console.warn(`[plugins] Failed to schedule declared job "${job.name}" for ${name}:`, e);
+              }
             }
           }
 

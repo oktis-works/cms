@@ -18,7 +18,8 @@ export type JobType =
   | 'webhook.send'
   | 'cache.invalidate'
   | 'cleanup.expired_sessions'
-  | 'cleanup.expired_audit_logs';
+  | 'cleanup.expired_audit_logs'
+  | 'plugin.job';
 
 /** jobType → fila BullMQ (o worker registra um worker por fila). */
 const QUEUE_BY_JOB_TYPE: Record<JobType, string> = {
@@ -31,6 +32,7 @@ const QUEUE_BY_JOB_TYPE: Record<JobType, string> = {
   'cache.invalidate': 'system',
   'cleanup.expired_sessions': 'system',
   'cleanup.expired_audit_logs': 'system',
+  'plugin.job': 'plugins',
 };
 
 export interface EnqueueOptions {
@@ -149,6 +151,107 @@ export class QueueProducer {
       return true;
     } catch (error) {
       this.warnDegraded(jobType, error);
+      return false;
+    }
+  }
+
+  /**
+   * Agenda/recalcula um job recorrente (fila `plugins` / plugin.job).
+   * Idempotente: remove repeatables pré-existentes do mesmo `jobId` antes de
+   * re-adicionar (spec pode ter mudado de `every` para `cron`). Nunca lança.
+   */
+  async scheduleRepeatable(
+    jobType: JobType | string,
+    jobId: string,
+    payload: Record<string, unknown>,
+    spec: { every?: number; cron?: string },
+    options: EnqueueOptions = {}
+  ): Promise<boolean> {
+    const queueName = QUEUE_BY_JOB_TYPE[jobType as JobType];
+    if (!queueName) return false;
+
+    const connection = this.ensureConnection();
+    if (!connection) return false;
+
+    try {
+      if (connection.status === 'wait' || connection.status === 'end') {
+        await connection.connect().catch(() => {
+          throw new Error('redis connect failed');
+        });
+      }
+
+      const queue = this.getQueue(queueName);
+
+      // Validação do spec (narrowing para RepeatOptions do BullMQ 5: `pattern`
+      // é o campo do cron — `cron` não existe mais nessa versão)
+      let repeat: { every: number } | { pattern: string };
+      if (typeof spec.cron === 'string' && spec.cron.trim().length > 0) {
+        repeat = { pattern: spec.cron };
+      } else if (typeof spec.every === 'number' && spec.every > 0) {
+        repeat = { every: spec.every };
+      } else {
+        return false;
+      }
+
+      // Idempotência: zera agendas anteriores deste jobId (spec pode mudar)
+      const existing = await queue.getRepeatableJobs();
+      for (const repeatable of existing) {
+        if (repeatable.name === jobType && (repeatable.id === jobId || repeatable.key.includes(jobId))) {
+          await queue.removeRepeatableByKey(repeatable.key).catch(() => undefined);
+        }
+      }
+
+      const envelope: JobEnvelope = {
+        payload,
+        tenantId: options.tenantId ?? 'default',
+        userId: options.userId,
+      };
+
+      await queue.add(jobType, envelope, {
+        jobId,
+        repeat,
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 1_000 },
+        removeOnComplete: true,
+        removeOnFail: false,
+      });
+
+      return true;
+    } catch (error) {
+      this.warnDegraded(`${jobType}(schedule)`, error);
+      return false;
+    }
+  }
+
+  /** Cancela agendas recorrentes do `jobId`. Nunca lança. */
+  async cancelRepeatable(jobType: JobType | string, jobId: string): Promise<boolean> {
+    const queueName = QUEUE_BY_JOB_TYPE[jobType as JobType];
+    if (!queueName) return false;
+
+    const connection = this.ensureConnection();
+    if (!connection) return false;
+
+    try {
+      if (connection.status === 'wait' || connection.status === 'end') {
+        await connection.connect().catch(() => {
+          throw new Error('redis connect failed');
+        });
+      }
+
+      const queue = this.getQueue(queueName);
+      const existing = await queue.getRepeatableJobs();
+      let removed = false;
+      for (const repeatable of existing) {
+        if (repeatable.name === jobType && (repeatable.id === jobId || repeatable.key.includes(jobId))) {
+          await queue.removeRepeatableByKey(repeatable.key).catch(() => undefined);
+          removed = true;
+        }
+      }
+      // Limpa também uma instância pendente avulsa com o mesmo jobId
+      await queue.remove(jobId).catch(() => undefined);
+      return removed;
+    } catch (error) {
+      this.warnDegraded(`${jobType}(cancel)`, error);
       return false;
     }
   }

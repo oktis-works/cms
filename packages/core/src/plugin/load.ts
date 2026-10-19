@@ -43,6 +43,8 @@ import { userService } from '../user/service.js';
 import { fieldGroupService } from '../fields/service.js';
 import { postTypeRegistry } from '../content/post-types.js';
 import { taxonomyService } from '../taxonomies/service.js';
+import { getCache } from '../cache/index.js';
+import { queueProducer } from '../queue/producer.js';
 import { getCurrentTenantIdSync, getCurrentUserIdSync, getCurrentRequestIdSync } from '../tenant/context.js';
 import type { RouteDefinition, PluginBootstrapResult, PluginApiDependencies } from '@oktis-works/plugin-runtime';
 
@@ -65,6 +67,41 @@ const getBootstrapPlugins = async () => (await getPluginRuntimeCached()).bootstr
 const getHookRegistryStore = async () => (await getPluginRuntimeCached()).getHookRegistryStore;
 const unloadTenant = async () => (await getPluginRuntimeCached()).unloadTenant;
 const getLoadedPluginRoutes = async () => (await getPluginRuntimeCached()).getLoadedPluginRoutes;
+const getLoadedPluginJobHandlers = async () => (await getPluginRuntimeCached()).getLoadedPluginJobHandlers;
+
+/** Handler de job de plugin (dispatch do worker). */
+export type PluginJobHandlerFn = (
+  payload: unknown,
+  context: { tenantId: string | null; plugin: string; jobName: string }
+) => void | Promise<void>;
+
+/** jobId determinístico do job de plugin (agendamentos são idempotentes por ele). */
+function pluginJobId(tenantId: string | null, pluginName: string, jobName: string): string {
+  return `plugin:${tenantId ?? 'platform'}:${pluginName}:${jobName}`;
+}
+
+/**
+ * Resolve o handler registrado por um plugin para um job (via api.jobs.on).
+ * Escopo: platform (`tenantId` null) ou tenant (carga sob demanda).
+ * Nunca lança — null quando plugin desabilitado/handler ausente.
+ */
+export async function getPluginJobHandler(
+  tenantId: string | null,
+  pluginName: string,
+  jobName: string
+): Promise<PluginJobHandlerFn | null> {
+  try {
+    const entries = await (await getLoadedPluginJobHandlers())(scopeKey(tenantId));
+    for (const entry of entries) {
+      if (entry.pluginName === pluginName) {
+        return (entry.handlers.get(jobName) as PluginJobHandlerFn | undefined) ?? null;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 export interface PluginsScopeState {
   /** `platform` ou `tenant:<id>`. */
@@ -143,6 +180,13 @@ function createApiDeps(tenantId: string | null): Partial<PluginApiDependencies> 
         const conn = getConnection();
         return conn.unsafe(sql, params ?? []);
       },
+    },
+    // Backend de api.cache (Item 2) — lazy para não exigir cache no boot de
+    // contextos que nunca usam plugin cache.
+    cache: {
+      get: <T>(key: string) => getCache().get<T>(key),
+      set: <T>(key: string, value: T, ttlSeconds?: number) => getCache().set(key, value, ttlSeconds),
+      del: (key: string) => getCache().del(key),
     },
     getTenantId: () => tenantId ?? getCurrentTenantIdSync(),
     getUserId: () => getCurrentUserIdSync(),
@@ -290,6 +334,31 @@ function createApiDeps(tenantId: string | null): Partial<PluginApiDependencies> 
       } catch (error) {
         console.error('[PluginAPI] Falha ao registrar taxonomias:', error);
       }
+    },
+    jobs: {
+      schedule: async (jobName, spec, ctx) => {
+        // Recorrência na fila `plugins` — jobId determinístico idempotente
+        return queueProducer.scheduleRepeatable(
+          'plugin.job',
+          pluginJobId(ctx.tenantId, ctx.pluginName, jobName),
+          { plugin: ctx.pluginName, job: jobName, scheduled: true },
+          spec,
+          { tenantId: ctx.tenantId ?? 'default' }
+        );
+      },
+      cancel: async (jobName, ctx) => {
+        return queueProducer.cancelRepeatable(
+          'plugin.job',
+          pluginJobId(ctx.tenantId, ctx.pluginName, jobName)
+        );
+      },
+      enqueue: async (jobName, payload, ctx) => {
+        return queueProducer.enqueue(
+          'plugin.job',
+          { plugin: ctx.pluginName, job: jobName, data: payload },
+          { tenantId: ctx.tenantId ?? 'default' }
+        );
+      },
     },
   };
 }

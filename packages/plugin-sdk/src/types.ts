@@ -112,12 +112,109 @@ export interface PluginAPI {
   addFieldType(definition: PluginFieldTypeManifest): void;
   addPostType(declaration: PluginPostTypeDeclaration): void;
   addTaxonomy(declaration: PluginTaxonomyDeclaration): void;
+  /** Cache/transient por plugin (namespaced, permissão cache:read/cache:write). */
+  cache: PluginCacheApi;
+  /** Jobs/cron por plugin (permissão jobs:schedule). */
+  jobs: PluginJobsApi;
+  /** HTTP externo protegido contra SSRF (permissão http:outbound). */
+  http: PluginHttpApi;
   getSetting(key: string): Promise<unknown>;
   setSetting(key: string, value: unknown): Promise<void>;
   getTenant(): Promise<TenantInfo>;
   getUser(): Promise<UserInfo>;
   query<T>(sql: string, params?: unknown[]): Promise<T[]>;
   emit(event: string, payload: unknown): Promise<void>;
+}
+
+/**
+ * API de cache/transient do plugin (Item 2 do plano de paridade).
+ * Chaves são namespaced por `plugin:{tenant}:{plugin}:{chave}` — um plugin não
+ * lê chaves de outro nem de outro tenant (RLS de cache).
+ */
+export interface PluginCacheApi {
+  /** Lê um valor; null se ausente/expirado. Permissão: cache:read. */
+  get<T = unknown>(key: string): Promise<T | null>;
+  /**
+   * Grava um valor. Permissão: cache:write.
+   * `tags` permitem invalidação em lote via {@link invalidateTags}.
+   */
+  set(key: string, value: unknown, options?: { ttlSeconds?: number; tags?: string[] }): Promise<void>;
+  /** Remove uma chave. Permissão: cache:write. */
+  delete(key: string): Promise<void>;
+  /**
+   * Lê; se ausente, executa `producer`, grava o resultado por `ttlSeconds` e
+   * retorna. Permissão: cache:write.
+   */
+  wrap<T>(key: string, ttlSeconds: number, producer: () => Promise<T>): Promise<T>;
+  /** Invalida todas as chaves associadas às tags. Permissão: cache:write. */
+  invalidateTags(tags: string[]): Promise<void>;
+}
+
+/** Handler executado pelo worker quando um job do plugin roda. */
+export type PluginJobHandler = (
+  payload: unknown,
+  context: { tenantId: string | null; plugin: string; jobName: string }
+) => void | Promise<void>;
+
+/**
+ * API de jobs/cron do plugin (Item 3 do plano de paridade — parity com
+ * WP-Cron / Action Scheduler). Fila dedicada `plugins`, teto de 10 agendas
+ * por plugin, degradação silenciosa (retorna false) sem Redis.
+ */
+export interface PluginJobsApi {
+  /** Declara o handler executado pelo worker para este job. */
+  on(jobName: string, handler: PluginJobHandler): void;
+  /**
+   * Agenda execução recorrente — exatamente UM de `every` (ms) ou `cron`.
+   * Permissão: jobs:schedule. Retorna false quando a fila está indisponível.
+   */
+  schedule(jobName: string, spec: { every?: number; cron?: string }): Promise<boolean>;
+  /** Cancela a agenda recorrente do job. Permissão: jobs:schedule. */
+  cancel(jobName: string): Promise<boolean>;
+  /** Enfileira uma execução única imediata. Permissão: jobs:schedule. */
+  enqueue(jobName: string, payload?: Record<string, unknown>): Promise<boolean>;
+}
+
+/** Resposta de api.http (Item 4 — HTTP externo protegido contra SSRF). */
+export interface PluginHttpResponse {
+  status: number;
+  ok: boolean;
+  /** Headers em lowercase. */
+  headers: Record<string, string>;
+  /** Corpo completo (teto configurável, default 5 MB). */
+  body: string;
+  /** Parseia o corpo como JSON (lança em corpo inválido). */
+  json<T = unknown>(): T;
+}
+
+export interface PluginHttpOptions {
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD';
+  headers?: Record<string, string>;
+  /** Corpo textual (JSON.stringify antes de enviar). */
+  body?: string;
+  /** Timeout por tentativa (default 10s, máx 60s). */
+  timeoutMs?: number;
+  /** Teto do corpo em bytes (default 5 MB). */
+  maxBytes?: number;
+  /**
+   * Retentativas em erro de rede/5xx. Default: 2 para GET/HEAD, 0 para os
+   * demais métodos (não idempotentes não são repetidos por padrão).
+   */
+  retries?: number;
+}
+
+/**
+ * HTTP externo seguro (Item 4 do plano de paridade + Item 16 egress).
+ * Proteções: allowlist `httpPolicy.allowHosts` do manifesto, apenas http/https,
+ * pré-validação DNS com IP público (bloqueia RFC1918/loopback/link-local
+ * 169.254 = metadata cloud/CGNAT/multicast), DNS pinning via dispatcher,
+ * redirects manuais com re-validação (máx 3), timeout e teto de corpo.
+ * Permissão: http:outbound.
+ */
+export interface PluginHttpApi {
+  request(url: string, options?: PluginHttpOptions): Promise<PluginHttpResponse>;
+  get(url: string, options?: Omit<PluginHttpOptions, 'method' | 'body'>): Promise<PluginHttpResponse>;
+  post(url: string, body: string, options?: Omit<PluginHttpOptions, 'method' | 'body'>): Promise<PluginHttpResponse>;
 }
 
 export interface RouteDefinition {
