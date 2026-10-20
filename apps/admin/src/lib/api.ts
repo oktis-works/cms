@@ -799,6 +799,32 @@ export class ApiClient {
     await this.request('DELETE', `/api/v1/taxonomies/${encodeURIComponent(slug)}/terms/${id}`);
   }
 
+  // ── Comments (Item 11 — moderation) ────────────────────────────────────
+  async getComments(
+    query: { status?: string; contentId?: string; search?: string; limit?: number; offset?: number } = {}
+  ): Promise<CommentsPage> {
+    const params = new URLSearchParams();
+    if (query.status) params.set('status', query.status);
+    if (query.contentId) params.set('contentId', query.contentId);
+    if (query.search) params.set('search', query.search);
+    if (query.limit !== undefined) params.set('limit', String(query.limit));
+    if (query.offset !== undefined) params.set('offset', String(query.offset));
+    const qs = params.toString();
+    return this.request('GET', `/api/v1/comments${qs ? `?${qs}` : ''}`);
+  }
+
+  async getCommentCounts(): Promise<Record<string, number>> {
+    return this.request('GET', '/api/v1/comments/counts');
+  }
+
+  async updateComment(id: string, data: { status?: string; authorName?: string; body?: string }): Promise<CommentInfo> {
+    return this.request('PATCH', `/api/v1/comments/${id}`, data);
+  }
+
+  async deleteComment(id: string): Promise<void> {
+    await this.request('DELETE', `/api/v1/comments/${id}`);
+  }
+
   async getCategories(): Promise<Category[]> {
     return this.request('GET', '/api/v1/categories');
   }
@@ -1206,6 +1232,29 @@ export interface TaxonomyTerm {
   parentId?: string | null;
   parent_id?: string | null;
   meta?: Record<string, unknown>;
+}
+
+export type CommentStatus = 'PENDING' | 'APPROVED' | 'SPAM' | 'TRASHED';
+
+export interface CommentInfo {
+  id: string;
+  contentId?: string;
+  content_id?: string;
+  parentId?: string | null;
+  parent_id?: string | null;
+  authorName?: string;
+  author_name?: string;
+  authorEmail?: string | null;
+  author_email?: string | null;
+  body: string;
+  status: CommentStatus;
+  createdAt?: string;
+  created_at?: string;
+}
+
+export interface CommentsPage {
+  comments: CommentInfo[];
+  counts: Record<string, number>;
 }
 
 export interface Category {

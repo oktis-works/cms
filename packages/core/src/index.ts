@@ -33,6 +33,7 @@ export { tenantService, TenantService } from './tenant/service.js';
 export { userService, UserService } from './user/service.js';
 export { roleService, RoleService } from './role/service.js';
 export { pluginRolesService, PluginRolesService, RESERVED_ROLE_SLUGS, roleSlugFromName, parseRolePermission } from './role/plugin-roles.js';
+export { commentService, CommentService, type CreateCommentInput, type CommentListFilter } from './comments/service.js';
 export { contentService, ContentService } from './content/service.js';
 export type { CreateContentInput, UpdateContentInput } from './content/service.js';
 export { postTypeRegistry, PostTypeRegistry } from './content/post-types.js';

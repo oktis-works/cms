@@ -11,7 +11,8 @@
       "settings": "Configurações",
       "plugins": "Plugins",
       "themes": "Temas",
-      "customize": "Personalizar"
+      "customize": "Personalizar",
+      "comments": "Comentários"
     },
     "actions": {
       "logout": "Sair",
@@ -1079,5 +1080,27 @@
     "previewHint": "O preview sobrepõe o rascunho às configurações salvas — vale só para a requisição, nunca persiste.",
     "previewPath": "Caminho do preview",
     "previewTitle": "Preview do tema"
+  },
+  "comments": {
+    "title": "Comentários",
+    "description": "Modere os comentários dos visitantes: aprove, marque como spam, jogue na lixeira ou exclua definitivamente.",
+    "loading": "Carregando comentários...",
+    "empty": "Nenhum comentário nesta fila.",
+    "reload": "Recarregar",
+    "author": "Autor",
+    "comment": "Comentário",
+    "inReplyTo": "Conteúdo",
+    "submitted": "Enviado em",
+    "approve": "Aprovar",
+    "spam": "Spam",
+    "trash": "Lixeira",
+    "delete": "Excluir",
+    "confirmDelete": "Excluir este comentário permanentemente? Não dá para desfazer.",
+    "status": {
+      "pending": "Pendentes",
+      "approved": "Aprovados",
+      "spam": "Spam",
+      "trashed": "Lixeira"
+    }
   }
 }

@@ -30,6 +30,14 @@ export const HOOK_POINTS = {
   THEME_BEFORE_RENDER: 'theme:before:render',
   THEME_AFTER_RENDER: 'theme:after:render',
   THEME_HEAD: 'theme:head',
+
+  // Comments (Item 11 — antispam via filter, moderação via actions)
+  COMMENT_BEFORE_SAVE: 'comment:before_save',
+  COMMENT_AFTER_SAVE: 'comment:after_save',
+  COMMENT_APPROVED: 'comment:approved',
+  COMMENT_SPAMMED: 'comment:spammed',
+  COMMENT_BEFORE_DELETE: 'comment:before_delete',
+  COMMENT_DELETED: 'comment:deleted',
 } as const;
 
 export function hooks() {

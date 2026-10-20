@@ -11,7 +11,8 @@
       "settings": "Settings",
       "plugins": "Plugins",
       "themes": "Themes",
-      "customize": "Customize"
+      "customize": "Customize",
+      "comments": "Comments"
     },
     "actions": {
       "logout": "Logout",
@@ -1079,5 +1080,27 @@
     "previewHint": "The preview overlays your draft on top of the saved settings — it is request-only and never persists.",
     "previewPath": "Preview path",
     "previewTitle": "Theme preview"
+  },
+  "comments": {
+    "title": "Comments",
+    "description": "Moderate visitor comments: approve, mark as spam, trash or delete permanently.",
+    "loading": "Loading comments...",
+    "empty": "No comments in this queue.",
+    "reload": "Reload",
+    "author": "Author",
+    "comment": "Comment",
+    "inReplyTo": "Content",
+    "submitted": "Submitted",
+    "approve": "Approve",
+    "spam": "Spam",
+    "trash": "Trash",
+    "delete": "Delete",
+    "confirmDelete": "Delete this comment permanently? This cannot be undone.",
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "spam": "Spam",
+      "trashed": "Trash"
+    }
   }
 }

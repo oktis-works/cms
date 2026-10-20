@@ -1,0 +1,15 @@
+---
+import DashboardLayout from '../layouts/DashboardLayout.astro';
+import { CommentsManager } from '../components/apps/comments/CommentsManager';
+import { PageHeader } from '../components/shared/PageHeader';
+
+const { t } = Astro.locals;
+---
+
+<DashboardLayout title={t('comments.title')}>
+  <PageHeader
+    title={t('comments.title')}
+    description={t('comments.description')}
+  />
+  <CommentsManager client:load />
+</DashboardLayout>

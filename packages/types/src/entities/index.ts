@@ -73,6 +73,27 @@ export interface Role {
   createdAt: Date;
 }
 
+/** Comment moderation states (WordPress-style queue). */
+export type CommentStatus = 'PENDING' | 'APPROVED' | 'SPAM' | 'TRASHED';
+
+/** Comment on a content item (Item 11 — threaded, moderated, tenant-scoped). */
+export interface Comment {
+  id: UUID;
+  tenantId?: UUID;
+  contentId: UUID;
+  parentId?: UUID | null;
+  authorName: string;
+  authorEmail?: string | null;
+  authorUrl?: string | null;
+  authorId?: UUID | null;
+  body: string;
+  status: CommentStatus;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // ============================================================
 // Permission
 // ============================================================
