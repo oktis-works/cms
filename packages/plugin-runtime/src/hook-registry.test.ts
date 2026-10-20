@@ -28,7 +28,7 @@ describe('HookRegistry actions', () => {
     expect(order).toEqual(['cedo', 'padrao', 'tarde']);
   });
 
-  it('respeita acceptedArgs explícito e o padrão callback.length', async () => {
+  it('honors explicit acceptedArgs and the callback.length default', async () => {
     const received: unknown[][] = [];
 
     registry.addAction('okcms.args', (...args: unknown[]) => received.push(args), {
@@ -45,7 +45,7 @@ describe('HookRegistry actions', () => {
     expect(received[1]).toEqual(['a']);
   });
 
-  it('erro em um callback não interrompe os demais (BUSI-031)', async () => {
+  it('an error in one callback does not interrupt the others (BUSI-031)', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const executed: boolean[] = [];
 
@@ -61,7 +61,7 @@ describe('HookRegistry actions', () => {
     spy.mockRestore();
   });
 
-  it('didAction conta cada execução', async () => {
+  it('didAction counts each execution', async () => {
     expect(registry.didAction('okcms.count')).toBe(0);
 
     await registry.doAction('okcms.count');
@@ -70,7 +70,7 @@ describe('HookRegistry actions', () => {
     expect(registry.didAction('okcms.count')).toBe(2);
   });
 
-  it('currentHook durante execução com reentrância (aninhamento)', async () => {
+  it('currentHook during execution with reentrancy (nesting)', async () => {
     const seen: Array<string | null> = [];
 
     registry.addAction('okcms.inner', () => {
@@ -85,7 +85,7 @@ describe('HookRegistry actions', () => {
 
     await registry.doAction('okcms.outer');
 
-    // durante outer → 'outer'; durante inner → 'inner'; após aninhamento restaura 'outer'
+    // during outer → 'outer'; during inner → 'inner'; after nesting restores 'outer'
     expect(seen).toEqual(['okcms.outer', 'okcms.inner', 'okcms.outer']);
     expect(registry.getCurrentHook()).toBeNull();
   });
@@ -107,7 +107,7 @@ describe('HookRegistry filters', () => {
     expect(result).toBe('x-a-b');
   });
 
-  it('applyFiltersAsync resolve callbacks assíncronos em sequência', async () => {
+  it('applyFiltersAsync resolves async callbacks in sequence', async () => {
     registry.addFilter(
       'okcms.async',
       async (value: unknown) => `${String(value)}!`,
@@ -120,7 +120,7 @@ describe('HookRegistry filters', () => {
     expect(result).toBe('go?!');
   });
 
-  it('filtros recebem argumentos extras após o valor', () => {
+  it('filters receive extra arguments after the value', () => {
     const seen: unknown[] = [];
 
     registry.addFilter('okcms.extra', (value, suffix) => {
@@ -133,7 +133,7 @@ describe('HookRegistry filters', () => {
     expect(seen).toEqual(['sufixo']);
   });
 
-  it('currentHook é definido durante filtros', () => {
+  it('currentHook is set during filters', () => {
     registry.addFilter('okcms.during', () => registry.getCurrentHook());
 
     expect(registry.applyFilters('okcms.during', null)).toBe('okcms.during');
@@ -141,7 +141,7 @@ describe('HookRegistry filters', () => {
   });
 });
 
-describe('Remoção e consulta', () => {
+describe('Removal and lookup', () => {
   it('removeAction/removeFilter removem apenas o callback alvo', () => {
     const registry = makeRegistry();
     const cb = (): void => undefined;
@@ -161,7 +161,7 @@ describe('Remoção e consulta', () => {
     expect(registry.hasFilter('okcms.rf')).toBe(false);
   });
 
-  it('removeAction retorna false quando não há correspondência', () => {
+  it('removeAction returns false when nothing matches', () => {
     const registry = makeRegistry();
 
     expect(registry.removeAction('okcms.nada', (): void => undefined)).toBe(false);
@@ -174,8 +174,8 @@ describe('BUSI-033 - Namespaced Hook Naming', () => {
     const registry = new HookRegistry();
     registry.setDevMode(true);
 
-    expect(() => registry.addAction('sem_prefixo', (): void => undefined)).toThrow(/prefixado/i);
-    expect(() => registry.addFilter('tambem_sem', (v) => v)).toThrow(/prefixado/i);
+    expect(() => registry.addAction('sem_prefixo', (): void => undefined)).toThrow(/prefixed/i);
+    expect(() => registry.addFilter('tambem_sem', (v) => v)).toThrow(/prefixed/i);
 
     expect(() => registry.addAction('okcms.ok', (): void => undefined)).not.toThrow();
     expect(() => registry.addAction('plugin.meu.hook', (): void => undefined)).not.toThrow();
@@ -189,7 +189,7 @@ describe('BUSI-033 - Namespaced Hook Naming', () => {
 });
 
 describe('BUSI-032 - Hook Trust Level Gating', () => {
-  it('silencia registro abaixo do nível exigido e registra auditoria', async () => {
+  it('silences registration below the required level and records the audit', async () => {
     const registry = makeRegistry();
     registry.setTrustLevel('plugin-fraco', 1);
 
@@ -214,7 +214,7 @@ describe('BUSI-032 - Hook Trust Level Gating', () => {
     expect(entry.reason).toContain('trust level 1');
   });
 
-  it('permite registro no nível igual ou superior', async () => {
+  it('allows registration at an equal or higher level', async () => {
     const registry = makeRegistry();
     registry.setTrustLevel('plugin-forte', 3);
 
@@ -233,7 +233,7 @@ describe('BUSI-032 - Hook Trust Level Gating', () => {
     expect(registry.getAuditLog()).toHaveLength(0);
   });
 
-  it('fonte desconhecida tem nível zero', () => {
+  it('an unknown source has level zero', () => {
     const registry = makeRegistry();
 
     registry.addAction('okcms.qualquer', (): void => undefined, {

@@ -23,7 +23,7 @@ describe('NPM flow integration: PluginLoader (node_modules layout)', () => {
     const dir = join(pluginsDir, name);
     mkdirSync(dir, { recursive: true });
 
-    // Convenção node_modules: o loader descobre plugins via package.json
+    // node_modules convention: the loader discovers plugins via package.json
     writeFileSync(
       join(dir, 'package.json'),
       JSON.stringify({ name, version: '1.0.0', main: mainFile, ...manifest })
@@ -32,7 +32,7 @@ describe('NPM flow integration: PluginLoader (node_modules layout)', () => {
     writeFileSync(join(dir, mainFile), code);
   }
 
-  it('descobre plugins válidos e ignora diretórios sem manifest', async () => {
+  it('discovers valid plugins and ignores directories without a manifest', async () => {
     writePlugin('plugin-a', 'index.js', 'export default { start() {} };');
     writePlugin('plugin-b', 'dist/main.js', 'module.exports = { stop() {} };');
     writeFileSync(join(pluginsDir, 'sem-manifest-placeholder'), '');
@@ -45,7 +45,7 @@ describe('NPM flow integration: PluginLoader (node_modules layout)', () => {
     expect(discovered.map((entry) => entry.manifest.name).sort()).toEqual(['plugin-a', 'plugin-b']);
   });
 
-  it('carrega módulo ESM do entry point declarado', async () => {
+  it('loads the ESM module from the declared entry point', async () => {
     writePlugin('esm-plugin', 'index.js', 'export default { hello: () => "mundo" };');
 
     const loader = new PluginLoader(pluginsDir);
@@ -59,7 +59,7 @@ describe('NPM flow integration: PluginLoader (node_modules layout)', () => {
     expect(api.hello()).toBe('mundo');
   }, 15000);
 
-  it('ordena dependências topologicamente (dependente depois da dependência)', async () => {
+  it('orders dependencies topologically (dependent after the dependency)', async () => {
     writePlugin('core-lib', 'index.js', 'export default {};', {
       dependencies: [],
     });
@@ -76,5 +76,5 @@ describe('NPM flow integration: PluginLoader (node_modules layout)', () => {
   });
 });
 
-// Garante que pathToFileURL está importado para uso em loaders futuros (windows-safe)
+// Ensures pathToFileURL is imported for use in future loaders (windows-safe)
 void pathToFileURL;

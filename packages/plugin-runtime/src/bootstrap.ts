@@ -1,21 +1,22 @@
-// @oktis-works/plugin-runtime - Bootstrap de plugins em runtime
+// @oktis-works/plugin-runtime - Plugin runtime bootstrap
 //
-// O PLUGIN.md promete: "`register(registry)` é chamado quando o plugin é
-// carregado". Este módulo cumpre a promessa: descobre os plugins habilitados
-// no banco (escopo **platform** = `tenant_id IS NULL`; escopo **tenant** =
-// `plugin_tenants` habilitados), importa o entrypoint, chama
-// `register(registry)` com uma API de hooks atribuída ao plugin (BUSI-032/033)
-// e sincroniza o registry do escopo.
+// PLUGIN.md promises: "`register(registry)` is called when the plugin is
+// loaded". This module honors it: discovers enabled plugins in the database
+// (**platform** scope = `tenant_id IS NULL`; **tenant** scope = enabled
+// `plugin_tenants`), imports the entrypoint, calls `register(registry)` with
+// a hook API attributed to the plugin (BUSI-032/033) and syncs the scope
+// registry.
 //
-// Regras:
-//   - **nunca lança**: plugin quebrado, manifesto inválido, incompatibilidade
-//     semântica ou banco indisponível não derrubam o boot (isolamento de falha);
-//   - **sincroniza com o banco**: quem saiu da lista de habilitados tem os
-//     hooks removidos do registry (unload);
-//   - **idempotente**: plugin já carregado não é recarregado (sem hooks
-//     duplicados) — chamadas repetidas carregam só o que é novo;
-//   - **por escopo**: o estado de carga é indexado por escopo (platform ou um
-//     tenant), então ativar/desativar num tenant não afeta outro.
+// Rules:
+//   - **never throws**: a broken plugin, invalid manifest, semantic
+//     incompatibility or an unavailable database never break the boot
+//     (failure isolation);
+//   - **syncs with the database**: anything that left the enabled list has
+//     its hooks removed from the registry (unload);
+//   - **idempotent**: an already-loaded plugin is not reloaded (no duplicate
+//     hooks) — repeated calls load only what is new;
+//   - **per scope**: load state is indexed by scope (platform or a tenant),
+//     so enabling/disabling in one tenant does not affect another.
 
 import { createPluginHooksApi, type HookRegistryLike, type PluginJobHandler, type AdminExtensionsState, type PluginBlockManifest, type PluginPatternManifest, type EnqueuedAsset, type PluginHealthCheck, type PluginI18nApi, type PluginManifest } from '@oktis-works/plugin-sdk';
 import { PLUGIN_PERMISSION_DEFAULT } from '@oktis-works/validation';
@@ -29,30 +30,30 @@ export interface BootstrapPluginsSql {
 }
 
 export interface BootstrapPluginsOptions {
-  /** Diretório de plugins (o chamador resolve — plugin-runtime não conhece o core). */
+  /** Plugins directory (the caller resolves it — plugin-runtime doesn't know the core). */
   pluginsDir: string;
-  /** Cliente postgres para ler os habilitados; omitido = estado desconhecido (no-op). */
+  /** Postgres client to read enabled plugins; omitted = unknown state (no-op). */
   sql?: BootstrapPluginsSql;
-  /** Registry alvo (default: registry do escopo — platform ou `tenantId`). */
+  /** Target registry (default: the scope registry — platform or `tenantId`). */
   registry?: HookRegistry;
-  /** Statuses considerados habilitados (default: ACTIVATED, RUNNING). */
+  /** Statuses considered enabled (default: ACTIVATED, RUNNING). */
   enabledStatuses?: string[];
   /**
-   * Escopo de carga: `null`/omitido → platform (`plugins.tenant_id IS NULL`);
-   * string → tenant (`plugin_tenants` com status ENABLED).
+   * Load scope: `null`/omitted → platform (`plugins.tenant_id IS NULL`);
+   * string → tenant (`plugin_tenants` with ENABLED status).
    */
   tenantId?: string | null;
   /**
-   * Política de permissões concedidas (allowlist). Default: catálogo completo
-   * de permissões do CMS. Nunca é preenchida com as permissões do manifesto.
+   * Granted permission policy (allowlist). Default: the full CMS permission
+   * catalog. Never filled with the manifest's own permissions.
    */
   permissionPolicy?: string[];
-  /** Timeout de callbacks de hook em ms (0 = sem timeout). Default 5000. */
+  /** Hook callback timeout in ms (0 = no timeout). Default 5000. */
   hookTimeoutMs?: number;
   /**
-   * Dependências reais para a PluginAPI (settings, eventBus, db, etc.).
-   * Se omitido, usa apenas o Hooks API legado (compatibilidade).
-   * O core injeta isto com serviços reais.
+   * Real dependencies for the PluginAPI (settings, eventBus, db, etc.).
+   * When omitted, only the legacy Hooks API is used (compatibility).
+   * The core injects this with real services.
    */
   apiDeps?: Partial<PluginApiDependencies>;
 }
@@ -60,9 +61,9 @@ export interface BootstrapPluginsOptions {
 export interface PluginBootstrapResult {
   /** Nomes habilitados no banco (vazio quando o banco falhou = estado desconhecido). */
   enabled: string[];
-  /** Registrados nesta sincronização. */
+  /** Loaded in this sync. */
   loaded: string[];
-  /** Hooks removidos nesta sincronização (saíram dos habilitados). */
+  /** Hooks removed in this sync (left the enabled list). */
   unloaded: string[];
   /** Falhas isoladas por plugin (nunca abortam o lote). */
   failed: Array<{ name: string; error: string }>;
@@ -84,14 +85,14 @@ interface LoadedEntry {
 
 interface LoadedScope {
   registry: HookRegistry;
-  /** nome → registros no registry */
+  /** name → registry registrations */
   plugins: Map<string, LoadedEntry>;
 }
 
 /** Estado de carga por escopo (`''` = platform, `tenant:<id>` = tenant). */
 const loadedScopes = new Map<string, LoadedScope>();
 
-/** Escopo platform usa a mesma chave do core ('platform') — lookups externos batem. */
+/** Platform scope uses the same key as the core ('platform') — external lookups match. */
 const PLATFORM_SCOPE = 'platform';
 
 function scopeKeyOf(tenantId?: string | null): string {
@@ -107,7 +108,7 @@ function getScope(scopeKey: string, registry: HookRegistry): LoadedScope {
   return scope;
 }
 
-/** Escopo com carga registrada (para inspeção/estado de runtime). */
+/** Scope with registered loads (for inspection/runtime state). */
 export function listLoadedScopes(): Array<{ scope: string; registry: HookRegistry; plugins: string[] }> {
   return [...loadedScopes.entries()].map(([scope, entry]) => ({
     scope,
@@ -116,11 +117,11 @@ export function listLoadedScopes(): Array<{ scope: string; registry: HookRegistr
   }));
 }
 
-/** Obtém as rotas registradas pelos plugins em um escopo. */
+/** Gets the routes registered by plugins in a scope. */
 export function getLoadedPluginRoutes(scopeKey: string): Array<{
   pluginName: string;
   routes: RouteDefinition[];
-  /** rpm do rate limit das rotas (manifest rateLimit.rpm, Item 17). */
+  /** Route rate-limit rpm (manifest rateLimit.rpm, Item 17). */
   rpm?: number;
 }> {
   const scope = loadedScopes.get(scopeKey);
@@ -269,9 +270,9 @@ export function getLoadedPluginHealthChecks(scopeKey: string): Array<{
 }
 
 /**
- * Remove todos os hooks dos escopos carregados e limpa o estado.
- * Útil em testes e em shutdown. Quando `registry` é informado, os hooks são
- * removidos dele; caso contrário, do registry em que foram registrados.
+ * Removes all hooks from the loaded scopes and clears the state.
+ * Useful in tests and shutdown. When `registry` is given, hooks are removed
+ * from it; otherwise from the registry where they were registered.
  */
 export function resetLoadedPlugins(registry?: HookRegistry): void {
   for (const [scopeKey, scope] of loadedScopes) {
@@ -300,7 +301,7 @@ export function unloadScope(scopeKey: string): boolean {
   return true;
 }
 
-/** Descarrega um tenant (chave `tenant:<id>` ou o próprio id). */
+/** Unloads a tenant (key `tenant:<id>` or the id itself). */
 export function unloadTenant(tenantId: string): boolean {
   return unloadScope(scopeKeyOf(tenantId));
 }
@@ -318,9 +319,9 @@ function unloadPlugin(scope: LoadedScope, name: string): boolean {
 
 /**
  * Registry que grava cada registro num sink (para poder descarregar depois),
- * delega ao registry real com `sourceId` atribuído pelo SDK e **aplica o
- * timeout do sandbox** no callback registrado (WP5 — proteção real contra hook
- * pendurado; documentada como limitada a trabalho assíncrono).
+ * delegates to the real registry with the SDK-attributed `sourceId` and
+ * **applies the sandbox timeout** to the registered callback (WP5 — real
+ * protection against a hanging hook; documented as limited to async work).
  */
 function recordingRegistry(
   registry: HookRegistry,
@@ -367,7 +368,7 @@ function enabledQuery(tenantId?: string | null): { text: string; params?: unknow
 /**
  * Sincroniza o registry de um escopo com os plugins habilitados no banco.
  * Seguro para chamar no boot de qualquer processo e em re-syncs (ex.: logo
- * após ativar/desativar pela API).
+ * after enabling/disabling through the API).
  */
 export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promise<PluginBootstrapResult> {
   const scopeKey = scopeKeyOf(options.tenantId);
@@ -377,7 +378,7 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
   const statuses = options.enabledStatuses ?? ['ACTIVATED', 'RUNNING'];
   const result: PluginBootstrapResult = { enabled: [], loaded: [], unloaded: [], failed: [] };
 
-  // 1) Quem está habilitado no banco? Falha = estado desconhecido → não toca em nada.
+  // 1) Who is enabled in the database? Failure = unknown state → touch nothing.
   let enabled: string[] | null = null;
   if (options.sql) {
     try {
@@ -396,7 +397,7 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
   result.enabled = enabled ?? [];
   if (enabled === null) return result;
 
-  // 2) Descobre no diretório (diretório ausente = nenhum plugin, não é erro)
+  // 2) Discovers in the directory (missing directory = no plugins, not an error)
   const loader = new PluginLoader(options.pluginsDir);
   let discovered: DiscoveredPlugin[] = [];
   try {
@@ -414,16 +415,16 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
     }
   }
 
-  // 4) Carrega habilitados ainda não carregados, respeitando ordem de dependência
+  // 4) Loads enabled-but-not-yet-loaded plugins, honoring dependency order
   const enabledDiscovered = discovered.filter((entry) => enabled.includes(entry.manifest.name));
   let levels: DiscoveredPlugin[][];
   try {
     levels = loader.resolveDependencies(enabledDiscovered);
   } catch {
-    levels = enabledDiscovered.map((entry) => [entry]); // ordenação falhou: ordem arbitrária
+    levels = enabledDiscovered.map((entry) => [entry]); // ordering failed: arbitrary order
   }
 
-  // Política de permissões: allowlist de configuração (ou catálogo completo).
+  // Permission policy: configuration allowlist (or the full catalog).
   const policy = options.permissionPolicy ?? PLUGIN_PERMISSION_DEFAULT;
   const timeoutMs = options.hookTimeoutMs ?? 5000;
 
@@ -435,19 +436,19 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
       try {
         const loaded = await loader.loadPlugin(entry.manifest, entry.path);
 
-        // O sandbox valida o manifesto contra a POLÍTICA (nunca contra si mesmo)
+        // The sandbox validates the manifest against the POLICY (never against itself)
         const sandbox = new PluginSandbox({ allowedPermissions: [...policy], timeoutMs });
         sandbox.loadPlugin(entry.manifest, loaded.api);
 
         // Contrato do PLUGIN.md: module.exports.register(registry)
         const register = (loaded.api as unknown as { register?: unknown }).register;
         if (typeof register !== 'function') {
-          throw new Error('não exporta register(registry)');
+          throw new Error('does not export register(registry)');
         }
 
-        // Item 20: migrações de schema do plugin (manifest.migrations[]) rodam
-        // ANTES do register(), uma vez por plugin (registry global em
-        // plugin_schema_migrations). Drift de checksum falha o plugin isolado.
+        // Item 20: plugin schema migrations (manifest.migrations[]) run
+        // BEFORE register(), once per plugin (global registry in
+        // plugin_schema_migrations). Checksum drift fails the plugin isolated.
         if (options.sql && Array.isArray(entry.manifest.migrations) && entry.manifest.migrations.length > 0) {
           const { applyPluginMigrations } = await import('./plugin-migrations.js');
           const migrationResult = await applyPluginMigrations(options.sql, name, entry.path, entry.manifest.migrations);
@@ -459,11 +460,11 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
         const registrations: TrackedRegistration[] = [];
 
         // Se o core forneceu apiDeps, cria a API completa (hooks + settings + query + routes + ...)
-        // Caso contrário, usa apenas o Hooks API legado (compatibilidade).
+        // Otherwise, only the legacy Hooks API is used (compatibility).
         let apiToPass: unknown;
         let internal: PluginApiInternal | undefined;
         if (options.apiDeps) {
-          // Mescla os deps do core com os específicos do plugin/runtime
+          // Merges the core deps with the plugin/runtime-specific ones
           const deps: PluginApiDependencies = {
             hooks: recordingRegistry(registry, registrations, sandbox),
             manifest: entry.manifest,
@@ -480,36 +481,36 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
             registerFieldTypes: options.apiDeps.registerFieldTypes ?? (() => {}),
             registerPostTypes: options.apiDeps.registerPostTypes ?? (() => {}),
             registerTaxonomies: options.apiDeps.registerTaxonomies ?? (() => {}),
-            // Backend de cache do core; ausente → fallback memória no factory
+            // Core cache backend; absent → in-memory fallback in the factory
             cache: options.apiDeps.cache,
             // Backend de jobs do core; ausente → schedule/enqueue retornam false
             jobs: options.apiDeps.jobs,
             allowedPermissions: [...policy],
           };
-          // Cria a API completa usando a fábrica interna
+          // Creates the full API using the internal factory
           const { createPluginApi } = await import('./plugin-api.js');
           const apiResult = createPluginApi(deps);
           apiToPass = apiResult.api;
           internal = apiResult.internal;
 
-          // Item 9: carrega os arquivos `locales[]` do manifesto antes do
-          // register() — traduções já disponíveis durante o boot. Falha de
-          // arquivo é silenciosa (fallback = própria key).
+          // Item 9: loads the manifest `locales[]` files before register()
+          // — translations already available during boot. File failure is
+          // silent (fallback = the key itself).
           try {
             const { loadPluginLocales } = await import('./i18n.js');
             const i18n = (apiResult.api as { i18n?: PluginI18nApi }).i18n;
             if (i18n) await loadPluginLocales(entry.path, entry.manifest, i18n);
           } catch {
-            // i18n indisponível — segue o boot
+            // i18n unavailable — boot continues
           }
         } else {
           apiToPass = createPluginHooksApi(name, recordingRegistry(registry, registrations, sandbox));
         }
 
-        // register() pode ser assíncrono — aguardamos (com o mesmo timeout de
-        // hooks) para que rejeições virem "failed isolado" em vez de unhandled
-        // rejection: antes, um async register() que lançava escapava do
-        // try/catch e virava erro não tratado no processo.
+        // register() may be async — we await it (with the same hook timeout)
+        // so rejections become an isolated failure instead of an unhandled
+        // rejection: previously a throwing async register escaped the
+        // try/catch and became an unhandled process error.
         await Promise.race([
           Promise.resolve((register as (registry: unknown) => unknown)(apiToPass)),
           new Promise<never>((_, reject) => {
@@ -521,9 +522,9 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
         if (internal) {
           scope.plugins.set(name, { registrations, internal, manifest: entry.manifest });
 
-          // Registro declarativo do manifesto (v2): postTypes/taxonomies passam
-          // pela mesma validação da API (permissão, slug, conflito) e a factory
-          // persiste via registerPostTypes/registerTaxonomies do core.
+          // Declarative manifest registration (v2): postTypes/taxonomies go
+          // through the same API validation (permission, slug, conflict) and
+          // the factory persists via the core registerPostTypes/registerTaxonomies.
           if (entry.manifest.postTypes?.length || entry.manifest.taxonomies?.length) {
             try {
               const typedApi = apiToPass as PluginAPI;
@@ -539,7 +540,7 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
           }
 
           // Jobs declarados no manifesto (v2): agenda recorrente via api.jobs
-          // (mesma validação/permissão/teto do caminho imperativo).
+          // (same validation/permission/ceiling as the imperative path).
           if (entry.manifest.scheduleJobs?.length) {
             const typedApi = apiToPass as PluginAPI;
             for (const job of entry.manifest.scheduleJobs) {
@@ -582,7 +583,7 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
         }
         result.loaded.push(name);
       } catch (error) {
-        // Isolamento de falha: plugin quebrado não impede os demais nem o boot
+        // Failure isolation: a broken plugin never blocks the others or the boot
         result.failed.push({ name, error: error instanceof Error ? error.message : String(error) });
       }
     }

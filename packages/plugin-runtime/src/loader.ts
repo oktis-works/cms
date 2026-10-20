@@ -35,11 +35,11 @@ export class PluginLoader {
   }
 
   async loadPlugin(manifest: PluginManifest, pluginPath: string): Promise<LoadedPlugin> {
-    // RULE-semver-compatibility: range compatibility.okcms deve satisfazer a versão do CMS
+    // RULE-semver-compatibility: the compatibility.okcms range must satisfy the CMS version
     const compat = (manifest as { compatibility?: { okcms?: unknown } }).compatibility?.okcms;
     if (typeof compat === 'string' && validRange(compat) && !satisfies(CMS_VERSION, compat)) {
       throw new Error(
-        `Plugin "${manifest.name}" requer OkCMS ${compat}, mas a versão atual é ${CMS_VERSION}`
+        `Plugin "${manifest.name}" requires OkCMS ${compat}, but the current version is ${CMS_VERSION}`
       );
     }
     const entryPath = resolve(join(pluginPath, manifest.main));
@@ -140,7 +140,7 @@ export class PluginLoader {
   }
 
   private async loadManifest(pluginPath: string): Promise<PluginManifest | null> {
-    // Fonte única (WP6): `manifest.json` canônico vence `package.json` (npm).
+    // Single source (WP6): the canonical `manifest.json` wins over `package.json` (npm).
     // Antes a ordem era inversa — um plugin com ambos os arquivos era lido de
     // um jeito no loader e de outro no sync/CLI.
     const { manifest } = await readPluginManifest(pluginPath);

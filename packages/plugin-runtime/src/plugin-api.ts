@@ -1,8 +1,9 @@
-// @oktis-works/plugin-runtime - PluginAPI completa (WP7 + WP8)
+// @oktis-works/plugin-runtime - Full PluginAPI (WP7 + WP8)
 //
-// Este módulo expõe uma fábrica `createPluginApi` que o core injeta com os
-// serviços reais (settings, eventBus, db, etc.). O plugin recebe um objeto
-// com métodos tipados; o runtime só conhece a interface (evita ciclo de dep).
+// This module exposes a `createPluginApi` factory that the core injects with
+// the real services (settings, eventBus, db, etc.). The plugin receives an
+// object with typed methods; the runtime only knows the interface (avoids a
+// dependency cycle).
 
 import { randomUUID } from 'node:crypto';
 import type { HookRegistryLike } from '@oktis-works/plugin-sdk';
@@ -12,7 +13,7 @@ import { createHttpApi } from './http.js';
 import { i18nFallbackChain, i18nInterpolate } from './i18n.js';
 import { ContentQueryBuilder } from './content-query.js';
 
-/** Contexto disponível para o plugin em cada execução de hook. */
+/** Context available to the plugin on every hook execution. */
 export interface PluginContext {
   tenantId: string;
   userId: string;
@@ -20,18 +21,18 @@ export interface PluginContext {
   api: PluginAPI;
 }
 
-/** Definição de rota registrada pelo plugin. */
+/** Route definition registered by the plugin. */
 export interface RouteDefinition {
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS';
   path: string;
   handler: (c: any, api: PluginAPI) => Promise<Response> | Response;
   /** Middlewares opcionais (ex.: auth, rate-limit). */
   middleware?: Array<(c: any, next: () => Promise<void>) => Promise<void>>;
-  /** Permissões exigidas para acessar esta rota. */
+  /** Permissions required to access this route. */
   requiredPermissions?: string[];
 }
 
-/** Configuração do tenant (para getTenant). */
+/** Tenant configuration (for getTenant). */
 export interface TenantInfo {
   id: string;
   name: string;
@@ -40,7 +41,7 @@ export interface TenantInfo {
   subdomain?: string | null;
 }
 
-/** Info do usuário (para getUser). */
+/** User info (for getUser). */
 export interface UserInfo {
   id: string;
   email: string;
@@ -48,15 +49,15 @@ export interface UserInfo {
   roles?: string[];
 }
 
-/** API exposta aos plugins — implementada pelo core e passada via factory. */
+/** API exposed to plugins — implemented by the core and passed via the factory. */
 export interface PluginAPI {
-  /** Registra hook de lifecycle (onInstall, onActivate, etc.). */
+  /** Registers a lifecycle hook (onInstall, onActivate, etc.). */
   registerHook(type: string, handler: (context: PluginContext, payload: unknown) => void | Promise<void>): void;
 
-  /** Registra rota HTTP exposta pelo plugin. */
+  /** Registers an HTTP route exposed by the plugin. */
   addRoute(route: RouteDefinition): void;
 
-  /** Registra campo de conteúdo customizado. */
+  /** Registers a custom content field. */
   addContentField(field: {
     name: string;
     type: string;
@@ -65,69 +66,69 @@ export interface PluginAPI {
     options?: Record<string, unknown>;
   }): void;
 
-  /** Registra um novo tipo de campo customizado. */
+  /** Registers a new custom field type. */
   addFieldType(definition: PluginFieldTypeManifest): void;
 
-  /** Registra um Custom Post Type (permissão post-types:register). */
+  /** Registers a Custom Post Type (permission post-types:register). */
   addPostType(declaration: PluginPostTypeDeclaration): void;
 
-  /** Registra uma Custom Taxonomy (permissão taxonomies:register). */
+  /** Registers a Custom Taxonomy (permission taxonomies:register). */
   addTaxonomy(declaration: PluginTaxonomyDeclaration): void;
 
-  /** Registra um bloco do editor (permissão blocks:register). Data plane: sem tabela — vive enquanto o plugin está ativo. */
+  /** Registers an editor block (permission blocks:register). Data plane: no table — lives while the plugin is active. */
   registerBlock(block: PluginBlockManifest): void;
 
-  /** Registra um pattern do editor (permissão patterns:register). Data plane: sem tabela — vive enquanto o plugin está ativo. */
+  /** Registers an editor pattern (permission patterns:register). Data plane: no table — lives while the plugin is active. */
   registerPattern(pattern: PluginPatternManifest): void;
 
-  /** Cache/transient por plugin (permissões cache:read/cache:write). */
+  /** Per-plugin cache/transient (permissions cache:read/cache:write). */
   readonly cache: PluginCacheApi;
 
-  /** Jobs/cron por plugin (permissão jobs:schedule). */
+  /** Per-plugin jobs/cron (permission jobs:schedule). */
   readonly jobs: PluginJobsApi;
 
-  /** HTTP externo protegido contra SSRF (permissão http:outbound). */
+  /** External HTTP protected against SSRF (permission http:outbound). */
   readonly http: PluginHttpApi;
   /** Slots declarativos do admin (FEAT-098 / DECI-027). */
   readonly admin: PluginAdminApi;
 
-  /** Gestão de roles do tenant (Item 6 — escopo tenant, anti-escalada, audit). */
+  /** Tenant role management (Item 6 — tenant scope, anti-escalation, audit). */
   readonly roles: PluginRolesApi;
 
-  /** Asset enqueue para o site público (Item 8 — permissão assets:enqueue). */
+  /** Public-site asset enqueue (Item 8 — permission assets:enqueue). */
   readonly assets: PluginAssetsApi;
 
-  /** Traduções server-side (Item 9 — fallback chain locale → base → en). */
+  /** Server-side translations (Item 9 — fallback chain locale → base → en). */
   readonly i18n: PluginI18nApi;
 
-  /** Health checks agregados no /health (Item 14 — permissão health:register). */
+  /** Health checks aggregated in /health (Item 14 — permission health:register). */
   readonly health: PluginHealthApi;
 
-  /** Envio de e-mail via outbox (Item 12 — permissão mail:send). */
+  /** Mail sending via the outbox (Item 12 — permission mail:send). */
   readonly mail: PluginMailApi;
 
-  /** Query builder tipado de conteúdo (Item 22 — permissão db:query). */
+  /** Typed content query builder (Item 22 — permission db:query). */
   readonly content: PluginContentApi;
 
-  /** Lê setting do tenant (group/key). */
+  /** Reads a tenant setting (group/key). */
   getSetting(key: string, group?: string): Promise<unknown>;
 
-  /** Escreve setting do tenant. */
+  /** Writes a tenant setting. */
   setSetting(key: string, value: unknown, group?: string): Promise<void>;
 
-  /** Info do tenant atual. */
+  /** Current tenant info. */
   getTenant(): Promise<TenantInfo>;
 
-  /** Info do usuário atual. */
+  /** Current user info. */
   getUser(): Promise<UserInfo>;
 
-  /** Executa SQL no schema do plugin + RLS do tenant (WP8). */
+  /** Executes SQL with tenant RLS (WP8). */
   query(sql: string, params?: unknown[]): Promise<unknown[]>;
 
-  /** Emite evento no barramento interno. */
+  /** Emits an event on the internal bus. */
   emit(eventType: string, payload: Record<string, unknown>): Promise<void>;
 
-  /** Hooks WordPress-style (actions/filters) — mantido para compat. */
+  /** WordPress-style hooks (actions/filters) — kept for compatibility. */
   addAction(action: string, callback: (...args: unknown[]) => unknown, options?: { priority?: number; acceptedArgs?: number }): void;
   addFilter(filter: string, callback: (value: unknown, ...args: unknown[]) => unknown, options?: { priority?: number; acceptedArgs?: number }): void;
   removeAction(action: string, callback: (...args: unknown[]) => unknown, priority?: number): boolean;
@@ -138,49 +139,49 @@ export interface PluginAPI {
   currentHook(): string | null;
 }
 
-/** Dependências que o core deve prover para criar a API real. */
+/** Dependencies the core must provide to create the real API. */
 export interface PluginApiDependencies {
-  /** Registry de hooks do escopo (tenant ou platform). */
+  /** Hook registry of the scope (tenant or platform). */
   hooks: HookRegistryLike;
-  /** Manifesto do plugin (para validar permissões no query). */
+  /** Plugin manifest (to validate permissions on query). */
   manifest: PluginManifest;
-  /** Serviço de settings (get/set por grupo/key). */
+  /** Settings service (get/set by group/key). */
   settings: {
     get(key: string, group?: string): Promise<unknown>;
     set(key: string, value: unknown, group?: string): Promise<void>;
   };
-  /** Bus de eventos interno. */
+  /** Internal event bus. */
   eventBus: {
     emit(event: { id: string; type: string; aggregateType: string; aggregateId: string; payload: Record<string, unknown>; tenantId?: string; processed: boolean; createdAt: Date }): Promise<void>;
   };
-  /** Conexão PostgreSQL com RLS já configurado para o tenant. */
+  /** PostgreSQL connection with RLS already configured for the tenant. */
   db: {
     query(sql: string, params?: unknown[]): Promise<unknown[]>;
   };
-  /** Resolvedor do tenantId atual (ALS). */
+  /** Current tenantId resolver (ALS). */
   getTenantId: () => string | null;
-  /** Resolvedor do userId atual (ALS). */
+  /** Current userId resolver (ALS). */
   getUserId: () => string | null;
-  /** Resolvedor do requestId atual (ALS). */
+  /** Current requestId resolver (ALS). */
   getRequestId: () => string | null;
-  /** Consulta tenant por id (para getTenant). */
+  /** Tenant lookup by id (for getTenant). */
   getTenantById: (id: string) => Promise<TenantInfo | null>;
-  /** Consulta usuário por id (para getUser). */
+  /** User lookup by id (for getUser). */
   getUserById: (id: string) => Promise<UserInfo | null>;
-  /** Registra rotas do plugin (o core monta no router da API). */
+  /** Registers plugin routes (the core mounts them on the API router). */
   registerRoutes: (routes: RouteDefinition[]) => void;
-  /** Registra campos de conteúdo do plugin (o core expõe via field-groups). */
+  /** Registers plugin content fields (the core exposes them via field groups). */
   registerContentFields: (fields: Array<{ name: string; type: string; label: string; required?: boolean; options?: Record<string, unknown> }>) => void;
-  /** Registra tipos de campo do plugin (o core expõe via registry). */
+  /** Registers plugin field types (the core exposes them via the registry). */
   registerFieldTypes: (fieldTypes: PluginFieldTypeManifest[]) => void;
-  /** Registra Custom Post Types do plugin (o core persiste via postTypeRegistry). */
+  /** Registers plugin Custom Post Types (the core persists via postTypeRegistry). */
   registerPostTypes?: (postTypes: Array<PluginPostTypeDeclaration & { pluginName: string }>) => void;
-  /** Registra Custom Taxonomies do plugin (o core persiste via taxonomyService). */
+  /** Registers plugin Custom Taxonomies (the core persists via taxonomyService). */
   registerTaxonomies?: (taxonomies: Array<PluginTaxonomyDeclaration & { pluginName: string }>) => void;
   /**
-   * Backend de cache do core (Redis/memória) — operações BRUTAS, sem
-   * namespace (o namespace plugin/tenant e as tags são do PluginAPI).
-   * Ausente → fallback memória por processo (dev/legado, nunca lança).
+   * Core cache backend (Redis/memory) — RAW operations, no namespace (the
+   * plugin/tenant namespace and tags belong to the PluginAPI).
+   * Absent → per-process memory fallback (dev/legacy, never throws).
    */
   cache?: {
     get<T>(key: string): Promise<T | null>;
@@ -188,8 +189,8 @@ export interface PluginApiDependencies {
     del(key: string): Promise<void>;
   };
   /**
-   * Backend de jobs do core (fila `plugins`). Ausente → schedule/enqueue/
-   * cancel retornam false (fila opcional, nunca lança — degradação A3).
+   * Core jobs backend (`plugins` queue). Absent → schedule/enqueue/cancel
+   * return false (optional queue, never throws — degradation A3).
    */
   jobs?: {
     schedule(
@@ -204,11 +205,11 @@ export interface PluginApiDependencies {
       ctx: { pluginName: string; tenantId: string | null }
     ): Promise<boolean>;
   };
-  /** Permissões concedidas ao plugin (policy já resolvida). */
+  /** Permissions granted to the plugin (already-resolved policy). */
   allowedPermissions: string[];
   /**
    * Backend de roles do core (Item 6 — persiste + audita com anti-escalada).
-   * Ausente → api.roles lança erro claro (backend não conectado).
+   * Absent → api.roles throws a clear error (backend not wired).
    */
   roles?: {
     add(input: { tenantId: string; pluginName: string; name: string; slug?: string; permissions?: string[] }): Promise<{ id: string; name: string; slug: string; permissions: string[] }>;
@@ -217,7 +218,7 @@ export interface PluginApiDependencies {
   };
   /**
    * Backend de mail do core (Item 12 — outbox + rate limit + audit).
-   * Ausente → api.mail.send retorna false (fila indisponível, como jobs).
+   * Absent → api.mail.send returns false (queue unavailable, like jobs).
    */
   mail?: {
     send(input: {
@@ -232,7 +233,7 @@ export interface PluginApiDependencies {
     }): Promise<boolean>;
   };
   /**
-   * Audit backend (Item 18 — operações sensíveis de plugin → audit_log).
+   * Audit backend (Item 18 — sensitive plugin operations → audit_log).
    * Ausente → sem auditoria (degrada silenciosamente, nunca bloqueia).
    */
   audit?: {
@@ -247,13 +248,14 @@ export interface PluginApiDependencies {
 }
 
 /**
- * Cria a PluginAPI real a partir das dependências do core.
- * Chamado pelo core no bootstrap (não pelo plugin-runtime diretamente).
- * Retorna { api: PluginAPI, internal: PluginApiInternal } para separar a API pública dos detalhes internos.
+ * Creates the real PluginAPI from the core dependencies.
+ * Called by the core at bootstrap (not by plugin-runtime directly).
+ * Returns { api: PluginAPI, internal: PluginApiInternal } to separate the
+ * public API from the internal details.
  */
 /**
- * Fallback de cache em memória quando o core não forneceu backend (dev ou
- * API legado). Sempre disponível — `api.cache` nunca lança por indisponibilidade.
+ * In-memory cache fallback when the core provided no backend (dev or legacy
+ * API). Always available — `api.cache` never throws for unavailability.
  */
 function createMemoryCacheBackend(): NonNullable<PluginApiDependencies['cache']> {
   const store = new Map<string, { value: unknown; expiresAt: number }>();
@@ -279,7 +281,7 @@ function createMemoryCacheBackend(): NonNullable<PluginApiDependencies['cache']>
 export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; internal: PluginApiInternal } {
   const { hooks, manifest, settings, eventBus, db, getTenantId, getUserId, getTenantById, getUserById, allowedPermissions, registerFieldTypes, registerPostTypes, registerTaxonomies } = deps;
 
-  // Valida permissão antes de executar query
+  // Validates the permission before running a query
   function checkDbPermission(): void {
     if (!allowedPermissions.includes('db:query')) {
       throw new Error('Plugin permission denied: db:query');
@@ -295,16 +297,16 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
   const registeredBlocks: Array<PluginBlockManifest & { pluginName: string }> = [];
   const registeredPatterns: Array<PluginPatternManifest & { pluginName: string }> = [];
 
-  // ── api.admin (FEAT-098/DECI-027): slots declarativos registrados em
-  // runtime; o endpoint /api/v1/plugins/extensions mescla com manifest.admin.
+  // ── api.admin (FEAT-098/DECI-027): declarative slots registered at
+  // runtime; the /api/v1/plugins/extensions endpoint merges with manifest.admin.
   const adminApi = createPluginAdminApi(manifest.name);
 
-  /** Slugs de CPT/taxonomia: minúsculas, dígitos, underscore e hífen (estilo WP). */
+  /** CPT/taxonomy slugs: lowercase, digits, underscore and hyphen (WP style). */
   const SLUG_PATTERN = /^[a-z][a-z0-9_-]*$/;
-  /** Slugs reservados que nenhum plugin pode reivindicar. */
+  /** Reserved slugs no plugin can claim. */
   const RESERVED_SLUGS = new Set(['post', 'page', 'media', 'user', 'content', 'attachment', 'category', 'tag']);
 
-  // ── api.cache (Item 2): namespace plugin:{tenant}:{plugin}:{chave} + tags ──
+  // ── api.cache (Item 2): plugin:{tenant}:{plugin}:{key} namespace + tags ──
   const cacheBackend = deps.cache ?? createMemoryCacheBackend();
 
   function cacheKeyFor(key: string): string {
@@ -327,9 +329,9 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
     }
   }
 
-  // ── Item 18: audit de operações sensíveis de plugin (query de escrita,
-  // addRoute, jobs) → audit_log. Fire-and-forget: falha de auditoria nunca
-  // bloqueia nem derruba a operação do plugin (mesma regra do auditService).
+  // ── Item 18: audit of sensitive plugin operations (write queries,
+  // addRoute, jobs) → audit_log. Fire-and-forget: an audit failure never
+  // blocks or breaks the plugin operation (same rule as auditService).
   const MUTATION_PATTERN = /^\s*(INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|TRUNCATE|GRANT|REVOKE)\b/i;
 
   function auditPlugin(action: string, resourceType: string, changes: Record<string, unknown>): void {
@@ -342,7 +344,7 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
         changes: { plugin: manifest.name, ...changes },
       });
     } catch {
-      // auditoria nunca bloqueia a operação
+      // auditing never blocks the operation
     }
   }
 
@@ -357,8 +359,8 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
       const fullKey = cacheKeyFor(key);
       const ttl = options?.ttlSeconds;
       await cacheBackend.set(fullKey, value, ttl);
-      // Índice tag → chaves (TTL acompanhando o valor; índice expira junto e as
-      // chaves órfãs expiram sozinhas pelo TTL do próprio valor).
+      // Tag → keys index (TTL tracking the value; the index expires with it
+      // and orphan keys expire through their own value TTL).
       for (const tag of options?.tags ?? []) {
         if (typeof tag !== 'string' || tag.trim().length === 0) {
           throw new Error('cache tag must be a non-empty string');
@@ -398,7 +400,7 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
     },
   };
 
-  // ── api.jobs (Item 3): handlers locais + fila `plugins` (repeat/one-shot) ──
+  // ── api.jobs (Item 3): local handlers + `plugins` queue (repeat/one-shot) ──
   const JOB_NAME_PATTERN = /^[a-zA-Z][a-zA-Z0-9_.-]{0,63}$/;
   const MAX_SCHEDULED_JOBS = 10;
   const jobHandlers = new Map<string, PluginJobHandler>();
@@ -426,14 +428,14 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
       if (hasEvery === hasCron) {
         throw new Error(`schedule("${jobName}") requires exactly one of: every | cron`);
       }
-      // Teto por plugin — só conta agendas novas (re-agendar o mesmo nome é grátis)
+      // Per-plugin ceiling — only new schedules count (re-scheduling the same name is free)
       if (!scheduledJobNames.has(jobName)) {
         if (scheduledJobNames.size >= MAX_SCHEDULED_JOBS) {
           throw new Error(`Job schedule limit reached (${MAX_SCHEDULED_JOBS} per plugin)`);
         }
         scheduledJobNames.add(jobName);
       }
-      if (!deps.jobs) return false; // fila indisponível: degradação, nunca throw
+      if (!deps.jobs) return false; // queue unavailable: degradation, never throws
       const scheduled = await deps.jobs.schedule(jobName, hasCron ? { cron: spec.cron } : { every: spec.every }, jobsCtx());
       if (scheduled) {
         auditPlugin('plugin.jobs.schedule', 'job', { jobName, spec: hasCron ? { cron: spec.cron } : { every: spec.every } });
@@ -466,16 +468,16 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
     },
   };
 
-  // ── api.http (Item 4 + Item 16): anti-SSRF com allowlist do manifesto ──
+  // ── api.http (Item 4 + Item 16): anti-SSRF with the manifest allowlist ──
   const httpApi: PluginHttpApi = createHttpApi({
     allowHosts: manifest.httpPolicy?.allowHosts,
     requirePermission,
   });
 
-  // ── api.roles (Item 6): gestão de roles do tenant, anti-escalada + audit.
-  // A permissão, o escopo tenant e a presença do backend são validados aqui;
-  // as regras de escalada (nomes reservados, wildcards, ops de plataforma)
-  // ficam no serviço do core — um único ponto de enforcement.
+  // ── api.roles (Item 6): tenant role management, anti-escalation + audit.
+  // Permission, tenant scope and backend presence are validated here; the
+  // escalation rules (reserved names, wildcards, platform operations) live in
+  // the core service — a single enforcement point.
   function rolesBackend(): NonNullable<PluginApiDependencies['roles']> {
     if (!deps.roles) {
       throw new Error('api.roles is not available (roles backend not wired)');
@@ -529,11 +531,10 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
     },
   };
 
-  // ── api.assets (Item 8): enqueue de assets para o site público. Dedupe por
-  // URL dentro do plugin (repetir a chamada é no-op); o merge entre plugins
-  // acontece na renderização (primeiro a registrar vence). SRI é declarado
-  // pelo plugin (integrity + crossOrigin); src aceita http(s):// ou caminho
-  // root-relative (/...).
+  // ── api.assets (Item 8): asset enqueue for the public site. Per-plugin
+  // URL dedupe (repeated calls are no-ops); the cross-plugin merge happens at
+  // render time (first enqueue wins). SRI is declared by the plugin
+  // (integrity + crossOrigin); src accepts http(s):// or root-relative (/...).
   const ASSET_SRC_PATTERN = /^(https?:\/\/|\/(?!\/))[^\s"']+$/i;
   const registeredAssets: EnqueuedAsset[] = [];
 
@@ -581,9 +582,9 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
     },
   };
 
-  // ── api.i18n (Item 9): traduções server-side por plugin. Bundles são
-  // privados do plugin (namespacing é natural — cada plugin tem o próprio
-  // store); fallback chain locale → base language → 'en' → própria key.
+  // ── api.i18n (Item 9): per-plugin server-side translations. Bundles are
+  // private to the plugin (namespacing is natural — each plugin owns its
+  // store); fallback chain locale → base language → 'en' → the key itself.
   const i18nBundles = new Map<string, Record<string, string>>();
   let i18nDefaultLocale = 'en';
 
@@ -625,8 +626,8 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
     },
   };
 
-  // ── api.health (Item 14): health checks nomeados por plugin, agregados no
-  // GET /api/v1/health com orçamento de 2s por check. Nome duplicado rejeita.
+  // ── api.health (Item 14): named per-plugin health checks, aggregated by
+  // GET /api/v1/health with a 2s budget per check. Duplicate names reject.
   const healthChecks = new Map<string, PluginHealthCheck>();
 
   const healthApi: PluginHealthApi = {
@@ -645,9 +646,9 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
     },
   };
 
-  // ── api.mail (Item 12): templates por plugin + envio via outbox do core.
-  // Templates suportam {param} (mesma interpolação do i18n). O backend é
-  // opcional: ausente → send retorna false (fila indisponível, como jobs).
+  // ── api.mail (Item 12): per-plugin templates + send through the core
+  // outbox. Templates support {param} (same interpolation as i18n). The
+  // backend is optional: absent → send returns false (queue down, like jobs).
   const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const mailTemplates = new Map<string, PluginMailTemplate>();
 
@@ -715,8 +716,8 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
     },
   };
 
-  // ── api.content (Item 22): query builder tipado — filtros declarativos
-  // sobre colunas allowlisted, totalmente parametrizados (db:query).
+  // ── api.content (Item 22): typed query builder — declarative filters
+  // over allowlisted columns, fully parameterized (db:query).
   const contentApi: PluginContentApi = {
     query() {
       requirePermission('db:query');
@@ -779,7 +780,7 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
       };
       const hookName = hookMap[type];
       if (!hookName) {
-        console.warn(`[PluginAPI] Hook type "${type}" não mapeado — ignorado`);
+        console.warn(`[PluginAPI] Hook type "${type}" not mapped — ignored`);
         return;
       }
       hooks.addAction(hookName, async (...args: unknown[]) => {
@@ -811,7 +812,7 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
       if (!allowedPermissions.includes('field-types:register')) {
         throw new Error('Plugin permission denied: field-types:register');
       }
-      // Validar se o tipo já existe (built-in ou outro plugin)
+      // Validate whether the type already exists (built-in or another plugin)
       const existing = registeredFieldTypes.find(f => f.type === definition.type);
       if (existing) {
         throw new Error(`Field type "${definition.type}" already registered by plugin "${existing.pluginName || 'unknown'}"`);
@@ -957,8 +958,8 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
 
     async query(sql: string, params?: unknown[]): Promise<unknown[]> {
       checkDbPermission();
-      // Item 18: apenas MUTAções vão para o audit_log (SELECT em massa
-      // inundaria o log; leituras ficam nos logs de query do banco).
+      // Item 18: only MUTATIONS hit the audit log (mass SELECTs would flood
+      // it; reads stay in the database query logs).
       if (MUTATION_PATTERN.test(sql)) {
         auditPlugin('plugin.db.query', 'db', {
           statement: sql.slice(0, 500),
@@ -1020,16 +1021,16 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
   };
 }
 
-/** Tipo para o core acessar as rotas/campos registrados internamente. */
+/** Type for the core to access internally registered routes/fields. */
 export interface PluginApiInternal {
   getRoutes: () => RouteDefinition[];
   getFields: () => Array<{ name: string; type: string; label: string; required?: boolean; options?: Record<string, unknown> }>;
   getFieldTypes: () => Array<PluginFieldTypeManifest & { pluginName: string; isPluginType: true }>;
   getPostTypes: () => Array<PluginPostTypeDeclaration & { pluginName: string }>;
   getTaxonomies: () => Array<PluginTaxonomyDeclaration & { pluginName: string }>;
-  /** Handlers de jobs declarados via api.jobs.on (dispatch no worker). */
+  /** Job handlers declared via api.jobs.on (dispatched by the worker). */
   getJobHandlers: () => Map<string, PluginJobHandler>;
-  /** Slots declarativos registrados em runtime via api.admin.*. */
+  /** Declarative slots registered at runtime via api.admin.*. */
   getAdminState: () => AdminExtensionsState;
   /** Blocos do editor registrados em runtime via api.registerBlock. */
   getBlocks: () => Array<PluginBlockManifest & { pluginName: string }>;

@@ -1,7 +1,7 @@
 // @oktis-works/plugin-runtime - Bootstrap de plugins em runtime
 //
-// Cumpre a promessa do PLUGIN.md: `register(registry)` é chamado quando o
-// plugin é carregado. Testa carga, descarga (unload), idempotência e
+// Honors the PLUGIN.md promise: `register(registry)` is called when the
+// plugin is loaded. Covers load, unload, idempotency and
 // isolamento de falha contra um HookRegistry real.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -57,7 +57,7 @@ describe('bootstrapPlugins', () => {
       'index.js':
         "module.exports.register = function (registry) { registry.addFilter('bootstrap:cjs', (v) => v + '?'); };",
     });
-    // Descoberto no diretório mas AUSENTE no banco → não pode carregar
+    // Discovered in the directory but ABSENT from the database → must not load
     writePlugin('plugin-desabilitado', {
       'index.js':
         "export default { register(registry) { registry.addFilter('bootstrap:nao-deve', (v) => 'NUNCA'); } };",
@@ -76,7 +76,7 @@ describe('bootstrapPlugins', () => {
     expect(registry.hasFilter('bootstrap:nao-deve')).toBe(false);
   }, 30000);
 
-  it('plugin quebrado ou sem register não derruba o lote (isolamento de falha)', async () => {
+  it('a broken plugin or one without register does not break the batch (failure isolation)', async () => {
     writePlugin('plugin-quebrado', { 'index.js': "throw new Error('boom no import');" });
     writePlugin('plugin-sem-register', { 'index.js': 'export default { other: 1 };' });
     writePlugin('plugin-bom', {
@@ -97,7 +97,7 @@ describe('bootstrapPlugins', () => {
     expect(result.failed.find((f) => f.name === 'plugin-sem-register')!.error).toContain('register');
   }, 30000);
 
-  it('idempotência: segunda chamada não duplica hooks', async () => {
+  it('idempotency: a second call does not duplicate hooks', async () => {
     writePlugin('plugin-ok', {
       'index.js':
         "export default { register(registry) { registry.addFilter('bootstrap:dup', (v) => v + '!'); } };",
@@ -121,14 +121,14 @@ describe('bootstrapPlugins', () => {
     await bootstrapPlugins({ pluginsDir, sql: sqlWith([{ name: 'plugin-x' }]), registry });
     expect(registry.hasFilter('bootstrap:x')).toBe(true);
 
-    // Desativado no banco → próxima sincronização remove os hooks
+    // Disabled in the database → the next sync removes the hooks
     const result = await bootstrapPlugins({ pluginsDir, sql: sqlWith([]), registry });
     expect(result.unloaded).toEqual(['plugin-x']);
     expect(registry.hasFilter('bootstrap:x')).toBe(false);
     expect(registry.hasAction('bootstrap:x-action')).toBe(false);
   }, 30000);
 
-  it('banco indisponível = estado desconhecido: não carrega NEM descarrega', async () => {
+  it('unavailable database = unknown state: neither loads NOR unloads', async () => {
     writePlugin('plugin-y', {
       'index.js':
         "export default { register(registry) { registry.addFilter('bootstrap:y', (v) => v + '!'); } };",
@@ -148,7 +148,7 @@ describe('bootstrapPlugins', () => {
     expect(registry.hasFilter('bootstrap:y')).toBe(true); // hooks preservados
   }, 30000);
 
-  it('diretório inexistente não é erro', async () => {
+  it('a missing directory is not an error', async () => {
     const result = await bootstrapPlugins({
       pluginsDir: join(pluginsDir, 'nao-existe'),
       sql: sqlWith([{ name: 'qualquer' }]),
@@ -157,7 +157,7 @@ describe('bootstrapPlugins', () => {
     expect(result).toEqual({ enabled: ['qualquer'], loaded: [], unloaded: [], failed: [] });
   });
 
-  it('incompatibilidade semântica (compatibility.okcms) vira failed isolado', async () => {
+  it('semantic incompatibility (compatibility.okcms) becomes an isolated failure', async () => {
     writePlugin(
       'plugin-incompativel',
       { 'index.js': 'export default { register() {} };' },
@@ -172,12 +172,12 @@ describe('bootstrapPlugins', () => {
 
     expect(result.loaded).toEqual([]);
     expect(result.failed).toHaveLength(1);
-    expect(result.failed[0]!.error).toContain('requer OkCMS');
+    expect(result.failed[0]!.error).toContain('requires OkCMS');
   }, 30000);
 });
 
 describe('escopo por tenant (WP3)', () => {
-  it('platform lê plugins com tenant_id IS NULL; tenant lê plugin_tenants', async () => {
+  it('platform reads plugins with tenant_id IS NULL; tenant reads plugin_tenants', async () => {
     writePlugin('plugin-p', {
       'index.js': 'export default { register() {} };',
     });
@@ -200,7 +200,7 @@ describe('escopo por tenant (WP3)', () => {
     expect(tenantParams).toEqual(['tenant-a']);
   }, 30000);
 
-  it('plugin habilitado num tenant não entra no registry de outro nem no platform', async () => {
+  it('a plugin enabled in one tenant never enters the registry of another tenant nor of platform', async () => {
     writePlugin('plugin-isolado', {
       'index.js':
         "export default { register(registry) { registry.addFilter('plugin.iso:v', (v) => v + '!'); } };",
@@ -221,7 +221,7 @@ describe('escopo por tenant (WP3)', () => {
     expect(registryPlatform.applyFilters('plugin.iso:v', 'x')).toBe('x');
   }, 30000);
 
-  it('escopos são independentes: descarregar um não derruba o outro', async () => {
+  it('scopes are independent: unloading one does not break the other', async () => {
     writePlugin('plugin-x', {
       'index.js':
         "export default { register(registry) { registry.addFilter('bootstrap:x', (v) => v + '!'); } };",
@@ -240,8 +240,8 @@ describe('escopo por tenant (WP3)', () => {
   }, 30000);
 });
 
-describe('política de permissões (WP5)', () => {
-  it('manifesto com permissão fora da política é failed isolado', async () => {
+describe('permission policy (WP5)', () => {
+  it('a manifest with a permission outside the policy becomes an isolated failure', async () => {
     writePlugin(
       'plugin-root',
       { 'index.js': 'export default { register() {} };' },
@@ -258,7 +258,7 @@ describe('política de permissões (WP5)', () => {
     expect(result.failed[0]!.error).toContain('Plugin permission denied: root:shell');
   }, 30000);
 
-  it('política concedida pelo chamador habilita a permissão', async () => {
+  it('a caller-granted policy enables the permission', async () => {
     writePlugin(
       'plugin-ok-perm',
       { 'index.js': 'export default { register() {} };' },

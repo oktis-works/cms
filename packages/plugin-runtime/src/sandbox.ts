@@ -4,9 +4,9 @@ export interface SandboxConfig {
   /** Timeout para callbacks de hook (ms). 0 = sem timeout. */
   timeoutMs: number;
   /**
-   * **Política** de permissões concedidas (allowlist vinda de configuração /
-   * catálogo). Nunca o manifesto: passar as permissões do próprio manifesto
-   * aqui seria uma tautologia (aprovação garantida).
+   * The granted permission **policy** (allowlist from configuration /
+   * catalog). Never the manifest: passing the manifest's own permissions here
+   * would be a tautology (guaranteed approval).
    */
   allowedPermissions: string[];
 }
@@ -29,13 +29,13 @@ export class PluginSandbox {
     return { manifest, api, loaded: true, loadedAt: Date.now() };
   }
 
-  /** BUSI plugin-style-isolation: CSS global sem escopo é escopado ao servir via scopePluginCss */
+  /** BUSI plugin-style-isolation: unscoped global CSS is scoped when served via scopePluginCss */
   private enforceStyleIsolation(manifest: PluginManifest): void {
     const anyManifest = manifest as unknown as Record<string, unknown>;
     const style = anyManifest['style'] ?? anyManifest['styles'];
     if (typeof style === 'string' && (style.includes(':root') || style.includes('html{') || style.includes('body{')) && !style.includes('data-plugin')) {
       console.warn(
-        `[sandbox] Plugin ${manifest.name} declara CSS global sem [data-plugin] — será escopado via scopePluginCss ao ser servido em /style.css`
+        `[sandbox] Plugin ${manifest.name} declares global CSS without [data-plugin] — it will be scoped via scopePluginCss when served at /style.css`
       );
     }
   }
@@ -62,13 +62,15 @@ export class PluginSandbox {
   }
 
   /**
-   * Aplica o timeout **no ponto real de execução** (registro do callback).
+   * Applies the timeout **at the real execution point** (callback
+   * registration).
    *
-   * - retorno síncrono → devolve o valor como está (semântica síncrona dos
-   *   filtros, DECI-026 — um `applyFilters` não pode virar Promise);
-   * - retorno assíncrono → corre contra o timeout (`timeoutMs`).
+   * - sync return → the value is returned as-is (synchronous filter
+   *   semantics, DECI-026 — an `applyFilters` cannot become a Promise);
+   * - async return → races against the timeout (`timeoutMs`).
    *
-   * Limite honesto: `Promise.race` não interrompe CPU síncrona; plugins
+   * Honest limitation: `Promise.race` does not interrupt synchronous CPU;
+   * plugins
    * custosos de bloco continuam travando o processo (isolamento real seria
    * worker/processo separado).
    */
@@ -83,7 +85,7 @@ export class PluginSandbox {
     };
   }
 
-  /** Race Promise × timeout (API pública usada pelo bootstrap). */
+  /** Promise × timeout race (public API used by the bootstrap). */
   async withTimeout<T>(promise: Promise<T>): Promise<T> {
     let timer: NodeJS.Timeout | undefined;
     try {
@@ -98,7 +100,7 @@ export class PluginSandbox {
     }
   }
 
-  /** Política vigente (para testes/observabilidade). */
+  /** Current policy (for tests/observability). */
   getPolicy(): SandboxConfig {
     return { ...this.config };
   }

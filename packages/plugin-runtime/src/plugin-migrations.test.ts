@@ -95,7 +95,7 @@ describe('applyPluginMigrations (Item 20)', () => {
     const sql = makeStatefulSql();
     const result = await applyPluginMigrations(sql, 'mig-plugin', dir, ['../etc/evil.sql']);
 
-    expect(result.drift[0]).toContain('caminho inválido');
+    expect(result.drift[0]).toContain('invalid path');
     expect(result.applied).toEqual([]);
   });
 
@@ -103,7 +103,7 @@ describe('applyPluginMigrations (Item 20)', () => {
     const sql = makeStatefulSql();
     const result = await applyPluginMigrations(sql, 'mig-plugin', dir, ['missing.sql']);
 
-    expect(result.drift[0]).toContain('não pôde ser lido');
+    expect(result.drift[0]).toContain('could not be read');
   });
 });
 

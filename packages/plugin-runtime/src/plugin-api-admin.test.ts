@@ -1,11 +1,11 @@
 // @oktis-works/plugin-runtime - PluginAPI: api.admin (slots declarativos)
 //
 // Item E1 do plugin-parity-plan (FEAT-098 / DECI-027). Cobre:
-//   - api.admin registra slots e o estado fica visível em internal.getAdminState;
+//   - api.admin registers slots and the state is visible in internal.getAdminState;
 //   - getLoadedPluginAdminExtensions devolve o estado por escopo (platform/tenant);
-//   - addMenuPage/addSubmenuPage exigem capability explícita;
-//   - estado vazio não é reportado (hasEntries);
-//   - plugin quebrado não derruba o bootstrap (isolamento de falha).
+//   - addMenuPage/addSubmenuPage require an explicit capability;
+//   - an empty state is not reported (hasEntries);
+//   - a broken plugin does not break the bootstrap (failure isolation).
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -68,7 +68,7 @@ afterEach(() => {
 });
 
 describe('api.admin', () => {
-  it('registra slots e expõe o estado em getAdminState', () => {
+  it('registers slots and exposes the state in getAdminState', () => {
     const { api, internal } = createPluginApi(createDeps());
 
     api.admin.addMenuPage({ slug: 'tools', label: 'Ferramentas', capability: 'manage_options' });
@@ -96,7 +96,7 @@ describe('api.admin', () => {
     expect(state.menuPages).toHaveLength(1);
     expect(state.dashboardWidgets[0]?.componentId).toBe('admin-plugin:Stats');
     expect(state.metaBoxes[0]?.screens).toEqual(['post']);
-    // id auto-gerado é namespaced pelo nome do plugin
+    // the auto-generated id is namespaced by the plugin name
     expect(state.notices[0]?.id).toMatch(/^admin-plugin:/);
     expect(state.columns['post']).toHaveLength(1);
     expect(state.columnRenderers['post']?.['visitas']).toBe('admin-plugin:VisitasCell');
@@ -110,7 +110,7 @@ describe('api.admin', () => {
     expect(internal.getAdminState().notices).toHaveLength(0);
   });
 
-  it('exige capability explícita em addMenuPage/addSubmenuPage', () => {
+  it('requires an explicit capability on addMenuPage/addSubmenuPage', () => {
     const { api } = createPluginApi(createDeps());
     expect(() => api.admin.addMenuPage({ slug: 'x', label: 'X' } as never)).toThrow(/capability/);
     expect(() =>
@@ -130,7 +130,7 @@ describe('api.admin', () => {
 });
 
 describe('getLoadedPluginAdminExtensions', () => {
-  it('devolve o estado registrado em runtime pelo plugin (após bootstrap)', async () => {
+  it('returns the runtime state registered by the plugin (after bootstrap)', async () => {
     writePlugin(
       'admin-plugin',
       `
@@ -169,7 +169,7 @@ describe('getLoadedPluginAdminExtensions', () => {
     expect(entries[0]?.state.editors).toHaveLength(1);
   });
 
-  it('não reporta plugins sem nenhuma entrada de slot (estado vazio)', async () => {
+  it('does not report plugins without any slot entry (empty state)', async () => {
     writePlugin(
       'silent-plugin',
       `
@@ -180,11 +180,11 @@ describe('getLoadedPluginAdminExtensions', () => {
     await bootstrapPlugins({ pluginsDir, sql, registry, apiDeps: createDeps() });
 
     expect(getLoadedPluginAdminExtensions('platform')).toHaveLength(0);
-    // escopo inexistente devolve lista vazia em vez de lançar
+    // an unknown scope returns an empty list instead of throwing
     expect(getLoadedPluginAdminExtensions('tenant:nao-existe')).toEqual([]);
   });
 
-  it('plugin quebrado não impede o bootstrap dos demais', async () => {
+  it('a broken plugin does not prevent the others from booting', async () => {
     writePlugin(
       'broken-plugin',
       `

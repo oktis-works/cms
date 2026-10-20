@@ -4,9 +4,9 @@
 // register_taxonomy). Cobre:
 //   - caminho declarativo do manifesto (postTypes[]/taxonomies[] no v2);
 //   - caminho imperativo (api.addPostType / api.addTaxonomy);
-//   - permissões (post-types:register / taxonomies:register);
-//   - validação de slug, slugs reservados, conflito duplicado;
-//   - taxonomy exige postTypes[] não vazio.
+//   - permissions (post-types:register / taxonomies:register);
+//   - slug validation, reserved slugs, duplicate conflicts;
+//   - taxonomy requires a non-empty postTypes[].
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';

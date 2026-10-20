@@ -3,10 +3,10 @@
 // Item 2 do plugin-parity-plan. Cobre:
 //   - roundtrip set/get com namespace plugin:{tenant}:{plugin}:{chave};
 //   - isolamento RLS de cache entre tenants (chave nunca cruza tenant);
-//   - permissões cache:read / cache:write;
+//   - cache:read / cache:write permissions;
 //   - wrap (produz uma vez, cacheia);
-//   - invalidação por tag;
-//   - fallback memória quando o core não fornece backend.
+//   - tag invalidation;
+//   - memory fallback when the core provides no backend.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -33,7 +33,7 @@ function sqlWith(rows: unknown[]) {
   return { unsafe: vi.fn(async (_text: string, _params?: unknown[]) => rows) };
 }
 
-/** Backend de cache em memória com registro de chamadas (observabilidade). */
+/** In-memory cache backend with call recording (observability). */
 function createTrackingCache() {
   const store = new Map<string, unknown>();
   const calls: Array<{ op: 'get' | 'set' | 'del'; key: string; value?: unknown; ttl?: number }> = [];
@@ -261,7 +261,7 @@ describe('api.cache (Item 2)', () => {
     expect(tracking.store.get('plugin:tenant-A:iso-plugin:k')).toBe('seeded');
     expect(tracking.store.get('plugin:tenant-A:iso-plugin:probe')).toBe('SEEDED');
 
-    // tenant B não enxerga o estado de A (namespace diferente → miss → seeded)
+    // tenant B cannot see A's state (different namespace → miss → seeded)
     resetLoadedPlugins(registry);
     const b = await bootstrapPlugins({
       pluginsDir,

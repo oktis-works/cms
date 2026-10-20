@@ -18,7 +18,7 @@ export interface AddHookOptions {
   /** Identificador da origem ('okcms' para core ou id do plugin). */
   sourceId?: string;
   sourceType?: 'core' | 'plugin';
-  /** Nível mínimo de confiança exigido pelo ponto de extensão. */
+  /** Minimum trust level required by the extension point. */
   requiredTrustLevel?: number;
 }
 
@@ -47,7 +47,7 @@ export class HookRegistry {
   private readonly auditLog: AuditLogEntry[] = [];
   private devMode = false;
   private trustLevels = new Map<string, number>();
-  /** Nomes de hooks oficiais (catálogo do core) — sempre aceitos em dev. */
+  /** Official hook names (core catalog) — always accepted in dev. */
   private readonly knownHooks = new Set<string>();
   /** Prefixos de hooks oficiais parametrizados (terminam em '*'). */
   private readonly knownPrefixes: string[] = [];
@@ -57,15 +57,15 @@ export class HookRegistry {
   }
 
   /**
-   * Registra o catálogo de hooks oficiais do core. Em modo dev a regra de
+   * Registers the core's official hook catalog. In dev mode the naming rule
    * prefixo (`okcms.`/`plugin.`) continua exigida para hooks customizados,
-   * mas os nomes oficiais (`content:query`, `theme:data:*`, ...) são
-   * aceitos — sem isso, o próprio catálogo do core é reprovado em dev.
+   * but official names (`content:query`, `theme:data:*`, ...) are accepted —
+   * without this the core's own catalog would fail in dev.
    *
    * Entradas terminadas em `*` viram prefixos (ex.: `theme:data:*`,
    * `manage:*`, `before_publish_content_*`).
    *
-   * O runtime não depende do core (seria ciclo): quem conhece o catálogo é
+   * The runtime does not depend on the core (it would be a cycle): whoever
    * o chamador (bootstrap do core) e injeta aqui.
    */
   setKnownHooks(names: Iterable<string>): void {
@@ -80,7 +80,7 @@ export class HookRegistry {
     this.knownPrefixes.length = 0;
   }
 
-  /** True quando o nome pertence ao catálogo oficial (exato ou por prefixo). */
+  /** True when the name belongs to the official catalog (exact or by prefix). */
   isKnownHook(action: string): boolean {
     if (this.knownHooks.has(action)) return true;
     return this.knownPrefixes.some((prefix) => action.startsWith(prefix));
@@ -91,7 +91,7 @@ export class HookRegistry {
   }
 
   /**
-   * Catálogo de hooks registrados (REQ-REQU-035-002): lista cada hook com tipo,
+   * Catalog of registered hooks (REQ-REQU-035-002): lists each hook with type,
    * prioridades e fontes, gerado automaticamente a partir do registry.
    */
   listRegistered(): Array<{
@@ -129,7 +129,7 @@ export class HookRegistry {
   }
 
   /**
-   * Registra um callback de ação (executado por efeitos colaterais).
+   * Registers an action callback (run for side effects).
    */
   addAction(action: string, callback: HookCallback, options: AddHookOptions = {}): void {
     if (!this.authorizeRegistration(action, options)) return;
@@ -201,7 +201,7 @@ export class HookRegistry {
   }
 
   /**
-   * Executa todos os callbacks registrados para uma ação.
+   * Runs every callback registered for an action.
    * Reentrante: chamadas aninhadas preservam e restauram o hook atual.
    */
   async doAction(action: string, ...args: unknown[]): Promise<void> {
@@ -214,8 +214,8 @@ export class HookRegistry {
         try {
           await entry.callback(...args.slice(0, Math.max(entry.acceptedArgs, 0)));
         } catch (error) {
-          // Callbacks com falha não interrompem os demais (BUSI-031).
-          console.error(`[hooks] Erro no callback de ação "${action}" (${entry.sourceId}):`, error);
+          // Failing callbacks do not interrupt the others (BUSI-031).
+          console.error(`[hooks] Error in action callback "${action}" (${entry.sourceId}):`, error);
         }
       }
     } finally {
@@ -225,7 +225,7 @@ export class HookRegistry {
 
   /**
    * Aplica filtros em cadeia: cada callback recebe o valor transformado pelo anterior.
-   * Semântica síncrona estilo WordPress (DECI-026).
+   * WordPress-style synchronous semantics (DECI-026).
    */
   applyFilters(filter: string, value: unknown, ...args: unknown[]): unknown {
     const previous = this.currentHook;
@@ -249,8 +249,8 @@ export class HookRegistry {
   }
 
   /**
-   * Versão assíncrona do pipeline de filtros — callbacks que retornam Promise
-   * são resolvidos antes de alimentar o próximo da cadeia.
+   * Async version of the filter pipeline — callbacks returning a Promise
+   * are resolved before feeding the next link in the chain.
    */
   async applyFiltersAsync(filter: string, value: unknown, ...args: unknown[]): Promise<unknown> {
     const previous = this.currentHook;
@@ -287,7 +287,7 @@ export class HookRegistry {
 
     if (this.devMode && !isPrefixed(action) && !this.isKnownHook(action)) {
       throw new Error(
-        `[hooks] Em modo dev, hooks customizados devem ser prefixados ("${CORE_PREFIX}..." ou "plugin.<id>....") ou pertencer ao catálogo oficial. Recebido: "${action}"`
+        `[hooks] In dev mode custom hooks must be prefixed ("${CORE_PREFIX}..." or "plugin.<id>....") or belong to the official catalog. Received: "${action}"`
       );
     }
 
@@ -301,7 +301,7 @@ export class HookRegistry {
         sourceId,
         sourceType: options.sourceType ?? 'plugin',
         action,
-        reason: `trust level ${sourceLevel} insuficiente (mínimo ${requiredLevel})`,
+        reason: `trust level ${sourceLevel} insufficient (minimum ${requiredLevel})`,
       });
       return false;
     }
@@ -353,7 +353,7 @@ export class HookRegistry {
   }
 }
 
-/** Nomes do catálogo do core injetados via store — aplicados a novos registries. */
+/** Core catalog names injected via the store — applied to new registries. */
 const pendingKnownHooks: string[] = [];
 
 function createDefaultRegistry(): HookRegistry {
@@ -364,7 +364,7 @@ function createDefaultRegistry(): HookRegistry {
 }
 
 /**
- * Resolução síncrona do tenant ativo. Injetado pelo core (ALS de tenant);
+ * Synchronous resolution of the active tenant. Injected by the core (tenant ALS);
  * sem contexto → registry platform (hooks do core).
  */
 let hookTenantResolver: () => string | null = () => null;
@@ -386,10 +386,10 @@ export function getCurrentHookTenantId(): string | null {
  *
  * - `platform`: hooks do core (`okcms.*`) — compartilhado por todo o processo;
  * - `tenant(tenantId)`: hooks dos plugins habilitados daquele tenant, criado
- *   sob demanda e descarregável (invalidate/drop).
+ *   on demand and unloadable (invalidate/drop).
  *
- * O contrato é `tenant(id)` para poder evoluir para vm/worker por tenant sem
- * mudar quem chama (`getHookRegistry()` continua síncrono).
+ * The contract is `tenant(id)` so it can evolve to per-tenant vm/worker
+ * without changing callers (`getHookRegistry()` stays synchronous).
  */
 export class HookRegistryStore {
   private platformRegistry: HookRegistry;
@@ -407,7 +407,7 @@ export class HookRegistryStore {
     this.platformRegistry = registry;
   }
 
-  /** Registry do tenant (criado sob demanda com devMode + catálogo do core). */
+  /** Tenant registry (created on demand with devMode + the core catalog). */
   tenant(tenantId: string): HookRegistry {
     let registry = this.byTenant.get(tenantId);
     if (!registry) {
@@ -426,7 +426,7 @@ export class HookRegistryStore {
   }
 
   /**
-   * Descarrega os hooks de um tenant (ativação/desativação, LRU, shutdown).
+   * Unloads a tenant's hooks (enable/disable, LRU, shutdown).
    * Retorna true quando havia um registry carregado.
    */
   invalidateTenant(tenantId: string): boolean {
@@ -437,7 +437,7 @@ export class HookRegistryStore {
     this.byTenant.clear();
   }
 
-  /** Propaga o catálogo do core para todos os registries (atuais e futuros). */
+  /** Propagates the core catalog to every registry (current and future). */
   setKnownHooks(names: Iterable<string>): void {
     const list = [...names];
     pendingKnownHooks.length = 0;
@@ -459,8 +459,8 @@ export function getHookRegistryStore(): HookRegistryStore {
 }
 
 /**
- * Registry do escopo atual: tenant quando há contexto de tenant (plugins por
- * tenant), platform quando não há (hooks do core).
+ * Current scope registry: tenant when there is a tenant context (per-tenant
+ * plugins), platform when there is none (core hooks).
  */
 export function getHookRegistry(): HookRegistry {
   const store = getHookRegistryStore();

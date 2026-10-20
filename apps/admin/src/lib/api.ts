@@ -813,10 +813,6 @@ export class ApiClient {
     return this.request('GET', `/api/v1/comments${qs ? `?${qs}` : ''}`);
   }
 
-  async getCommentCounts(): Promise<Record<string, number>> {
-    return this.request('GET', '/api/v1/comments/counts');
-  }
-
   async updateComment(id: string, data: { status?: string; authorName?: string; body?: string }): Promise<CommentInfo> {
     return this.request('PATCH', `/api/v1/comments/${id}`, data);
   }

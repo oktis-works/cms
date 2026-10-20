@@ -1,8 +1,8 @@
 // @oktis-works/plugin-runtime - Store de registries por tenant (WP3)
 //
 // Contrato de isolamento: hooks registrados num tenant nunca aparecem em outro
-// nem no escopo platform; a resolução é síncrona via tenant resolver (ALS do
-// core) e a invalidação descarrega o tenant inteiro.
+// nor in the platform scope; resolution is synchronous via the tenant resolver (the core
+// ALS) and invalidation unloads the whole tenant.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
@@ -34,7 +34,7 @@ describe('HookRegistryStore', () => {
     expect(getCurrentHookTenantId()).toBeNull();
   });
 
-  it('com contexto de tenant → registry do tenant (não o platform)', () => {
+  it('with a tenant context → the tenant registry (not platform)', () => {
     const store = getHookRegistryStore();
     setHookTenantResolver(() => 'tenant-a');
 
@@ -43,7 +43,7 @@ describe('HookRegistryStore', () => {
     expect(resolved).not.toBe(store.platform());
   });
 
-  it('hooks de um tenant não vazam para outro nem para platform', () => {
+  it('hooks of one tenant never leak into another nor into platform', () => {
     const store = getHookRegistryStore();
     const tenantA = store.tenant('tenant-a');
     const tenantB = store.tenant('tenant-b');
@@ -91,7 +91,7 @@ describe('HookRegistryStore', () => {
     expect(getHookRegistryStore().platform()).toBe(custom);
   });
 
-  it('criação de registry de tenant herda devMode e catálogo pendente', () => {
+  it('tenant registry creation inherits devMode and the pending catalog', () => {
     const store = getHookRegistryStore();
     store.setKnownHooks(['content:query', 'theme:data:*']);
     const tenant = store.tenant('tenant-a');
@@ -99,18 +99,18 @@ describe('HookRegistryStore', () => {
     expect(() => tenant.addAction('content:query', () => {})).not.toThrow();
     expect(() => tenant.addAction('theme:data:posts', () => {})).not.toThrow();
     // customizado sem prefixo continua proibido em dev
-    expect(() => tenant.addAction('random:hook', () => {})).toThrow('prefixados');
+    expect(() => tenant.addAction('random:hook', () => {})).toThrow('prefixed');
   });
 });
 
-describe('allowlist do catálogo em modo dev (WP1)', () => {
-  it('sem catálogo, o nome oficial do core é reprovado em dev', () => {
+describe('catalog allowlist in dev mode (WP1)', () => {
+  it('without a catalog, an official core name fails in dev', () => {
     const registry = new HookRegistry();
     registry.setDevMode(true);
-    expect(() => registry.addAction('content:query', () => {})).toThrow('prefixados');
+    expect(() => registry.addAction('content:query', () => {})).toThrow('prefixed');
   });
 
-  it('com catálogo, os nomes oficiais passam e customizados continuam barrados', () => {
+  it('with a catalog, official names pass and custom ones stay blocked', () => {
     const registry = new HookRegistry();
     registry.setDevMode(true);
     registry.setKnownHooks([
@@ -125,7 +125,7 @@ describe('allowlist do catálogo em modo dev (WP1)', () => {
     expect(() => registry.addFilter('theme:data:posts', (v: unknown) => v)).not.toThrow();
     expect(() => registry.addAction('manage:post:columns', () => {})).not.toThrow();
 
-    expect(() => registry.addAction('meu:hook:inventado', () => {})).toThrow('prefixados');
+    expect(() => registry.addAction('meu:hook:inventado', () => {})).toThrow('prefixed');
     expect(registry.isKnownHook('theme:data:pages')).toBe(true);
     expect(registry.isKnownHook('theme:outros')).toBe(false);
   });
@@ -139,16 +139,16 @@ describe('allowlist do catálogo em modo dev (WP1)', () => {
     expect(registry.isKnownHook('okcms.exatoo')).toBe(false);
   });
 
-  it('clearKnownHooks remove o catálogo', () => {
+  it('clearKnownHooks removes the catalog', () => {
     const registry = new HookRegistry();
     registry.setDevMode(true);
     registry.setKnownHooks(['content:query']);
     expect(() => registry.addAction('content:query', () => {})).not.toThrow();
     registry.clearKnownHooks();
-    expect(() => registry.addAction('content:query', () => {})).toThrow('prefixados');
+    expect(() => registry.addAction('content:query', () => {})).toThrow('prefixed');
   });
 
-  it('em produção (devMode off) continua aceitando qualquer nome', () => {
+  it('in production (devMode off) any name is still accepted', () => {
     const registry = new HookRegistry();
     expect(registry.getAuditLog).toBeDefined();
     expect(() => registry.addAction('qualquer:hok', () => {})).not.toThrow();

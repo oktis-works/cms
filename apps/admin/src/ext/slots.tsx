@@ -191,18 +191,6 @@ export function MetaBoxesSlot(props: {
   );
 }
 
-export function ColumnsHeaderSlot(props: { extensions: AdminExtensionsState; contentType: string }): JSX.Element {
-  const columns = () => props.extensions.columns[props.contentType] ?? [];
-
-  return (
-    <For each={columns()}>
-      {(column) => (
-        <th data-column-key={column.key}>{column.label}</th>
-      )}
-    </For>
-  );
-}
-
 export function ActionLinksSlot(props: { extensions: AdminExtensionsState }): JSX.Element {
   return (
     <Show when={props.extensions.actionLinks.length > 0}>

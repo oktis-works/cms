@@ -51,7 +51,7 @@ export async function applyPluginMigrations(
   for (const relative of migrations) {
     // Same traversal guards as manifest validation (defense in depth).
     if (typeof relative !== 'string' || relative.includes('..') || relative.startsWith('/')) {
-      result.drift.push(`${relative} (caminho inválido)`);
+      result.drift.push(`${relative} (invalid path)`);
       continue;
     }
 
@@ -59,7 +59,7 @@ export async function applyPluginMigrations(
     try {
       content = await readFile(join(pluginDir, relative), 'utf8');
     } catch (error) {
-      result.drift.push(`${relative} (não pôde ser lido: ${error instanceof Error ? error.message : String(error)})`);
+      result.drift.push(`${relative} (could not be read: ${error instanceof Error ? error.message : String(error)})`);
       continue;
     }
 
@@ -75,14 +75,14 @@ export async function applyPluginMigrations(
       continue;
     }
     if (existing !== undefined) {
-      // Drift: o arquivo mudou depois de aplicado — bloqueia o boot do plugin.
+      // Drift: the file changed after being applied — blocks the plugin boot.
       result.drift.push(`${relative} (checksum divergente do aplicado)`);
       continue;
     }
 
-    // Transação por migração: um único batch (protocolo simples do Postgres
-    // executa multi-statement de forma implícita atômica; BEGIN/COMMIT
-    // explícitos garantem a semântica).
+    // One transaction per migration: a single batch (the Postgres simple
+    // protocol executes multi-statement strings atomically; the explicit
+    // BEGIN/COMMIT pins the semantics).
     await sql.unsafe(`BEGIN;\n${content}\nCOMMIT;`, []);
     await sql.unsafe(
       'INSERT INTO plugin_schema_migrations (id, plugin_name, path, checksum) VALUES ($1, $2, $3, $4)',

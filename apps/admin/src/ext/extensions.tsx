@@ -4,9 +4,9 @@
 // (manifest.admin + api.admin.* em runtime; namespacing/dedupe feitos no
 // servidor) e renderiza os slots — o admin só consome o payload pronto.
 
-import { Show, For, createSignal, onMount } from '@oktis-works/ui';
+import { Show, createSignal, onMount } from '@oktis-works/ui';
 import type { AdminExtensionsState } from '@oktis-works/plugin-sdk';
-import { AdminSidebarSlot, DashboardWidgetsSlot } from './slots';
+import { AdminSidebarSlot, DashboardWidgetsSlot, NoticesSlot } from './slots';
 import { emptyExtensionsState, loadExtensions } from './store';
 
 export { emptyExtensionsState };
@@ -23,15 +23,9 @@ export function PluginExtensionsSlot() {
   const can = (): boolean => true;
 
   return (
-    <Show when={extensions().menuPages.length > 0}>
+    <Show when={extensions().menuPages.length > 0 || extensions().notices.length > 0}>
       <div class="sidebar-plugins" data-extensions="sidebar">
-        <For each={extensions().notices}>
-          {(notice) => (
-            <div class={`notice notice--${notice.level}`} data-plugin={notice.id.split(':')[0]}>
-              <span>{notice.message}</span>
-            </div>
-          )}
-        </For>
+        <NoticesSlot extensions={extensions()} />
         <AdminSidebarSlot extensions={extensions()} can={can} />
       </div>
     </Show>

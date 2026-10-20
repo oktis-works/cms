@@ -1,9 +1,9 @@
 // @oktis-works/plugin-runtime - api.http: cliente anti-SSRF (Item 4 + Item 16)
 //
-// Cobre as camadas: validação de IP (v4/v6), allowlist do manifesto, scheme,
-// DNS com IP público (localhost/literal privado bloqueados offline), redirect
-// limitado com re-validação, teto de corpo, retentativas idempotentes e gate
-// de permissão http:outbound.
+// Covers the layers: IP validation (v4/v6), the manifest allowlist, scheme,
+// DNS with a public IP (localhost/private literals blocked offline), limited
+// redirect with re-validation, body cap, idempotent retries and the
+// http:outbound permission gate.
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import {
@@ -91,7 +91,7 @@ describe('isAllowedHost (manifest httpPolicy.allowHosts)', () => {
   });
 });
 
-describe('validateTargetUrl (scheme + DNS público)', () => {
+describe('validateTargetUrl (scheme + public DNS)', () => {
   it('rejects non-http schemes', async () => {
     await expect(validateTargetUrl('file:///etc/passwd')).rejects.toThrow('scheme not allowed');
     await expect(validateTargetUrl('gopher://x')).rejects.toThrow('scheme not allowed');
@@ -274,7 +274,7 @@ function fetchMockTimes(): number {
   return (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.length;
 }
 
-// ── Integração via bootstrap: permissão + httpPolicy do manifesto ──────────
+// ── Bootstrap integration: permission + manifest httpPolicy ──────────
 async function createHarness() {
   const { mkdirSync, mkdtempSync, rmSync, writeFileSync } = await import('node:fs');
   const { join } = await import('node:path');

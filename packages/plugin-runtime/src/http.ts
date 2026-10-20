@@ -4,17 +4,17 @@
 //
 //   1. allowlist `httpPolicy.allowHosts` do manifesto (quando declarada);
 //   2. apenas scheme http/https;
-//   3. pré-validação DNS por HOP — TODOS os IPs resolvidos precisam ser
-//      públicos (bloqueia RFC1918, loopback, link-local 169.254.169.254 =
+//   3. DNS pre-validation per HOP — EVERY resolved IP must be
+//      public (blocks RFC1918, loopback, link-local 169.254.169.254 =
 //      metadata de cloud, CGNAT, multicast, ULA/link-local IPv6);
 //   4. DNS pinning: o dispatcher (undici Agent) conecta exatamente no IP
 //      validado (elimina a janela de DNS rebinding entre lookup e connect);
-//   5. redirects `manual` com re-validação a cada hop (máx 3);
+//   5. `manual` redirects with re-validation on every hop (max 3);
 //   6. timeout por tentativa e teto de corpo;
-//   7. retentativas apenas em erro de rede/5xx (GET/HEAD por padrão).
+//   7. retries only on network errors/5xx (GET/HEAD by default).
 //
-// Fail-closed: DNS que falha ou resolve em IP não-público NUNCA sobe a
-// requisição, mesmo que o fetch do runtime ignorasse o dispatcher (Bun).
+// Fail-closed: DNS that fails or resolves to a non-public IP NEVER lets the
+// request through, even if the runtime fetch ignored the dispatcher (Bun).
 
 import { promises as dnsPromises } from 'node:dns';
 import { Agent } from 'undici';
@@ -41,7 +41,7 @@ export class HttpError extends Error {
   }
 }
 
-/** IPv4 é rota pública? Fail-closed em qualquer faixa especial/reservada. */
+/** Is the IPv4 publicly routable? Fail-closed on any special/reserved range. */
 export function isPublicIpv4(ip: string): boolean {
   const parts = ip.split('.');
   if (parts.length !== 4) return false;
@@ -64,7 +64,7 @@ export function isPublicIpv4(ip: string): boolean {
   return true;
 }
 
-/** IPv6 é rota pública? Fail-closed: só 2000::/3 (global unicast). */
+/** Is the IPv6 publicly routable? Fail-closed: only 2000::/3 (global unicast). */
 export function isPublicIpv6(ip: string): boolean {
   const bare = (ip.split('%')[0] ?? '').toLowerCase();
   if (bare === '::' || bare === '::1') return false;
@@ -73,24 +73,24 @@ export function isPublicIpv6(ip: string): boolean {
   const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/.exec(bare);
   if (mapped?.[1]) return isPublicIpv4(mapped[1]);
 
-  // Compressão leading '::' fora do mapped → especial/deprecado → bloqueia
+  // leading '::' compression outside mapped → special/deprecated → blocked
   if (bare.startsWith('::')) return false;
 
   const firstBlock = bare.split(':')[0] ?? '';
-  if (firstBlock.includes('.')) return false; // v4-suffix não tratado acima
+  if (firstBlock.includes('.')) return false; // v4-suffix not handled above
   const hextet = Number.parseInt(firstBlock, 16);
   if (Number.isNaN(hextet)) return false;
 
-  // 2000::/3 = único bloco de global unicast designado
+  // 2000::/3 = the only assigned global unicast block
   return hextet >= 0x2000 && hextet <= 0x3fff;
 }
 
-/** Qualquer IP não-público na lista → falso. */
+/** Any non-public IP in the list → false. */
 export function isPublicIp(ip: string): boolean {
   return ip.includes(':') ? isPublicIpv6(ip) : isPublicIpv4(ip);
 }
 
-/** Seleciona o primeiro endereço público (para pinning). Lança se nenhum. */
+/** Picks the first public address (for pinning). Throws when none. */
 export function selectPublicAddresses(addresses: ResolvedAddress[]): ResolvedAddress {
   const safe = addresses.find((entry) => isPublicIp(entry.address));
   if (!safe) {
@@ -103,9 +103,9 @@ export function selectPublicAddresses(addresses: ResolvedAddress[]): ResolvedAdd
 }
 
 /**
- * Allowlist do manifesto: entrada exata ou `*.sufixo.com` (subdomínios — o
- * apex precisa de entrada própria). Lista vazia/ausente = qualquer host
- * (publicidade continua garantida pela validação de IP).
+ * Manifest allowlist: exact entry or `*.suffix.com` (subdomains — the apex
+ * needs its own entry). Empty/absent list = any host (advertising is still
+ * guaranteed by IP validation).
  */
 export function isAllowedHost(hostname: string, allowHosts?: string[]): boolean {
   if (!allowHosts || allowHosts.length === 0) return true;
@@ -131,7 +131,7 @@ const defaultResolver: Resolver = async (hostname) => {
 
 /**
  * Lookup "puro" usado pelo undici Agent: resolve E valida no MESMO passo —
- * o IP devolvido é exatamente o que a conexão usa (pinning real, sem janela
+ * the returned IP is exactly what the connection uses (real pinning, no
  * de rebinding).
  */
 export function createSafeLookup(resolve: Resolver = defaultResolver) {
@@ -163,7 +163,7 @@ export function getSafeAgent(): Agent {
   if (!sharedAgent) {
     sharedAgent = new Agent({
       connect: {
-        // Assinatura compatível com net.LookupFunction via cast estrutural
+        // Signature compatible with net.LookupFunction via a structural cast
         lookup: createSafeLookup() as never,
       },
     });
@@ -171,7 +171,7 @@ export function getSafeAgent(): Agent {
   return sharedAgent;
 }
 
-/** Valida um alvo antes de tocar a rede (scheme + allowlist + DNS público). */
+/** Validates a target before touching the network (scheme + allowlist + public DNS). */
 export async function validateTargetUrl(rawUrl: string, allowHosts?: string[]): Promise<URL> {
   let url: URL;
   try {
@@ -198,7 +198,7 @@ export async function validateTargetUrl(rawUrl: string, allowHosts?: string[]): 
   if (addresses.length === 0) {
     throw new HttpError(`no addresses for ${url.hostname}`, false);
   }
-  // TODOS os IPs precisam ser públicos (round-robin com um IP privado também bloqueia)
+  // EVERY IP must be public (round-robin with one private IP is also blocked)
   const unsafe = addresses.filter((entry) => !isPublicIp(entry.address));
   if (unsafe.length > 0) {
     throw new HttpError(
@@ -279,7 +279,7 @@ async function runRedirects(
       redirect: 'manual' as const,
       signal: AbortSignal.timeout(config.timeoutMs),
       // Node/undici: conecta no IP validado (pinning). Runtimes que ignoram
-      // `dispatcher` (Bun) ainda seguem protegidos pela pré-validação acima.
+      // `dispatcher` (Bun) remain protected by the pre-validation above.
       dispatcher: getSafeAgent(),
     } as RequestInit & { dispatcher?: unknown };
 
@@ -314,7 +314,7 @@ async function runRedirects(
 export interface HttpApiConfig {
   /** Allowlist estrita do manifesto (httpPolicy.allowHosts). */
   allowHosts?: string[];
-  /** Gate de permissão (http:outbound) — injetado pelo PluginAPI factory. */
+  /** Permission gate (http:outbound) — injected by the PluginAPI factory. */
   requirePermission: (permission: string) => void;
 }
 

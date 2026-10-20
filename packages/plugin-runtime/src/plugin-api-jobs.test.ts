@@ -1,13 +1,13 @@
 // @oktis-works/plugin-runtime - PluginAPI: api.jobs (cron/fila por plugin)
 //
 // Item 3 do plugin-parity-plan (paridade WP-Cron / Action Scheduler). Cobre:
-//   - handlers via jobs.on (visíveis em getLoadedPluginJobHandlers p/ worker);
-//   - schedule com spec válido (every | cron exatamente um);
-//   - permissão jobs:schedule;
+//   - handlers via jobs.on (visible in getLoadedPluginJobHandlers for the worker);
+//   - schedule with a valid spec (exactly one of every | cron);
+//   - jobs:schedule permission;
 //   - teto de agendas por plugin;
 //   - agenda declarativa no manifesto (scheduleJobs[] v2);
 //   - enqueue/cancel;
-//   - degradação sem backend (retorna false, nunca lança).
+//   - degradation without a backend (returns false, never throws).
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -196,7 +196,7 @@ describe('api.jobs (Item 3)', () => {
     for (let i = 0; i < 10; i += 1) {
       registerJs += `  await api.jobs.schedule('job${i}', { every: ${1000 + i} });\n`;
     }
-    // re-agendar um nome existente é sempre permitido (não conta no teto)
+    // re-scheduling an existing name is always allowed (does not count toward the ceiling)
     registerJs += `  await api.jobs.schedule('job0', { every: 2000 });\n`;
     // 11º nome distinto estoura o teto
     registerJs += `  await api.jobs.schedule('job10', { every: 3000 });\n`;

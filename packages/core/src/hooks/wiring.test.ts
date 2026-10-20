@@ -79,13 +79,13 @@ describe('allowlist em modo dev', () => {
     for (const name of ['content:query', 'after_publish_content_post', 'theme:data:posts', 'manage:post:columns']) {
       expect(() => registry.addAction(name, () => {})).not.toThrow();
     }
-    expect(() => registry.addAction('qualquer:hok:inventado', () => {})).toThrow('prefixados');
+    expect(() => registry.addAction('qualquer:hok:inventado', () => {})).toThrow('prefixed');
   });
 
   it('sem a fiação instalada, um HookRegistry dev puro continua estrito', () => {
     const registry = new HookRegistry();
     registry.setDevMode(true);
-    expect(() => registry.addAction('content:query', () => {})).toThrow('prefixados');
+    expect(() => registry.addAction('content:query', () => {})).toThrow('prefixed');
   });
 });
 

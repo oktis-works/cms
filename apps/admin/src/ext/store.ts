@@ -1,10 +1,10 @@
-// @oktis-works/admin - Estado compartilhado das extensões de plugins
+// @oktis-works/admin - Shared plugin extension state
 //
-// Busca única de `GET /api/v1/plugins/extensions` (FEAT-098 / DECI-027)
-// compartilhada por todas as ilhas/slots — sidebar, widgets de dashboard,
-// metaboxes, colunas e action links leem o mesmo estado e disparam uma única
-// requisição. Falha = estado vazio: extensões são opcionais e o admin funciona
-// sem nenhum plugin instalado.
+// Single fetch of `GET /api/v1/plugins/extensions` (FEAT-098 / DECI-027)
+// shared by every island/slot — sidebar, dashboard widgets, meta boxes,
+// columns and action links read the same state and trigger one request.
+// Failure = empty state: extensions are optional and the admin works with no
+// plugins installed.
 
 import { createSignal } from 'solid-js';
 import type { AdminExtensionsState } from '@oktis-works/plugin-sdk';
@@ -27,16 +27,16 @@ export function emptyExtensionsState(): AdminExtensionsState {
 
 const [extensions, setExtensions] = createSignal<AdminExtensionsState>(emptyExtensionsState());
 
-/** Estado atual (sinal compartilhado entre ilhas). */
+/** Current state (signal shared between islands). */
 export const getExtensions = extensions;
 
 let pending: Promise<void> | null = null;
 
-// ── Item 24: prefetch de chunks de plugin em tempo ocioso ──────────────────
-// Depois da carga do estado, os componentes declarados (widgets, metaboxes,
-// editores, renderizadores de coluna) são importados em requestIdleCallback —
-// o chunk fica quente e o slot renderiza sem flash de loading. Best-effort:
-// falha de import é silenciosa (o host da slot trata o erro de novo).
+// ── Item 24: plugin chunk prefetch during idle time ──────────────────
+// After the state loads, the declared components (widgets, meta boxes,
+// editors, column renderers) are imported in requestIdleCallback — the chunk
+// gets warm and the slot renders without a loading flash. Best-effort: an
+// import failure is silent (the slot host reports the error again on render).
 const prefetchedChunks = new Set<string>();
 
 function prefetchPluginChunks(state: AdminExtensionsState): void {
@@ -57,15 +57,15 @@ function prefetchPluginChunks(state: AdminExtensionsState): void {
     prefetchedChunks.add(componentId);
     schedule(() => {
       void import(/* @vite-ignore */ resolvePluginComponentPath(componentId)).catch(() => {
-        // prefetch é best-effort — o host da slot reporta o erro se renderizar
+        // prefetch is best-effort — the slot host reports the error on render
       });
     });
   }
 }
 
 /**
- * Garante o carregamento (memoizado — uma chamada por página mesmo com
- * várias ilhas). Nunca rejeita: erro vira estado vazio.
+ * Ensures the load (memoized — one call per page even with several islands).
+ * Never rejects: an error becomes the empty state.
  */
 export function loadExtensions(): Promise<AdminExtensionsState> {
   if (!pending) {
@@ -76,13 +76,13 @@ export function loadExtensions(): Promise<AdminExtensionsState> {
         prefetchPluginChunks(state);
       })
       .catch(() => {
-        // extensões são opcionais — mantém estado vazio
+        // extensions are optional — keep the empty state
       });
   }
   return pending.then(() => extensions());
 }
 
-/** Reset para testes. */
+/** Reset for tests. */
 export function resetExtensionsForTests(): void {
   pending = null;
   prefetchedChunks.clear();

@@ -1,36 +1,19 @@
-// @oktis-works/core - Sincronização de plugins habilitados em runtime
+// @oktis-works/core - Enabled plugins runtime sync
 //
-// O PLUGIN.md promete que `register(registry)` é chamado quando o plugin é
-// carregado — aqui o core cumpre isso para todos os processos (API, web,
-// worker, dev). Dois escopos:
+// PLUGIN.md promises that `register(registry)` is called when the plugin is
+// loaded — the core honors it for every process (API, web, worker, dev). Two
+// scopes:
 //
-//   - **platform** (`syncEnabledPlugins`): plugins `tenant_id IS NULL`,
-//     habilitados globalmente → registry platform, carregado no boot;
-//   - **tenant** (`ensureTenantPluginsLoaded`): plugins vinculados em
-//     `plugin_tenants` (status ENABLED) → registry do tenant, carregado sob
-//     demanda na primeira requisição daquele tenant (cache com TTL + LRU).
+//   - **platform** (`syncEnabledPlugins`): plugins with `tenant_id IS NULL`,
+//     enabled globally → platform registry, loaded at boot;
+//   - **tenant** (`ensureTenantPluginsLoaded`): plugins linked in
+//     `plugin_tenants` (ENABLED status) → tenant registry, loaded on demand
+//     at that tenant's first request (TTL + LRU cache).
 //
-// Nunca lança: falha de banco, diretório ausente ou plugin quebrado são
-// reportadas no resultado (e persistidas em `plugins.error`), sem derrubar o
-// boot. Falhas ficam visíveis em `getPluginsRuntimeState()` (rota
-// `/api/v1/plugins/runtime` + badge no admin) — não são silenciadas.
-
-// @oktis-works/core - Sincronização de plugins habilitados em runtime
-//
-// O PLUGIN.md promete que `register(registry)` é chamado quando o plugin é
-// carregado — aqui o core cumpre isso para todos os processos (API, web,
-// worker, dev). Dois escopos:
-//
-//   - **platform** (`syncEnabledPlugins`): plugins `tenant_id IS NULL`,
-//     habilitados globalmente → registry platform, carregado no boot;
-//   - **tenant** (`ensureTenantPluginsLoaded`): plugins vinculados em
-//     `plugin_tenants` (status ENABLED) → registry do tenant, carregado sob
-//     demanda na primeira requisição daquele tenant (cache com TTL + LRU).
-//
-// Nunca lança: falha de banco, diretório ausente ou plugin quebrado são
-// reportadas no resultado (e persistidas em `plugins.error`), sem derrubar o
-// boot. Falhas ficam visíveis em `getPluginsRuntimeState()` (rota
-// `/api/v1/plugins/runtime` + badge no admin) — não são silenciadas.
+// Never throws: database failure, missing directory or a broken plugin are
+// reported in the result (and persisted in `plugins.error`) without breaking
+// the boot. Failures are visible in `getPluginsRuntimeState()` (the
+// `/api/v1/plugins/runtime` route + admin badge) — never silenced.
 
 import { createHash } from 'node:crypto';
 import { getConnection } from '@oktis-works/database';
@@ -54,8 +37,8 @@ import type { RouteDefinition, PluginBootstrapResult, PluginApiDependencies } fr
 import type { AdminExtensionsState, PluginBlockManifest, PluginPatternManifest } from '@oktis-works/types';
 import type { EnqueuedAsset, PluginHealthCheck } from '@oktis-works/plugin-sdk';
 
-// Dynamic imports for circular dependency with plugin-runtime
-// Using require with computed string to avoid TypeScript compile-time checking
+// Dynamic imports for the circular dependency with plugin-runtime
+// (non-literal require so TypeScript cannot resolve it at build time)
 const getPluginRuntime = async () => {
   return require('@oktis-works/plugin-runtime');
 };
@@ -80,21 +63,21 @@ const getLoadedPluginPatterns = async () => (await getPluginRuntimeCached()).get
 const getLoadedPluginAssets = async () => (await getPluginRuntimeCached()).getLoadedPluginAssets;
 const getLoadedPluginHealthChecks = async () => (await getPluginRuntimeCached()).getLoadedPluginHealthChecks;
 
-/** Handler de job de plugin (dispatch do worker). */
+/** Plugin job handler (dispatched by the worker). */
 export type PluginJobHandlerFn = (
   payload: unknown,
   context: { tenantId: string | null; plugin: string; jobName: string }
 ) => void | Promise<void>;
 
-/** jobId determinístico do job de plugin (agendamentos são idempotentes por ele). */
+/** Deterministic plugin job id (schedules are idempotent by it). */
 function pluginJobId(tenantId: string | null, pluginName: string, jobName: string): string {
   return `plugin:${tenantId ?? 'platform'}:${pluginName}:${jobName}`;
 }
 
 /**
- * Resolve o handler registrado por um plugin para um job (via api.jobs.on).
- * Escopo: platform (`tenantId` null) ou tenant (carga sob demanda).
- * Nunca lança — null quando plugin desabilitado/handler ausente.
+ * Resolves the handler registered by a plugin for a job (via api.jobs.on).
+ * Scope: platform (`tenantId` null) or tenant (loaded on demand).
+ * Never throws — null when the plugin is disabled or the handler is absent.
  */
 export async function getPluginJobHandler(
   tenantId: string | null,
@@ -115,9 +98,9 @@ export async function getPluginJobHandler(
 }
 
 /**
- * Slots `api.admin` carregados em um escopo (platform `null` ou `tenant:<id>`)
- * — alimenta GET /api/v1/plugins/extensions junto com `manifest.admin`.
- * Nunca lança: indisponibilidade do runtime vira lista vazia.
+ * `api.admin` slots loaded in a scope (platform `null` or `tenant:<id>`) —
+ * feeds GET /api/v1/plugins/extensions together with `manifest.admin`.
+ * Never throws: runtime unavailability becomes an empty list.
  */
 export async function getPluginAdminExtensions(
   tenantId: string | null
@@ -226,7 +209,7 @@ export function unregisterPluginRoutes(pluginName: string): boolean {
   return pluginRoutesRegistry.delete(pluginName);
 }
 
-/** Obtém todas as rotas registradas para montagem no router da API. */
+/** Gets every route registered for mounting on the API router. */
 export function getRegisteredPluginRoutes(): PluginRouteEntry[] {
   return [...pluginRoutesRegistry.values()];
 }
@@ -236,7 +219,7 @@ interface ScopeState {
   tenantId: string | null;
   loadedAt: number;
   result: PluginBootstrapResult;
-  /** Falha por plugin na última sync (evita regravar quando não mudou). */
+  /** Per-plugin failure from the last sync (avoids rewriting when unchanged). */
   errors: Map<string, string>;
 }
 
@@ -244,7 +227,7 @@ interface ScopeState {
 const PREPARED_CACHE_MAX = 200;
 const preparedPluginStatements = new Map<string, { sql: string; uses: number }>();
 
-/** Estados por escopo — ordem de iteração = LRU. */
+/** Per-scope states — iteration order = LRU. */
 const states = new Map<string, ScopeState>();
 const inflight = new Map<string, Promise<PluginBootstrapResult>>();
 
@@ -287,8 +270,8 @@ function createApiDeps(tenantId: string | null): Partial<PluginApiDependencies> 
         return conn.unsafe(sql, params ?? []);
       },
     },
-    // Backend de api.cache (Item 2) — lazy para não exigir cache no boot de
-    // contextos que nunca usam plugin cache.
+    // api.cache backend (Item 2) — lazy so contexts that never use the
+    // plugin cache don't need it at boot.
     cache: {
       get: <T>(key: string) => getCache().get<T>(key),
       set: <T>(key: string, value: T, ttlSeconds?: number) => getCache().set(key, value, ttlSeconds),
@@ -306,14 +289,14 @@ function createApiDeps(tenantId: string | null): Partial<PluginApiDependencies> 
       return user ? { id: user.id, email: user.email, name: user.name, roles: user.roles } : null;
     },
     registerRoutes: (routes: RouteDefinition[]) => {
-      // As rotas registradas aqui são coletadas no bootstrap pelo próprio
-      // PluginAPI (getLoadedPluginRoutes) — neste ponto só registramos o log.
-      console.debug(`[PluginAPI] ${routes.length} rota(s) registrada(s) — será coletada no bootstrap`);
+      // Routes registered here are collected at bootstrap by the PluginAPI
+      // itself (getLoadedPluginRoutes) — this point only logs.
+      console.debug(`[PluginAPI] ${routes.length} route(s) registered — collected at bootstrap`);
     },
     registerContentFields: async (fields) => {
-      // Guard explícito: com noUncheckedIndexedAccess, fields[0] é T | undefined
-      // mesmo com o length check acima — o desctructuring com verificação
-      // deixa o narrowing para o TS e mantém a mesma semântica.
+      // Explicit guard: with noUncheckedIndexedAccess, fields[0] is
+      // T | undefined even with the length check above — checked
+      // destructuring leaves the narrowing to TS with the same semantics.
       const firstField = fields[0];
       if (!firstField) return;
       try {
@@ -342,9 +325,9 @@ function createApiDeps(tenantId: string | null): Partial<PluginApiDependencies> 
             fields: fieldInputs,
           });
         }
-        console.debug(`[PluginAPI] ${fields.length} campo(s) de conteúdo registrado(s) no field group "${groupKey}"`);
+        console.debug(`[PluginAPI] ${fields.length} content field(s) registered in field group "${groupKey}"`);
       } catch (error) {
-        console.error('[PluginAPI] Falha ao registrar campos de conteúdo:', error);
+        console.error('[PluginAPI] Failed to register content fields:', error);
       }
     },
     registerFieldTypes: async (fieldTypes) => {
@@ -362,7 +345,7 @@ function createApiDeps(tenantId: string | null): Partial<PluginApiDependencies> 
       }
     },
     registerPostTypes: async (postTypes) => {
-      // Persistência idempotente de Custom Post Types de plugin (Item 1 do
+      // Idempotent persistence for plugin Custom Post Types (item 1 of the
       // plugin-parity-plan): existe com mesmo sourceId → atualiza; existe com
       // outra origem (CORE/ADMIN/outro plugin) → warn + skip (nunca rouba).
       try {
@@ -381,7 +364,7 @@ function createApiDeps(tenantId: string | null): Partial<PluginApiDependencies> 
               });
             } else {
               console.warn(
-                `[PluginAPI] Post type "${type.key}" já existe (${existing.source}) — "${type.pluginName}" não pode reivindicá-lo`
+                `[PluginAPI] Post type "${type.key}" already exists (${existing.source}) — "${type.pluginName}" cannot claim it`
               );
             }
             continue;
@@ -406,8 +389,8 @@ function createApiDeps(tenantId: string | null): Partial<PluginApiDependencies> 
       }
     },
     registerTaxonomies: async (taxonomies) => {
-      // Persistência idempotente de Custom Taxonomies de plugin — ownership
-      // gravado em meta.plugin (schema não tem sourceId para taxonomias).
+      // Idempotent persistence for plugin Custom Taxonomies — ownership
+      // stored in meta.plugin (schema has no sourceId for taxonomies).
       try {
         for (const taxonomy of taxonomies) {
           const existing = await taxonomyService.getBySlug(taxonomy.key);
@@ -415,7 +398,7 @@ function createApiDeps(tenantId: string | null): Partial<PluginApiDependencies> 
             const owner = (existing.meta as Record<string, unknown> | undefined)?.['plugin'];
             if (owner !== undefined && owner !== taxonomy.pluginName) {
               console.warn(
-                `[PluginAPI] Taxonomy "${taxonomy.key}" pertence ao plugin "${String(owner)}" — "${taxonomy.pluginName}" não pode reivindicá-la`
+                `[PluginAPI] Taxonomy "${taxonomy.key}" belongs to plugin "${String(owner)}" — "${taxonomy.pluginName}" cannot claim it`
               );
               continue;
             }
@@ -443,7 +426,7 @@ function createApiDeps(tenantId: string | null): Partial<PluginApiDependencies> 
     },
     jobs: {
       schedule: async (jobName, spec, ctx) => {
-        // Recorrência na fila `plugins` — jobId determinístico idempotente
+        // Recurrence on the `plugins` queue — deterministic idempotent jobId
         return queueProducer.scheduleRepeatable(
           'plugin.job',
           pluginJobId(ctx.tenantId, ctx.pluginName, jobName),
@@ -510,7 +493,7 @@ function runtimeOptions(tenantId?: string | null) {
  * Persiste o resultado da carga em `plugins.error`/`status`:
  *   - falha nova → `status = LOAD_FAILED` + mensagem;
  *   - sucesso depois de falha → `ACTIVATED` + `error = NULL`.
- * Só grava quando o estado mudou (nada de UPDATE por request). Nunca lança.
+ * Only writes when the state changed (no UPDATE per request). Never throws.
  */
 async function persistScopeResult(state: ScopeState): Promise<void> {
   const sql = getConnection();
@@ -537,7 +520,7 @@ async function persistScopeResult(state: ScopeState): Promise<void> {
       );
     }
   } catch {
-    // banco indisponível não pode derrubar a carga — visibilidade fica no estado em memória
+    // an unavailable database cannot break the load — visibility stays in the in-memory state
   }
 }
 
@@ -588,7 +571,7 @@ async function syncScope(tenantId: string | null, force: boolean): Promise<Plugi
       return result;
     } catch (error) {
       console.warn(
-        `[plugins] sync indisponível (${key}): ${error instanceof Error ? error.message : String(error)}`
+        `[plugins] sync unavailable (${key}): ${error instanceof Error ? error.message : String(error)}`
       );
       const fallback: PluginBootstrapResult = { enabled: [], loaded: [], unloaded: [], failed: [] };
       if (!states.has(key)) {
@@ -618,24 +601,24 @@ async function evictOldTenants(maxTenants: number): Promise<void> {
 
 /**
  * Sincroniza o registry **platform** com os plugins habilitados no banco.
- * Force implícito: é a chamada explícita de boot/ativação — reflete o banco
- * na hora. Idempotente e nunca lança.
+ * Implicit force: this is the explicit boot/activation call — reflects the
+ * database immediately. Idempotent and never throws.
  */
 export async function syncEnabledPlugins(options: { force?: boolean } = {}): Promise<PluginBootstrapResult> {
   try {
     return await syncScope(null, options.force ?? true);
   } catch (error) {
     console.warn(
-      `[plugins] sync indisponível: ${error instanceof Error ? error.message : String(error)}`
+      `[plugins] sync unavailable: ${error instanceof Error ? error.message : String(error)}`
     );
     return { enabled: [], loaded: [], unloaded: [], failed: [] };
   }
 }
 
 /**
- * Garante que os plugins do tenant estão carregados no registry dele.
+ * Ensures the tenant's plugins are loaded into its own registry.
  * Chamado sob demanda (middleware/API, web, worker) — com cache de TTL para
- * não bater no banco a cada requisição. Nunca lança.
+ * avoids hitting the database on every request. Never throws.
  */
 export async function ensureTenantPluginsLoaded(
   tenantId: string,
@@ -646,15 +629,15 @@ export async function ensureTenantPluginsLoaded(
     return await syncScope(tenantId, options.force ?? false);
   } catch (error) {
     console.warn(
-      `[plugins] sync do tenant indisponível: ${error instanceof Error ? error.message : String(error)}`
+      `[plugins] tenant sync unavailable: ${error instanceof Error ? error.message : String(error)}`
     );
     return { enabled: [], loaded: [], unloaded: [], failed: [] };
   }
 }
 
 /**
- * Invalida o cache/registry de um tenant (após ativar/desativar vínculo,
- * desinstalar ou mudar permissões). A próxima requisição do tenant recarrega.
+ * Invalidates a tenant's cache/registry (after enabling/disabling a link,
+ * uninstalling or changing permissions). The tenant's next request reloads.
  */
 export async function invalidateTenantPlugins(tenantId: string): Promise<void> {
   if (!tenantId) return;
@@ -665,13 +648,13 @@ export async function invalidateTenantPlugins(tenantId: string): Promise<void> {
   (await (await getHookRegistryStore())).invalidateTenant(tenantId);
 }
 
-/** Invalida o escopo platform (após mudanças globais). */
+/** Invalidates the platform scope (after global changes). */
 export function invalidatePlatformPlugins(): void {
   states.delete(PLATFORM_KEY);
   inflight.delete(PLATFORM_KEY);
 }
 
-/** Estado de carga por escopo — superfície de observabilidade (WP2). */
+/** Per-scope load state — observability surface (WP2). */
 export function getPluginsRuntimeState(): PluginsRuntimeState {
   return {
     generatedAt: new Date().toISOString(),

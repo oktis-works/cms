@@ -1,7 +1,7 @@
-// @oktis-works/plugin-runtime - Validação do manifesto v2
+// @oktis-works/plugin-runtime - Manifest v2 validation
 //
 // Item E1 do plugin-parity-plan: valida o bloco `admin` (FEAT-098/DECI-027) —
-// identidade obrigatória, capability obrigatória em menus, screens não vazio
+// mandatory identity, mandatory capability on menus, non-empty screens
 // em metaBoxes e valores conhecidos de context/priority/render/level.
 
 import { describe, it, expect } from 'vitest';
@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os';
 const base = { name: 'p', version: '1.0.0', main: 'index.js', manifestVersion: 2 };
 
 describe('validateManifestV2 - admin (FEAT-098)', () => {
-  it('aceita um bloco admin válido (menus com capability, widgets, metaboxes, notices, colunas)', () => {
+  it('accepts a valid admin block (menus with capability, widgets, meta boxes, notices, columns)', () => {
     const issues = validateManifestV2({
       ...base,
       admin: {
@@ -47,7 +47,7 @@ describe('validateManifestV2 - admin (FEAT-098)', () => {
     expect(issues.some((issue) => issue.includes('admin.submenuPages[0]'))).toBe(true);
   });
 
-  it('exige screens não vazio em metaBoxes e valida context/priority', () => {
+  it('requires non-empty metaBoxes screens and validates context/priority', () => {
     const issues = validateManifestV2({
       ...base,
       admin: {
@@ -118,7 +118,7 @@ describe('validateManifestV2 - admin (FEAT-098)', () => {
 });
 
 describe('readPluginManifest - modo leniente', () => {
-  it('não bloqueia o boot por admin malformado (só avisa)', async () => {
+  it('does not block the boot on a malformed admin block (warns only)', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'bl-manifest-admin-'));
     try {
       mkdirSync(dir, { recursive: true });

@@ -1,11 +1,11 @@
-// @oktis-works/plugin-runtime - Plugin Style Isolation [data-plugin="nome"] — obrigatório
+// @oktis-works/plugin-runtime - Plugin style isolation [data-plugin="name"] — mandatory
 // Equivalente ao isolamento de tema [data-theme], mas para plugins (admin + site).
 // BUSI plugin-style-isolation: todo CSS injetado por plugin deve ser escopado.
 
 /**
  * Escopa CSS sob [data-plugin="name"] — isolamento fino para plugins.
  * Cobre seletores, @media/@supports recursivo, preserva @keyframes/@font-face.
- * Sem dependência de PostCSS (fallback runtime); para build use mesmo algoritmo de theme-runtime.
+ * No PostCSS dependency (runtime fallback); for builds use the same algorithm as theme-runtime.
  */
 export function scopePluginCss(css: string, pluginName: string, prefix = `[data-plugin="${pluginName}"]`): string {
   const isExcludedAtRule = (selector: string) => {
@@ -80,7 +80,7 @@ export function getPluginScopeAttribute(pluginName: string): { attr: string; sel
 
 /**
  * Envelopa HTML de plugin com [data-plugin] para garantir escopo no DOM.
- * Idempotente: se já contém data-plugin, retorna intacto.
+ * Idempotent: when it already contains data-plugin, returns it untouched.
  */
 export function wrapWithPluginScope(html: string, pluginName: string): string {
   const { attr } = getPluginScopeAttribute(pluginName);
@@ -90,13 +90,13 @@ export function wrapWithPluginScope(html: string, pluginName: string): string {
 }
 
 /**
- * Valida que CSS de plugin não contém vazamento global óbvio.
+ * Validates that plugin CSS has no obvious global leak.
  * Retorna warnings se encontrar :root/html/body sem escopo ou * global sem prefix.
  */
 export function lintPluginCss(css: string, pluginName: string): string[] {
   const warnings: string[] = [];
   const prefix = `[data-plugin="${pluginName}"]`;
-  if (css.includes(':root') && !css.includes(prefix)) warnings.push('CSS contém :root sem escopo [data-plugin] — será remapeado para prefix');
-  if (/\bhtml\s*\{/.test(css) || /\bbody\s*\{/.test(css)) warnings.push('CSS contém html/body global — será remapeado para [data-plugin]');
+  if (css.includes(':root') && !css.includes(prefix)) warnings.push('CSS contains unscoped :root [data-plugin] — will be remapped to the prefix');
+  if (/\bhtml\s*\{/.test(css) || /\bbody\s*\{/.test(css)) warnings.push('CSS contains global html/body — will be remapped to [data-plugin]');
   return warnings;
 }
