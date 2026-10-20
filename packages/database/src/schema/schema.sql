@@ -536,6 +536,34 @@ CREATE TABLE IF NOT EXISTS webhooks (
 -- mantidos para que instalações existentes migrem sem perder seus segredos.
 ALTER TABLE webhooks ADD COLUMN IF NOT EXISTS auth_type VARCHAR(30) NOT NULL DEFAULT 'hmac_sha256';
 ALTER TABLE webhooks ADD COLUMN IF NOT EXISTS auth_config JSONB NOT NULL DEFAULT '{}'::jsonb;
+
+-- ============================================================
+-- Webhook hardening (Item 19 — rotação de segredos + dead-letter)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS webhook_secrets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  webhook_id UUID NOT NULL REFERENCES webhooks(id) ON DELETE CASCADE,
+  secret VARCHAR(255) NOT NULL,
+  version INT NOT NULL DEFAULT 1,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  rotated_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(webhook_id, version)
+);
+
+CREATE INDEX IF NOT EXISTS idx_webhook_secrets_webhook ON webhook_secrets(webhook_id, is_active);
+
+CREATE TABLE IF NOT EXISTS webhook_dead_letters (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  webhook_id UUID NOT NULL REFERENCES webhooks(id) ON DELETE CASCADE,
+  event VARCHAR(191) NOT NULL,
+  payload JSONB NOT NULL,
+  error TEXT,
+  attempts INT NOT NULL DEFAULT 1,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_webhook_dead_letters_webhook ON webhook_dead_letters(webhook_id, created_at);
 UPDATE webhooks
 SET auth_config = jsonb_build_object('secret', secret)
 WHERE auth_type = 'hmac_sha256' AND auth_config = '{}'::jsonb AND secret <> '';

@@ -7,7 +7,7 @@ import { isAbsolute, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import sharp from 'sharp';
 import { getConnection } from '@oktis-works/database';
-import { getCache, auditService, getPluginJobHandler, ensureTenantPluginsLoaded } from '@oktis-works/core';
+import { getCache, auditService, getPluginJobHandler, ensureTenantPluginsLoaded, webhookSecretService } from '@oktis-works/core';
 import { getEventBus, trackDeploymentProgress, contentPublisher } from '@oktis-works/core';
 import type { JobHandler, JobResult } from '../jobs/types.js';
 
@@ -383,7 +383,19 @@ export const webhookSendHandler: JobHandler = async (job): Promise<JobResult> =>
   } else if (authType === 'api_key' && authConfig['headerName'] && authConfig['value']) {
     headers[String(authConfig['headerName'])] = String(authConfig['value']);
   } else if (authType === 'hmac_sha256') {
-    const secret = String(authConfig['secret'] ?? webhook['secret'] ?? '');
+    // Item 19: secret versionado (webhook_secrets) — assina com a versão
+    // ativa mais recente e informa a versão ao consumidor; legado usa a
+    // coluna secret da própria row.
+    let secret = String(authConfig['secret'] ?? webhook['secret'] ?? '');
+    try {
+      const versioned = await webhookSecretService.getActiveSecret(webhookId as string);
+      if (versioned) {
+        secret = versioned.secret;
+        headers['X-Webhook-Secret-Version'] = String(versioned.version);
+      }
+    } catch {
+      // versão indisponível — assina com o secret legado
+    }
     const signatureHeader = String(authConfig['signatureHeader'] ?? 'X-Webhook-Signature');
     headers[signatureHeader] = generateSignature(body, secret);
   }
@@ -401,7 +413,14 @@ export const webhookSendHandler: JobHandler = async (job): Promise<JobResult> =>
 
     return { success: true };
   } catch (error) {
+    // Item 19: entrega esgotou retries (BullMQ: backoff exponencial) →
+    // dead-letter para inspeção/replay; nunca perde o evento silenciosamente.
     const message = error instanceof Error ? error.message : 'Webhook failed';
+    try {
+      await webhookSecretService.recordDeadLetter(webhookId as string, String(event), { event, data }, message);
+    } catch {
+      // DLQ indisponível — o erro original segue para o retry do queue
+    }
     return { success: false, error: message };
   }
 };

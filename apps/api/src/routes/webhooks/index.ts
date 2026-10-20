@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { randomUUID } from 'node:crypto';
 import { getConnection } from '@oktis-works/database';
+import { webhookSecretService } from '@oktis-works/core';
 import { WEBHOOK_EVENT_TYPES, type WebhookAuthConfig, type WebhookAuthType } from '@oktis-works/types';
 import { authMiddleware, requirePermission } from '../../middleware/auth.js';
 
@@ -148,6 +149,51 @@ router.put('/:id', requirePermission('update', 'webhook'), async (c) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to update webhook';
     return c.json({ error: message }, 400);
+  }
+});
+
+// POST /webhooks/:id/rotate — Item 19: nova versão de secret; a anterior fica
+// registrada com rotated_at (janela de graça de 24h para o consumidor trocar
+// a chave). O novo secret é devolvido EXATAMENTE uma vez nesta resposta.
+router.post('/:id/rotate', requirePermission('update', 'webhook'), async (c) => {
+  try {
+    const id = c.req.param('id') as string;
+    const tenantId = String(c.get('tenantId' as never) ?? 'default');
+    const sql = getConnection();
+    const owned = await sql.unsafe('SELECT id FROM webhooks WHERE id = $1 AND tenant_id = $2', [id, tenantId]);
+    if (!owned[0]) return c.json({ error: 'Webhook not found' }, 404);
+
+    const rotated = await webhookSecretService.rotate(id);
+    if (!rotated) return c.json({ error: 'Webhook not found' }, 404);
+
+    return c.json({
+      id: rotated.id,
+      webhookId: rotated.webhookId,
+      version: rotated.version,
+      secret: rotated.secret,
+      graceHours: 24,
+      note: 'Store this secret now — it is never listed again. The previous version stays valid for consumers during the 24h grace window.',
+    }, 201);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to rotate webhook secret';
+    return c.json({ error: message }, 500);
+  }
+});
+
+// GET /webhooks/:id/secrets — histórico de versões SEM os segredos
+router.get('/:id/secrets', requirePermission('read', 'webhook'), async (c) => {
+  try {
+    const id = c.req.param('id') as string;
+    const tenantId = String(c.get('tenantId' as never) ?? 'default');
+    const sql = getConnection();
+    const owned = await sql.unsafe('SELECT id FROM webhooks WHERE id = $1 AND tenant_id = $2', [id, tenantId]);
+    if (!owned[0]) return c.json({ error: 'Webhook not found' }, 404);
+
+    const versions = await webhookSecretService.listVersions(id);
+    return c.json({ versions });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to list webhook secret versions';
+    return c.json({ error: message }, 500);
   }
 });
 

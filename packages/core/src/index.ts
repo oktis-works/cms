@@ -35,6 +35,7 @@ export { roleService, RoleService } from './role/service.js';
 export { pluginRolesService, PluginRolesService, RESERVED_ROLE_SLUGS, roleSlugFromName, parseRolePermission } from './role/plugin-roles.js';
 export { commentService, CommentService, type CreateCommentInput, type CommentListFilter } from './comments/service.js';
 export { mailService, MailService, type MailSendInput } from './mail/service.js';
+export { webhookSecretService, WebhookSecretService, type WebhookSecretVersion } from './webhooks/service.js';
 export { contentService, ContentService } from './content/service.js';
 export type { CreateContentInput, UpdateContentInput } from './content/service.js';
 export { postTypeRegistry, PostTypeRegistry } from './content/post-types.js';
