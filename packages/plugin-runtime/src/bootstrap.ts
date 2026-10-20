@@ -445,6 +445,17 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
           throw new Error('não exporta register(registry)');
         }
 
+        // Item 20: migrações de schema do plugin (manifest.migrations[]) rodam
+        // ANTES do register(), uma vez por plugin (registry global em
+        // plugin_schema_migrations). Drift de checksum falha o plugin isolado.
+        if (options.sql && Array.isArray(entry.manifest.migrations) && entry.manifest.migrations.length > 0) {
+          const { applyPluginMigrations } = await import('./plugin-migrations.js');
+          const migrationResult = await applyPluginMigrations(options.sql, name, entry.path, entry.manifest.migrations);
+          if (migrationResult.drift.length > 0) {
+            throw new Error(`Plugin migration drift: ${migrationResult.drift.join('; ')}`);
+          }
+        }
+
         const registrations: TrackedRegistration[] = [];
 
         // Se o core forneceu apiDeps, cria a API completa (hooks + settings + query + routes + ...)
