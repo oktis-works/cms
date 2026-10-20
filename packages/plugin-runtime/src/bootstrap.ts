@@ -17,7 +17,7 @@
 //   - **por escopo**: o estado de carga é indexado por escopo (platform ou um
 //     tenant), então ativar/desativar num tenant não afeta outro.
 
-import { createPluginHooksApi, type HookRegistryLike, type PluginJobHandler, type AdminExtensionsState, type PluginBlockManifest, type PluginPatternManifest } from '@oktis-works/plugin-sdk';
+import { createPluginHooksApi, type HookRegistryLike, type PluginJobHandler, type AdminExtensionsState, type PluginBlockManifest, type PluginPatternManifest, type EnqueuedAsset } from '@oktis-works/plugin-sdk';
 import { PLUGIN_PERMISSION_DEFAULT } from '@oktis-works/validation';
 import { PluginLoader, type DiscoveredPlugin } from './loader.js';
 import { PluginSandbox } from './sandbox.js';
@@ -218,6 +218,25 @@ export function getLoadedPluginPatterns(scopeKey: string): Array<{
   for (const [pluginName, entry] of scope.plugins) {
     const patterns = entry.internal?.getPatterns?.();
     if (patterns && patterns.length > 0) result.push({ pluginName, patterns });
+  }
+  return result;
+}
+
+/**
+ * Assets enqueued at runtime via `api.assets` by the plugins loaded in a
+ * scope — consumed by the public renderer (theme:head pipeline, Item 8).
+ * Only plugins with at least one asset are returned.
+ */
+export function getLoadedPluginAssets(scopeKey: string): Array<{
+  pluginName: string;
+  assets: EnqueuedAsset[];
+}> {
+  const scope = loadedScopes.get(scopeKey);
+  if (!scope) return [];
+  const result: Array<{ pluginName: string; assets: EnqueuedAsset[] }> = [];
+  for (const [pluginName, entry] of scope.plugins) {
+    const assets = entry.internal?.getEnqueuedAssets?.();
+    if (assets && assets.length > 0) result.push({ pluginName, assets });
   }
   return result;
 }

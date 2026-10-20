@@ -88,7 +88,7 @@ export { settingsService, SettingsService } from './settings/service.js';
 export { categoryService, CategoryService } from './category/service.js';
 export { tagService, TagService } from './tag/service.js';
 export { pluginService, PluginService } from './plugin/service.js';
-export { syncEnabledPlugins, ensureTenantPluginsLoaded, invalidateTenantPlugins, invalidatePlatformPlugins, getPluginsRuntimeState, getRegisteredPluginRoutes, registerPluginRoutes, unregisterPluginRoutes, getPluginJobHandler, getPluginAdminExtensions, getPluginBlocks, getPluginPatterns, type PluginRouteEntry, type PluginJobHandlerFn } from './plugin/load.js';
+export { syncEnabledPlugins, ensureTenantPluginsLoaded, invalidateTenantPlugins, invalidatePlatformPlugins, getPluginsRuntimeState, getRegisteredPluginRoutes, registerPluginRoutes, unregisterPluginRoutes, getPluginJobHandler, getPluginAdminExtensions, getPluginBlocks, getPluginPatterns, getPluginAssets, type PluginRouteEntry, type PluginJobHandlerFn } from './plugin/load.js';
 export type { PluginsRuntimeState, PluginsScopeState } from './plugin/load.js';
 export { themeService, ThemeService } from './theme/service.js';
 export { resolveExtensionDirectory } from './extensions/project-directories.js';

@@ -9,6 +9,7 @@ import { serve } from '@hono/node-server';
 import { bootstrap } from '@oktis-works/core';
 import { resolveExtensionDirectory } from '@oktis-works/core';
 import { runWithTenantContext } from '@oktis-works/core';
+import { getPluginAssets } from '@oktis-works/core';
 import { CMS_VERSION } from '@oktis-works/validation';
 import { getConnection, runWithTenantTransaction } from '@oktis-works/database';
 import {
@@ -21,6 +22,7 @@ import {
   enrichItemsMedia,
   buildThemeSettings,
   mergePreviewSettings,
+  renderAssetTags,
 } from './rendering.js';
 import { createDatabaseThemeDataProvider, loadThemeRenderData } from './theme-data.js';
 import { resolveTenantFromHost } from './tenant-resolver.js';
@@ -204,6 +206,23 @@ async function main() {
       const html = await runWithThemeDataProvider(provider, async () => {
         const themeData = await loadThemeRenderData(provider);
 
+        // Item 8: assets enfileirados por plugins (api.assets) — escopo
+        // platform + tenant, dedupe por URL na renderização. Falha nunca
+        // derruba a página (segue sem assets de plugin).
+        const tenantId = String(c.get('tenant')['id']);
+        let pluginAssetTags: { head: string; footer: string } | undefined;
+        try {
+          const [platformAssets, tenantAssets] = await Promise.all([
+            getPluginAssets(null),
+            getPluginAssets(tenantId),
+          ]);
+          pluginAssetTags = renderAssetTags(
+            [...platformAssets, ...tenantAssets].flatMap((entry) => entry.assets)
+          );
+        } catch {
+          pluginAssetTags = undefined;
+        }
+
         // B1 — título/meta das settings (fim do "OkCMS" hardcoded) + o config do
         // customizador do tema ativo exposto como `settings.theme`. As settings
         // vêm do provider do tema (mesma fonte/contrato das demais consultas,
@@ -229,6 +248,7 @@ async function main() {
           themeData,
           activeTheme,
           themesRoot,
+          pluginAssets: pluginAssetTags,
         });
       });
 

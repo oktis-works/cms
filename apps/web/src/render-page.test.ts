@@ -43,6 +43,7 @@ import {
   contentTypeForAsset,
   wrapDocument,
   mergePreviewSettings,
+  renderAssetTags,
 } from './rendering.js';
 import { getHookRegistry } from '@oktis-works/plugin-runtime';
 import { CMS_VERSION } from '@oktis-works/validation';
@@ -448,5 +449,37 @@ describe('mergePreviewSettings — Item 7 customizer preview', () => {
     expect(mergePreviewSettings({ a: 1 }, encodeURIComponent(JSON.stringify(['array'])))).toEqual({ a: 1 });
     expect(mergePreviewSettings({ a: 1 }, encodeURIComponent(JSON.stringify('string')))).toEqual({ a: 1 });
     expect(mergePreviewSettings(null, 'garbage')).toBeNull();
+  });
+});
+
+describe('renderAssetTags — Item 8 asset enqueue', () => {
+  it('renders style and script tags with SRI, media, ver and data-plugin', () => {
+    const { head, footer } = renderAssetTags([
+      { kind: 'style', src: 'https://cdn.example.com/reset.css', integrity: 'sha384-abc', crossOrigin: 'anonymous', pluginName: 'p1' },
+      { kind: 'script', src: 'https://cdn.example.com/app.js', strategy: 'defer', version: '1.2.0', pluginName: 'p1' },
+      { kind: 'script', src: 'https://cdn.example.com/chat.js', placement: 'footer', pluginName: 'p2' },
+    ]);
+
+    expect(head).toContain('<link rel="stylesheet" href="https://cdn.example.com/reset.css" integrity="sha384-abc" crossorigin="anonymous" data-plugin="p1" />');
+    expect(head).toContain('<script src="https://cdn.example.com/app.js?ver=1.2.0" defer data-plugin="p1"></script>');
+    expect(footer).toContain('<script src="https://cdn.example.com/chat.js" data-plugin="p2"></script>');
+    expect(footer).not.toContain('reset.css');
+  });
+
+  it('dedupes by URL across plugins (first enqueue wins)', () => {
+    const { head } = renderAssetTags([
+      { kind: 'style', src: 'https://cdn.example.com/shared.css', pluginName: 'p1' },
+      { kind: 'style', src: 'https://cdn.example.com/shared.css', version: '9', pluginName: 'p2' },
+    ]);
+    expect((head.match(/shared\.css/g) ?? []).length).toBe(1);
+    expect(head).toContain('data-plugin="p1"');
+  });
+
+  it('escapes attribute values (src/integrity/media)', () => {
+    const { head } = renderAssetTags([
+      { kind: 'style', src: 'https://cdn.example/x.css', media: 'screen" onload="alert(1)', pluginName: 'p' },
+    ]);
+    expect(head).toContain('media="screen&quot; onload=&quot;alert(1)"');
+    expect(head).not.toContain('onload="alert');
   });
 });

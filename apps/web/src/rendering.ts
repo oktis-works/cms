@@ -1,10 +1,12 @@
 // @oktis-works/web - Runtime Rendering (catch-all SSR com hierarquia de templates)
 
 import { existsSync, realpathSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { join, resolve, sep } from 'node:path';
 import { getConnection } from '@oktis-works/database';
 import { getHookRegistry } from '@oktis-works/plugin-runtime';
 import { postTypeRegistry, HOOK_POINTS } from '@oktis-works/core';
+import type { EnqueuedAsset } from '@oktis-works/plugin-sdk';
 import {
   TemplateHierarchyResolver,
   RuntimeRouter,
@@ -144,6 +146,8 @@ export interface ContentPageRenderInput {
   themeData?: ThemeRenderData;
   activeTheme: string;
   themesRoot: string;
+  /** Asset tags de plugins (Item 8) — head e footer já renderizados. */
+  pluginAssets?: { head: string; footer: string };
 }
 
 /**
@@ -159,7 +163,7 @@ export function renderContentPage(input: ContentPageRenderInput): string {
   const template = loadTemplateSource(input.themesRoot, input.activeTheme, file);
 
   if (!template) {
-    return renderFallbackPage(input);
+    return renderFallbackPage(input, input.pluginAssets);
   }
 
   const row = input.contentRow ?? {};
@@ -213,8 +217,46 @@ export function renderContentPage(input: ContentPageRenderInput): string {
 
   const body = themeRenderer.renderString(template, context, row);
   const stylesheet = resolveThemeStylesheet(input.themesRoot, input.activeTheme);
-  const html = wrapDocument(body, title, input.settings, input.activeTheme, stylesheet);
+  const html = wrapDocument(body, title, input.settings, input.activeTheme, stylesheet, input.pluginAssets);
   return registry.applyFilters(HOOK_POINTS.THEME_AFTER_RENDER, html, hookContext) as string;
+}
+
+/**
+ * Item 8 — renders plugin-enqueued assets as HTML tags with hash dedupe:
+ * the same URL (sha256 of src) is emitted once across all plugins (first
+ * enqueue wins). Styles and head scripts go to <head>; footer scripts are
+ * returned separately (rendered before </body>).
+ */
+export function renderAssetTags(assets: ReadonlyArray<EnqueuedAsset>): { head: string; footer: string } {
+  const seen = new Set<string>();
+  const head: string[] = [];
+  const footer: string[] = [];
+
+  for (const asset of assets) {
+    const key = createHash('sha256').update(asset.src).digest('hex');
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const src = asset.version
+      ? `${asset.src}${asset.src.includes('?') ? '&' : '?'}ver=${encodeURIComponent(asset.version)}`
+      : asset.src;
+    const sri = asset.integrity ? ` integrity="${escapeHtml(asset.integrity)}"` : '';
+    const crossorigin = asset.crossOrigin ? ` crossorigin="${escapeHtml(asset.crossOrigin)}"` : '';
+    const plugin = ` data-plugin="${escapeHtml(asset.pluginName)}"`;
+
+    if (asset.kind === 'style') {
+      const media = asset.media ? ` media="${escapeHtml(asset.media)}"` : '';
+      head.push(`<link rel="stylesheet" href="${escapeHtml(src)}"${media}${sri}${crossorigin}${plugin} />`);
+      continue;
+    }
+
+    const deferAsync = asset.strategy === 'defer' ? ' defer' : asset.strategy === 'async' ? ' async' : '';
+    const tag = `<script src="${escapeHtml(src)}"${deferAsync}${sri}${crossorigin}${plugin}></script>`;
+    if (asset.placement === 'footer') footer.push(tag);
+    else head.push(tag);
+  }
+
+  return { head: head.join('\n'), footer: footer.join('\n') };
 }
 
 /**
@@ -240,7 +282,8 @@ export function wrapDocument(
   pageTitle: string,
   settings: SiteSettings,
   activeTheme: string,
-  stylesheetTheme: string | null = null
+  stylesheetTheme: string | null = null,
+  pluginAssets?: { head: string; footer: string }
 ): string {
   if (body.includes('<html') || body.includes('<!DOCTYPE')) {
     return body;
@@ -259,6 +302,9 @@ export function wrapDocument(
     '',
     { settings, activeTheme }
   );
+  // Item 8: assets enfileirados via api.assets (styles + scripts de head)
+  const assetHead = pluginAssets?.head ? `${pluginAssets.head}\n` : '';
+  const assetFooter = pluginAssets?.footer ? `\n${pluginAssets.footer}` : '';
 
   return `<!DOCTYPE html>
 <html lang="${lang}">
@@ -268,9 +314,9 @@ export function wrapDocument(
   <meta name="generator" content="OkCMS ${CMS_VERSION}">
   <title>${escapeHtml(title)}</title>
   <meta name="description" content="${escapeHtml(settings.siteDescription)}">
-${stylesheet}${headInjections}</head>
+${stylesheet}${headInjections}${assetHead}</head>
 <body>
-${body}
+${body}${assetFooter}
 </body>
 </html>`;
 }
@@ -286,7 +332,10 @@ function plainColumns(row: Record<string, unknown>): Record<string, unknown> {
 }
 
 /** Tema sem template para a rota: HTML mínimo com os dados reais (nunca stub). */
-function renderFallbackPage(input: ContentPageRenderInput): string {
+function renderFallbackPage(
+  input: ContentPageRenderInput,
+  pluginAssets?: { head: string; footer: string }
+): string {
   const title = toText((input.contentRow ?? {})['title']) || input.settings.siteTitle;
   const lang = escapeHtml(input.settings.language || 'pt-BR');
 
@@ -297,6 +346,8 @@ function renderFallbackPage(input: ContentPageRenderInput): string {
     '',
     { settings: input.settings, activeTheme: input.activeTheme }
   );
+  const assetHead = pluginAssets?.head ? `${pluginAssets.head}\n` : '';
+  const assetFooter = pluginAssets?.footer ? `\n${pluginAssets.footer}` : '';
 
   return `<!DOCTYPE html>
 <html lang="${lang}">
@@ -313,7 +364,7 @@ function renderFallbackPage(input: ContentPageRenderInput): string {
     summary { cursor: pointer; color: #555; }
     pre { background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 6px; padding: 1rem; overflow: auto; font-size: 0.85rem; }
   </style>
-${headInjections}</head>
+${headInjections}${assetHead}</head>
 <body>
   <main data-theme="${escapeHtml(input.activeTheme)}">
     <article>
@@ -324,7 +375,7 @@ ${headInjections}</head>
         <pre>${escapeHtml(JSON.stringify(input.data, null, 2))}</pre>
       </details>
     </article>
-  </main>
+  </main>${assetFooter}
 </body>
 </html>`;
 }

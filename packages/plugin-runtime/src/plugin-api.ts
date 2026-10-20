@@ -6,7 +6,7 @@
 
 import { randomUUID } from 'node:crypto';
 import type { HookRegistryLike } from '@oktis-works/plugin-sdk';
-import type { PluginManifest, PluginFieldTypeManifest, PluginPostTypeDeclaration, PluginTaxonomyDeclaration, PluginBlockManifest, PluginPatternManifest, PluginCacheApi, PluginJobsApi, PluginJobHandler, PluginHttpApi, PluginAdminApi, PluginRolesApi, AdminExtensionsState } from '@oktis-works/plugin-sdk';
+import type { PluginManifest, PluginFieldTypeManifest, PluginPostTypeDeclaration, PluginTaxonomyDeclaration, PluginBlockManifest, PluginPatternManifest, PluginCacheApi, PluginJobsApi, PluginJobHandler, PluginHttpApi, PluginAdminApi, PluginRolesApi, PluginAssetsApi, EnqueuedAsset, EnqueuedStyle, EnqueuedScript, AdminExtensionsState } from '@oktis-works/plugin-sdk';
 import { PERMISSIONS, createPluginAdminApi } from '@oktis-works/plugin-sdk';
 import { createHttpApi } from './http.js';
 
@@ -91,6 +91,9 @@ export interface PluginAPI {
 
   /** Gestão de roles do tenant (Item 6 — escopo tenant, anti-escalada, audit). */
   readonly roles: PluginRolesApi;
+
+  /** Asset enqueue para o site público (Item 8 — permissão assets:enqueue). */
+  readonly assets: PluginAssetsApi;
 
   /** Lê setting do tenant (group/key). */
   getSetting(key: string, group?: string): Promise<unknown>;
@@ -452,6 +455,58 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
     },
   };
 
+  // ── api.assets (Item 8): enqueue de assets para o site público. Dedupe por
+  // URL dentro do plugin (repetir a chamada é no-op); o merge entre plugins
+  // acontece na renderização (primeiro a registrar vence). SRI é declarado
+  // pelo plugin (integrity + crossOrigin); src aceita http(s):// ou caminho
+  // root-relative (/...).
+  const ASSET_SRC_PATTERN = /^(https?:\/\/|\/(?!\/))[^\s"']+$/i;
+  const registeredAssets: EnqueuedAsset[] = [];
+
+  function validateAssetSrc(src: string): string {
+    if (typeof src !== 'string' || !ASSET_SRC_PATTERN.test(src)) {
+      throw new Error(`Invalid asset src "${String(src)}" (expected http(s):// URL or root-relative /path)`);
+    }
+    return src;
+  }
+
+  const assetsApi: PluginAssetsApi = {
+    enqueueStyle(style) {
+      requirePermission(PERMISSIONS.ASSETS_ENQUEUE);
+      const src = validateAssetSrc(style?.src);
+      if (registeredAssets.some((asset) => asset.src === src)) return;
+      const entry: EnqueuedStyle = {
+        kind: 'style',
+        src,
+        version: typeof style?.version === 'string' && style.version ? style.version : undefined,
+        media: typeof style?.media === 'string' && style.media ? style.media : undefined,
+        integrity: typeof style?.integrity === 'string' && style.integrity ? style.integrity : undefined,
+        crossOrigin: typeof style?.crossOrigin === 'string' && style.crossOrigin ? style.crossOrigin : undefined,
+        pluginName: manifest.name,
+      };
+      registeredAssets.push(entry);
+    },
+
+    enqueueScript(script) {
+      requirePermission(PERMISSIONS.ASSETS_ENQUEUE);
+      const src = validateAssetSrc(script?.src);
+      if (registeredAssets.some((asset) => asset.src === src)) return;
+      const strategy =
+        script?.strategy === 'defer' || script?.strategy === 'async' ? script.strategy : ('blocking' as const);
+      const entry: EnqueuedScript = {
+        kind: 'script',
+        src,
+        version: typeof script?.version === 'string' && script.version ? script.version : undefined,
+        strategy,
+        placement: script?.placement === 'footer' ? 'footer' : ('head' as const),
+        integrity: typeof script?.integrity === 'string' && script.integrity ? script.integrity : undefined,
+        crossOrigin: typeof script?.crossOrigin === 'string' && script.crossOrigin ? script.crossOrigin : undefined,
+        pluginName: manifest.name,
+      };
+      registeredAssets.push(entry);
+    },
+  };
+
   // Build the public API object
   const api: PluginAPI = {
     registerHook(type: string, handler: (context: PluginContext, payload: unknown) => void | Promise<void>): void {
@@ -641,6 +696,7 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
     http: httpApi,
     admin: adminApi,
     roles: rolesApi,
+    assets: assetsApi,
 
     async getSetting(key: string, group?: string): Promise<unknown> {
       if (!allowedPermissions.includes('settings:read')) {
@@ -725,6 +781,7 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
       getAdminState: () => adminApi.state,
       getBlocks: () => registeredBlocks,
       getPatterns: () => registeredPatterns,
+      getEnqueuedAssets: () => registeredAssets,
     },
   };
 }
@@ -744,4 +801,6 @@ export interface PluginApiInternal {
   getBlocks: () => Array<PluginBlockManifest & { pluginName: string }>;
   /** Patterns do editor registrados em runtime via api.registerPattern. */
   getPatterns: () => Array<PluginPatternManifest & { pluginName: string }>;
+  /** Assets enfileirados em runtime via api.assets (Item 8). */
+  getEnqueuedAssets: () => EnqueuedAsset[];
 }

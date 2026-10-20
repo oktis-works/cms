@@ -49,6 +49,7 @@ import { queueProducer } from '../queue/producer.js';
 import { getCurrentTenantIdSync, getCurrentUserIdSync, getCurrentRequestIdSync } from '../tenant/context.js';
 import type { RouteDefinition, PluginBootstrapResult, PluginApiDependencies } from '@oktis-works/plugin-runtime';
 import type { AdminExtensionsState, PluginBlockManifest, PluginPatternManifest } from '@oktis-works/types';
+import type { EnqueuedAsset } from '@oktis-works/plugin-sdk';
 
 // Dynamic imports for circular dependency with plugin-runtime
 // Using require with computed string to avoid TypeScript compile-time checking
@@ -73,6 +74,7 @@ const getLoadedPluginJobHandlers = async () => (await getPluginRuntimeCached()).
 const getLoadedPluginAdminExtensions = async () => (await getPluginRuntimeCached()).getLoadedPluginAdminExtensions;
 const getLoadedPluginBlocks = async () => (await getPluginRuntimeCached()).getLoadedPluginBlocks;
 const getLoadedPluginPatterns = async () => (await getPluginRuntimeCached()).getLoadedPluginPatterns;
+const getLoadedPluginAssets = async () => (await getPluginRuntimeCached()).getLoadedPluginAssets;
 
 /** Handler de job de plugin (dispatch do worker). */
 export type PluginJobHandlerFn = (
@@ -148,6 +150,21 @@ export async function getPluginPatterns(
 ): Promise<Array<{ pluginName: string; patterns: Array<PluginPatternManifest & { pluginName: string }> }>> {
   try {
     return await (await getLoadedPluginPatterns())(scopeKey(tenantId));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Assets enqueued by the loaded plugins of a scope — feeds the public
+ * renderer's theme:head pipeline (Item 8). Never throws: runtime
+ * unavailability becomes an empty list.
+ */
+export async function getPluginAssets(
+  tenantId: string | null
+): Promise<Array<{ pluginName: string; assets: EnqueuedAsset[] }>> {
+  try {
+    return await (await getLoadedPluginAssets())(scopeKey(tenantId));
   } catch {
     return [];
   }

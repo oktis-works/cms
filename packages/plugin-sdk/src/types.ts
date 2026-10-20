@@ -129,6 +129,8 @@ export interface PluginAPI {
   admin: PluginAdminApi;
   /** Gestão de roles do tenant (Item 6 — escopo tenant, anti-escalada, audit). */
   roles: PluginRolesApi;
+  /** Asset enqueue para o site público (Item 8 — permissão assets:enqueue). */
+  assets: PluginAssetsApi;
   getSetting(key: string): Promise<unknown>;
   setSetting(key: string, value: unknown): Promise<void>;
   getTenant(): Promise<TenantInfo>;
@@ -241,6 +243,50 @@ export interface PluginRolesApi {
   remove(slug: string): Promise<boolean>;
   /** Grants one extra permission (`action:resource`) to a tenant role. */
   addPermission(slug: string, permission: string): Promise<boolean>;
+}
+
+/**
+ * Stylesheet enqueued via api.assets.enqueueStyle (Item 8).
+ * `integrity`/`crossOrigin` enable SRI; `version` is appended as `?ver=`.
+ */
+export interface EnqueuedStyle {
+  kind: 'style';
+  src: string;
+  version?: string;
+  media?: string;
+  integrity?: string;
+  crossOrigin?: string;
+  pluginName: string;
+}
+
+/**
+ * Script enqueued via api.assets.enqueueScript (Item 8).
+ * `strategy` maps to defer/async; `placement` head (default) or footer.
+ */
+export interface EnqueuedScript {
+  kind: 'script';
+  src: string;
+  version?: string;
+  strategy?: 'blocking' | 'defer' | 'async';
+  placement?: 'head' | 'footer';
+  integrity?: string;
+  crossOrigin?: string;
+  pluginName: string;
+}
+
+export type EnqueuedAsset = EnqueuedStyle | EnqueuedScript;
+
+/**
+ * Asset enqueue API for plugins (Item 8 — permission assets:enqueue).
+ * Assets are emitted on the public site: styles + head scripts in <head>,
+ * footer scripts before </body>. Duplicate URLs are emitted once (dedupe by
+ * URL hash across plugins).
+ */
+export interface PluginAssetsApi {
+  /** Enqueues a stylesheet for the public site <head>. */
+  enqueueStyle(style: Omit<EnqueuedStyle, 'kind' | 'pluginName'>): void;
+  /** Enqueues a script for the public site (head by default, or footer). */
+  enqueueScript(script: Omit<EnqueuedScript, 'kind' | 'pluginName'>): void;
 }
 
 export interface RouteDefinition {
