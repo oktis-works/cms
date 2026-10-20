@@ -284,6 +284,8 @@ export interface PluginManifest {
   /** Blocos customizados do editor (manifesto v2). */
   blocks?: PluginBlockManifest[];
   patterns?: PluginPatternManifest[];
+  /** Translation files (flat JSON) loaded at boot — filename is the locale. */
+  locales?: string[];
   /** Custom Post Types declarados (manifesto v2). */
   postTypes?: PluginPostTypeDeclaration[];
   /** Custom Taxonomies declaradas (manifesto v2). */

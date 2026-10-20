@@ -73,6 +73,15 @@ export function validateManifestV2(merged: Record<string, unknown>): string[] {
     }
   }
 
+  const locales = merged['locales'];
+  if (locales !== undefined) {
+    if (!Array.isArray(locales) || !locales.every(isString)) {
+      issues.push('locales must be an array of file paths');
+    } else if (locales.some((path) => path.includes('..') || path.startsWith('/'))) {
+      issues.push('locales with paths outside the plugin directory');
+    }
+  }
+
   const postTypes = merged['postTypes'];
   if (Array.isArray(postTypes)) {
     for (const postType of postTypes) {

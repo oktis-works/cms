@@ -21,6 +21,7 @@ export {
   type PluginJobsApi,
   type PluginRolesApi,
   type PluginAssetsApi,
+  type PluginI18nApi,
   type EnqueuedAsset,
   type EnqueuedStyle,
   type EnqueuedScript,

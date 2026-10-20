@@ -131,6 +131,8 @@ export interface PluginAPI {
   roles: PluginRolesApi;
   /** Asset enqueue para o site público (Item 8 — permissão assets:enqueue). */
   assets: PluginAssetsApi;
+  /** Traduções server-side (Item 9 — fallback chain locale → base → en). */
+  i18n: PluginI18nApi;
   getSetting(key: string): Promise<unknown>;
   setSetting(key: string, value: unknown): Promise<void>;
   getTenant(): Promise<TenantInfo>;
@@ -287,6 +289,23 @@ export interface PluginAssetsApi {
   enqueueStyle(style: Omit<EnqueuedStyle, 'kind' | 'pluginName'>): void;
   /** Enqueues a script for the public site (head by default, or footer). */
   enqueueScript(script: Omit<EnqueuedScript, 'kind' | 'pluginName'>): void;
+}
+
+/**
+ * Server-side i18n for plugins (Item 9). Bundles are flat { key: string };
+ * translate() resolves through the fallback chain (locale → base language →
+ * 'en' → key) with {param} interpolation. Manifest `locales[]` JSON files
+ * are loaded automatically at boot.
+ */
+export interface PluginI18nApi {
+  /** Merges a flat bundle into a locale (later loads override keys). */
+  load(locale: string, bundle: Record<string, string>): void;
+  /** Translates a key; unknown keys return the key itself. */
+  translate(key: string, params?: Record<string, unknown>, locale?: string): string;
+  /** Current default locale used when translate() gets no explicit locale. */
+  locale(): string;
+  /** Sets the plugin default locale (e.g. from the tenant language). */
+  setDefaultLocale(locale: string): void;
 }
 
 export interface RouteDefinition {

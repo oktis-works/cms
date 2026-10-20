@@ -6,9 +6,10 @@
 
 import { randomUUID } from 'node:crypto';
 import type { HookRegistryLike } from '@oktis-works/plugin-sdk';
-import type { PluginManifest, PluginFieldTypeManifest, PluginPostTypeDeclaration, PluginTaxonomyDeclaration, PluginBlockManifest, PluginPatternManifest, PluginCacheApi, PluginJobsApi, PluginJobHandler, PluginHttpApi, PluginAdminApi, PluginRolesApi, PluginAssetsApi, EnqueuedAsset, EnqueuedStyle, EnqueuedScript, AdminExtensionsState } from '@oktis-works/plugin-sdk';
+import type { PluginManifest, PluginFieldTypeManifest, PluginPostTypeDeclaration, PluginTaxonomyDeclaration, PluginBlockManifest, PluginPatternManifest, PluginCacheApi, PluginJobsApi, PluginJobHandler, PluginHttpApi, PluginAdminApi, PluginRolesApi, PluginAssetsApi, PluginI18nApi, EnqueuedAsset, EnqueuedStyle, EnqueuedScript, AdminExtensionsState } from '@oktis-works/plugin-sdk';
 import { PERMISSIONS, createPluginAdminApi } from '@oktis-works/plugin-sdk';
 import { createHttpApi } from './http.js';
+import { i18nFallbackChain, i18nInterpolate } from './i18n.js';
 
 /** Contexto disponível para o plugin em cada execução de hook. */
 export interface PluginContext {
@@ -94,6 +95,9 @@ export interface PluginAPI {
 
   /** Asset enqueue para o site público (Item 8 — permissão assets:enqueue). */
   readonly assets: PluginAssetsApi;
+
+  /** Traduções server-side (Item 9 — fallback chain locale → base → en). */
+  readonly i18n: PluginI18nApi;
 
   /** Lê setting do tenant (group/key). */
   getSetting(key: string, group?: string): Promise<unknown>;
@@ -507,6 +511,50 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
     },
   };
 
+  // ── api.i18n (Item 9): traduções server-side por plugin. Bundles são
+  // privados do plugin (namespacing é natural — cada plugin tem o próprio
+  // store); fallback chain locale → base language → 'en' → própria key.
+  const i18nBundles = new Map<string, Record<string, string>>();
+  let i18nDefaultLocale = 'en';
+
+  const i18nApi: PluginI18nApi = {
+    load(locale, bundle) {
+      if (typeof locale !== 'string' || locale.trim().length === 0) {
+        throw new Error('i18n.load requires a locale');
+      }
+      if (!bundle || typeof bundle !== 'object' || Array.isArray(bundle)) {
+        throw new Error('i18n.load requires a flat { key: string } bundle');
+      }
+      const existing = i18nBundles.get(locale) ?? {};
+      for (const [key, value] of Object.entries(bundle)) {
+        if (typeof value !== 'string') {
+          throw new Error(`i18n bundle value for "${key}" must be a string`);
+        }
+        existing[key] = value;
+      }
+      i18nBundles.set(locale, existing);
+    },
+
+    translate(key, params, locale) {
+      if (typeof key !== 'string' || key.length === 0) return String(key ?? '');
+      const requested = typeof locale === 'string' && locale ? locale : i18nDefaultLocale;
+      for (const candidate of i18nFallbackChain(requested)) {
+        const value = i18nBundles.get(candidate)?.[key];
+        if (typeof value === 'string') return i18nInterpolate(value, params);
+      }
+      return key;
+    },
+
+    locale: () => i18nDefaultLocale,
+
+    setDefaultLocale(locale) {
+      if (typeof locale !== 'string' || locale.trim().length === 0) {
+        throw new Error('i18n.setDefaultLocale requires a locale');
+      }
+      i18nDefaultLocale = locale;
+    },
+  };
+
   // Build the public API object
   const api: PluginAPI = {
     registerHook(type: string, handler: (context: PluginContext, payload: unknown) => void | Promise<void>): void {
@@ -697,6 +745,7 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
     admin: adminApi,
     roles: rolesApi,
     assets: assetsApi,
+    i18n: i18nApi,
 
     async getSetting(key: string, group?: string): Promise<unknown> {
       if (!allowedPermissions.includes('settings:read')) {

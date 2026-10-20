@@ -1066,6 +1066,24 @@ export const commands: Command[] = [
     },
   },
   {
+    name: 'i18n:extract',
+    description: 'Extract plugin translation keys (api.i18n.translate/__()) into locales/<locale>.json',
+    options: [
+      { name: 'dir', alias: 'd', description: 'Base directory containing plugins (default: ./plugins)', required: false },
+      { name: 'name', alias: 'n', description: 'Single plugin name to extract (default: all plugins)', required: false },
+      { name: 'locale', alias: 'l', description: 'Target locale file (default: en)', required: false },
+    ],
+    handler: async (_args, options) => {
+      const { runI18nExtract } = await import('./i18n-extract.js');
+      const code = await runI18nExtract({
+        dir: options['dir'] ? String(options['dir']) : undefined,
+        name: options['name'] ? String(options['name']) : undefined,
+        locale: options['locale'] ? String(options['locale']) : undefined,
+      });
+      if (code !== 0) process.exitCode = code;
+    },
+  },
+  {
     name: 'rollback',
     description: 'Rollback to a previous state (lists history and lets you choose)',
     options: [

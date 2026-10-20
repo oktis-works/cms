@@ -17,7 +17,7 @@
 //   - **por escopo**: o estado de carga é indexado por escopo (platform ou um
 //     tenant), então ativar/desativar num tenant não afeta outro.
 
-import { createPluginHooksApi, type HookRegistryLike, type PluginJobHandler, type AdminExtensionsState, type PluginBlockManifest, type PluginPatternManifest, type EnqueuedAsset } from '@oktis-works/plugin-sdk';
+import { createPluginHooksApi, type HookRegistryLike, type PluginJobHandler, type AdminExtensionsState, type PluginBlockManifest, type PluginPatternManifest, type EnqueuedAsset, type PluginI18nApi } from '@oktis-works/plugin-sdk';
 import { PLUGIN_PERMISSION_DEFAULT } from '@oktis-works/validation';
 import { PluginLoader, type DiscoveredPlugin } from './loader.js';
 import { PluginSandbox } from './sandbox.js';
@@ -453,6 +453,17 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
           const apiResult = createPluginApi(deps);
           apiToPass = apiResult.api;
           internal = apiResult.internal;
+
+          // Item 9: carrega os arquivos `locales[]` do manifesto antes do
+          // register() — traduções já disponíveis durante o boot. Falha de
+          // arquivo é silenciosa (fallback = própria key).
+          try {
+            const { loadPluginLocales } = await import('./i18n.js');
+            const i18n = (apiResult.api as { i18n?: PluginI18nApi }).i18n;
+            if (i18n) await loadPluginLocales(entry.path, entry.manifest, i18n);
+          } catch {
+            // i18n indisponível — segue o boot
+          }
         } else {
           apiToPass = createPluginHooksApi(name, recordingRegistry(registry, registrations, sandbox));
         }
