@@ -1144,10 +1144,6 @@ export class ApiClient {
     return this.request('POST', '/api/v1/themes/install', data);
   }
 
-  async uninstallTheme(id: string): Promise<void> {
-    await this.request('DELETE', `/api/v1/themes/${id}`);
-  }
-
   // Plugins
   async getPlugins(): Promise<PluginInfo[]> {
     const plugins = await this.request<Array<Record<string, unknown>>>('GET', '/api/v1/plugins');
@@ -1164,18 +1160,6 @@ export class ApiClient {
   /** Slots declarativos do admin (FEAT-098): manifest.admin + api.admin (runtime). */
   async getAdminExtensions(): Promise<AdminExtensionsState> {
     return this.request('GET', '/api/v1/plugins/extensions');
-  }
-
-  async activatePlugin(id: string, tenantId: string): Promise<PluginInfo> {
-    return this.request('POST', `/api/v1/plugins/${id}/activate`, { tenantId });
-  }
-
-  async deactivatePlugin(id: string, tenantId: string): Promise<PluginInfo> {
-    return this.request('POST', `/api/v1/plugins/${id}/deactivate`, { tenantId });
-  }
-
-  async uninstallPlugin(id: string): Promise<void> {
-    await this.request('DELETE', `/api/v1/plugins/${id}`);
   }
 
   /** Estado de runtime dos plugins (WP2) — por escopo platform/tenant. */

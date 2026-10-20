@@ -206,6 +206,7 @@ describe('ThemeService.activate / deactivate', () => {
   it('deactivate usa updated_at e NÃO a coluna inexistente deactivated_at', async () => {
     queue = [
       [themeRow({ status: 'ACTIVE' })],
+      [{ count: 2 }], // guard: more than one theme registered
       [themeRow({ status: 'INACTIVE' })],
     ];
 
@@ -220,6 +221,19 @@ describe('ThemeService.activate / deactivate', () => {
   it('deactivate devolve null para id inexistente', async () => {
     queue = [[]];
     expect(await new ThemeService().deactivate('fantasma')).toBeNull();
+  });
+
+  it('deactivate refuses when it is the only theme (an active theme must always remain)', async () => {
+    queue = [
+      [themeRow({ status: 'ACTIVE' })],
+      [{ count: 1 }], // only theme registered
+    ];
+
+    await expect(new ThemeService().deactivate('id-1')).rejects.toThrow(
+      /at least one active theme is required/i
+    );
+    // No UPDATE may run when the guard blocks the deactivation.
+    expect(allQueries.some((q) => q.text.includes('UPDATE themes'))).toBe(false);
   });
 });
 

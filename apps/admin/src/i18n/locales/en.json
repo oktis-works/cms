@@ -885,14 +885,13 @@
   },
   "plugins": {
     "title": "Plugins",
-    "description": "Manage installed plugins.",
-    "directoryHint": "Detected automatically from the project's plugins/ directory. Use the CLI or deploy files to add extensions.",
+    "description": "View installed plugins.",
+    "directoryHint": "Detected automatically from the project's plugins/ directory. To install, update or activate a plugin, place its files in plugins/ and restart the server (okcms start, pm2 or docker).",
     "columns": {
       "name": "Name",
       "version": "Version",
       "status": "Status",
-      "enabled": "Enabled for tenant",
-      "actions": "Actions"
+      "enabled": "Enabled for tenant"
     },
     "status": {
       "active": "Active",
@@ -902,8 +901,6 @@
       "missing": "Missing",
       "loadFailed": "Load failed"
     },
-    "activate": "Activate",
-    "deactivate": "Deactivate",
     "install": "Install plugin",
     "uninstall": "Uninstall",
     "confirmUninstall": "Uninstall {name}?",
@@ -911,14 +908,9 @@
     "version": "Version",
     "manifest": "Manifest (JSON)",
     "loadError": "Could not load plugins.",
-    "activateError": "Could not activate the plugin.",
-    "deactivateError": "Could not deactivate the plugin.",
     "installError": "Could not install the plugin.",
     "uninstallError": "Could not uninstall the plugin.",
     "empty": "No plugins installed.",
-    "selectTenant": "Select tenant",
-    "selectTenantPlaceholder": "Choose a tenant to activate/deactivate for",
-    "hideSelector": "Hide selector",
     "enabledForTenant": "Active for this tenant",
     "enabledYes": "Yes",
     "enabledNo": "No"
@@ -937,21 +929,14 @@
     "activate": "Activate",
     "deactivate": "Deactivate",
     "install": "Install theme",
-    "uninstall": "Uninstall",
-    "confirmUninstall": "Uninstall {name}?",
     "name": "Theme name",
     "manifest": "Manifest (JSON)",
     "loadError": "Could not load themes.",
     "activateError": "Could not activate the theme.",
     "deactivateError": "Could not deactivate the theme.",
+    "deactivateBlocked": "At least one theme must remain active.",
     "installError": "Could not install the theme.",
-    "uninstallError": "Could not uninstall the theme.",
     "reload": "Reload",
-    "configTitle": "Settings",
-    "configClose": "Hide settings",
-    "configSave": "Save settings",
-    "configSaved": "Settings saved.",
-    "configError": "Could not save the theme settings.",
     "empty": "No themes installed."
   },
   "notFound": {

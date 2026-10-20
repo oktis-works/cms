@@ -162,11 +162,21 @@ export class ThemeService {
     return (result[0] as unknown as Theme) ?? null;
   }
 
+  /**
+   * Deactivates a theme. Invariant: the site must always keep an active
+   * theme — deactivation is refused while it is the only registered theme;
+   * with multiple themes the admin re-activates one of the others.
+   */
   async deactivate(id: string): Promise<Theme | null> {
     const existing = await this.getById(id);
     if (!existing) return null;
 
     const sql = getConnection();
+    const countResult = await sql.unsafe('SELECT COUNT(*)::int AS count FROM themes');
+    const total = Number((countResult[0] as { count?: number | string } | undefined)?.count ?? 0);
+    if (total <= 1) {
+      throw new Error('Cannot deactivate the only available theme — at least one active theme is required');
+    }
     const result = await sql.unsafe(
       `UPDATE themes
        SET status = 'INACTIVE', updated_at = NOW()

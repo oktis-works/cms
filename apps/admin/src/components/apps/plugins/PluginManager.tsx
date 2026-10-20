@@ -2,15 +2,14 @@ import { For, createSignal, onMount } from 'solid-js';
 import { useTranslation } from '../../../i18n';
 import { apiClient, PluginInfo } from '../../../lib/api';
 
+// Read-only plugin listing. Installation, update and activation are manual:
+// drop the plugin files into the project's plugins/ directory and restart the
+// server (okcms start, pm2 or docker) — no actions are exposed here.
 export function PluginManager() {
   const { t } = useTranslation();
   const [plugins, setPlugins] = createSignal<PluginInfo[]>([]);
   const [loading, setLoading] = createSignal(true);
   const [error, setError] = createSignal<string | null>(null);
-  const [toggling, setToggling] = createSignal<string | null>(null);
-  const [tenantId, setTenantId] = createSignal<string | null>(null);
-  const [tenants, setTenants] = createSignal<Array<{ id: string; name: string }>>([]);
-  const [showTenantSelector, setShowTenantSelector] = createSignal(false);
 
   onMount(async () => {
     await loadPlugins();
@@ -25,40 +24,6 @@ export function PluginManager() {
       setError(t('plugins.loadError'));
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function loadTenants() {
-    try {
-      const data = await apiClient.listTenants({ limit: 100 });
-      setTenants(data.data.map(t => ({ id: t.id ?? '', name: t.name })));
-    } catch {
-      // ignora
-    }
-  }
-
-  // Ativo = enabled (vínculo ativo para o tenant corrente) OU status ACTIVATED (compat legacy)
-  const isActive = (plugin: PluginInfo): boolean => plugin.enabled === true;
-
-  async function handleToggle(plugin: PluginInfo) {
-    if (!tenantId()) {
-      // SUPER_ADMIN precisa selecionar tenant antes
-      setShowTenantSelector(true);
-      await loadTenants();
-      return;
-    }
-
-    const wasActive = isActive(plugin);
-    setToggling(plugin.id);
-    try {
-      const updated = wasActive
-        ? await apiClient.deactivatePlugin(plugin.id, tenantId()!)
-        : await apiClient.activatePlugin(plugin.id, tenantId()!);
-      setPlugins(plugins().map(p => p.id === plugin.id ? updated : p));
-    } catch {
-      setError(wasActive ? t('plugins.deactivateError') : t('plugins.activateError'));
-    } finally {
-      setToggling(null);
     }
   }
 
@@ -99,80 +64,47 @@ export function PluginManager() {
       {loading() && <div class="skeleton">Loading...</div>}
 
       {!loading() && !error() && (
-        <>
-          {showTenantSelector() && (
-            <div class="tenant-selector-bar">
-              <label>{t('plugins.selectTenant')}: </label>
-              <select
-                value={tenantId() ?? ''}
-                onChange={(e) => setTenantId(e.currentTarget.value || null)}
-              >
-                <option value="">{t('plugins.selectTenantPlaceholder')}</option>
-                <For each={tenants()}>
-                  {(t) => <option value={t.id}>{t.name} ({t.id})</option>}
-                </For>
-              </select>
-              <button class="btn btn-sm" onClick={() => setShowTenantSelector(false)}>
-                {t('plugins.hideSelector')}
-              </button>
-            </div>
-          )}
-
-          <div class="plugins-table-container">
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>{t('plugins.columns.name')}</th>
-                  <th>{t('plugins.columns.version')}</th>
-                  <th>{t('plugins.columns.status')}</th>
-                  <th>{t('plugins.columns.enabled')}</th>
-                  <th>{t('plugins.columns.actions')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                <For each={plugins()}>
-                  {(plugin) => (
-                    <tr class="plugin-row">
-                      <td class="plugin-name">
-                        <strong>{plugin.name}</strong>
-                        {plugin.manifest?.description && (
-                          <span class="plugin-description">{plugin.manifest!.description}</span>
-                        )}
-                        {plugin.enabled && <span class="badge-enabled">{t('plugins.enabledForTenant')}</span>}
-                      </td>
-                      <td>{plugin.version}</td>
-                      <td>
-                        <span class={`status-badge ${getStatusClass(plugin.status)}`}>
-                          {getStatusLabel(plugin.status)}
-                        </span>
-                      </td>
-                      <td>
-                        {plugin.enabled ? (
-                          <span class="enabled-badge">{t('plugins.enabledYes')}</span>
-                        ) : (
-                          <span class="disabled-badge">{t('plugins.enabledNo')}</span>
-                        )}
-                      </td>
-                      <td>
-                        <button
-                          class={`btn btn-sm ${toggling() === plugin.id ? 'btn-loading' : ''}`}
-                          onClick={() => handleToggle(plugin)}
-                          disabled={toggling() !== null || !tenantId()}
-                          aria-label={isActive(plugin) ? t('plugins.deactivate') : t('plugins.activate')}
-                        >
-                          {isActive(plugin)
-                            ? t('plugins.deactivate')
-                            : t('plugins.activate')}
-                        </button>
-                      </td>
-                    </tr>
-                  )}
-                </For>
-              </tbody>
-            </table>
-            {plugins().length === 0 && <div class="empty-state">{t('plugins.empty')}</div>}
-          </div>
-        </>
+        <div class="plugins-table-container">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>{t('plugins.columns.name')}</th>
+                <th>{t('plugins.columns.version')}</th>
+                <th>{t('plugins.columns.status')}</th>
+                <th>{t('plugins.columns.enabled')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <For each={plugins()}>
+                {(plugin) => (
+                  <tr class="plugin-row">
+                    <td class="plugin-name">
+                      <strong>{plugin.name}</strong>
+                      {plugin.manifest?.description && (
+                        <span class="plugin-description">{plugin.manifest!.description}</span>
+                      )}
+                      {plugin.enabled && <span class="badge-enabled">{t('plugins.enabledForTenant')}</span>}
+                    </td>
+                    <td>{plugin.version}</td>
+                    <td>
+                      <span class={`status-badge ${getStatusClass(plugin.status)}`}>
+                        {getStatusLabel(plugin.status)}
+                      </span>
+                    </td>
+                    <td>
+                      {plugin.enabled ? (
+                        <span class="enabled-badge">{t('plugins.enabledYes')}</span>
+                      ) : (
+                        <span class="disabled-badge">{t('plugins.enabledNo')}</span>
+                      )}
+                    </td>
+                  </tr>
+                )}
+              </For>
+            </tbody>
+          </table>
+          {plugins().length === 0 && <div class="empty-state">{t('plugins.empty')}</div>}
+        </div>
       )}
 
       <style>{`
@@ -180,26 +112,6 @@ export function PluginManager() {
           margin: 0 0 1.25rem;
           color: var(--color-muted);
           font-size: 0.8125rem;
-        }
-        .tenant-selector-bar {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          margin-bottom: 1rem;
-          padding: 0.75rem 1rem;
-          background: var(--color-surface);
-          border: 1px solid var(--color-border);
-          border-radius: var(--radius-md);
-          font-size: 0.8125rem;
-        }
-        .tenant-selector-bar select {
-          flex: 1;
-          max-width: 300px;
-          padding: 0.375rem 0.75rem;
-          border: 1px solid var(--color-border);
-          border-radius: var(--radius-sm);
-          background: var(--color-background);
-          color: var(--color-text);
         }
         .badge-enabled {
           display: inline-block;
@@ -285,10 +197,6 @@ export function PluginManager() {
         .status-load-failed {
           background: var(--color-error-soft);
           color: var(--color-error);
-        }
-        .btn-loading {
-          opacity: 0.6;
-          cursor: wait;
         }
         .empty-state {
           padding: 2rem;

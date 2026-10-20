@@ -885,14 +885,13 @@
   },
   "plugins": {
     "title": "Plugins",
-    "description": "Gerencie os plugins instalados.",
-    "directoryHint": "Detectados automaticamente no diretório plugins/ do projeto. Use a CLI ou o deploy para adicionar extensões.",
+    "description": "Visualize os plugins instalados.",
+    "directoryHint": "Detectados automaticamente no diretório plugins/ do projeto. Para instalar, atualizar ou ativar um plugin, coloque os arquivos em plugins/ e reinicie o servidor (okcms start, pm2 ou docker).",
     "columns": {
       "name": "Nome",
       "version": "Versão",
       "status": "Status",
-      "enabled": "Ativo no tenant",
-      "actions": "Ações"
+      "enabled": "Ativo no tenant"
     },
     "status": {
       "active": "Ativo",
@@ -902,8 +901,6 @@
       "missing": "Ausente",
       "loadFailed": "Falha ao carregar"
     },
-    "activate": "Ativar",
-    "deactivate": "Desativar",
     "install": "Instalar plugin",
     "uninstall": "Desinstalar",
     "confirmUninstall": "Desinstalar {name}?",
@@ -911,14 +908,9 @@
     "version": "Versão",
     "manifest": "Manifesto (JSON)",
     "loadError": "Não foi possível carregar os plugins.",
-    "activateError": "Não foi possível ativar o plugin.",
-    "deactivateError": "Não foi possível desativar o plugin.",
     "installError": "Não foi possível instalar o plugin.",
     "uninstallError": "Não foi possível desinstalar o plugin.",
     "empty": "Nenhum plugin instalado.",
-    "selectTenant": "Selecionar tenant",
-    "selectTenantPlaceholder": "Escolha um tenant para ativar/desativar",
-    "hideSelector": "Ocultar seletor",
     "enabledForTenant": "Ativo para este tenant",
     "enabledYes": "Sim",
     "enabledNo": "Não"
@@ -937,21 +929,14 @@
     "activate": "Ativar",
     "deactivate": "Desativar",
     "install": "Instalar tema",
-    "uninstall": "Desinstalar",
-    "confirmUninstall": "Desinstalar {name}?",
     "name": "Nome do tema",
     "manifest": "Manifesto (JSON)",
     "loadError": "Não foi possível carregar os temas.",
     "activateError": "Não foi possível ativar o tema.",
     "deactivateError": "Não foi possível desativar o tema.",
+    "deactivateBlocked": "É necessário manter pelo menos um tema ativo.",
     "installError": "Não foi possível instalar o tema.",
-    "uninstallError": "Não foi possível desinstalar o tema.",
     "reload": "Sincronizar",
-    "configTitle": "Configurações",
-    "configClose": "Ocultar configurações",
-    "configSave": "Salvar configurações",
-    "configSaved": "Configurações salvas.",
-    "configError": "Não foi possível salvar as configurações do tema.",
     "empty": "Nenhum tema instalado."
   },
   "notFound": {
