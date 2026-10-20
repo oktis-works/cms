@@ -133,6 +133,8 @@ export interface PluginAPI {
   assets: PluginAssetsApi;
   /** Traduções server-side (Item 9 — fallback chain locale → base → en). */
   i18n: PluginI18nApi;
+  /** Health checks agregados no /health (Item 14 — permissão health:register). */
+  health: PluginHealthApi;
   getSetting(key: string): Promise<unknown>;
   setSetting(key: string, value: unknown): Promise<void>;
   getTenant(): Promise<TenantInfo>;
@@ -306,6 +308,23 @@ export interface PluginI18nApi {
   locale(): string;
   /** Sets the plugin default locale (e.g. from the tenant language). */
   setDefaultLocale(locale: string): void;
+}
+
+/**
+ * Health check API for plugins (Item 14 — permission health:register).
+ * Registered checks run aggregated in GET /api/v1/health with a 2s budget
+ * each; failure/timeout never breaks the endpoint (reported as 'error').
+ */
+export interface PluginHealthCheckResult {
+  ok: boolean;
+  details?: Record<string, unknown>;
+}
+
+export type PluginHealthCheck = () => PluginHealthCheckResult | Promise<PluginHealthCheckResult>;
+
+export interface PluginHealthApi {
+  /** Registers a named health check for this plugin (duplicate names reject). */
+  register(name: string, check: PluginHealthCheck): void;
 }
 
 export interface RouteDefinition {

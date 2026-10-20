@@ -17,7 +17,7 @@
 //   - **por escopo**: o estado de carga é indexado por escopo (platform ou um
 //     tenant), então ativar/desativar num tenant não afeta outro.
 
-import { createPluginHooksApi, type HookRegistryLike, type PluginJobHandler, type AdminExtensionsState, type PluginBlockManifest, type PluginPatternManifest, type EnqueuedAsset, type PluginI18nApi } from '@oktis-works/plugin-sdk';
+import { createPluginHooksApi, type HookRegistryLike, type PluginJobHandler, type AdminExtensionsState, type PluginBlockManifest, type PluginPatternManifest, type EnqueuedAsset, type PluginHealthCheck, type PluginI18nApi } from '@oktis-works/plugin-sdk';
 import { PLUGIN_PERMISSION_DEFAULT } from '@oktis-works/validation';
 import { PluginLoader, type DiscoveredPlugin } from './loader.js';
 import { PluginSandbox } from './sandbox.js';
@@ -237,6 +237,25 @@ export function getLoadedPluginAssets(scopeKey: string): Array<{
   for (const [pluginName, entry] of scope.plugins) {
     const assets = entry.internal?.getEnqueuedAssets?.();
     if (assets && assets.length > 0) result.push({ pluginName, assets });
+  }
+  return result;
+}
+
+/**
+ * Health checks registered at runtime via `api.health` by the plugins loaded
+ * in a scope — aggregated by GET /api/v1/health (Item 14). Only plugins with
+ * at least one check are returned.
+ */
+export function getLoadedPluginHealthChecks(scopeKey: string): Array<{
+  pluginName: string;
+  checks: Array<{ name: string; check: PluginHealthCheck }>;
+}> {
+  const scope = loadedScopes.get(scopeKey);
+  if (!scope) return [];
+  const result: Array<{ pluginName: string; checks: Array<{ name: string; check: PluginHealthCheck }> }> = [];
+  for (const [pluginName, entry] of scope.plugins) {
+    const checks = entry.internal?.getHealthChecks?.();
+    if (checks && checks.length > 0) result.push({ pluginName, checks });
   }
   return result;
 }

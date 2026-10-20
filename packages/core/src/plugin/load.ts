@@ -49,7 +49,7 @@ import { queueProducer } from '../queue/producer.js';
 import { getCurrentTenantIdSync, getCurrentUserIdSync, getCurrentRequestIdSync } from '../tenant/context.js';
 import type { RouteDefinition, PluginBootstrapResult, PluginApiDependencies } from '@oktis-works/plugin-runtime';
 import type { AdminExtensionsState, PluginBlockManifest, PluginPatternManifest } from '@oktis-works/types';
-import type { EnqueuedAsset } from '@oktis-works/plugin-sdk';
+import type { EnqueuedAsset, PluginHealthCheck } from '@oktis-works/plugin-sdk';
 
 // Dynamic imports for circular dependency with plugin-runtime
 // Using require with computed string to avoid TypeScript compile-time checking
@@ -75,6 +75,7 @@ const getLoadedPluginAdminExtensions = async () => (await getPluginRuntimeCached
 const getLoadedPluginBlocks = async () => (await getPluginRuntimeCached()).getLoadedPluginBlocks;
 const getLoadedPluginPatterns = async () => (await getPluginRuntimeCached()).getLoadedPluginPatterns;
 const getLoadedPluginAssets = async () => (await getPluginRuntimeCached()).getLoadedPluginAssets;
+const getLoadedPluginHealthChecks = async () => (await getPluginRuntimeCached()).getLoadedPluginHealthChecks;
 
 /** Handler de job de plugin (dispatch do worker). */
 export type PluginJobHandlerFn = (
@@ -165,6 +166,21 @@ export async function getPluginAssets(
 ): Promise<Array<{ pluginName: string; assets: EnqueuedAsset[] }>> {
   try {
     return await (await getLoadedPluginAssets())(scopeKey(tenantId));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Health checks registered by the loaded plugins of a scope — aggregated by
+ * GET /api/v1/health (Item 14). Never throws: runtime unavailability becomes
+ * an empty list.
+ */
+export async function getPluginHealthChecks(
+  tenantId: string | null
+): Promise<Array<{ pluginName: string; checks: Array<{ name: string; check: PluginHealthCheck }> }>> {
+  try {
+    return await (await getLoadedPluginHealthChecks())(scopeKey(tenantId));
   } catch {
     return [];
   }

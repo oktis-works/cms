@@ -6,7 +6,7 @@
 
 import { randomUUID } from 'node:crypto';
 import type { HookRegistryLike } from '@oktis-works/plugin-sdk';
-import type { PluginManifest, PluginFieldTypeManifest, PluginPostTypeDeclaration, PluginTaxonomyDeclaration, PluginBlockManifest, PluginPatternManifest, PluginCacheApi, PluginJobsApi, PluginJobHandler, PluginHttpApi, PluginAdminApi, PluginRolesApi, PluginAssetsApi, PluginI18nApi, EnqueuedAsset, EnqueuedStyle, EnqueuedScript, AdminExtensionsState } from '@oktis-works/plugin-sdk';
+import type { PluginManifest, PluginFieldTypeManifest, PluginPostTypeDeclaration, PluginTaxonomyDeclaration, PluginBlockManifest, PluginPatternManifest, PluginCacheApi, PluginJobsApi, PluginJobHandler, PluginHttpApi, PluginAdminApi, PluginRolesApi, PluginAssetsApi, PluginI18nApi, PluginHealthApi, PluginHealthCheck, EnqueuedAsset, EnqueuedStyle, EnqueuedScript, AdminExtensionsState } from '@oktis-works/plugin-sdk';
 import { PERMISSIONS, createPluginAdminApi } from '@oktis-works/plugin-sdk';
 import { createHttpApi } from './http.js';
 import { i18nFallbackChain, i18nInterpolate } from './i18n.js';
@@ -98,6 +98,9 @@ export interface PluginAPI {
 
   /** Traduções server-side (Item 9 — fallback chain locale → base → en). */
   readonly i18n: PluginI18nApi;
+
+  /** Health checks agregados no /health (Item 14 — permissão health:register). */
+  readonly health: PluginHealthApi;
 
   /** Lê setting do tenant (group/key). */
   getSetting(key: string, group?: string): Promise<unknown>;
@@ -555,6 +558,26 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
     },
   };
 
+  // ── api.health (Item 14): health checks nomeados por plugin, agregados no
+  // GET /api/v1/health com orçamento de 2s por check. Nome duplicado rejeita.
+  const healthChecks = new Map<string, PluginHealthCheck>();
+
+  const healthApi: PluginHealthApi = {
+    register(name, check) {
+      requirePermission(PERMISSIONS.HEALTH_REGISTER);
+      if (typeof name !== 'string' || name.trim().length === 0) {
+        throw new Error('health.register requires a non-empty name');
+      }
+      if (typeof check !== 'function') {
+        throw new Error('health.register requires a check function');
+      }
+      if (healthChecks.has(name)) {
+        throw new Error(`Health check "${name}" already registered`);
+      }
+      healthChecks.set(name, check);
+    },
+  };
+
   // Build the public API object
   const api: PluginAPI = {
     registerHook(type: string, handler: (context: PluginContext, payload: unknown) => void | Promise<void>): void {
@@ -746,6 +769,7 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
     roles: rolesApi,
     assets: assetsApi,
     i18n: i18nApi,
+    health: healthApi,
 
     async getSetting(key: string, group?: string): Promise<unknown> {
       if (!allowedPermissions.includes('settings:read')) {
@@ -831,6 +855,7 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
       getBlocks: () => registeredBlocks,
       getPatterns: () => registeredPatterns,
       getEnqueuedAssets: () => registeredAssets,
+      getHealthChecks: () => [...healthChecks.entries()].map(([name, check]) => ({ name, check })),
     },
   };
 }
@@ -852,4 +877,6 @@ export interface PluginApiInternal {
   getPatterns: () => Array<PluginPatternManifest & { pluginName: string }>;
   /** Assets enfileirados em runtime via api.assets (Item 8). */
   getEnqueuedAssets: () => EnqueuedAsset[];
+  /** Health checks registrados em runtime via api.health (Item 14). */
+  getHealthChecks: () => Array<{ name: string; check: PluginHealthCheck }>;
 }
