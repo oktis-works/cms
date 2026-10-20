@@ -1,5 +1,11 @@
 # @oktis-works/validation
 
+## 0.7.0
+
+### Minor Changes
+
+- 12d1963: Add patterns:register to the plugin permission catalog (editor patterns data plane, parity E4).
+
 ## 0.6.0
 
 ### Minor Changes

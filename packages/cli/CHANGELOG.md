@@ -1,5 +1,23 @@
 # @oktis-works/cms
 
+## 0.10.0
+
+### Minor Changes
+
+- WordPress-parity items 9 and 20: new `okcms i18n:extract` command (extracts api.i18n.translate()/__() keys from plugin sources into locales/<locale>.json, preserving existing translations) and the plugin migrations schema delivered with the project migrations.
+
+### Patch Changes
+
+- Updated dependencies [12d1963]
+- Updated dependencies [12d1963]
+- Updated dependencies
+  - @oktis-works/core@0.7.0
+  - @oktis-works/validation@0.7.0
+  - @oktis-works/database@0.8.0
+  - @oktis-works/auth@0.7.2
+  - @oktis-works/config@0.6.4
+  - @oktis-works/theme-runtime@0.6.4
+
 ## 0.9.7
 
 ### Patch Changes

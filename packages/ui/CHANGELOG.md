@@ -1,5 +1,12 @@
 # @oktis-works/ui
 
+## 0.5.8
+
+### Patch Changes
+
+- Updated dependencies [12d1963]
+  - @oktis-works/validation@0.7.0
+
 ## 0.5.7
 
 ### Patch Changes

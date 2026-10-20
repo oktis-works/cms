@@ -1,5 +1,20 @@
 # @oktis-works/plugin-runtime
 
+## 0.7.0
+
+### Minor Changes
+
+- 12d1963: Runtime support for plugin admin UI and editor extension points (parity E1–E8): manifest v2 validation for admin.editors[] and patterns[]; api.registerBlock/api.registerPattern with permission checks and duplicate rejection exposed via internal.getBlocks/getPatterns; per-scope collectors getLoadedPluginBlocks/getLoadedPluginPatterns alongside getLoadedPluginAdminExtensions; fix for the platform scope key ('' → 'platform') that emptied platform-scoped lookups.
+
+### Patch Changes
+
+- Updated dependencies [12d1963]
+- Updated dependencies [12d1963]
+- Updated dependencies [12d1963]
+  - @oktis-works/plugin-sdk@0.7.0
+  - @oktis-works/types@0.9.0
+  - @oktis-works/validation@0.7.0
+
 ## 0.6.1
 
 ### Patch Changes

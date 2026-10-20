@@ -1,5 +1,17 @@
 # @oktis-works/database
 
+## 0.8.0
+
+### Minor Changes
+
+- WordPress-parity medium phase (items 6–12): comments system (comments + comment_meta with RLS), mails outbox (mails with RLS), webhook hardening (webhook_secrets + webhook_dead_letters) and lazy field types (field_type_extensions.lazy).
+
+### Patch Changes
+
+- Updated dependencies [12d1963]
+  - @oktis-works/types@0.9.0
+  - @oktis-works/config@0.6.4
+
 ## 0.7.1
 
 ### Patch Changes

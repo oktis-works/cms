@@ -1,5 +1,26 @@
 # @oktis-works/web
 
+## 0.10.0
+
+### Minor Changes
+
+- 12d1963: Apply theme:before:render and theme:after:render on the public render path (parity E5): plugins can compile editor documents into HTML at render time (context: template, contentType, slug, activeTheme, settings, contentRow) and post-process the final document.
+
+### Patch Changes
+
+- Updated dependencies [12d1963]
+- Updated dependencies [12d1963]
+- Updated dependencies [12d1963]
+- Updated dependencies [12d1963]
+- Updated dependencies
+  - @oktis-works/core@0.7.0
+  - @oktis-works/plugin-runtime@0.7.0
+  - @oktis-works/types@0.9.0
+  - @oktis-works/validation@0.7.0
+  - @oktis-works/database@0.8.0
+  - @oktis-works/config@0.6.4
+  - @oktis-works/theme-runtime@0.6.4
+
 ## 0.9.4
 
 ### Patch Changes

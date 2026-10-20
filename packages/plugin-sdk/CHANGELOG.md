@@ -1,5 +1,18 @@
 # @oktis-works/plugin-sdk
 
+## 0.7.0
+
+### Minor Changes
+
+- 12d1963: Editor extensibility APIs for plugins (parity E1–E8): api.admin.addEditor (editor slot registrations with id/screens/mode validation), api.registerBlock (blocks:register), api.registerPattern (patterns:register), the new patterns:register permission, AdminEditorRegistration re-export and the shared admin extension state factory.
+
+### Patch Changes
+
+- Updated dependencies [12d1963]
+- Updated dependencies [12d1963]
+  - @oktis-works/types@0.9.0
+  - @oktis-works/validation@0.7.0
+
 ## 0.6.0
 
 ### Minor Changes

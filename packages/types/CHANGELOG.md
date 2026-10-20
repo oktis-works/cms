@@ -1,5 +1,16 @@
 # @oktis-works/types
 
+## 0.9.0
+
+### Minor Changes
+
+- 12d1963: Editor extensibility for plugin-built block editors (parity E1–E8): new AdminEditorRegistration ({ id, label?, screens, mode: 'replace-body' | 'below', priority?, componentId }), editors on PluginManifestAdmin and AdminExtensionsState, and PluginPatternManifest with manifest v2 patterns[] for the editor-agnostic pattern catalog.
+
+### Patch Changes
+
+- Updated dependencies [12d1963]
+  - @oktis-works/validation@0.7.0
+
 ## 0.8.0
 
 ### Minor Changes

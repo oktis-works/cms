@@ -1,5 +1,24 @@
 # @oktis-works/api
 
+## 0.13.0
+
+### Minor Changes
+
+- 12d1963: New editor extension endpoints (parity E1–E8): GET /api/v1/plugins/extensions (merged manifest + runtime admin extension state with plugin namespacing and dedupe), GET /api/v1/blocks and GET /api/v1/patterns (editor-agnostic catalogs merging manifest declarations with runtime registrations — no tables, entries exist while plugins are active).
+
+### Patch Changes
+
+- Updated dependencies [12d1963]
+- Updated dependencies [12d1963]
+- Updated dependencies [12d1963]
+- Updated dependencies
+  - @oktis-works/core@0.7.0
+  - @oktis-works/types@0.9.0
+  - @oktis-works/validation@0.7.0
+  - @oktis-works/database@0.8.0
+  - @oktis-works/auth@0.7.2
+  - @oktis-works/config@0.6.4
+
 ## 0.12.1
 
 ### Patch Changes

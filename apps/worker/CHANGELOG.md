@@ -1,5 +1,21 @@
 # @oktis-works/worker
 
+## 0.8.0
+
+### Minor Changes
+
+- WordPress-parity items 12 and 19: mail.deliver handler (outbox transport with MAIL_TRANSPORT, default 'log') on the new `mails` queue, and hardened webhook deliveries — HMAC signing with the newest active secret version (X-Webhook-Secret-Version) and dead-letter recording for exhausted deliveries.
+
+### Patch Changes
+
+- Updated dependencies [12d1963]
+- Updated dependencies [12d1963]
+- Updated dependencies
+  - @oktis-works/core@0.7.0
+  - @oktis-works/types@0.9.0
+  - @oktis-works/database@0.8.0
+  - @oktis-works/config@0.6.4
+
 ## 0.7.4
 
 ### Patch Changes

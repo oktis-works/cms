@@ -1,5 +1,23 @@
 # @oktis-works/core
 
+## 0.7.0
+
+### Minor Changes
+
+- 12d1963: Core plumbing for editor extensibility (parity E1–E8): getPluginBlocks/getPluginPatterns accessors (lazy plugin-runtime import, never throw), the 'block' location parameter for field groups (field groups can target editor blocks by namespaced type) and getPluginAdminExtensions for the admin extension state.
+
+### Patch Changes
+
+- Updated dependencies [12d1963]
+- Updated dependencies [12d1963]
+- Updated dependencies [12d1963]
+- Updated dependencies
+  - @oktis-works/plugin-runtime@0.7.0
+  - @oktis-works/types@0.9.0
+  - @oktis-works/validation@0.7.0
+  - @oktis-works/database@0.8.0
+  - @oktis-works/config@0.6.4
+
 ## 0.6.1
 
 ### Patch Changes
