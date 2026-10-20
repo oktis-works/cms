@@ -17,6 +17,7 @@ import {
   cacheInvalidateHandler,
   pluginJobHandler,
 } from './jobs/handlers.js';
+import { mailDeliverHandler } from './jobs/mail-deliver.js';
 
 async function main() {
   const lifecycle = await bootstrap();
@@ -46,6 +47,7 @@ async function main() {
   queueManager.registerHandler('cleanup.expired_audit_logs', cleanupExpiredAuditLogsHandler);
   queueManager.registerHandler('cache.invalidate', cacheInvalidateHandler);
   queueManager.registerHandler('plugin.job', pluginJobHandler);
+  queueManager.registerHandler('mail.deliver', mailDeliverHandler);
 
   await queueManager.startWorker('content');
   await queueManager.startWorker('media');
@@ -54,6 +56,7 @@ async function main() {
   await queueManager.startWorker('webhooks');
   await queueManager.startWorker('system');
   await queueManager.startWorker('plugins');
+  await queueManager.startWorker('mails');
 
   // `stats.queues` só tem as filas com Queue de PRODUÇÃO criada (o addJob do
   // scheduler cria depois); os workers recém-iniciados ficam em `workers`.

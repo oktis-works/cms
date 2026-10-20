@@ -135,6 +135,8 @@ export interface PluginAPI {
   i18n: PluginI18nApi;
   /** Health checks agregados no /health (Item 14 — permissão health:register). */
   health: PluginHealthApi;
+  /** Envio de e-mail via outbox (Item 12 — permissão mail:send). */
+  mail: PluginMailApi;
   getSetting(key: string): Promise<unknown>;
   setSetting(key: string, value: unknown): Promise<void>;
   getTenant(): Promise<TenantInfo>;
@@ -325,6 +327,36 @@ export type PluginHealthCheck = () => PluginHealthCheckResult | Promise<PluginHe
 export interface PluginHealthApi {
   /** Registers a named health check for this plugin (duplicate names reject). */
   register(name: string, check: PluginHealthCheck): void;
+}
+
+/**
+ * Mail template registered via api.mail.registerTemplate (Item 12).
+ * Strings support {param} interpolation from send()'s params.
+ */
+export interface PluginMailTemplate {
+  subject: string;
+  html?: string;
+  text?: string;
+}
+
+/**
+ * Mail API for plugins (Item 12 — permission mail:send). Messages land in a
+ * durable outbox (`mails`) and are delivered by the worker with a per-plugin
+ * rate limit; the queue being unavailable keeps the outbox row (never lost).
+ * Returns false when the send was refused (rate limit) or the queue is down.
+ */
+export interface PluginMailApi {
+  /** Registers a named template (duplicate names reject). */
+  registerTemplate(name: string, template: PluginMailTemplate): void;
+  /** Enqueues a message — by template or explicit subject/body. */
+  send(input: {
+    to: string;
+    template?: string;
+    params?: Record<string, unknown>;
+    subject?: string;
+    html?: string;
+    text?: string;
+  }): Promise<boolean>;
 }
 
 export interface RouteDefinition {

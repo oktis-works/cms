@@ -6,7 +6,7 @@
 
 import { randomUUID } from 'node:crypto';
 import type { HookRegistryLike } from '@oktis-works/plugin-sdk';
-import type { PluginManifest, PluginFieldTypeManifest, PluginPostTypeDeclaration, PluginTaxonomyDeclaration, PluginBlockManifest, PluginPatternManifest, PluginCacheApi, PluginJobsApi, PluginJobHandler, PluginHttpApi, PluginAdminApi, PluginRolesApi, PluginAssetsApi, PluginI18nApi, PluginHealthApi, PluginHealthCheck, EnqueuedAsset, EnqueuedStyle, EnqueuedScript, AdminExtensionsState } from '@oktis-works/plugin-sdk';
+import type { PluginManifest, PluginFieldTypeManifest, PluginPostTypeDeclaration, PluginTaxonomyDeclaration, PluginBlockManifest, PluginPatternManifest, PluginCacheApi, PluginJobsApi, PluginJobHandler, PluginHttpApi, PluginAdminApi, PluginRolesApi, PluginAssetsApi, PluginI18nApi, PluginHealthApi, PluginHealthCheck, PluginMailApi, PluginMailTemplate, EnqueuedAsset, EnqueuedStyle, EnqueuedScript, AdminExtensionsState } from '@oktis-works/plugin-sdk';
 import { PERMISSIONS, createPluginAdminApi } from '@oktis-works/plugin-sdk';
 import { createHttpApi } from './http.js';
 import { i18nFallbackChain, i18nInterpolate } from './i18n.js';
@@ -101,6 +101,9 @@ export interface PluginAPI {
 
   /** Health checks agregados no /health (Item 14 — permissão health:register). */
   readonly health: PluginHealthApi;
+
+  /** Envio de e-mail via outbox (Item 12 — permissão mail:send). */
+  readonly mail: PluginMailApi;
 
   /** Lê setting do tenant (group/key). */
   getSetting(key: string, group?: string): Promise<unknown>;
@@ -207,6 +210,22 @@ export interface PluginApiDependencies {
     add(input: { tenantId: string; pluginName: string; name: string; slug?: string; permissions?: string[] }): Promise<{ id: string; name: string; slug: string; permissions: string[] }>;
     remove(input: { tenantId: string; pluginName: string; slug: string }): Promise<boolean>;
     addPermission(input: { tenantId: string; pluginName: string; slug: string; permission: string }): Promise<boolean>;
+  };
+  /**
+   * Backend de mail do core (Item 12 — outbox + rate limit + audit).
+   * Ausente → api.mail.send retorna false (fila indisponível, como jobs).
+   */
+  mail?: {
+    send(input: {
+      tenantId: string | null;
+      pluginName: string;
+      to: string;
+      subject: string;
+      html?: string;
+      text?: string;
+      template?: string;
+      params?: Record<string, unknown>;
+    }): Promise<boolean>;
   };
 }
 
@@ -578,6 +597,76 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
     },
   };
 
+  // ── api.mail (Item 12): templates por plugin + envio via outbox do core.
+  // Templates suportam {param} (mesma interpolação do i18n). O backend é
+  // opcional: ausente → send retorna false (fila indisponível, como jobs).
+  const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const mailTemplates = new Map<string, PluginMailTemplate>();
+
+  function renderMailString(template: string, params?: Record<string, unknown>): string {
+    return i18nInterpolate(template, params);
+  }
+
+  const mailApi: PluginMailApi = {
+    registerTemplate(name, template) {
+      requirePermission(PERMISSIONS.MAIL_SEND);
+      if (typeof name !== 'string' || name.trim().length === 0) {
+        throw new Error('mail.registerTemplate requires a non-empty name');
+      }
+      if (!template || typeof template.subject !== 'string' || template.subject.trim().length === 0) {
+        throw new Error('mail template "subject" is required');
+      }
+      if (mailTemplates.has(name)) {
+        throw new Error(`Mail template "${name}" already registered`);
+      }
+      mailTemplates.set(name, {
+        subject: template.subject,
+        html: typeof template.html === 'string' ? template.html : undefined,
+        text: typeof template.text === 'string' ? template.text : undefined,
+      });
+    },
+
+    async send(input) {
+      requirePermission(PERMISSIONS.MAIL_SEND);
+      if (!input || typeof input.to !== 'string' || !EMAIL_PATTERN.test(input.to)) {
+        throw new Error(`Invalid recipient email "${String(input?.to)}"`);
+      }
+
+      let subject = input.subject;
+      let html = input.html;
+      let text = input.text;
+
+      if (input.template !== undefined) {
+        const template = mailTemplates.get(input.template);
+        if (!template) {
+          throw new Error(`Mail template "${input.template}" is not registered`);
+        }
+        subject = renderMailString(template.subject, input.params);
+        html = template.html !== undefined ? renderMailString(template.html, input.params) : html;
+        text = template.text !== undefined ? renderMailString(template.text, input.params) : text;
+      }
+
+      if (typeof subject !== 'string' || subject.trim().length === 0) {
+        throw new Error('Mail "subject" is required (or register/use a template)');
+      }
+      if (!html && !text) {
+        throw new Error('Mail requires html or text body');
+      }
+
+      if (!deps.mail) return false;
+      return deps.mail.send({
+        tenantId: getTenantId(),
+        pluginName: manifest.name,
+        to: input.to,
+        subject,
+        html,
+        text,
+        template: input.template,
+        params: input.params,
+      });
+    },
+  };
+
   // Build the public API object
   const api: PluginAPI = {
     registerHook(type: string, handler: (context: PluginContext, payload: unknown) => void | Promise<void>): void {
@@ -770,6 +859,7 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
     assets: assetsApi,
     i18n: i18nApi,
     health: healthApi,
+    mail: mailApi,
 
     async getSetting(key: string, group?: string): Promise<unknown> {
       if (!allowedPermissions.includes('settings:read')) {

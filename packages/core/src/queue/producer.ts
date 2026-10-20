@@ -19,7 +19,8 @@ export type JobType =
   | 'cache.invalidate'
   | 'cleanup.expired_sessions'
   | 'cleanup.expired_audit_logs'
-  | 'plugin.job';
+  | 'plugin.job'
+  | 'mail.deliver';
 
 /** jobType → fila BullMQ (o worker registra um worker por fila). */
 const QUEUE_BY_JOB_TYPE: Record<JobType, string> = {
@@ -33,6 +34,7 @@ const QUEUE_BY_JOB_TYPE: Record<JobType, string> = {
   'cleanup.expired_sessions': 'system',
   'cleanup.expired_audit_logs': 'system',
   'plugin.job': 'plugins',
+  'mail.deliver': 'mails',
 };
 
 export interface EnqueueOptions {
