@@ -373,6 +373,33 @@ export function rateLimitMiddleware(options: RateLimitOptions = {}) {
 }
 
 /**
+ * Limiter POR PLUGIN (Item 17 do plugin-parity-plan): orçamento de rpm sobre
+ * TODA a superfície de rotas HTTP do plugin (montadas em
+ * /api/v1/plugins/:plugin). Um plugin pesado não consegue consumir o
+ * orçamento dos demais nem derrubar a API. Default 120 rpm, override pelo
+ * manifesto (`rateLimit.rpm`). Resposta 429 com headers de rate limit.
+ */
+export function pluginRateLimitMiddleware(pluginName: string, rpm?: number) {
+  loadConfig();
+  const limit = rpm && rpm > 0 ? Math.floor(rpm) : 120;
+  const windowMs = 60_000;
+
+  return async (c: Context, next: Next): Promise<Response | undefined> => {
+    const now = Date.now();
+    const result = consume(`plugin-routes:${pluginName}`, 1, windowMs, now);
+
+    if (result.count > limit) {
+      return rateLimitResponse(c, limit, result.resetAt);
+    }
+
+    c.header('X-RateLimit-Limit', String(limit));
+    c.header('X-RateLimit-Remaining', String(Math.max(0, limit - result.count)));
+    await next();
+    return;
+  };
+}
+
+/**
  * Limiter dedicado de credenciais (POST /auth/login).
  *
  * Duas chaves simultâneas: por IP (segura o ataque de um host rotando

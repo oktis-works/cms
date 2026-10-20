@@ -7,6 +7,7 @@ import { cors } from 'hono/cors';
 import { prettyJSON } from 'hono/pretty-json';
 import { serve } from '@hono/node-server';
 import { bootstrap, getEventBus, registerEventAuditLog, getRegisteredPluginRoutes } from '@oktis-works/core';
+import { pluginRateLimitMiddleware } from './middleware/rate-limit.js';
 import { CMS_VERSION } from '@oktis-works/validation';
 import { loadConfig } from '@oktis-works/config';
 import { traceMiddleware } from './middleware/trace.js';
@@ -45,8 +46,11 @@ import hooksCatalogRouter from './routes/hooks/index.js';
 
 function mountPluginRoutes(app: import('hono').Hono): void {
   const pluginRoutes = getRegisteredPluginRoutes();
-  for (const { pluginName, routes } of pluginRoutes) {
+  for (const { pluginName, routes, rpm } of pluginRoutes) {
     const pluginRouter = new Hono();
+    // Item 17: orçamento de rpm por plugin (manifest rateLimit.rpm, default
+    // 120) sobre toda a superfície de rotas do plugin — 429 acima do teto.
+    pluginRouter.use('*', pluginRateLimitMiddleware(pluginName, rpm));
     for (const route of routes) {
       const method = route.method.toLowerCase() as 'get' | 'post' | 'put' | 'patch' | 'delete' | 'options';
       if (pluginRouter[method]) {

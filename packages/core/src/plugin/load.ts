@@ -207,14 +207,16 @@ export interface PluginsRuntimeState {
 export interface PluginRouteEntry {
   pluginName: string;
   routes: RouteDefinition[];
+  /** rpm do rate limit por plugin (manifest rateLimit.rpm, Item 17). */
+  rpm?: number;
 }
 
 const pluginRoutesRegistry = new Map<string, PluginRouteEntry>();
 
 /** Registra rotas de um plugin (chamado durante bootstrap). */
-export function registerPluginRoutes(pluginName: string, routes: RouteDefinition[]): void {
+export function registerPluginRoutes(pluginName: string, routes: RouteDefinition[], rpm?: number): void {
   if (routes.length === 0) return;
-  pluginRoutesRegistry.set(pluginName, { pluginName, routes });
+  pluginRoutesRegistry.set(pluginName, { pluginName, routes, ...(rpm ? { rpm } : {}) });
 }
 
 /** Remove rotas de um plugin (quando desativado/desinstalado). */
@@ -533,8 +535,8 @@ async function syncScope(tenantId: string | null, force: boolean): Promise<Plugi
       // Coleta rotas registradas pelos plugins neste escopo
       const scopeKey = key; // 'platform' ou 'tenant:<id>'
       const pluginRoutes = await (await getLoadedPluginRoutes())(scopeKey);
-      for (const { pluginName, routes } of pluginRoutes) {
-        registerPluginRoutes(pluginName, routes);
+      for (const { pluginName, routes, rpm } of pluginRoutes) {
+        registerPluginRoutes(pluginName, routes, rpm);
       }
 
       // Remove rotas de plugins que foram descarregados (unloaded)

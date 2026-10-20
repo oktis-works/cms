@@ -17,7 +17,7 @@
 //   - **por escopo**: o estado de carga é indexado por escopo (platform ou um
 //     tenant), então ativar/desativar num tenant não afeta outro.
 
-import { createPluginHooksApi, type HookRegistryLike, type PluginJobHandler, type AdminExtensionsState, type PluginBlockManifest, type PluginPatternManifest, type EnqueuedAsset, type PluginHealthCheck, type PluginI18nApi } from '@oktis-works/plugin-sdk';
+import { createPluginHooksApi, type HookRegistryLike, type PluginJobHandler, type AdminExtensionsState, type PluginBlockManifest, type PluginPatternManifest, type EnqueuedAsset, type PluginHealthCheck, type PluginI18nApi, type PluginManifest } from '@oktis-works/plugin-sdk';
 import { PLUGIN_PERMISSION_DEFAULT } from '@oktis-works/validation';
 import { PluginLoader, type DiscoveredPlugin } from './loader.js';
 import { PluginSandbox } from './sandbox.js';
@@ -78,6 +78,8 @@ interface TrackedRegistration {
 interface LoadedEntry {
   registrations: TrackedRegistration[];
   internal?: PluginApiInternal;
+  /** Manifesto original (rpm de rate limit das rotas, Item 17). */
+  manifest: PluginManifest;
 }
 
 interface LoadedScope {
@@ -115,15 +117,21 @@ export function listLoadedScopes(): Array<{ scope: string; registry: HookRegistr
 }
 
 /** Obtém as rotas registradas pelos plugins em um escopo. */
-export function getLoadedPluginRoutes(scopeKey: string): Array<{ pluginName: string; routes: RouteDefinition[] }> {
+export function getLoadedPluginRoutes(scopeKey: string): Array<{
+  pluginName: string;
+  routes: RouteDefinition[];
+  /** rpm do rate limit das rotas (manifest rateLimit.rpm, Item 17). */
+  rpm?: number;
+}> {
   const scope = loadedScopes.get(scopeKey);
   if (!scope) return [];
-  const result: Array<{ pluginName: string; routes: RouteDefinition[] }> = [];
+  const result: Array<{ pluginName: string; routes: RouteDefinition[]; rpm?: number }> = [];
   for (const [pluginName, entry] of scope.plugins) {
     if (entry.internal) {
       const routes = entry.internal.getRoutes();
       if (routes.length > 0) {
-        result.push({ pluginName, routes });
+        const rpm = entry.manifest?.rateLimit?.rpm;
+        result.push({ pluginName, routes, ...(typeof rpm === 'number' && rpm > 0 ? { rpm } : {}) });
       }
     }
   }
@@ -500,7 +508,7 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
         ]);
 
         if (internal) {
-          scope.plugins.set(name, { registrations, internal });
+          scope.plugins.set(name, { registrations, internal, manifest: entry.manifest });
 
           // Registro declarativo do manifesto (v2): postTypes/taxonomies passam
           // pela mesma validação da API (permissão, slug, conflito) e a factory
@@ -559,7 +567,7 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
             }
           }
         } else {
-          scope.plugins.set(name, { registrations });
+          scope.plugins.set(name, { registrations, manifest: entry.manifest });
         }
         result.loaded.push(name);
       } catch (error) {

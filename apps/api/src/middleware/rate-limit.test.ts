@@ -19,6 +19,7 @@ vi.mock('@oktis-works/core', () => ({
 import { Hono } from 'hono';
 import {
   rateLimitMiddleware,
+  pluginRateLimitMiddleware,
   loginRateLimitMiddleware,
   resetRateLimiter,
   parseRateLimitEnv,
@@ -360,5 +361,41 @@ describe('loginRateLimitMiddleware (brute force)', () => {
 
     // Outro prefixo não é pego pelo balde do primeiro.
     expect((await app.request('/api/v1/auth/api-key-login', attempt('okcms_bbb222_x'))).status).toBe(200);
+  });
+});
+
+describe('pluginRateLimitMiddleware (Item 17)', () => {
+  function buildPluginApp(rpm?: number) {
+    const app = new Hono();
+    app.use('*', pluginRateLimitMiddleware('heavy-plugin', rpm));
+    app.get('/api/v1/plugins/heavy-plugin/data', (c) => c.json({ ok: true }));
+    return app;
+  }
+
+  it('allows requests under the manifest rpm and returns 429 above it', async () => {
+    const res1 = await buildPluginApp(2).request('/api/v1/plugins/heavy-plugin/data');
+    const res2 = await buildPluginApp(2).request('/api/v1/plugins/heavy-plugin/data');
+    const res3 = await buildPluginApp(2).request('/api/v1/plugins/heavy-plugin/data');
+
+    expect(res1.status).toBe(200);
+    expect(res2.status).toBe(200);
+    expect(res3.status).toBe(429);
+    expect(res3.headers.get('X-RateLimit-Limit')).toBe('2');
+  });
+
+  it('defaults to 120 rpm when the manifest declares none', async () => {
+    const app = buildPluginApp(undefined);
+    const res = await app.request('/api/v1/plugins/heavy-plugin/data');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('X-RateLimit-Limit')).toBe('120');
+  });
+
+  it('shares one budget across the plugin surface (all clients)', async () => {
+    const app = buildPluginApp(1);
+    const first = await app.request('/api/v1/plugins/heavy-plugin/data', { headers: { 'x-forwarded-for': '10.0.0.1' } });
+    const second = await app.request('/api/v1/plugins/heavy-plugin/data', { headers: { 'x-forwarded-for': '10.0.0.2' } });
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(429);
   });
 });
