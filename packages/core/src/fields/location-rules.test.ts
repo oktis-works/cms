@@ -79,6 +79,14 @@ describe('matchLocationRules — block parameter (E7)', () => {
     ).toBe(false);
   });
 
+  it('matches field groups for term meta editing (taxonomy-only context, Item 10)', () => {
+    const context: LocationContext = { taxonomy: 'categoria' };
+    expect(rules([[{ param: 'taxonomy', operator: 'eq', value: 'categoria' }]], context)).toBe(true);
+    // groups bound to a content type do not leak into term screens
+    expect(rules([[{ param: 'content_type', operator: 'eq', value: 'post' }]], context)).toBe(false);
+    expect(rules([[{ param: 'taxonomy', operator: 'neq', value: 'etiqueta' }]], context)).toBe(true);
+  });
+
   it('context without block does not match a block eq rule', () => {
     expect(rules([[{ param: 'block', operator: 'eq', value: 'my-plugin/product-card' }]], {})).toBe(false);
   });

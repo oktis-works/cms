@@ -155,7 +155,8 @@
       "add": "Adicionar termo",
       "delete": "Excluir",
       "empty": "Nenhum termo ainda.",
-      "confirmDelete": "Excluir \"{name}\"?"
+      "confirmDelete": "Excluir \"{name}\"?",
+      "termFields": "Campos do termo"
     }
   },
   "media": {

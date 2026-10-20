@@ -2,7 +2,10 @@
 
 import { For, Show, createSignal, onMount } from 'solid-js';
 import { apiClient, type Taxonomy, type TaxonomyTerm } from '../../lib/api';
+import { expandCloneFields } from '../../lib/validation';
 import { useTranslation } from '../../i18n';
+import { FieldRenderer } from './FieldRenderer';
+import type { ResolvedFieldDefinition } from './types';
 
 interface Props {
   taxonomySlug: string;
@@ -19,6 +22,11 @@ export function TaxonomyTermsManager(props: Props) {
   const [editingId, setEditingId] = createSignal<string | null>(null);
   const [error, setError] = createSignal('');
   const [saving, setSaving] = createSignal(false);
+  // Item 10: term meta — field groups located on this taxonomy (rule
+  // `taxonomy eq <slug>`) reuse the platform FieldRenderer; values persist
+  // in taxonomy_terms.meta.
+  const [metaFields, setMetaFields] = createSignal<ResolvedFieldDefinition[]>([]);
+  const [metaValues, setMetaValues] = createSignal<Record<string, unknown>>({});
 
   const load = async (): Promise<void> => {
     if (!props.taxonomySlug) return;
@@ -34,13 +42,33 @@ export function TaxonomyTermsManager(props: Props) {
     }
   };
 
-  onMount(load);
+  const loadMetaFields = async (): Promise<void> => {
+    if (!props.taxonomySlug) return;
+    try {
+      const resolved = await apiClient.getFieldGroups({ taxonomy: props.taxonomySlug });
+      const full = await Promise.all(
+        resolved
+          .filter((group) => group.active)
+          .map(async (group) => apiClient.getFieldGroup(group.id))
+      );
+      setMetaFields(expandCloneFields(full.flatMap((group) => group.fields ?? []) as ResolvedFieldDefinition[]));
+    } catch {
+      // term meta fields are optional — term management never blocks on them
+      setMetaFields([]);
+    }
+  };
+
+  onMount(() => {
+    void load();
+    void loadMetaFields();
+  });
 
   const resetForm = (): void => {
     setEditingId(null);
     setName('');
     setSlug('');
     setDescription('');
+    setMetaValues({});
   };
 
   const startEdit = (term: TaxonomyTerm): void => {
@@ -48,6 +76,7 @@ export function TaxonomyTermsManager(props: Props) {
     setName(term.name);
     setSlug(term.slug);
     setDescription(term.description ?? '');
+    setMetaValues({ ...(term.meta ?? {}) });
     setError('');
   };
 
@@ -56,10 +85,13 @@ export function TaxonomyTermsManager(props: Props) {
     setError('');
     setSaving(true);
     try {
+      // merge over the term's existing meta so undeclared keys survive
+      const existingMeta = terms().find((term) => term.id === editingId())?.meta ?? {};
       const payload = {
         name: name(),
         slug: slug() || undefined,
         description: description() || undefined,
+        ...(metaFields().length > 0 ? { meta: { ...existingMeta, ...metaValues() } } : {}),
       };
       if (editingId()) {
         await apiClient.updateTaxonomyTerm(props.taxonomySlug, editingId()!, payload);
@@ -106,6 +138,21 @@ export function TaxonomyTermsManager(props: Props) {
             {t('content.taxonomy.description')}
             <textarea class="input" rows={3} value={description()} onInput={(event) => setDescription(event.currentTarget.value)} />
           </label>
+          <Show when={metaFields().length > 0}>
+            <div class="term-meta-fields">
+              <h4>{t('content.taxonomy.termFields')}</h4>
+              <For each={metaFields()}>
+                {(field) => (
+                  <FieldRenderer
+                    field={field}
+                    values={metaValues()}
+                    onChange={(fieldName, value) => setMetaValues({ ...metaValues(), [fieldName]: value })}
+                    t={t}
+                  />
+                )}
+              </For>
+            </div>
+          </Show>
           <div class="form-actions">
             <button class="btn btn-primary" type="submit" disabled={saving()}>{editingId() ? t('common.save') : t('content.taxonomy.add')}</button>
             <Show when={editingId()}><button class="btn" type="button" onClick={resetForm}>{t('common.cancel')}</button></Show>

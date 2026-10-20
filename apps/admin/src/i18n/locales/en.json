@@ -155,7 +155,8 @@
       "add": "Add term",
       "delete": "Delete",
       "empty": "No terms yet.",
-      "confirmDelete": "Delete \"{name}\"?"
+      "confirmDelete": "Delete \"{name}\"?",
+      "termFields": "Term fields"
     }
   },
   "media": {

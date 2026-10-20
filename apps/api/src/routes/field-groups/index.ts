@@ -10,11 +10,14 @@ router.use('*', authMiddleware);
 
 router.get('/', requirePermission('read', 'content'), async (c) => {
   const type = c.req.query('type');
-  if (type) {
+  const taxonomy = c.req.query('taxonomy');
+  // Item 10: resolve by ANY location param — term meta editing passes only
+  // `taxonomy` (no content type). Plain list when no location context at all.
+  if (type || taxonomy || c.req.query('term') || c.req.query('userRole') || c.req.query('template') || c.req.query('status')) {
       const resolved = await fieldGroupService.resolveGroupsByLocation({
-        contentType: type,
+        contentType: type || undefined,
         contentSlug: c.req.query('slug') || undefined,
-      taxonomy: c.req.query('taxonomy') || undefined,
+      taxonomy,
       termSlug: c.req.query('term') || undefined,
       userRole: c.req.query('userRole') || undefined,
       pageTemplate: c.req.query('template') || undefined,
