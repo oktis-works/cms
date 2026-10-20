@@ -6,10 +6,11 @@
 
 import { randomUUID } from 'node:crypto';
 import type { HookRegistryLike } from '@oktis-works/plugin-sdk';
-import type { PluginManifest, PluginFieldTypeManifest, PluginPostTypeDeclaration, PluginTaxonomyDeclaration, PluginBlockManifest, PluginPatternManifest, PluginCacheApi, PluginJobsApi, PluginJobHandler, PluginHttpApi, PluginAdminApi, PluginRolesApi, PluginAssetsApi, PluginI18nApi, PluginHealthApi, PluginHealthCheck, PluginMailApi, PluginMailTemplate, EnqueuedAsset, EnqueuedStyle, EnqueuedScript, AdminExtensionsState } from '@oktis-works/plugin-sdk';
+import type { PluginManifest, PluginFieldTypeManifest, PluginPostTypeDeclaration, PluginTaxonomyDeclaration, PluginBlockManifest, PluginPatternManifest, PluginCacheApi, PluginJobsApi, PluginJobHandler, PluginHttpApi, PluginAdminApi, PluginRolesApi, PluginAssetsApi, PluginI18nApi, PluginHealthApi, PluginHealthCheck, PluginMailApi, PluginMailTemplate, PluginContentApi, EnqueuedAsset, EnqueuedStyle, EnqueuedScript, AdminExtensionsState } from '@oktis-works/plugin-sdk';
 import { PERMISSIONS, createPluginAdminApi } from '@oktis-works/plugin-sdk';
 import { createHttpApi } from './http.js';
 import { i18nFallbackChain, i18nInterpolate } from './i18n.js';
+import { ContentQueryBuilder } from './content-query.js';
 
 /** Contexto disponível para o plugin em cada execução de hook. */
 export interface PluginContext {
@@ -104,6 +105,9 @@ export interface PluginAPI {
 
   /** Envio de e-mail via outbox (Item 12 — permissão mail:send). */
   readonly mail: PluginMailApi;
+
+  /** Query builder tipado de conteúdo (Item 22 — permissão db:query). */
+  readonly content: PluginContentApi;
 
   /** Lê setting do tenant (group/key). */
   getSetting(key: string, group?: string): Promise<unknown>;
@@ -711,6 +715,15 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
     },
   };
 
+  // ── api.content (Item 22): query builder tipado — filtros declarativos
+  // sobre colunas allowlisted, totalmente parametrizados (db:query).
+  const contentApi: PluginContentApi = {
+    query() {
+      requirePermission('db:query');
+      return new ContentQueryBuilder((query: string, params?: unknown[]) => db.query(query, params));
+    },
+  };
+
   // Build the public API object
   const api: PluginAPI = {
     registerHook(type: string, handler: (context: PluginContext, payload: unknown) => void | Promise<void>): void {
@@ -908,6 +921,7 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
     i18n: i18nApi,
     health: healthApi,
     mail: mailApi,
+    content: contentApi,
 
     async getSetting(key: string, group?: string): Promise<unknown> {
       if (!allowedPermissions.includes('settings:read')) {

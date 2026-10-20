@@ -576,6 +576,8 @@ export interface PluginFieldTypeManifest {
   adminRendererPath?: string;
   /** JSON Schema para validação da configuração do campo. */
   configSchema?: Record<string, unknown>;
+  /** Item 25: adia o sync ao registry até o primeiro uso (GET /field-types). */
+  lazy?: boolean;
 }
 
 export interface PluginDependency {

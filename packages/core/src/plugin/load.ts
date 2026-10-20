@@ -32,6 +32,7 @@
 // boot. Falhas ficam visíveis em `getPluginsRuntimeState()` (rota
 // `/api/v1/plugins/runtime` + badge no admin) — não são silenciadas.
 
+import { createHash } from 'node:crypto';
 import { getConnection } from '@oktis-works/database';
 import { loadConfig } from '@oktis-works/config';
 import { resolvePluginPermissionPolicy } from '@oktis-works/validation';
@@ -239,6 +240,10 @@ interface ScopeState {
   errors: Map<string, string>;
 }
 
+/** Item 21: registro das consultas preparadas por hash (teto LRU). */
+const PREPARED_CACHE_MAX = 200;
+const preparedPluginStatements = new Map<string, { sql: string; uses: number }>();
+
 /** Estados por escopo — ordem de iteração = LRU. */
 const states = new Map<string, ScopeState>();
 const inflight = new Map<string, Promise<PluginBootstrapResult>>();
@@ -265,6 +270,20 @@ function createApiDeps(tenantId: string | null): Partial<PluginApiDependencies> 
     db: {
       query: async (sql: string, params?: unknown[]) => {
         const conn = getConnection();
+        // Item 21: registro de prepared statements por hash — dedupe + LRU +
+        // contagem de uso por consulta (identidade da consulta preparada em
+        // api.query; o driver reutiliza o plano para consultas repetidas).
+        const hash = createHash('sha256').update(sql).digest('hex').slice(0, 24);
+        let entry = preparedPluginStatements.get(hash);
+        if (!entry) {
+          entry = { sql, uses: 0 };
+          preparedPluginStatements.set(hash, entry);
+          if (preparedPluginStatements.size > PREPARED_CACHE_MAX) {
+            const oldest = preparedPluginStatements.keys().next().value;
+            if (oldest) preparedPluginStatements.delete(oldest);
+          }
+        }
+        entry.uses += 1;
         return conn.unsafe(sql, params ?? []);
       },
     },

@@ -21,6 +21,8 @@ export interface PluginFieldTypeDefinition extends FieldTypeDefinition {
   adminComponentPath: string;
   adminRendererPath?: string;
   configSchema?: Record<string, unknown>;
+  /** Item 25: sync ao registry adiado até o primeiro uso. */
+  lazy?: boolean;
   isPluginType: true;
   pluginName: string;
 }

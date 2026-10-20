@@ -13,8 +13,8 @@ router.get('/', requirePermission('read', 'content'), async (c) => {
   const category = c.req.query('category');
   const _tenantId = c.get('tenantId') as string;
 
-  // Sync plugin field types for this tenant
-  await fieldTypeExtensionService.syncToRegistry();
+  // Item 25: o endpoint é o "primeiro uso" — tipos lazy sincopram aqui.
+  await fieldTypeExtensionService.syncToRegistry({ includeLazy: true });
 
   if (category) {
     const grouped = listFieldTypesByCategory();

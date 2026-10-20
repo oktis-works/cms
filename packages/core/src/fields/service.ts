@@ -665,8 +665,8 @@ export class FieldTypeExtensionService {
   async register(definition: PluginFieldTypeDefinition): Promise<void> {
     const sql = getConnection();
     await sql.unsafe(
-      `INSERT INTO field_type_extensions (plugin_name, type, label, category, icon, supports_conditions, is_layout, admin_component_path, admin_renderer_path, config_schema)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)
+      `INSERT INTO field_type_extensions (plugin_name, type, label, category, icon, supports_conditions, is_layout, admin_component_path, admin_renderer_path, config_schema, lazy)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11)
        ON CONFLICT (type) DO UPDATE SET
          plugin_name = EXCLUDED.plugin_name,
          label = EXCLUDED.label,
@@ -677,6 +677,7 @@ export class FieldTypeExtensionService {
          admin_component_path = EXCLUDED.admin_component_path,
          admin_renderer_path = EXCLUDED.admin_renderer_path,
          config_schema = EXCLUDED.config_schema,
+         lazy = EXCLUDED.lazy,
          updated_at = NOW()`,
       [
         definition.pluginName,
@@ -689,6 +690,7 @@ export class FieldTypeExtensionService {
         definition.adminComponentPath ?? null,
         definition.adminRendererPath ?? null,
         definition.configSchema ? JSON.stringify(definition.configSchema) : null,
+        definition.lazy ?? false,
       ]
     );
   }
@@ -735,6 +737,7 @@ export class FieldTypeExtensionService {
       adminComponentPath: String(row['admin_component_path']),
       adminRendererPath: row['admin_renderer_path'] ? String(row['admin_renderer_path']) : undefined,
       configSchema: row['config_schema'] as Record<string, unknown> | undefined,
+      lazy: Boolean(row['lazy']),
       isPluginType: true,
       pluginName: String(row['plugin_name']),
     }));
@@ -790,12 +793,15 @@ export class FieldTypeExtensionService {
   /**
    * Sync plugin field types to the in-memory registry.
    * Called during plugin bootstrap to make types available globally.
+   * Item 25: types flagged `lazy` only sync on first use — pass
+   * `{ includeLazy: true }` from the field-types endpoint (the first use).
    */
-  async syncToRegistry(): Promise<void> {
+  async syncToRegistry(options?: { includeLazy?: boolean }): Promise<void> {
     const types = await this.listAll();
     const { registerFieldType } = await import('./types/registry.js');
-    
+
     for (const type of types) {
+      if (type.lazy && !options?.includeLazy) continue;
       registerFieldType(type);
     }
   }

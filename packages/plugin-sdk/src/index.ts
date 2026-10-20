@@ -27,6 +27,8 @@ export {
   type PluginHealthCheckResult,
   type PluginMailApi,
   type PluginMailTemplate,
+  type PluginContentApi,
+  type PluginContentQuery,
   type EnqueuedAsset,
   type EnqueuedStyle,
   type EnqueuedScript,

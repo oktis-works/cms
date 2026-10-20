@@ -137,6 +137,8 @@ export interface PluginAPI {
   health: PluginHealthApi;
   /** Envio de e-mail via outbox (Item 12 — permissão mail:send). */
   mail: PluginMailApi;
+  /** Query builder tipado de conteúdo (Item 22 — permissão db:query). */
+  content: PluginContentApi;
   getSetting(key: string): Promise<unknown>;
   setSetting(key: string, value: unknown): Promise<void>;
   getTenant(): Promise<TenantInfo>;
@@ -357,6 +359,24 @@ export interface PluginMailApi {
     html?: string;
     text?: string;
   }): Promise<boolean>;
+}
+
+/**
+ * Typed content query builder (Item 22 — permission db:query). Declarative
+ * filters over allowlisted content columns, fully parameterized.
+ */
+export interface PluginContentQuery {
+  where(field: string, op: 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'like', value: unknown): PluginContentQuery;
+  whereIn(field: string, values: readonly unknown[]): PluginContentQuery;
+  orderBy(field: string, dir?: 'asc' | 'desc'): PluginContentQuery;
+  limit(n: number): PluginContentQuery;
+  offset(n: number): PluginContentQuery;
+  execute(): Promise<unknown[]>;
+}
+
+export interface PluginContentApi {
+  /** Starts a new declarative content query. */
+  query(): PluginContentQuery;
 }
 
 export interface RouteDefinition {

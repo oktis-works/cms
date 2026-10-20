@@ -7,6 +7,7 @@ import { getHookRegistry } from '@oktis-works/plugin-runtime';
 import { getEventBus } from '../events/bus.js';
 import { getCache } from '../cache/index.js';
 import { HOOK_POINTS } from '../hooks/points.js';
+import { getTaggedCacheIndex } from '../cache/tags.js';
 import { postTypeRegistry } from './post-types.js';
 import { fieldGroupService } from '../fields/service.js';
 
@@ -88,6 +89,17 @@ function generateSlug(title: string): string {
     .replace(/(^-|-$)/g, '');
 }
 
+/**
+ * Item 23: invalida as entradas de cache de um conteúdo pelas TAGS sob as
+ * quais foram gravadas (por id e por tipo) — sem enumerar formas de chave.
+ */
+async function invalidateContentCache(id: string, slug?: string | null, type?: string): Promise<void> {
+  const index = getTaggedCacheIndex();
+  await index.invalidateTag(`content:${id}`);
+  if (type) await index.invalidateTag(`content:type:${type}`);
+  if (slug) await index.invalidateTag(`content:slug:${slug}`);
+}
+
 export class ContentService {
   async getSingleton(type: string, tenantId: string): Promise<Content | null> {
     const definition = await postTypeRegistry.getBySlug(type);
@@ -167,7 +179,16 @@ export class ContentService {
       [id]
     );
     const content = (result[0] as unknown as Content) ?? null;
-    if (content) await cache.set(cacheKey, content, 60);
+    if (content) {
+      // Item 23: entrada registrada sob tags de conteúdo — save/publish/delete
+      // invalidam por tag em vez de adivinhar chaves derivadas.
+      await getTaggedCacheIndex().setWithTags(
+        cacheKey,
+        content,
+        [`content:${id}`, `content:type:${content.type}`],
+        60
+      );
+    }
     return content;
   }
 
@@ -265,9 +286,9 @@ export class ContentService {
       createdAt: new Date(),
     });
 
-    const cache = getCache();
-    await cache.del(`content:${content.id}`);
-    await cache.del(`content:slug:${content.slug}`);
+    // Item 23: invalidação por tag — pega qualquer chave derivada registrada
+    // (por id e por tipo) sem enumerar formas de chave manualmente.
+    await invalidateContentCache(content.id, content.slug, content.type);
 
     return content;
   }
@@ -379,9 +400,7 @@ export class ContentService {
       createdAt: new Date(),
     });
 
-    const cache = getCache();
-    await cache.del(`content:${content.id}`);
-    await cache.del(`content:slug:${content.slug}`);
+    await invalidateContentCache(content.id, content.slug, content.type);
 
     return content;
   }
@@ -410,9 +429,7 @@ export class ContentService {
       createdAt: new Date(),
     });
 
-    const cache = getCache();
-    await cache.del(`content:${id}`);
-    await cache.del(`content:slug:${existing.slug}`);
+    await invalidateContentCache(id, existing.slug, existing.type);
 
     return true;
   }
@@ -494,9 +511,7 @@ export class ContentService {
       createdAt: new Date(),
     });
 
-    const cache = getCache();
-    await cache.del(`content:${contentId}`);
-    await cache.del(`content:slug:${restored.slug}`);
+    await invalidateContentCache(contentId, restored.slug, restored.type);
 
     return restored;
   }
