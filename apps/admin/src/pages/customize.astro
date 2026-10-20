@@ -1,0 +1,15 @@
+---
+import DashboardLayout from '../layouts/DashboardLayout.astro';
+import { ThemeCustomizer } from '../components/apps/themes/ThemeCustomizer';
+import { PageHeader } from '../components/shared/PageHeader';
+
+const { t } = Astro.locals;
+---
+
+<DashboardLayout title={t('customizer.title')}>
+  <PageHeader
+    title={t('customizer.title')}
+    description={t('customizer.description')}
+  />
+  <ThemeCustomizer client:load />
+</DashboardLayout>

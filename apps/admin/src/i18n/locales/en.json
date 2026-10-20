@@ -10,7 +10,8 @@
       "menus": "Menus",
       "settings": "Settings",
       "plugins": "Plugins",
-      "themes": "Themes"
+      "themes": "Themes",
+      "customize": "Customize"
     },
     "actions": {
       "logout": "Logout",
@@ -1060,5 +1061,22 @@
     "title": "Screen Options",
     "label": "Screen Options",
     "showOnScreen": "Show on screen"
+  },
+  "customizer": {
+    "title": "Customizer",
+    "description": "Adjust the active theme settings with a live preview. Changes apply to the preview instantly and only persist when you save.",
+    "loadError": "Failed to load themes.",
+    "saveError": "Failed to save the theme settings.",
+    "noTheme": "No active theme to customize.",
+    "goToThemes": "Go to Themes",
+    "noSettings": "This theme declares no customizable settings (manifest.settings).",
+    "save": "Save",
+    "saving": "Saving...",
+    "saved": "Saved.",
+    "reset": "Reset",
+    "refreshPreview": "Refresh preview",
+    "previewHint": "The preview overlays your draft on top of the saved settings — it is request-only and never persists.",
+    "previewPath": "Preview path",
+    "previewTitle": "Theme preview"
   }
 }

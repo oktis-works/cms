@@ -61,6 +61,38 @@ export function toSiteSettings(raw: Record<string, unknown>): SiteSettings {
   };
 }
 
+/**
+ * Customizer live preview (Item 7): `?preview_settings=<URI-encoded JSON>`
+ * overlays draft theme settings on top of the saved config for THIS request
+ * only — nothing is persisted. Invalid payloads are ignored and the preview
+ * degrades to the saved configuration.
+ */
+export function mergePreviewSettings(
+  saved: Record<string, unknown> | null | undefined,
+  previewParam: string | undefined
+): Record<string, unknown> | null {
+  if (!previewParam) return saved ?? null;
+  const parse = (value: string): unknown => {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return undefined;
+    }
+  };
+  // Callers may hand the raw query value (already decoded by the framework)
+  // or a URI-encoded payload — accept both.
+  let parsed = parse(previewParam);
+  if (parsed === undefined) {
+    try {
+      parsed = parse(decodeURIComponent(previewParam));
+    } catch {
+      parsed = undefined;
+    }
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return saved ?? null;
+  return { ...(saved ?? {}), ...(parsed as Record<string, unknown>) };
+}
+
 
 
 function toText(value: unknown): string {

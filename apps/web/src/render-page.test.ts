@@ -42,6 +42,7 @@ import {
   resolveThemeStylesheet,
   contentTypeForAsset,
   wrapDocument,
+  mergePreviewSettings,
 } from './rendering.js';
 import { getHookRegistry } from '@oktis-works/plugin-runtime';
 import { CMS_VERSION } from '@oktis-works/validation';
@@ -427,5 +428,25 @@ describe('renderContentPage — E5 render hooks (theme:before/after:render)', ()
     );
     expect(seen.map((entry) => entry.hook)).toEqual(['theme:before:render', 'theme:after:render']);
     expect(seen[0]?.context).toMatchObject({ template: 'post.astro', contentType: 'post', slug: 'ola', activeTheme: 'mytheme' });
+  });
+});
+
+describe('mergePreviewSettings — Item 7 customizer preview', () => {
+  it('overlays draft settings over the saved config (request-only)', () => {
+    const merged = mergePreviewSettings({ primary: '#000', title: 'Saved' }, encodeURIComponent(JSON.stringify({ primary: '#f00' })));
+    expect(merged).toEqual({ primary: '#f00', title: 'Saved' });
+  });
+
+  it('returns the saved config untouched without the param', () => {
+    const saved = { primary: '#000' };
+    expect(mergePreviewSettings(saved, undefined)).toBe(saved);
+    expect(mergePreviewSettings(null, undefined)).toBeNull();
+  });
+
+  it('ignores invalid payloads (degrades to saved config)', () => {
+    expect(mergePreviewSettings({ a: 1 }, 'not-json')).toEqual({ a: 1 });
+    expect(mergePreviewSettings({ a: 1 }, encodeURIComponent(JSON.stringify(['array'])))).toEqual({ a: 1 });
+    expect(mergePreviewSettings({ a: 1 }, encodeURIComponent(JSON.stringify('string')))).toEqual({ a: 1 });
+    expect(mergePreviewSettings(null, 'garbage')).toBeNull();
   });
 });

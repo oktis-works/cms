@@ -20,6 +20,7 @@ import {
   contentTypeForAsset,
   enrichItemsMedia,
   buildThemeSettings,
+  mergePreviewSettings,
 } from './rendering.js';
 import { createDatabaseThemeDataProvider, loadThemeRenderData } from './theme-data.js';
 import { resolveTenantFromHost } from './tenant-resolver.js';
@@ -212,7 +213,10 @@ async function main() {
           ...toSiteSettings(rawSettings),
           theme: buildThemeSettings(
             active.row?.['manifest'] as Record<string, unknown> | null,
-            active.row?.['config'] as Record<string, unknown> | null
+            mergePreviewSettings(
+              active.row?.['config'] as Record<string, unknown> | null,
+              c.req.query('preview_settings')
+            )
           ),
         };
 

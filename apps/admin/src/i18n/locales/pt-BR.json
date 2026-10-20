@@ -10,7 +10,8 @@
       "menus": "Menus",
       "settings": "Configurações",
       "plugins": "Plugins",
-      "themes": "Temas"
+      "themes": "Temas",
+      "customize": "Personalizar"
     },
     "actions": {
       "logout": "Sair",
@@ -1060,5 +1061,22 @@
     "title": "Opções de tela",
     "label": "Opções de tela",
     "showOnScreen": "Mostrar na tela"
+  },
+  "customizer": {
+    "title": "Customizador",
+    "description": "Ajuste as configurações do tema ativo com preview ao vivo. Mudanças aparecem no preview na hora e só persistem ao salvar.",
+    "loadError": "Falha ao carregar os temas.",
+    "saveError": "Falha ao salvar as configurações do tema.",
+    "noTheme": "Nenhum tema ativo para personalizar.",
+    "goToThemes": "Ir para Temas",
+    "noSettings": "Este tema não declara configurações personalizáveis (manifest.settings).",
+    "save": "Salvar",
+    "saving": "Salvando...",
+    "saved": "Salvo.",
+    "reset": "Redefinir",
+    "refreshPreview": "Atualizar preview",
+    "previewHint": "O preview sobrepõe o rascunho às configurações salvas — vale só para a requisição, nunca persiste.",
+    "previewPath": "Caminho do preview",
+    "previewTitle": "Preview do tema"
   }
 }
