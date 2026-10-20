@@ -1,5 +1,16 @@
 # @oktis-works/core
 
+## 0.8.0
+
+### Minor Changes
+
+- Simplify the Themes and Plugins admin pages and enforce the single-active-theme lifecycle
+  
+  - Themes page: remove the inline theme settings editor and the uninstall action — each theme card now shows only the Activate/Deactivate toggle.
+  - Themes lifecycle: deactivation is refused while only one theme exists (an active theme must always remain). Enforced in the theme service and pre-checked in the admin UI, which shows a warning instead of calling the API.
+  - Plugins page: read-only listing — installation, update and activation are manual (place plugin files in the project's plugins/ directory and restart via okcms start, pm2 or docker).
+  - Remove stale pre-compiled artifacts that shadowed the ThemeManager/PluginManager sources and the themes API route.
+
 ## 0.7.0
 
 ### Minor Changes
