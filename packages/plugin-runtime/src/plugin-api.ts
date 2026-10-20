@@ -227,6 +227,19 @@ export interface PluginApiDependencies {
       params?: Record<string, unknown>;
     }): Promise<boolean>;
   };
+  /**
+   * Audit backend (Item 18 — operações sensíveis de plugin → audit_log).
+   * Ausente → sem auditoria (degrada silenciosamente, nunca bloqueia).
+   */
+  audit?: {
+    record(entry: {
+      tenantId?: string | null;
+      action: string;
+      resourceType: string;
+      resourceId?: string;
+      changes?: Record<string, unknown>;
+    }): Promise<void>;
+  };
 }
 
 /**
@@ -307,6 +320,25 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
   function requirePermission(permission: string): void {
     if (!allowedPermissions.includes(permission)) {
       throw new Error(`Plugin permission denied: ${permission}`);
+    }
+  }
+
+  // ── Item 18: audit de operações sensíveis de plugin (query de escrita,
+  // addRoute, jobs) → audit_log. Fire-and-forget: falha de auditoria nunca
+  // bloqueia nem derruba a operação do plugin (mesma regra do auditService).
+  const MUTATION_PATTERN = /^\s*(INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|TRUNCATE|GRANT|REVOKE)\b/i;
+
+  function auditPlugin(action: string, resourceType: string, changes: Record<string, unknown>): void {
+    try {
+      void deps.audit?.record({
+        tenantId: getTenantId(),
+        action,
+        resourceType,
+        resourceId: manifest.name,
+        changes: { plugin: manifest.name, ...changes },
+      });
+    } catch {
+      // auditoria nunca bloqueia a operação
     }
   }
 
@@ -398,14 +430,22 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
         scheduledJobNames.add(jobName);
       }
       if (!deps.jobs) return false; // fila indisponível: degradação, nunca throw
-      return deps.jobs.schedule(jobName, hasCron ? { cron: spec.cron } : { every: spec.every }, jobsCtx());
+      const scheduled = await deps.jobs.schedule(jobName, hasCron ? { cron: spec.cron } : { every: spec.every }, jobsCtx());
+      if (scheduled) {
+        auditPlugin('plugin.jobs.schedule', 'job', { jobName, spec: hasCron ? { cron: spec.cron } : { every: spec.every } });
+      }
+      return scheduled;
     },
 
     async cancel(jobName: string): Promise<boolean> {
       requirePermission(PERMISSIONS.JOBS_SCHEDULE);
       scheduledJobNames.delete(jobName);
       if (!deps.jobs) return false;
-      return deps.jobs.cancel(jobName, jobsCtx());
+      const cancelled = await deps.jobs.cancel(jobName, jobsCtx());
+      if (cancelled) {
+        auditPlugin('plugin.jobs.cancel', 'job', { jobName });
+      }
+      return cancelled;
     },
 
     async enqueue(jobName: string, payload: Record<string, unknown> = {}): Promise<boolean> {
@@ -414,7 +454,11 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
         throw new Error(`Invalid job name "${jobName}" (expected ${JOB_NAME_PATTERN})`);
       }
       if (!deps.jobs) return false;
-      return deps.jobs.enqueue(jobName, payload, jobsCtx());
+      const enqueued = await deps.jobs.enqueue(jobName, payload, jobsCtx());
+      if (enqueued) {
+        auditPlugin('plugin.jobs.enqueue', 'job', { jobName });
+      }
+      return enqueued;
     },
   };
 
@@ -740,6 +784,10 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
         }
       }
       registeredRoutes.push(route);
+      auditPlugin('plugin.route.register', 'route', {
+        method: route.method,
+        path: route.path,
+      });
     },
 
     addContentField(field: { name: string; type: string; label: string; required?: boolean; options?: Record<string, unknown> }): void {
@@ -895,6 +943,14 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
 
     async query(sql: string, params?: unknown[]): Promise<unknown[]> {
       checkDbPermission();
+      // Item 18: apenas MUTAções vão para o audit_log (SELECT em massa
+      // inundaria o log; leituras ficam nos logs de query do banco).
+      if (MUTATION_PATTERN.test(sql)) {
+        auditPlugin('plugin.db.query', 'db', {
+          statement: sql.slice(0, 500),
+          paramsCount: Array.isArray(params) ? params.length : 0,
+        });
+      }
       return db.query(sql, params);
     },
 

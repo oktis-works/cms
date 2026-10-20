@@ -45,6 +45,7 @@ import { postTypeRegistry } from '../content/post-types.js';
 import { taxonomyService } from '../taxonomies/service.js';
 import { pluginRolesService } from '../role/plugin-roles.js';
 import { mailService } from '../mail/service.js';
+import { auditService } from '../observability/audit.js';
 import { getCache } from '../cache/index.js';
 import { queueProducer } from '../queue/producer.js';
 import { getCurrentTenantIdSync, getCurrentUserIdSync, getCurrentRequestIdSync } from '../tenant/context.js';
@@ -453,6 +454,15 @@ function createApiDeps(tenantId: string | null): Partial<PluginApiDependencies> 
     },
     mail: {
       send: (input) => mailService.enqueue(input),
+    },
+    audit: {
+      record: (entry) => auditService.record({
+        tenantId: entry.tenantId ?? undefined,
+        action: entry.action,
+        resourceType: entry.resourceType,
+        resourceId: entry.resourceId,
+        changes: entry.changes,
+      }),
     },
   };
 }
