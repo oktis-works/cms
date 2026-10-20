@@ -1,13 +1,30 @@
-<main data-theme="{{site.theme}}" data-template="page" data-type="{{page.type}}">
-  <article class="entry entry--page">
-    <header class="entry__header">
-      <h1 class="entry__title">{{content.title}}</h1>
-    </header>
-
-    <div class="entry__body">
-      {{#if content.html}}{{{content.html}}}{{/if}}
-      {{#if content.content}}{{{content.content}}}{{/if}}
-      {{#if content.text}}<p>{{content.text}}</p>{{/if}}
+<main data-template="page" data-type="{{page.type}}" class="page">
+  <header class="page-header">
+    <div class="container">
+      <h1>{{content.title}}</h1>
+      {{#if content.excerpt}}
+      <p class="page-excerpt">{{content.excerpt}}</p>
+      {{/if}}
     </div>
-  </article>
+  </header>
+
+  <div class="page-content container">
+    {{#if content.html}}
+    <div class="entry-content" set:html={content.html}></div>
+    {{else if content.content}}
+    <div class="entry-content" set:html={content.content}></div>
+    {{else if content.blocks}}
+    <div class="entry-content">
+      {{#each content.blocks}}
+        {{#if (eq type 'heading')}}
+        <h{{level}}>{{content}}</h{{level}}>
+        {{else if (eq type 'paragraph')}}
+        <p>{{content}}</p>
+        {{else if (eq type 'image')}}
+        <figure><img src="{{content.url}}" alt="{{content.alt}}" /></figure>
+        {{/if}}
+      {{/each}}
+    </div>
+    {{/if}}
+  </div>
 </main>

@@ -14,11 +14,17 @@ export interface RouteResolution {
   data?: Record<string, unknown>;
   /** Row completa do conteúdo (colunas + body) para a API contextual do SDK. */
   record?: Record<string, unknown>;
+  /** True quando a rota resolveu para a página configurada como page_for_posts. */
+  isPageForPosts?: boolean;
 }
 
 export interface ContentLookup {
   /** Retorna o tipo de conteúdo e dados para um caminho de URL. */
   findByPath(path: string): Promise<{ type: string; slug: string; data: Record<string, unknown>; layout?: string | null; record?: Record<string, unknown> } | null>;
+  /** Retorna conteúdo por ID (usado para Static Front Page). */
+  findById(id: string): Promise<{ type: string; slug: string; data: Record<string, unknown>; layout?: string | null; record?: Record<string, unknown> } | null>;
+  /** Retorna valor de uma setting pública por chave (ex: static_front_page, page_for_posts). */
+  getSetting(key: string): Promise<string | null>;
   listTypes(): Promise<Array<{ slug: string; hasArchive: boolean }>>;
 }
 
@@ -43,13 +49,66 @@ export class RuntimeRouter {
 
   /**
    * Resolve um caminho arbitrário (catch-all [...slug]) para um template.
-   * Ordem: home → content-type archive → conteúdo por slug.
+   * Ordem: Static Front Page → content-type archive → conteúdo por slug.
    */
   async resolve(path: string): Promise<RouteResolution> {
     const normalized = path.replace(/^\/+|\/+$/g, '');
     const segments = normalized.split('/').filter(Boolean);
 
     if (segments.length === 0) {
+      // Static Front Page: verifica se há página configurada como home
+      const staticFrontPageId = await this.lookup.getSetting('static_front_page');
+      if (staticFrontPageId) {
+        const page = await this.lookup.findById(staticFrontPageId);
+        if (page && page.type === 'page') {
+          const resolved = await this.resolver.resolve({
+            type: page.type,
+            slug: page.slug,
+            layoutOverride: page.layout ?? undefined
+          });
+          return {
+            matched: true,
+            template: resolved.file,
+            contentType: page.type,
+            slug: page.slug,
+            data: page.data,
+            record: page.record
+          };
+        }
+      }
+
+      // Fallback: page_for_posts (página que lista posts)
+      const pageForPostsId = await this.lookup.getSetting('page_for_posts');
+      if (pageForPostsId) {
+        const page = await this.lookup.findById(pageForPostsId);
+        if (page && page.type === 'page') {
+          const resolved = await this.resolver.resolve({
+            type: page.type,
+            slug: page.slug,
+            layoutOverride: page.layout ?? undefined
+          });
+          return {
+            matched: true,
+            template: resolved.file,
+            contentType: page.type,
+            slug: page.slug,
+            data: page.data,
+            record: page.record,
+            // Sinaliza que é a página de posts para o template receber items
+            isPageForPosts: true
+          } as RouteResolution & { isPageForPosts?: boolean };
+        }
+      }
+
+      // Fallback final: archive de posts (estilo "latest posts")
+      const types = await this.lookup.listTypes();
+      const postType = types.find((t) => t.slug === 'post' && t.hasArchive);
+      if (postType) {
+        const resolved = await this.resolver.resolve({ type: postType.slug, isArchive: true });
+        return { matched: true, template: resolved.file, contentType: postType.slug };
+      }
+
+      // Último recurso: home.astro se existir no tema
       const resolved = await this.resolver.resolve({ type: 'page', isHome: true });
       return { matched: true, template: resolved.file };
     }

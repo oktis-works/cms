@@ -1,0 +1,15 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { ReadingSettings } from '../../components/apps/settings/ReadingSettings';
+import { PageHeader } from '../../components/shared/PageHeader';
+
+const { t } = Astro.locals;
+---
+
+<DashboardLayout title={t('settings.reading.title')}>
+  <PageHeader
+    title={t('settings.reading.title')}
+    description={t('settings.reading.description')}
+  />
+  <ReadingSettings client:load />
+</DashboardLayout>

@@ -1037,17 +1037,22 @@ export const commands: Command[] = [
   },
   {
     name: 'seed',
-    description: 'Seed the database with initial data (roles + default settings)',
+    description: 'Seed the database with initial data (roles + settings + demo content)',
     options: [],
     handler: async () => {
       await initDb();
-      const { ensureCoreSchema, seedCoreData } = await import('@oktis-works/database');
+      const { ensureCoreSchema, seedCoreData, seedDemoContent } = await import('@oktis-works/database');
       const applied = await ensureCoreSchema();
       if (applied) {
         console.log('✓ core schema applied (database initialized)');
       }
       const { roles, settings } = await seedCoreData();
       console.log(`✓ seed completed: ${roles} roles, ${settings} settings created`);
+      const demo = await seedDemoContent();
+      const total = demo.pages + demo.posts + demo.menus + demo.readingSettings;
+      if (total > 0) {
+        console.log(`✓ demo content: ${demo.pages} pages, ${demo.posts} posts, ${demo.menus} menus, ${demo.readingSettings} reading settings`);
+      }
     },
   },
   {

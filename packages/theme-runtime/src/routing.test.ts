@@ -13,10 +13,12 @@ function makeRouter(lookup: ContentLookup, files: string[]): RuntimeRouter {
 }
 
 describe('RuntimeRouter', () => {
-  it('resolve home para index.astro', async () => {
+  it('resolve home para index.astro (fallback quando sem static_front_page)', async () => {
     const lookup: ContentLookup = {
       findByPath: vi.fn(),
       listTypes: vi.fn().mockResolvedValue([]),
+      findById: vi.fn(),
+      getSetting: vi.fn().mockResolvedValue(null),
     };
     const router = makeRouter(lookup, ['index.astro']);
 
@@ -24,13 +26,71 @@ describe('RuntimeRouter', () => {
 
     expect(result.matched).toBe(true);
     expect(result.template).toBe('index.astro');
+    expect(lookup.getSetting).toHaveBeenCalledWith('static_front_page');
     expect(lookup.findByPath).not.toHaveBeenCalled();
+  });
+
+  it('resolve static_front_page quando configurado', async () => {
+    const lookup: ContentLookup = {
+      findByPath: vi.fn(),
+      listTypes: vi.fn().mockResolvedValue([]),
+      findById: vi.fn().mockResolvedValue({ type: 'page', slug: 'home', data: {}, record: {} }),
+      getSetting: vi.fn().mockImplementation((key) => key === 'static_front_page' ? Promise.resolve('page-id-123') : Promise.resolve(null)),
+    };
+    const router = makeRouter(lookup, ['page-home.astro', 'index.astro']);
+
+    const result = await router.resolve('/');
+
+    expect(result.matched).toBe(true);
+    expect(result.template).toBe('page-home.astro');
+    expect(result.contentType).toBe('page');
+    expect(result.slug).toBe('home');
+  });
+
+  it('resolve page_for_posts quando configurado', async () => {
+    const lookup: ContentLookup = {
+      findByPath: vi.fn(),
+      listTypes: vi.fn().mockResolvedValue([]),
+      findById: vi.fn().mockResolvedValue({ type: 'page', slug: 'blog', data: {}, record: {} }),
+      getSetting: vi.fn().mockImplementation((key) => {
+        if (key === 'static_front_page') return Promise.resolve(null);
+        if (key === 'page_for_posts') return Promise.resolve('page-id-456');
+        return Promise.resolve(null);
+      }),
+    };
+    const router = makeRouter(lookup, ['page-blog.astro', 'index.astro']);
+
+    const result = await router.resolve('/');
+
+    expect(result.matched).toBe(true);
+    expect(result.template).toBe('page-blog.astro');
+    expect(result.contentType).toBe('page');
+    expect(result.slug).toBe('blog');
+    expect((result as any).isPageForPosts).toBe(true);
+  });
+
+  it('resolve home para archive de posts quando sem configuração', async () => {
+    const lookup: ContentLookup = {
+      findByPath: vi.fn(),
+      listTypes: vi.fn().mockResolvedValue([{ slug: 'post', hasArchive: true }]),
+      findById: vi.fn(),
+      getSetting: vi.fn().mockResolvedValue(null),
+    };
+    const router = makeRouter(lookup, ['archive.astro', 'index.astro']);
+
+    const result = await router.resolve('/');
+
+    expect(result.matched).toBe(true);
+    expect(result.template).toBe('archive.astro');
+    expect(result.contentType).toBe('post');
   });
 
   it('resolve conteúdo por slug com template específico', async () => {
     const lookup: ContentLookup = {
       findByPath: vi.fn().mockResolvedValue({ type: 'post', slug: 'hello', data: {} }),
       listTypes: vi.fn(),
+      findById: vi.fn(),
+      getSetting: vi.fn(),
     };
     const router = makeRouter(lookup, ['post-hello.astro']);
 
@@ -48,6 +108,8 @@ describe('RuntimeRouter', () => {
     const lookup: ContentLookup = {
       findByPath: vi.fn().mockResolvedValue({ type: 'post', slug: 'hello', data: enriched, record }),
       listTypes: vi.fn(),
+      findById: vi.fn(),
+      getSetting: vi.fn(),
     };
     const router = makeRouter(lookup, ['post.astro']);
 
@@ -62,6 +124,8 @@ describe('RuntimeRouter', () => {
     const lookup: ContentLookup = {
       findByPath: vi.fn().mockResolvedValue({ type: 'post', slug: 'hello', data: {} }),
       listTypes: vi.fn().mockResolvedValue([]),
+      findById: vi.fn(),
+      getSetting: vi.fn(),
     };
     const router = makeRouter(lookup, ['post-hello.astro']);
 
@@ -79,6 +143,8 @@ describe('RuntimeRouter', () => {
           { slug: 'produto', hasArchive: true },
           { slug: 'page', hasArchive: false },
         ]),
+      findById: vi.fn(),
+      getSetting: vi.fn(),
     };
     const router = makeRouter(lookup, ['archive.astro']);
 
@@ -93,6 +159,8 @@ describe('RuntimeRouter', () => {
     const lookup: ContentLookup = {
       findByPath: vi.fn().mockResolvedValue(null),
       listTypes: vi.fn().mockResolvedValue([{ slug: 'page', hasArchive: false }]),
+      findById: vi.fn(),
+      getSetting: vi.fn(),
     };
     const router = makeRouter(lookup, []);
 
@@ -105,6 +173,8 @@ describe('RuntimeRouter', () => {
     const lookup: ContentLookup = {
       findByPath: vi.fn().mockResolvedValue(null),
       listTypes: vi.fn().mockResolvedValue([]),
+      findById: vi.fn(),
+      getSetting: vi.fn(),
     };
     const router = makeRouter(lookup, []);
 

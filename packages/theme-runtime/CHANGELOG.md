@@ -1,5 +1,24 @@
 # @oktis-works/theme-runtime
 
+## 0.7.0
+
+### Minor Changes
+
+- Implement Static Front Page (WP-style), demo content seed, and redesigned default theme
+  
+  - **Theme Runtime (core):** Added Static Front Page logic — `resolve('/')` now checks settings `static_front_page` (UUID of a page) and `page_for_posts` (UUID of a page). Falls back to posts archive if unconfigured. Removed hardcoded `isHome: true` priority.
+  - **Database (seed):** New `seedDemoContent()` creates 3 pages (home, sobre, blog), 2 posts (primeiro-post, segundo-post), 2 menus (header, footer), and configures reading settings (`static_front_page` + `page_for_posts`). Idempotent via ON CONFLICT.
+  - **CLI:** `prepareDb()` and `seed` command now call `seedDemoContent()` automatically — `okcms init` + `okcms start` yields a working site with Home, About, Blog listing, and 2 demo posts.
+  - **Admin:** New Settings → Reading page with selects for "Front page" and "Posts page" (populated from published pages). Saves to `reading` settings group.
+  - **Default Theme (redesigned):**
+    - Removed `home.astro` (no longer hardcoded priority)
+    - New specific templates: `page-home.astro`, `page-sobre.astro`, `page-blog.astro`, `post-primeiro-post.astro`, `post-segundo-post.astro`
+    - Updated fallbacks: `page.astro`, `single.astro`, `archive.astro`, `index.astro`, `404.astro`
+    - Template naming uses hyphen: `type-slug.astro` (e.g., `page-home.astro`)
+    - New CSS design system in `src/theme.css` → `dist/theme.css` (engine: css, isolation: manual)
+    - Theme settings: siteTitle, siteDescription, contactText
+  - **Compatibility:** Breaking change in home resolution — projects without Static Front Page configured now show posts archive instead of `home.astro`. Fallback chain: static_front_page → page_for_posts → posts archive → home.astro (if exists).
+
 ## 0.6.4
 
 ### Patch Changes

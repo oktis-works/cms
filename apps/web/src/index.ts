@@ -171,9 +171,10 @@ async function main() {
         }
       }
 
-      // B1 — archives/home: itens publicados recentes do tipo resolvido
+      // B1 — archives/home/page_for_posts: itens publicados recentes do tipo resolvido
       const items: Record<string, unknown>[] = [];
-      if (!resolution.slug) {
+      const shouldFetchItems = !resolution.slug || (resolution as any).isPageForPosts;
+      if (shouldFetchItems) {
         const typeFilter = resolution.contentType
           ? 'WHERE type = $1 AND status = \'PUBLISHED\''
           : "WHERE status = 'PUBLISHED'";

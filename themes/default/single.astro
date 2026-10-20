@@ -1,26 +1,53 @@
-<main data-theme="{{site.theme}}" data-template="single" data-type="{{page.type}}">
-  <article class="entry">
-    <header class="entry__header">
-      <h1 class="entry__title">{{content.title}}</h1>
-      {{#if content.excerpt}}
-      <p class="entry__excerpt">{{content.excerpt}}</p>
-      {{/if}}
-      {{#if content.thumbnail.url}}
-      <img class="entry__cover" src="{{content.thumbnail.url}}" alt="{{content.thumbnail.alt}}" loading="lazy" />
-      {{/if}}
-      {{#if content.cover.url}}
-      <img class="entry__cover" src="{{content.cover.url}}" alt="{{content.cover.alt}}" loading="lazy" />
-      {{/if}}
-    </header>
-
-    <div class="entry__body">
-      {{#if content.html}}{{{content.html}}}{{/if}}
-      {{#if content.content}}{{{content.content}}}{{/if}}
-      {{#if content.text}}<p>{{content.text}}</p>{{/if}}
+<article data-template="single" data-type="{{page.type}}" class="post post-single">
+  <header class="post-header">
+    <div class="container">
+      <h1 class="post-title">{{content.title}}</h1>
+      <div class="post-meta">
+        <time datetime="{{content.published_at}}" class="post-date">
+          {{#if content.published_at}}
+          {{formatDate content.published_at}}
+          {{/if}}
+        </time>
+      </div>
     </div>
+  </header>
 
-    <footer class="entry__footer">
-      <time class="entry__date" datetime="{{content.published_at}}">{{content.published_at}}</time>
-    </footer>
-  </article>
-</main>
+  <div class="post-body container">
+    {{#if content.html}}
+    <div class="entry-content" set:html={content.html}></div>
+    {{else if content.content}}
+    <div class="entry-content" set:html={content.content}></div>
+    {{else if content.blocks}}
+    <div class="entry-content">
+      {{#each content.blocks}}
+        {{#if (eq type 'heading')}}
+        <h{{level}}>{{content}}</h{{level}}>
+        {{else if (eq type 'paragraph')}}
+        <p>{{content}}</p>
+        {{else if (eq type 'image')}}
+        <figure><img src="{{content.url}}" alt="{{content.alt}}" /></figure>
+        {{/if}}
+      {{/each}}
+    </div>
+    {{/if}}
+  </div>
+
+  <footer class="post-footer">
+    <div class="container">
+      <nav class="post-nav" aria-label="Navegação entre posts">
+        {{#if prevPost}}
+        <a href="/{{page.type}}/{{prevPost.slug}}" class="post-nav__prev" rel="prev">
+          <span class="post-nav__label">Artigo anterior</span>
+          <span class="post-nav__title">{{prevPost.title}}</span>
+        </a>
+        {{/if}}
+        {{#if nextPost}}
+        <a href="/{{page.type}}/{{nextPost.slug}}" class="post-nav__next" rel="next">
+          <span class="post-nav__label">Próximo artigo</span>
+          <span class="post-nav__title">{{nextPost.title}}</span>
+        </a>
+        {{/if}}
+      </nav>
+    </div>
+  </footer>
+</article>

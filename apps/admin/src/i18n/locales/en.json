@@ -665,6 +665,20 @@
       },
       "loading": "Loading custom fields…",
       "loadError": "Could not load custom fields."
+    },
+    "reading": {
+      "title": "Reading",
+      "description": "Configure how your homepage and posts page are displayed.",
+      "frontPageDisplays": "Your homepage displays",
+      "frontPageDisplaysOptions": {
+        "latest": "Your latest posts",
+        "static": "A static page"
+      },
+      "frontPage": "Homepage",
+      "postsPage": "Posts page",
+      "selectPage": "— Select a page —",
+      "saved": "Reading settings saved ✓",
+      "save": "Save Changes"
     }
   },
   "menus": {

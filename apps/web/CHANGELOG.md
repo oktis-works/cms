@@ -1,5 +1,14 @@
 # @oktis-works/web
 
+## 0.10.2
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/core@0.9.0
+  - @oktis-works/database@0.9.0
+  - @oktis-works/theme-runtime@0.7.0
+
 ## 0.10.1
 
 ### Patch Changes

@@ -1,22 +1,26 @@
 {
   "name": "default",
-  "version": "0.1.0",
-  "description": "Tema padrão do OkCMS — templates hierárquicos com interpolação real de conteúdo",
+  "version": "0.19.0",
+  "description": "Tema padrão do OkCMS — templates hierárquicos com interpolação real de conteúdo + Static Front Page",
   "type": "theme",
   "author": "Oktis Works",
   "compatibility": {
-    "okcms": "^0.12.0"
+    "okcms": "^0.19.0"
   },
   "screenshots": [
     "screenshot.png"
   ],
   "provides": {
     "layouts": [
-      "home",
-      "index",
-      "single",
+      "page-home",
+      "page-sobre",
+      "page-blog",
+      "post-primeiro-post",
+      "post-segundo-post",
       "page",
+      "single",
       "archive",
+      "index",
       "404"
     ],
     "assets": [
@@ -25,7 +29,9 @@
   },
   "stylesConfig": {
     "engine": "css",
-    "isolation": "manual"
+    "isolation": "manual",
+    "entry": "src/theme.css",
+    "output": "dist/theme.css"
   },
   "settings": [
     {
@@ -39,6 +45,12 @@
       "type": "text",
       "label": "Descrição do site",
       "default": ""
+    },
+    {
+      "name": "contactText",
+      "type": "textarea",
+      "label": "Texto da seção de contato",
+      "default": "Preencha o formulário ou envie um e-mail para contato@exemplo.com"
     }
   ]
 }

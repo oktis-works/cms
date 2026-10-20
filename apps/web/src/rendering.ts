@@ -581,6 +581,46 @@ export function createContentLookup(): ContentLookup {
       };
     },
 
+    async findById(id) {
+      const sql = getConnection();
+      const result = await sql.unsafe(
+        "SELECT * FROM content WHERE id = $1 AND status = 'PUBLISHED' LIMIT 1",
+        [id]
+      );
+
+      const row = result[0] as Record<string, unknown> | undefined;
+      if (!row) return null;
+
+      const data = ((row['body'] as Record<string, unknown>) ?? {}) as Record<string, unknown>;
+
+      try {
+        await enrichMedia(sql, data);
+        await attachTerms(sql, String(row['id']), data);
+      } catch {
+        // falha de enriquecimento nunca derruba a renderização
+      }
+
+      return {
+        type: String(row['type']),
+        slug: String(row['slug']),
+        data,
+        layout: (row['layout'] as string | null | undefined) ?? null,
+        record: row,
+      };
+    },
+
+    async getSetting(key) {
+      const sql = getConnection();
+      const result = await sql.unsafe(
+        `SELECT value FROM settings WHERE key = $1 AND (tenant_id IS NULL OR tenant_id = current_setting('app.current_tenant_id', true)::uuid) ORDER BY tenant_id NULLS FIRST LIMIT 1`,
+        [key]
+      );
+      const row = result[0] as Record<string, unknown> | undefined;
+      if (!row) return null;
+      const value = row['value'];
+      return typeof value === 'string' ? value : JSON.stringify(value);
+    },
+
     async listTypes() {
       const types = await postTypeRegistry.list();
       return types

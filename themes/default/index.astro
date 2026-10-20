@@ -1,17 +1,21 @@
-<main data-theme="{{site.theme}}" data-template="index" data-type="{{page.type}}">
-  <article class="entry">
-    <header class="entry__header">
-      <h1 class="entry__title">{{page.title}}</h1>
+<main data-template="index" data-type="{{page.type}}" class="page">
+  <header class="page-header">
+    <div class="container">
+      <h1>{{page.title}}</h1>
       {{#if site.description}}
-      <p class="entry__excerpt">{{site.description}}</p>
+      <p class="page-description">{{site.description}}</p>
       {{/if}}
-    </header>
-
-    <div class="entry__body">
-      {{#if content.html}}{{{content.html}}}{{/if}}
-      {{#if content.content}}{{{content.content}}}{{/if}}
-      {{#if content.text}}<p>{{content.text}}</p>{{/if}}
     </div>
+  </header>
+
+  <div class="page-content container">
+    {{#if content.html}}
+    <div class="entry-content" set:html={content.html}></div>
+    {{else if content.content}}
+    <div class="entry-content" set:html={content.content}></div>
+    {{else if content.text}}
+    <p>{{content.text}}</p>
+    {{/if}}
 
     {{#if items}}
     <section class="listing">
@@ -23,5 +27,5 @@
       {{/each}}
     </section>
     {{/if}}
-  </article>
+  </div>
 </main>

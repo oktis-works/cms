@@ -665,6 +665,20 @@
       },
       "loading": "Carregando campos personalizados…",
       "loadError": "Não foi possível carregar os campos personalizados."
+    },
+    "reading": {
+      "title": "Leitura",
+      "description": "Configure como sua página inicial e página de posts são exibidas.",
+      "frontPageDisplays": "Sua página inicial exibe",
+      "frontPageDisplaysOptions": {
+        "latest": "Seus últimos posts",
+        "static": "Uma página estática"
+      },
+      "frontPage": "Página inicial",
+      "postsPage": "Página de posts",
+      "selectPage": "— Selecione uma página —",
+      "saved": "Configurações de leitura salvas ✓",
+      "save": "Salvar alterações"
     }
   },
   "menus": {

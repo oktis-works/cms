@@ -1,0 +1,52 @@
+<main data-template="page-blog" data-type="page" class="page-blog">
+  <header class="page-header">
+    <div class="container">
+      <h1>{{content.title}}</h1>
+      {{#if content.description}}
+      <p class="page-description">{{content.description}}</p>
+      {{/if}}
+    </div>
+  </header>
+
+  <section class="posts-section" aria-labelledby="posts-title">
+    <div class="container">
+      {{#if items}}
+      <div class="posts-grid">
+        {{#each items}}
+        <article class="post-card">
+          {{#if thumbnail.url}}
+          <figure class="post-card__image">
+            <a href="/blog/{{slug}}">
+              <img src="{{thumbnail.url}}" alt="{{thumbnail.alt}}" loading="lazy" />
+            </a>
+          </figure>
+          {{/if}}
+          <div class="post-card__content">
+            <header class="post-card__header">
+              <time class="post-card__date" datetime="{{published_at}}">
+                {{#if published_at}}
+                {{formatDate published_at}}
+                {{/if}}
+              </time>
+            </header>
+            <h2 class="post-card__title"><a href="/blog/{{slug}}">{{title}}</a></h2>
+            {{#if excerpt}}
+            <p class="post-card__excerpt">{{excerpt}}</p>
+            {{/if}}
+            <a href="/blog/{{slug}}" class="btn btn-outline">Continuar lendo</a>
+          </div>
+        </article>
+        {{/each}}
+      </div>
+
+      {{#if pagination}}
+      <nav class="pagination" aria-label="Paginação">
+        {{pagination}}
+      </nav>
+      {{/if}}
+      {{else}}
+      <p class="no-posts">Nenhum artigo publicado ainda.</p>
+      {{/if}}
+    </div>
+  </section>
+</main>

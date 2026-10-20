@@ -1,18 +1,52 @@
-<main data-theme="{{site.theme}}" data-template="archive" data-type="{{page.type}}">
+<main data-template="archive" data-type="{{page.type}}" class="archive">
   <header class="archive-header">
-    <h1 class="archive-header__title">{{page.title}}</h1>
-    {{#if site.description}}
-    <p class="archive-header__description">{{site.description}}</p>
-    {{/if}}
+    <div class="container">
+      <h1 class="archive-title">{{page.title}}</h1>
+      {{#if site.description}}
+      <p class="archive-description">{{site.description}}</p>
+      {{/if}}
+    </div>
   </header>
 
-  <section class="listing">
-    {{#each items}}
-    <article class="card entry entry--item">
-      <h2 class="entry__title"><a href="/{{slug}}">{{title}}</a></h2>
-      {{#if excerpt}}<p class="entry__excerpt">{{excerpt}}</p>{{/if}}
-      {{#if published_at}}<time class="entry__date" datetime="{{published_at}}">{{published_at}}</time>{{/if}}
-    </article>
-    {{/each}}
+  <section class="posts-section" aria-labelledby="posts-title">
+    <div class="container">
+      {{#if items}}
+      <div class="posts-grid">
+        {{#each items}}
+        <article class="post-card">
+          {{#if thumbnail.url}}
+          <figure class="post-card__image">
+            <a href="/{{page.type}}/{{slug}}">
+              <img src="{{thumbnail.url}}" alt="{{thumbnail.alt}}" loading="lazy" />
+            </a>
+          </figure>
+          {{/if}}
+          <div class="post-card__content">
+            <header class="post-card__header">
+              <time class="post-card__date" datetime="{{published_at}}">
+                {{#if published_at}}
+                {{formatDate published_at}}
+                {{/if}}
+              </time>
+            </header>
+            <h2 class="post-card__title"><a href="/{{page.type}}/{{slug}}">{{title}}</a></h2>
+            {{#if excerpt}}
+            <p class="post-card__excerpt">{{excerpt}}</p>
+            {{/if}}
+            <a href="/{{page.type}}/{{slug}}" class="btn btn-outline">Continuar lendo</a>
+          </div>
+        </article>
+        {{/each}}
+      </div>
+
+      {{#if pagination}}
+      <nav class="pagination" aria-label="Paginação">
+        {{pagination}}
+      </nav>
+      {{/if}}
+      {{else}}
+      <p class="no-posts">Nenhum conteúdo publicado ainda.</p>
+      {{/if}}
+    </div>
   </section>
 </main>

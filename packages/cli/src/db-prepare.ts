@@ -24,7 +24,7 @@ export function getTenantId(options: Record<string, string>): string {
  */
 export async function prepareDb(options: Record<string, string>): Promise<string> {
   await initDb();
-  const { ensureCoreSchema, resolveTenantId, seedCoreData } = await import('@oktis-works/database');
+  const { ensureCoreSchema, resolveTenantId, seedCoreData, seedDemoContent } = await import('@oktis-works/database');
   const applied = await ensureCoreSchema();
   if (applied) {
     console.log('✓ core schema applied (database initialized)');
@@ -38,6 +38,16 @@ export async function prepareDb(options: Record<string, string>): Promise<string
     }
   } catch (error) {
     console.warn('⚠ default data seed failed:', error instanceof Error ? error.message : error);
+  }
+  // Seed de conteúdo demonstrativo (páginas, posts, menus, static front page)
+  try {
+    const demo = await seedDemoContent();
+    const total = demo.pages + demo.posts + demo.menus + demo.readingSettings;
+    if (total > 0) {
+      console.log(`✓ demo content: ${demo.pages} pages, ${demo.posts} posts, ${demo.menus} menus, ${demo.readingSettings} reading settings`);
+    }
+  } catch (error) {
+    console.warn('⚠ demo content seed failed:', error instanceof Error ? error.message : error);
   }
   return resolveTenantId(getTenantId(options));
 }

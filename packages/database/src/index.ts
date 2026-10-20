@@ -23,6 +23,7 @@ export {
 export { ensureCoreSchema, resolveTenantId } from './migrations/bootstrap.js';
 export {
   seedCoreData,
+  seedDemoContent,
   seedDefaultRoles,
   seedDefaultSettings,
   DEFAULT_ROLES,
