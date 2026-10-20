@@ -5,12 +5,16 @@ import { ApplicationLifecycle } from '../lifecycle/index.js';
 import { establishTenantContext } from '../tenant/context.js';
 import { syncEnabledPlugins } from '../plugin/load.js';
 import { installHookRuntimeWiring } from '../hooks/wiring.js';
+import { okForceUtcRuntime } from '../timezone/index.js';
 
 export interface BootstrapOptions {
   configPath?: string;
 }
 
 export async function bootstrap(_options: BootstrapOptions = {}): Promise<ApplicationLifecycle> {
+  // WordPress-style: força UTC no runtime ANTES de qualquer operação de data
+  okForceUtcRuntime();
+
   const config = loadConfig();
   const lifecycle = new ApplicationLifecycle(config);
 

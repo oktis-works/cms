@@ -1,5 +1,21 @@
 # @oktis-works/database
 
+## 0.10.0
+
+### Minor Changes
+
+- Add WordPress-style timezone system (OK CMS nomenclature)
+  
+  - **Core (timezone service)**: New `okForceUtcRuntime()`, `okDate()`, `okCurrentTime()`, `okGetTimezoneOffset()`, `okConvertToGmt()`, `okConvertFromGmt()`, `okGetTimezoneAbbreviation()`, `okIsDstActive()`, `okGetCommonTimezones()`, `okGetManualOffsets()`
+  - **Bootstrap integration**: Forces UTC runtime on startup (equivalent to WP's `date_default_timezone_set('UTC')`)
+  - **Database**: Migration V018 adds `published_at_gmt` column to content table for dual date storage (local + GMT)
+  - **Dual timezone config**: IANA city identifiers (DST auto) + manual UTC offsets
+  - **Settings**: `timezone_string` (IANA) and `gmt_offset` (manual) with priority: timezone_string > gmt_offset
+  - **Cache**: Config loaded from settings with in-memory cache
+  - **Tests**: 21 new timezone service tests covering DST, offsets, conversions, formatting
+  
+  Breaking: Requires running migration V018. Default timezone is America/Sao_Paulo.
+
 ## 0.9.0
 
 ### Minor Changes
