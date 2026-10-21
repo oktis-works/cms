@@ -12,9 +12,17 @@ WHERE a.ctid <> (
     AND b.slug = a.slug
 );
 
--- Add unique constraint
-ALTER TABLE content
-ADD CONSTRAINT uq_content_tenant_type_slug UNIQUE (tenant_id, type, slug);
+-- Add unique constraint (safe: checks if exists first)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'uq_content_tenant_type_slug'
+  ) THEN
+    ALTER TABLE content
+    ADD CONSTRAINT uq_content_tenant_type_slug UNIQUE (tenant_id, type, slug);
+  END IF;
+END $$;
 
 -- +migrate Down
 ALTER TABLE content DROP CONSTRAINT IF EXISTS uq_content_tenant_type_slug;
