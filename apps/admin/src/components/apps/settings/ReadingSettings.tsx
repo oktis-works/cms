@@ -71,6 +71,8 @@ export function ReadingSettings() {
         { key: 'frontPageDisplays', value: v['frontPageDisplays'], group: 'reading', type: 'string' },
         { key: 'frontPage', value: v['frontPage'], group: 'reading', type: 'string' },
         { key: 'postsPage', value: v['postsPage'], group: 'reading', type: 'string' },
+        { key: 'timezone_string', value: v['timezone_string'], group: 'reading', type: 'string' },
+        { key: 'gmt_offset', value: v['gmt_offset'], group: 'reading', type: 'string' },
       ];
       await apiClient.updateSettings(items);
       setInfo(t('settings.reading.saved'));

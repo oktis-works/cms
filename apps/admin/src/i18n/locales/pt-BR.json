@@ -683,7 +683,8 @@
       "timezoneStringPlaceholder": "America/Sao_Paulo",
       "gmtOffset": "Deslocamento GMT",
       "gmtOffsetPlaceholder": "-3",
-      "timezoneDescription": "O fuso horário em formato IANA (ex: America/Sao_Paulo). Deslocamento GMT é alternativa em horas."
+      "timezoneDescription": "O fuso horário em formato IANA (ex: America/Sao_Paulo). Deslocamento GMT é alternativa em horas.",
+      "gmtOffsetDescription": "Deslocamento GMT em horas (ex: -3 para UTC-3). Alternativa à string de fuso IANA."
     }
   },
   "menus": {
