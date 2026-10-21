@@ -117,6 +117,26 @@ export async function seedDemoContent(
   sql: Sql = getConnection()
 ): Promise<{ pages: number; posts: number; menus: number; readingSettings: number }> {
   const tenantId = await resolveTenantId('default');
+
+  // Limpar dados demo anteriores para garantir idempotência
+  await sql.unsafe(`
+    DELETE FROM settings WHERE tenant_id = $1 AND "group" = 'reading'
+      AND key IN ('static_front_page', 'page_for_posts', 'timezone_string', 'gmt_offset')
+  `, [tenantId]);
+  await sql.unsafe(`
+    DELETE FROM menus WHERE tenant_id = $1 AND slug IN ('header', 'footer')
+  `, [tenantId]);
+  await sql.unsafe(`
+    DELETE FROM content WHERE tenant_id = $1 AND slug IN ('home', 'sobre', 'blog', 'primeiro-post', 'segundo-post')
+  `, [tenantId]);
+  await sql.unsafe(`
+    DELETE FROM tenant_users WHERE tenant_id = $1 AND user_id IN (
+      SELECT id FROM users WHERE email = 'admin@local'
+    )
+  `, [tenantId]);
+  await sql.unsafe(`
+    DELETE FROM users WHERE email = 'admin@local'
+  `);
   console.log('[seedDemoContent] tenantId:', tenantId);
 
   // Check if constraint exists
@@ -375,9 +395,6 @@ export async function seedDemoContent(
     const result = await sql.unsafe(
       `INSERT INTO menus (tenant_id, name, slug, items)
        VALUES ($1, $2, $3, $4::jsonb)
-       ON CONFLICT (tenant_id, slug) DO UPDATE SET
-         name = EXCLUDED.name,
-         items = EXCLUDED.items
        RETURNING id`,
       [tenantId, slug, name, items]
     );
@@ -397,8 +414,6 @@ export async function seedDemoContent(
       const result = await sql.unsafe(
         `INSERT INTO settings (tenant_id, key, value, "group", type)
          VALUES ($1, $2, to_jsonb($3::text), 'reading', 'string')
-         ON CONFLICT (tenant_id, key) DO UPDATE SET
-           value = to_jsonb(EXCLUDED.value::text)
          RETURNING id`,
         [tenantId, key, value]
       );
