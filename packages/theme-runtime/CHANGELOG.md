@@ -1,5 +1,15 @@
 # @oktis-works/theme-runtime
 
+## 0.8.0
+
+### Minor Changes
+
+- Fix taxonomy management UI and theme activation
+  
+  - TaxonomyTermsManager: Redesigned to match PostTypesManager layout (form left, table right)
+  - Fixed theme activation in seed: activates default theme if none active
+  - Fixed taxonomy management UI to match PostTypesManager layout (form left, table right)
+
 ## 0.7.0
 
 ### Minor Changes

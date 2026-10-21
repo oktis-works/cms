@@ -1,5 +1,51 @@
 # @oktis-works/admin
 
+## 0.17.0
+
+### Minor Changes
+
+- Fix timezone settings, taxonomy management UI, and theme activation
+  
+  - Settings → Reading: Added timezone_string (IANA) and gmt_offset fields with TimezoneSelect (WP-style)
+  - Settings → General: Removed timezone field (moved to Reading)
+  - Sidebar: Added Reading to Settings submenu, moved Customize under Themes as sub-item
+  - Taxonomy Terms Manager: Redesigned to match PostTypesManager layout (form left, table right)
+  - Fixed theme activation in seed: activates default theme if none active
+  - Fixed timezone seed: added timezone_string (America/Sao_Paulo) and gmt_offset (-3)
+  - Fixed seed: CTE-based upserts for all entities (content, menus, settings)
+  - Fixed content seed ON CONFLICT to use CTE-based upserts
+  - Fixed tenant_users role lookup to accept global roles (tenant_id IS NULL)
+  - Fixed user creation ON CONFLICT to properly handle existing users
+  - Fixed menus table unique constraint (V020) for ON CONFLICT (tenant_id, slug)
+  - Fixed reading settings ON CONFLICT
+  - Fixed TimezoneSelect usage: removed invalid 'name' prop, proper import from local component
+  - Fixed bcrypt hash validation regex: proper escaping of $ characters
+  - Fixed seed: CTE-based upserts for all entities (content, menus, settings)
+  - Fixed tenant_users role lookup to accept global roles (tenant_id IS NULL)
+  - Fixed user creation ON CONFLICT to properly handle existing users
+  - Fixed ReadingSettings: added timezone_string and gmt_offset fields with TimezoneSelect
+  - Fixed GeneralSettings: removed timezone field (moved to Reading)
+  - Sidebar: Added Reading to Settings submenu, moved Customize under Themes as sub-item
+  - Taxonomy Terms Manager: Redesigned to match PostTypesManager layout (form left, table right)
+  - Fixed theme activation in seed: activates default theme if none active
+  - Fixed timezone seed: added timezone_string (America/Sao_Paulo) and gmt_offset (-3)
+  - Fixed seed: CTE-based upserts for all entities (content, menus, settings)
+  - Fixed timezone regex: proper escaping of $ characters
+  - Fixed seed: CTE-based upserts for all entities (content, menus, settings)
+  - Fixed tenant_users role lookup to accept global roles (tenant_id IS NULL)
+  - Fixed user creation ON CONFLICT to properly handle existing users
+  - Fixed ReadingSettings: added timezone_string and gmt_offset fields with TimezoneSelect
+  - Fixed GeneralSettings: removed timezone field (moved to Reading)
+  - Sidebar: Added Reading to Settings submenu, moved Customize under Themes as sub-item
+  - Taxonomy Terms Manager: Redesigned to match PostTypesManager layout (form left, table right)
+  - Fixed theme activation in seed: activates default theme if none active
+  - Fixed timezone seed: added timezone_string (America/Sao_Paulo) and gmt_offset (-3)
+  - Fixed seed: CTE-based upserts for all entities (content, menus, settings)
+  - Fixed timezone regex: proper escaping of $ characters
+  - Fixed seed: CTE-based upserts for all entities (content, menus, settings)
+  - Fixed tenant_users role lookup to accept global roles (tenant_id IS NULL)
+  - Fixed user creation ON CONFLICT to properly handle existing users
+
 ## 0.16.0
 
 ### Minor Changes

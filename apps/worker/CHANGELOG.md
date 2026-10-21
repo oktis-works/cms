@@ -1,5 +1,14 @@
 # @oktis-works/worker
 
+## 0.8.5
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+  - @oktis-works/core@0.11.0
+  - @oktis-works/database@0.12.0
+
 ## 0.8.4
 
 ### Patch Changes

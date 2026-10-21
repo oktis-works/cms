@@ -1,5 +1,28 @@
 # @oktis-works/cms
 
+## 0.10.7
+
+### Patch Changes
+
+- Fix dev command user creation and CLI improvements
+  
+  - Fixed dev command to prompt for admin email/name/password when:
+    - No users exist in database, OR
+    - Existing user has invalid password hash (e.g., dummy hash from seed)
+  - Fixed user creation ON CONFLICT to properly handle existing users
+  - Fixed tenant_users role lookup to accept global roles (tenant_id IS NULL)
+  - Fixed user creation ON CONFLICT to properly handle existing users
+  - CLI scaffold: updated default DB_PORT to 5432 (consistent across all files)
+  - Fixed theme activation in seed: activates default theme if none active
+  - Fixed theme activation in seed: activates default theme if none active
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @oktis-works/core@0.11.0
+  - @oktis-works/database@0.12.0
+  - @oktis-works/theme-runtime@0.8.0
+  - @oktis-works/auth@0.7.7
+
 ## 0.10.6
 
 ### Patch Changes

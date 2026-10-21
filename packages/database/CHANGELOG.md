@@ -1,5 +1,21 @@
 # @oktis-works/database
 
+## 0.12.0
+
+### Minor Changes
+
+- Fix demo content seed issues and add theme activation
+  
+  - Added unique constraint for menus (tenant_id, slug) - V020 migration
+  - Fixed demo content seed to use CTE-based upserts instead of ON CONFLICT to avoid constraint caching issues with connection pooling
+  - Fixed pages, posts, menus, and settings inserts to use CTE-based upserts (WITH upsert AS UPDATE ... INSERT ... WHERE NOT EXISTS)
+  - Fixed tenant_users role lookup to accept global roles (tenant_id IS NULL)
+  - Fixed user creation ON CONFLICT to properly handle existing users
+  - Added unique constraint for content (tenant_id, type, slug) - V019 migration with safe DO block
+  - Fixed seed: CTE-based upserts for all entities (content, menus, settings)
+  - Fixed tenant_users role lookup to accept global roles (tenant_id IS NULL)
+  - Fixed user creation ON CONFLICT to properly handle existing users
+
 ## 0.11.0
 
 ### Minor Changes
