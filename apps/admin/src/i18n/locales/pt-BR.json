@@ -678,7 +678,12 @@
       "postsPage": "Página de posts",
       "selectPage": "— Selecione uma página —",
       "saved": "Configurações de leitura salvas ✓",
-      "save": "Salvar alterações"
+      "save": "Salvar alterações",
+      "timezoneString": "Fuso Horário",
+      "timezoneStringPlaceholder": "America/Sao_Paulo",
+      "gmtOffset": "Deslocamento GMT",
+      "gmtOffsetPlaceholder": "-3",
+      "timezoneDescription": "O fuso horário em formato IANA (ex: America/Sao_Paulo). Deslocamento GMT é alternativa em horas."
     }
   },
   "menus": {

@@ -2,9 +2,10 @@
 // Configuração de Static Front Page estilo WordPress.
 
 import { Show, createSignal, onMount } from '@oktis-works/ui';
-import { Card, Select, Button } from '@oktis-works/ui';
+import { Card, Select, Button, Input } from '@oktis-works/ui';
 import { apiClient } from '../../../lib/api';
 import { useTranslation } from '../../../i18n';
+import { TimezoneSelect } from './TimezoneSelect';
 
 interface PageOption {
   value: string;
@@ -17,6 +18,8 @@ export function ReadingSettings() {
     frontPageDisplays: 'static',
     frontPage: '',
     postsPage: '',
+    timezone_string: '',
+    gmt_offset: '',
   });
   const [pages, setPages] = createSignal<PageOption[]>([]);
   const [loading, setLoading] = createSignal(true);
@@ -46,6 +49,8 @@ export function ReadingSettings() {
         frontPageDisplays: map['frontPageDisplays'] ?? 'static',
         frontPage: map['frontPage'] ?? '',
         postsPage: map['postsPage'] ?? '',
+        timezone_string: map['timezone_string'] ?? '',
+        gmt_offset: map['gmt_offset'] ?? '',
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -126,6 +131,29 @@ export function ReadingSettings() {
                 />
               </div>
             </Show>
+
+            <div class="form-field">
+              <label>{t('settings.reading.timezoneString')}</label>
+              <TimezoneSelect
+                value={values()['timezone_string'] ?? ''}
+                placeholder={t('settings.reading.timezoneStringPlaceholder')}
+                searchPlaceholder={t('settings.reading.timezoneStringPlaceholder')}
+                onChange={(value) => setValues({ ...values(), timezone_string: value })}
+              />
+              <p class="form-hint">{t('settings.reading.timezoneDescription')}</p>
+            </div>
+
+            <div class="form-field">
+              <label>{t('settings.reading.gmtOffset')}</label>
+              <Input
+                name="gmt_offset"
+                type="number"
+                value={values()['gmt_offset'] ?? ''}
+                placeholder={t('settings.reading.gmtOffsetPlaceholder')}
+                onInput={(value) => setValues({ ...values(), gmt_offset: value })}
+              />
+              <p class="form-hint">{t('settings.reading.gmtOffsetDescription')}</p>
+            </div>
           </div>
 
           <div class="media-details__actions">

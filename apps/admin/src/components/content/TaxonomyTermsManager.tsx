@@ -118,65 +118,73 @@ export function TaxonomyTermsManager(props: Props) {
   };
 
   return (
-    <div class="terms-panel">
+    <div class="taxonomy-manager">
       <Show when={error()}><div class="notice notice--error">{error()}</div></Show>
       <Show when={!taxonomy() && props.taxonomySlug}>
         <div class="notice notice--error">{t('content.taxonomy.notFound')}</div>
       </Show>
       <Show when={taxonomy()}>
-        <form class="card term-form" onSubmit={saveTerm}>
-          <h3>{editingId() ? t('content.taxonomy.editTerm') : t('content.taxonomy.addTerm')}</h3>
-          <label>
-            {t('content.taxonomy.name')}
-            <input class="input" required value={name()} onInput={(event) => setName(event.currentTarget.value)} />
-          </label>
-          <label>
-            {t('content.taxonomy.slug')}
-            <input class="input" value={slug()} onInput={(event) => setSlug(event.currentTarget.value)} />
-          </label>
-          <label>
-            {t('content.taxonomy.description')}
-            <textarea class="input" rows={3} value={description()} onInput={(event) => setDescription(event.currentTarget.value)} />
-          </label>
-          <Show when={metaFields().length > 0}>
-            <div class="term-meta-fields">
-              <h4>{t('content.taxonomy.termFields')}</h4>
-              <For each={metaFields()}>
-                {(field) => (
-                  <FieldRenderer
-                    field={field}
-                    values={metaValues()}
-                    onChange={(fieldName, value) => setMetaValues({ ...metaValues(), [fieldName]: value })}
-                    t={t}
-                  />
-                )}
-              </For>
-            </div>
-          </Show>
-          <div class="form-actions">
-            <button class="btn btn-primary" type="submit" disabled={saving()}>{editingId() ? t('common.save') : t('content.taxonomy.add')}</button>
-            <Show when={editingId()}><button class="btn" type="button" onClick={resetForm}>{t('common.cancel')}</button></Show>
+        <div class="taxonomy-manager__layout">
+          {/* Left column: Form */}
+          <div class="taxonomy-manager__form-col">
+            <form class="card term-form" onSubmit={saveTerm}>
+              <h3>{editingId() ? t('content.taxonomy.editTerm') : t('content.taxonomy.addTerm')}</h3>
+              <label>
+                {t('content.taxonomy.name')}
+                <input class="input" required value={name()} onInput={(event) => setName(event.currentTarget.value)} />
+              </label>
+              <label>
+                {t('content.taxonomy.slug')}
+                <input class="input" value={slug()} onInput={(event) => setSlug(event.currentTarget.value)} />
+              </label>
+              <label>
+                {t('content.taxonomy.description')}
+                <textarea class="input" rows={3} value={description()} onInput={(event) => setDescription(event.currentTarget.value)} />
+              </label>
+              <Show when={metaFields().length > 0}>
+                <div class="term-meta-fields">
+                  <h4>{t('content.taxonomy.termFields')}</h4>
+                  <For each={metaFields()}>
+                    {(field) => (
+                      <FieldRenderer
+                        field={field}
+                        values={metaValues()}
+                        onChange={(fieldName, value) => setMetaValues({ ...metaValues(), [fieldName]: value })}
+                        t={t}
+                      />
+                    )}
+                  </For>
+                </div>
+              </Show>
+              <div class="form-actions">
+                <button class="btn btn-primary" type="submit" disabled={saving()}>{editingId() ? t('common.save') : t('content.taxonomy.add')}</button>
+                <Show when={editingId()}><button class="btn" type="button" onClick={resetForm}>{t('common.cancel')}</button></Show>
+              </div>
+            </form>
           </div>
-        </form>
 
-        <div class="card">
-          <div class="card-header">
-            <div>
-              <h3>{taxonomy()!.name}</h3>
-              <p class="muted">{props.contentType ? `${t('content.taxonomy.attachedTo')}: ${props.contentType}` : t('content.taxonomy.descriptionHint')}</p>
+          {/* Right column: Terms Table */}
+          <div class="taxonomy-manager__table-col">
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <h3>{taxonomy()!.name}</h3>
+                  <p class="muted">{props.contentType ? `${t('content.taxonomy.attachedTo')}: ${props.contentType}` : t('content.taxonomy.descriptionHint')}</p>
+                </div>
+                <span class="badge">{terms().length}</span>
+              </div>
+              <Show when={terms().length > 0} fallback={<p class="muted">{t('content.taxonomy.empty')}</p>}>
+                <table class="table">
+                  <thead><tr><th>{t('content.taxonomy.name')}</th><th>{t('content.taxonomy.slug')}</th><th /></tr></thead>
+                  <tbody>
+                    <For each={terms()}>
+                      {(term) => <tr><td>{term.name}</td><td>{term.slug}</td><td><button class="btn btn-secondary btn-sm" type="button" onClick={() => startEdit(term)}>{t('common.edit')}</button>{' '}<button class="btn btn-danger btn-sm" type="button" onClick={() => void removeTerm(term)}>{t('content.taxonomy.delete')}</button></td></tr>}
+                    </For>
+                  </tbody>
+                </table>
+              </Show>
             </div>
-            <span class="badge">{terms().length}</span>
           </div>
-          <Show when={terms().length > 0} fallback={<p class="muted">{t('content.taxonomy.empty')}</p>}>
-            <table class="table">
-              <thead><tr><th>{t('content.taxonomy.name')}</th><th>{t('content.taxonomy.slug')}</th><th /></tr></thead>
-              <tbody>
-                <For each={terms()}>
-                  {(term) => <tr><td>{term.name}</td><td>{term.slug}</td><td><button class="btn btn-secondary btn-sm" type="button" onClick={() => startEdit(term)}>{t('common.edit')}</button>{' '}<button class="btn btn-danger btn-sm" type="button" onClick={() => void removeTerm(term)}>{t('content.taxonomy.delete')}</button></td></tr>}
-                </For>
-              </tbody>
-            </table>
-          </Show>
         </div>
       </Show>
     </div>

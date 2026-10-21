@@ -678,7 +678,13 @@
       "postsPage": "Posts page",
       "selectPage": "— Select a page —",
       "saved": "Reading settings saved ✓",
-      "save": "Save Changes"
+      "save": "Save Changes",
+      "timezoneString": "Timezone",
+      "timezoneStringPlaceholder": "America/Sao_Paulo",
+      "gmtOffset": "GMT Offset",
+      "gmtOffsetPlaceholder": "-3",
+      "timezoneDescription": "A timezone string in IANA format (e.g. America/Sao_Paulo). GMT offset is an alternative in hours.",
+      "gmtOffsetDescription": "GMT offset in hours (e.g. -3 for UTC-3). Alternative to IANA timezone string."
     }
   },
   "menus": {

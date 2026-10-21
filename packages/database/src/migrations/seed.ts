@@ -395,6 +395,8 @@ export async function seedDemoContent(
     for (const [key, value] of [
       ['static_front_page', pageIds['home']],
       ['page_for_posts', pageIds['blog']],
+      ['timezone_string', 'America/Sao_Paulo'],
+      ['gmt_offset', -3],
     ] as const) {
       console.log('[seedDemoContent] Inserting setting:', key, 'tenantId:', tenantId);
       const result = await sql.unsafe(
@@ -415,4 +417,40 @@ export async function seedDemoContent(
   }
 
   return { pages: pagesCreated, posts: postsCreated, menus: menusCreated, readingSettings: readingSettingsCreated };
+}
+
+/** Ativa o tema default se ainda não houver tema ativo. */
+export async function seedActivateDefaultTheme(
+  sql: Sql = getConnection()
+): Promise<void> {
+  try {
+    const tenantId = await resolveTenantId('default');
+    
+    // Verifica se já existe tema ativo
+    const activeTheme = await sql.unsafe(
+      `SELECT id FROM themes WHERE status = 'ACTIVE' AND tenant_id = $1 LIMIT 1`,
+      [tenantId]
+    );
+    
+    if (activeTheme.length > 0) return;
+    
+    // Busca o tema default
+    const defaultTheme = await sql.unsafe(
+      `SELECT id FROM themes WHERE name = 'default' AND tenant_id = $1 LIMIT 1`,
+      [tenantId]
+    );
+    
+    if (defaultTheme.length > 0) {
+      const row = defaultTheme[0];
+      const themeId = row?.['id'];
+      if (themeId) {
+        await sql.unsafe(
+          `UPDATE themes SET status = 'ACTIVE', updated_at = NOW() WHERE id = $1`,
+          [themeId]
+        );
+      }
+    }
+  } catch {
+    // Silencioso - ativação do tema é best-effort
+  }
 }

@@ -38,6 +38,7 @@ const navActive = {
 
 const settingsChildren = [
   { href: '/settings/general', key: 'settings.general.title', active: isActive('/settings/general') },
+  { href: '/settings/reading', key: 'settings.reading.title', active: isActive('/settings/reading') },
   { href: '/settings/post-types', key: 'settings.postTypes.title', active: isActive('/settings/post-types') },
   { href: '/settings/custom-fields', key: 'settings.customFields.title', active: isActive('/settings/custom-fields') },
   { href: '/settings/taxonomies', key: 'settings.taxonomies.title', active: isActive('/settings/taxonomies') },
@@ -132,7 +133,30 @@ const settingsChildren = [
           <span class="nav-label" data-sidebar-i18n="layout.nav.themes">{t('layout.nav.themes')}</span>
         </a>
 
-        <a href="/customize" class:list={['nav-item', { active: navActive.customize }]}>
+        <div class:list={['nav-group', { open: navActive.themes || navActive.customize }]} data-nav-group="themes">
+          <div class="nav-group-header">
+            <a href="/themes" class:list={['nav-item', { active: navActive.themes }]} data-sidebar-i18n="layout.nav.themes">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                <path d="M2 12h20"></path>
+              </svg>
+              <span class="nav-label">{t('layout.nav.themes')}</span>
+            </a>
+            <span class="nav-group-toggle" aria-expanded={navActive.themes || navActive.customize} aria-controls="themes-submenu">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </span>
+          </div>
+
+          <div class="nav-submenu" id="themes-submenu" data-nav-submenu="themes">
+            <a href="/themes" class:list={['nav-subitem', { active: navActive.themes }]} data-sidebar-i18n="layout.nav.themes">
+              {t('layout.nav.themes')}
+            </a>
+            <a href="/customize" class:list={['nav-subitem', { active: navActive.customize }]} data-sidebar-i18n="layout.nav.customize">
+              {t('layout.nav.customize')}
+            </a>
+          </div>
+        </div>
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 20h9"></path>
             <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path>

@@ -9,11 +9,11 @@
 
 import { Show, createMemo, createSignal, onMount } from '@oktis-works/ui';
 import { Card, Input, Select, Button } from '@oktis-works/ui';
+import { TimezoneSelect } from './TimezoneSelect';
 import { apiClient } from '../../../lib/api';
 import { useTranslation } from '../../../i18n';
 import { LOCALE_FLAGS, LOCALE_LABELS, SUPPORTED_LOCALES, isValidLocale } from '../../../i18n/config';
 import { setCookieLocale } from '../../../i18n/locale';
-import { TimezoneSelect } from './TimezoneSelect';
 
 interface FieldDef {
   key: string;
@@ -43,7 +43,6 @@ export function GeneralSettings() {
     { key: 'siteTitle', label: t('settings.general.fields.siteTitle'), type: 'text', placeholder: t('settings.general.fields.siteTitlePlaceholder') },
     { key: 'siteDescription', label: t('settings.general.fields.siteDescription'), type: 'text', placeholder: t('settings.general.fields.siteDescriptionPlaceholder') },
     { key: 'language', label: t('settings.general.fields.language'), type: 'select', options: languageOptions() },
-    { key: 'timezone', label: t('settings.general.fields.timezone'), type: 'timezone', placeholder: t('settings.general.fields.timezonePlaceholder') },
   ]);
 
   onMount(async () => {
@@ -56,15 +55,6 @@ export function GeneralSettings() {
       // garante os campos na tela mesmo sem seed
       for (const field of fields()) {
         if (map[field.key] === undefined) map[field.key] = '';
-      }
-      // timezone vazio: pré-preenche com o fuso do navegador (valor só vai
-      // para o banco no Save, como no WordPress)
-      if (!map['timezone']) {
-        try {
-          map['timezone'] = Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
-        } catch {
-          map['timezone'] = 'UTC';
-        }
       }
       // idioma vazio: deixa em branco para o select mostrar o placeholder
       setLoadedLanguage(map['language'] ?? '');
@@ -143,7 +133,7 @@ export function GeneralSettings() {
                       value={values()[field.key] ?? ''}
                       placeholder={field.placeholder ?? ''}
                       searchPlaceholder={field.placeholder ?? ''}
-                      onChange={(value) => setValues({ ...values(), [field.key]: value })}
+                      onChange={(value: string) => setValues({ ...values(), [field.key]: value })}
                     />
                   </label>
                 ) : (
