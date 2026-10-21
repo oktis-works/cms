@@ -113,7 +113,7 @@ CREATE TABLE IF NOT EXISTS content (
 CREATE INDEX IF NOT EXISTS idx_content_tenant ON content(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_content_type ON content(type);
 CREATE INDEX IF NOT EXISTS idx_content_status ON content(status);
-CREATE INDEX IF NOT EXISTS idx_content_slug ON content(tenant_id, type, slug);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_content_tenant_type_slug ON content(tenant_id, type, slug);
 CREATE INDEX IF NOT EXISTS idx_content_author ON content(author_id);
 CREATE INDEX IF NOT EXISTS idx_content_published ON content(published_at) WHERE published_at IS NOT NULL;
 ALTER TABLE content ADD COLUMN IF NOT EXISTS data JSONB NOT NULL DEFAULT '{}'::jsonb;
