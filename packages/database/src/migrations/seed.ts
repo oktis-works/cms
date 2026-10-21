@@ -117,6 +117,14 @@ export async function seedDemoContent(
   sql: Sql = getConnection()
 ): Promise<{ pages: number; posts: number; menus: number; readingSettings: number }> {
   const tenantId = await resolveTenantId('default');
+  console.log('[seedDemoContent] tenantId:', tenantId);
+
+  // Check if constraint exists
+  const constraintCheck = await sql.unsafe(`
+    SELECT conname FROM pg_constraint 
+    WHERE conrelid = 'content'::regclass AND contype = 'u'
+  `);
+  console.log('[seedDemoContent] constraints on content:', constraintCheck);
 
   // Autor padrão: primeiro usuário do tenant (ou cria um se não houver)
   const authorResult = await sql.unsafe(
@@ -134,7 +142,7 @@ export async function seedDemoContent(
     authorId = String(newUser[0]?.['id'] ?? '');
     await sql.unsafe(
       `INSERT INTO tenant_users (tenant_id, user_id, role_id)
-       SELECT $1, $2, id FROM roles WHERE slug = 'TENANT_ADMIN' AND tenant_id = $1 LIMIT 1
+       SELECT $1, $2, id FROM roles WHERE slug = 'TENANT_ADMIN' AND (tenant_id = $1 OR tenant_id IS NULL) LIMIT 1
        ON CONFLICT (tenant_id, user_id) DO NOTHING`,
       [tenantId, authorId]
     );
@@ -221,20 +229,33 @@ export async function seedDemoContent(
   const pageIds: Record<string, string> = {};
 
   for (const page of pages) {
-    const result = await sql.unsafe(
-      `INSERT INTO content (tenant_id, type, title, slug, body, excerpt, status, author_id, published_at, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, to_jsonb($5::text), $6, 'PUBLISHED', $7, $8, $9, $10)
-       ON CONFLICT (tenant_id, type, slug) DO UPDATE SET
-         title = EXCLUDED.title,
-         body = to_jsonb(EXCLUDED.body::text),
-         excerpt = EXCLUDED.excerpt,
-         status = EXCLUDED.status,
-         author_id = EXCLUDED.author_id,
-         published_at = EXCLUDED.published_at,
-         updated_at = EXCLUDED.updated_at
-       RETURNING id`,
+    console.log('[seedDemoContent] Inserting page:', page.slug, 'tenantId:', tenantId, 'authorId:', authorId);
+    let result;
+    try {
+      // Use CTE-based upsert to avoid constraint caching issues
+      result = await sql.unsafe(
+        `WITH upsert AS (
+          UPDATE content
+          SET title = $3,
+              body = to_jsonb($5::text),
+              excerpt = $6,
+              status = 'PUBLISHED',
+              author_id = $7,
+              published_at = $9,
+              updated_at = $10
+          WHERE tenant_id = $1 AND type = $2 AND slug = $4
+          RETURNING id
+        )
+        INSERT INTO content (tenant_id, type, title, slug, body, excerpt, status, author_id, published_at, created_at, updated_at)
+        SELECT $1, $2, $3, $4, to_jsonb($5::text), $6, 'PUBLISHED', $7, $8, $9, $10
+        WHERE NOT EXISTS (SELECT 1 FROM content WHERE tenant_id = $1 AND type = $2 AND slug = $4)
+        RETURNING id`,
       [tenantId, page.type, page.title, page.slug, JSON.stringify(page.body), page.excerpt, authorId, now, now, now]
-    );
+      );
+    } catch (error) {
+      console.error('[seedDemoContent] Error inserting page:', page.slug, error);
+      throw error;
+    }
     pagesCreated += result.length;
     pageIds[page.slug] = String(result[0]?.['id'] ?? '');
   }
@@ -311,18 +332,24 @@ export async function seedDemoContent(
 
   let postsCreated = 0;
   for (const post of posts) {
+    console.log('[seedDemoContent] Inserting post:', post.slug, 'tenantId:', tenantId, 'authorId:', authorId);
     const result = await sql.unsafe(
-      `INSERT INTO content (tenant_id, type, title, slug, body, excerpt, status, author_id, published_at, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, to_jsonb($5::text), $6, 'PUBLISHED', $7, $8, $9, $10)
-       ON CONFLICT (tenant_id, type, slug) DO UPDATE SET
-         title = EXCLUDED.title,
-         body = to_jsonb(EXCLUDED.body::text),
-         excerpt = EXCLUDED.excerpt,
-         status = EXCLUDED.status,
-         author_id = EXCLUDED.author_id,
-         published_at = EXCLUDED.published_at,
-         updated_at = EXCLUDED.updated_at
-       RETURNING id`,
+      `WITH upsert AS (
+        UPDATE content
+        SET title = $3,
+            body = to_jsonb($5::text),
+            excerpt = $6,
+            status = 'PUBLISHED',
+            author_id = $7,
+            published_at = $9,
+            updated_at = $10
+        WHERE tenant_id = $1 AND type = $2 AND slug = $4
+        RETURNING id
+      )
+      INSERT INTO content (tenant_id, type, title, slug, body, excerpt, status, author_id, published_at, created_at, updated_at)
+      SELECT $1, $2, $3, $4, to_jsonb($5::text), $6, 'PUBLISHED', $7, $8, $9, $10
+      WHERE NOT EXISTS (SELECT 1 FROM content WHERE tenant_id = $1 AND type = $2 AND slug = $4)
+      RETURNING id`,
       [tenantId, post.type, post.title, post.slug, JSON.stringify(post.body), post.excerpt, authorId, now, now, now]
     );
     postsCreated += result.length;
@@ -344,14 +371,20 @@ export async function seedDemoContent(
     ['header', 'Menu Principal', headerMenuItems],
     ['footer', 'Rodapé', footerMenuItems],
   ] as const) {
+    console.log('[seedDemoContent] Inserting menu:', slug, 'tenantId:', tenantId);
     const result = await sql.unsafe(
-      `INSERT INTO menus (tenant_id, name, slug, items)
-       VALUES ($1, $2, $3, $4::jsonb)
-       ON CONFLICT (tenant_id, slug) DO UPDATE SET
-         name = EXCLUDED.name,
-         items = EXCLUDED.items
-       RETURNING id`,
-      [tenantId, name, slug, items]
+      `WITH upsert AS (
+        UPDATE menus
+        SET name = $3,
+            items = $4::jsonb
+        WHERE tenant_id = $1 AND slug = $2
+        RETURNING id
+      )
+      INSERT INTO menus (tenant_id, name, slug, items)
+      SELECT $1, $2, $3, $4::jsonb
+      WHERE NOT EXISTS (SELECT 1 FROM menus WHERE tenant_id = $1 AND slug = $2)
+      RETURNING id`,
+      [tenantId, slug, name, items]
     );
     menusCreated += result.length;
   }
@@ -363,11 +396,18 @@ export async function seedDemoContent(
       ['static_front_page', pageIds['home']],
       ['page_for_posts', pageIds['blog']],
     ] as const) {
+      console.log('[seedDemoContent] Inserting setting:', key, 'tenantId:', tenantId);
       const result = await sql.unsafe(
-        `INSERT INTO settings (tenant_id, key, value, "group", type)
-         VALUES ($1, $2, to_jsonb($3::text), 'reading', 'string')
-         ON CONFLICT (key, tenant_id) DO UPDATE SET value = to_jsonb($3::text)
-         RETURNING id`,
+        `WITH upsert AS (
+          UPDATE settings
+          SET value = to_jsonb($3::text)
+          WHERE tenant_id = $1 AND key = $2
+          RETURNING id
+        )
+        INSERT INTO settings (tenant_id, key, value, "group", type)
+        SELECT $1, $2, to_jsonb($3::text), 'reading', 'string'
+        WHERE NOT EXISTS (SELECT 1 FROM settings WHERE tenant_id = $1 AND key = $2)
+        RETURNING id`,
         [tenantId, key, value]
       );
       readingSettingsCreated += result.length;

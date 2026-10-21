@@ -10,8 +10,8 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: okcms
-      POSTGRES_USER: okcms
-      POSTGRES_PASSWORD: okcms_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
       - "5432:5432"
     volumes:
