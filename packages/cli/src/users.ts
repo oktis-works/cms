@@ -83,3 +83,18 @@ export async function anyUserExists(): Promise<boolean> {
   const rows = await getConnection().unsafe('SELECT 1 AS one FROM users LIMIT 1');
   return rows.length > 0;
 }
+
+/** Retorna o primeiro usuário com email e password_hash (para validar se o hash é válido) */
+export async function getFirstUser(): Promise<{ email: string; password_hash: string } | null> {
+  await initDb();
+  const { ensureCoreSchema, getConnection } = await import('@oktis-works/database');
+  await ensureCoreSchema();
+  const rows = await getConnection().unsafe<{ email: string; password_hash: string }[]>('SELECT email, password_hash FROM users LIMIT 1');
+  return rows[0] ?? null;
+}
+
+/** Verifica se o hash é um hash bcrypt válido (não dummy) */
+export function isValidBcryptHash(hash: string): boolean {
+  // bcrypt hashes start with $2a$, $2b$, or $2y$ followed by cost and 53-char salt/hash
+  return /^\$2[aby]\$\d{2}\$[A-Za-z0-9]{53}$/.test(hash);
+}

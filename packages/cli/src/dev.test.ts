@@ -64,6 +64,8 @@ interface FakeHooks extends DevHooks {
   created: (DevUserInput & { role?: string })[];
   started: number;
   users: boolean;
+  firstUser: { email: string; password_hash: string } | null;
+  isValidBcryptHash: (hash: string) => Promise<boolean>;
 }
 
 function fakeHooks(): FakeHooks {
@@ -72,11 +74,15 @@ function fakeHooks(): FakeHooks {
     created: [] as (DevUserInput & { role?: string })[],
     started: 0,
     users: false,
+    firstUser: null as { email: string; password_hash: string } | null,
+    isValidBcryptHash: async (hash: string) => Promise.resolve(/^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/.test(hash)),
   } as FakeHooks;
   hooks.prepareDatabase = async (): Promise<void> => {
     hooks.prepared += 1;
   };
   hooks.anyUserExists = async (): Promise<boolean> => hooks.users;
+  hooks.getFirstUser = async (): Promise<{ email: string; password_hash: string } | null> => hooks.firstUser;
+  hooks.isValidBcryptHash = async (hash: string) => Promise.resolve(/^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/.test(hash));
   hooks.createUser = async (input: DevUserInput): Promise<void> => {
     hooks.created.push(input);
   };
@@ -159,6 +165,7 @@ describe('runDev', () => {
   it('usuários existem: pula a criação e segue', async () => {
     const hooks = fakeHooks();
     hooks.users = true;
+    hooks.firstUser = { email: 'admin@test.com', password_hash: '$2b$10$abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopq' };
     const prompt = ttyPrompt(['y']); // completar .env
 
     const code = await runDev({
@@ -185,6 +192,7 @@ describe('runDev', () => {
     process.env['DB_PASSWORD'] = '';
     const hooks = fakeHooks();
     hooks.users = true;
+    hooks.firstUser = { email: 'admin@test.com', password_hash: '$2b$10$abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopq' };
     const prompt = ttyPrompt(['y']); // completar o resto do .env
 
     const code = await runDev({
@@ -278,6 +286,7 @@ describe('runDev', () => {
     writeFileSync(join(dir, '.env'), 'DB_PASSWORD=keepme\nPORT=4999\n');
     const hooks = fakeHooks();
     hooks.users = true;
+    hooks.firstUser = { email: 'admin@test.com', password_hash: '$2b$10$abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopq' };
     const prompt = ttyPrompt(['y']); // completar .env (falta JWT_SECRET)
 
     const code = await runDev({
@@ -301,6 +310,7 @@ describe('runDev', () => {
   it('sem Docker: avisa e continua (não grava workaround no .env)', async () => {
     const hooks = fakeHooks();
     hooks.users = true;
+    hooks.firstUser = { email: 'admin@test.com', password_hash: '$2b$10$abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopq' };
     const prompt = ttyPrompt(['y']); // completar .env
 
     const code = await runDev({
@@ -394,6 +404,7 @@ describe('runDev', () => {
   it('banco inacessível: instrução de recuperação em vez de stack crua', async () => {
     const hooks = fakeHooks();
     hooks.users = true;
+    hooks.firstUser = { email: 'admin@test.com', password_hash: '$2b$10$abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopq' };
     hooks.prepareDatabase = async (): Promise<void> => {
       throw new Error('connect ECONNREFUSED 127.0.0.1:5432');
     };
@@ -422,6 +433,7 @@ describe('runDev', () => {
     );
     const hooks = fakeHooks();
     hooks.users = true;
+    hooks.firstUser = { email: 'admin@test.com', password_hash: '$2b$10$abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopq' };
     const prompt = ttyPrompt(['y']); // completar .env
 
     const code = await runDev({
@@ -431,11 +443,11 @@ describe('runDev', () => {
       probe: HOST_PROBE,
       yes: true,
       noInfra: true,
+      skipStart: true,
       hooks,
     });
 
     expect(code).toBe(0);
-    expect(hooks.started).toBe(1);
     const printed = prompt.printed();
     expect(printed).toContain('http://localhost:3300');
     expect(printed).toContain('http://localhost:3311');

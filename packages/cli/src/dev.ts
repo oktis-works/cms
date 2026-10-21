@@ -78,6 +78,10 @@ export interface DevHooks {
   prepareDatabase: () => Promise<void>;
   /** Existe algum usuário no banco? */
   anyUserExists: () => Promise<boolean>;
+  /** Retorna o primeiro usuário (email, password_hash) para validar hash. */
+  getFirstUser: () => Promise<{ email: string; password_hash: string } | null>;
+  /** Verifica se o hash é um hash bcrypt válido. */
+  isValidBcryptHash: (hash: string) => Promise<boolean>;
   /** Cria o primeiro admin (mesmo caminho do `user:create`). */
   createUser: (input: DevUserInput) => Promise<void>;
   /** Sobe api · admin · web · worker (bloqueia — é o processo do dev). */
@@ -294,6 +298,14 @@ async function defaultHooks(log: (message: string) => void): Promise<DevHooks> {
       const { anyUserExists } = await import('./users.js');
       return anyUserExists();
     },
+    getFirstUser: async () => {
+      const { getFirstUser } = await import('./users.js');
+      return getFirstUser();
+    },
+    isValidBcryptHash: async (hash: string) => {
+      const { isValidBcryptHash } = await import('./users.js');
+      return isValidBcryptHash(hash);
+    },
     createUser: async (input: DevUserInput) => {
       const { createUserAccount } = await import('./users.js');
       await createUserAccount(input);
@@ -448,7 +460,7 @@ export async function runDev(opts: DevOptions = {}): Promise<number> {
   }
   prompt.success('database ready (schema + seed + migrations)');
 
-  // ---- 4. primeiro usuário (se o banco está vazio) -------------------------
+  // ---- 4. primeiro usuário (se o banco está vazio ou o hash é inválido) -------
   const hasUsers = await hooks.anyUserExists();
   if (!hasUsers) {
     prompt.info('no users yet — the first account becomes SUPER_ADMIN');
@@ -468,7 +480,28 @@ export async function runDev(opts: DevOptions = {}): Promise<number> {
     await hooks.createUser({ email, name, password, role: 'SUPER_ADMIN' });
     prompt.success(`first user created: ${email} (SUPER_ADMIN)`);
   } else {
-    prompt.success('users already exist — user creation skipped');
+    // Verifica se o usuário existente tem hash válido
+    const firstUser = await hooks.getFirstUser();
+    if (firstUser && !(await hooks.isValidBcryptHash(firstUser.password_hash))) {
+      prompt.warn('existing user has invalid password hash — please set new admin credentials');
+      let email = opts.email;
+      let name = opts.name;
+      let password = opts.password;
+      if (interactive) {
+        email = email ?? (await prompt.ask('Admin email', { validate: isEmail }));
+        name = name ?? (await prompt.ask('Admin name', { validate: nonEmpty }));
+        password =
+          password ?? (await prompt.secret('Admin password (min 8 characters)', { validate: min8 }));
+      }
+      if (!email || !name || !password) {
+        prompt.error('admin credentials required — pass --email, --name and --password (non-TTY)');
+        return 1;
+      }
+      await hooks.createUser({ email, name, password, role: 'SUPER_ADMIN' });
+      prompt.success(`admin user updated: ${email} (SUPER_ADMIN)`);
+    } else {
+      prompt.success('users already exist — user creation skipped');
+    }
   }
 
   // ---- 5. apps -------------------------------------------------------------
