@@ -1,5 +1,14 @@
 # @oktis-works/database
 
+## 0.10.1
+
+### Patch Changes
+
+- Fix unique constraint for content slug (tenant_id, type, slug)
+  
+  Required for demo content seed to work with ON CONFLICT specification.
+  The schema now has a unique index on (tenant_id, type, slug) which allows the seed to work properly.
+
 ## 0.10.0
 
 ### Minor Changes
