@@ -129,12 +129,13 @@ export async function seedDemoContent(
     const newUser = await sql.unsafe(
       `INSERT INTO users (email, name, password_hash, status)
        VALUES ('admin@local', 'Administrador', '$2b$10$dummy', 'ACTIVE')
-       RETURNING id`
+       ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name RETURNING id`
     );
     authorId = String(newUser[0]?.['id'] ?? '');
     await sql.unsafe(
       `INSERT INTO tenant_users (tenant_id, user_id, role_id)
-       SELECT $1, $2, id FROM roles WHERE slug = 'TENANT_ADMIN' AND tenant_id = $1 LIMIT 1`,
+       SELECT $1, $2, id FROM roles WHERE slug = 'TENANT_ADMIN' AND tenant_id = $1 LIMIT 1
+       ON CONFLICT (tenant_id, user_id) DO NOTHING`,
       [tenantId, authorId]
     );
   } else {
