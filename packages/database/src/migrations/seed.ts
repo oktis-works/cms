@@ -373,17 +373,12 @@ export async function seedDemoContent(
   ] as const) {
     console.log('[seedDemoContent] Inserting menu:', slug, 'tenantId:', tenantId);
     const result = await sql.unsafe(
-      `WITH upsert AS (
-        UPDATE menus
-        SET name = $3,
-            items = $4::jsonb
-        WHERE tenant_id = $1 AND slug = $2
-        RETURNING id
-      )
-      INSERT INTO menus (tenant_id, name, slug, items)
-      SELECT $1, $2, $3, $4::jsonb
-      WHERE NOT EXISTS (SELECT 1 FROM menus WHERE tenant_id = $1 AND slug = $2)
-      RETURNING id`,
+      `INSERT INTO menus (tenant_id, name, slug, items)
+       VALUES ($1, $2, $3, $4::jsonb)
+       ON CONFLICT (tenant_id, slug) DO UPDATE SET
+         name = EXCLUDED.name,
+         items = EXCLUDED.items
+       RETURNING id`,
       [tenantId, slug, name, items]
     );
     menusCreated += result.length;
@@ -400,16 +395,11 @@ export async function seedDemoContent(
     ] as const) {
       console.log('[seedDemoContent] Inserting setting:', key, 'tenantId:', tenantId);
       const result = await sql.unsafe(
-        `WITH upsert AS (
-          UPDATE settings
-          SET value = to_jsonb($3::text)
-          WHERE tenant_id = $1 AND key = $2
-          RETURNING id
-        )
-        INSERT INTO settings (tenant_id, key, value, "group", type)
-        SELECT $1, $2, to_jsonb($3::text), 'reading', 'string'
-        WHERE NOT EXISTS (SELECT 1 FROM settings WHERE tenant_id = $1 AND key = $2)
-        RETURNING id`,
+        `INSERT INTO settings (tenant_id, key, value, "group", type)
+         VALUES ($1, $2, to_jsonb($3::text), 'reading', 'string')
+         ON CONFLICT (tenant_id, key) DO UPDATE SET
+           value = to_jsonb(EXCLUDED.value::text)
+         RETURNING id`,
         [tenantId, key, value]
       );
       readingSettingsCreated += result.length;
