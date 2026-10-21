@@ -1,5 +1,23 @@
 # @oktis-works/cms
 
+## 0.10.6
+
+### Patch Changes
+
+- 641e556: Fix demo content seed issues
+  
+  - Add unique constraint for menus (tenant_id, slug) - V020 migration
+  - Fix demo content seed to use CTE-based upserts instead of ON CONFLICT to avoid constraint caching issues with connection pooling
+  - Fix pages, posts, menus, and settings inserts to use CTE-based upserts (WITH upsert AS UPDATE ... INSERT ... WHERE NOT EXISTS)
+  - Fix menus table unique constraint (V020) for ON CONFLICT (tenant_id, slug)
+  - Fix content seed to use CTE-based upsert (WITH upsert AS UPDATE ... INSERT ... WHERE NOT EXISTS) to avoid constraint caching issues with connection pooling
+  - Fix tenant_users role lookup to accept global roles (tenant_id IS NULL)
+  - Fix user creation ON CONFLICT to properly handle existing users
+- Updated dependencies [641e556]
+  - @oktis-works/database@0.11.0
+  - @oktis-works/auth@0.7.6
+  - @oktis-works/core@0.10.3
+
 ## 0.10.5
 
 ### Patch Changes
