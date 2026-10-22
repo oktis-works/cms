@@ -12,7 +12,8 @@
       "plugins": "Plugins",
       "themes": "Themes",
       "customize": "Customize",
-      "comments": "Comments"
+      "comments": "Comments",
+      "settings_reading": "Reading"
     },
     "actions": {
       "logout": "Logout",
@@ -684,7 +685,8 @@
       "gmtOffset": "GMT Offset",
       "gmtOffsetPlaceholder": "-3",
       "timezoneDescription": "A timezone string in IANA format (e.g. America/Sao_Paulo). GMT offset is an alternative in hours.",
-      "gmtOffsetDescription": "GMT offset in hours (e.g. -3 for UTC-3). Alternative to IANA timezone string."
+      "gmtOffsetDescription": "GMT offset in hours (e.g. -3 for UTC-3). Alternative to IANA timezone string.",
+      "loading": "Loading…"
     }
   },
   "menus": {

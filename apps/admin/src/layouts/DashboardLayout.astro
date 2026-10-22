@@ -124,15 +124,6 @@ const settingsChildren = [
           <span class="nav-label" data-sidebar-i18n="layout.nav.plugins">{t('layout.nav.plugins')}</span>
         </a>
 
-        <a href="/themes" class:list={['nav-item', { active: navActive.themes }]}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-            <path d="M2 12h20"></path>
-          </svg>
-          <span class="nav-label" data-sidebar-i18n="layout.nav.themes">{t('layout.nav.themes')}</span>
-        </a>
-
         <div class:list={['nav-group', { open: navActive.themes || navActive.customize }]} data-nav-group="themes">
           <div class="nav-group-header">
             <a href="/themes" class:list={['nav-item', { active: navActive.themes }]} data-sidebar-i18n="layout.nav.themes">
@@ -154,6 +145,9 @@ const settingsChildren = [
             </a>
             <a href="/customize" class:list={['nav-subitem', { active: navActive.customize }]} data-sidebar-i18n="layout.nav.customize">
               {t('layout.nav.customize')}
+            </a>
+            <a href="/settings/reading" class:list={['nav-subitem', { active: navActive.settings && navActive.settings === 'reading' }]} data-sidebar-i18n="layout.nav.settings_reading">
+              {t('layout.nav.settings_reading')}
             </a>
           </div>
         </div>
