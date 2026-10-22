@@ -1,5 +1,6 @@
 ---
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { GeneralSettings } from '../../components/apps/settings/GeneralSettings';
 import { PageHeader } from '../../components/shared/PageHeader';
 
 const { t } = Astro.locals;
@@ -11,11 +12,9 @@ const { t } = Astro.locals;
     description={t('settings.general.description')}
   />
 
+  <GeneralSettings client:load />
+
   <div class="settings-cards">
-    <a class="card settings-card" href="/settings/general">
-      <h3>{t('settings.general.title')}</h3>
-      <p class="muted">{t('settings.general.fields.siteTitle')}, {t('settings.general.fields.siteDescription')}, {t('settings.general.fields.language')} e {t('settings.general.fields.timezone')} do site.</p>
-    </a>
     <a class="card settings-card" href="/settings/post-types">
       <h3>{t('settings.postTypes.title')}</h3>
       <p class="muted">{t('settings.postTypes.description')}</p>
@@ -56,6 +55,7 @@ const { t } = Astro.locals;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
     gap: 1rem;
+    margin-top: 2rem;
   }
   .settings-card {
     display: block;
