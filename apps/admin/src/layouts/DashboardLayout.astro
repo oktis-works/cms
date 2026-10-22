@@ -15,8 +15,8 @@ interface Props {
 const { title, description } = Astro.props;
 const { t } = Astro.locals;
 
-// Sessão resolvida no SSR pelo middleware: o AdminBar recebe o usuário pronto
-// e o guarda de sessão não precisa de /auth/me no cliente.
+// Session resolved in SSR by middleware: AdminBar receives user ready
+// and session guard doesn't need /auth/me on the client.
 const sessionUser = (Astro.locals as { user?: { id: string; email: string; name: string; avatar?: string | null } | null }).user ?? null;
 const sessionState = (Astro.locals as { sessionState?: 'anonymous' | 'authenticated' | 'unavailable' }).sessionState ?? 'unavailable';
 
@@ -69,8 +69,6 @@ const settingsChildren = [
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
           <span class="nav-label" data-sidebar-i18n="layout.nav.dashboard">{t('layout.nav.dashboard')}</span>
         </a>
-
-        <div data-post-types-menu></div>
 
         <a href="/media" class:list={['nav-item', { active: navActive.media }]}>
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
@@ -125,21 +123,16 @@ const settingsChildren = [
         </a>
 
         <div class:list={['nav-group', { open: navActive.themes || navActive.customize }]} data-nav-group="themes">
-          <div class="nav-group-header">
-            <a href="/themes" class:list={['nav-item', { active: navActive.themes }]} data-sidebar-i18n="layout.nav.themes">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-                <path d="M2 12h20"></path>
-              </svg>
-              <span class="nav-label">{t('layout.nav.themes')}</span>
-            </a>
-            <span class="nav-group-toggle" aria-expanded={navActive.themes || navActive.customize} aria-controls="themes-submenu">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-            </span>
-          </div>
+          <a href="/themes" class:list={['nav-item', { active: navActive.themes }]} data-sidebar-i18n="layout.nav.themes">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+              <path d="M2 12h20"></path>
+            </svg>
+            <span class="nav-label">{t('layout.nav.themes')}</span>
+          </a>
 
-          <div class="nav-submenu" id="themes-submenu" data-nav-submenu="themes">
+          <div class="nav-submenu" data-nav-submenu="themes">
             <a href="/themes" class:list={['nav-subitem', { active: navActive.themes }]} data-sidebar-i18n="layout.nav.themes">
               {t('layout.nav.themes')}
             </a>
@@ -195,15 +188,15 @@ const settingsChildren = [
   import { apiClient, ApiError, RATE_LIMITED_EVENT } from '../lib/api';
   import { createIcons, icons } from 'lucide';
 
-  // Guarda de sessão — o middleware já resolveu /auth/me no SSR, então:
+  // Session guard — middleware already resolved /auth/me in SSR, so:
   //
-  //  • authenticated → nada a verificar no cliente (antes: 1 /auth/me por página);
-  //  • anonymous    → sem access_token, redireciona SEM chamar a API (antes:
-  //                   era um /auth/me só para ouvir 401);
-  //  • unavailable  → token presente mas a API não respondeu no SSR: o cliente
-  //                   verifica, e SÓ um 401 definitivo leva ao login. 429/5xx
-  //   /rede NÃO deslogam — tratar tudo como "sem sessão" era o que jogava o
-  //                   usuário na tela de login com a sessão ainda válida.
+  //  • authenticated → nothing to check on client (before: 1 /auth/me per page);
+  //  • anonymous     → no access_token, redirect WITHOUT calling API (before:
+  //                     was an /auth/me just to get 401);
+  //  • unavailable   → token present but API didn't respond in SSR: client
+  //                     checks, and ONLY a definitive 401 leads to login. 429/5xx
+  //                     /network do NOT log out — treating everything as "no session"
+  //                     was what threw users to login with session still valid.
   void (async () => {
     const state = document.querySelector<HTMLElement>('.layout')?.dataset.sessionState ?? 'unavailable';
     if (state === 'authenticated') return;
@@ -215,12 +208,12 @@ const settingsChildren = [
     if (session === 'unauthenticated') window.location.replace('/login');
   })();
 
-  // Refresh proativo do access token (antes do 401): sem isto, voltar à aba
-  // depois de 15min parado disparava ~20 requisições com 401 simultâneas.
+  // Proactive access token refresh (before 401): without this, returning to tab
+  // after 15min idle fired ~20 requests with simultaneous 401s.
   apiClient.installProactiveRefresh();
   void apiClient.ensureFreshSession();
 
-  // Aviso não bloqueante de rate limit: a UI explica em vez de falhar em silêncio.
+  // Non-blocking rate limit notice: UI explains instead of failing silently.
   let rateLimitNotice: HTMLElement | null = null;
   let noticeT: ((key: string, params?: Record<string, string | number>) => string) | null = null;
   const showRateLimitNotice = (retryAfter: number | null): void => {
@@ -249,7 +242,7 @@ const settingsChildren = [
       const t = await getTFunction(locale);
       noticeT = t;
     } catch {
-      // sem tradução: o aviso fica com o texto da API no próprio console
+      // no translation: notice stays with API text in console
     }
   })();
 
@@ -260,7 +253,7 @@ const settingsChildren = [
       document.body.classList.add('sidebar-collapsed');
     }
   } catch {
-    // storage indisponivel - sidebar inicia expandida
+    // storage unavailable - sidebar starts expanded
   }
 
   import { getTFunction, type Locale } from '../i18n';
@@ -326,15 +319,10 @@ const settingsChildren = [
           taxonomyMenu.className = 'nav-taxonomy-menu';
           const shouldOpen = currentParams.get('type') === type.slug || window.location.pathname.startsWith(`/content/${type.slug}`);
 
-          // Sem botão separado: a seta é decorativa DENTRO do link. Clicar no
-          // link navega para o content type E abre o dropdown das taxonomias ao
-          // mesmo tempo (a navegação é MPA, então o estado já reabre correto).
-          const caret = document.createElement('span');
-          caret.className = 'nav-type-caret';
-          caret.setAttribute('aria-hidden', 'true');
-          caret.textContent = '▾';
+          // No separate button and no caret: the link navigates to the content type AND
+          // opens the taxonomy dropdown at the same time (navigation is MPA,
+          // so the state reopens correctly in SSR).
           typeLink.classList.add('has-taxonomies');
-          typeLink.append(caret);
 
           const setMenuOpen = (open: boolean): void => {
             taxonomyMenu.classList.toggle('open', open);
@@ -371,11 +359,18 @@ const settingsChildren = [
   setupNavGroups();
 
   // Link "Settings" navega E abre o dropdown do grupo ao mesmo tempo —
-  // sem seta separada (mesmo padrão dos content types com taxonomias).
+  // no separate caret (same pattern as content types with taxonomies).
   {
     const settingsGroup = document.querySelector<HTMLElement>('[data-nav-group="settings"]');
-    const settingsLink = settingsGroup?.querySelector<HTMLAnchorElement>(':scope > .nav-group-header a.nav-item');
+    const settingsLink = settingsGroup?.querySelector<HTMLAnchorElement>(':scope > a.nav-item');
     settingsLink?.addEventListener('click', () => settingsGroup?.classList.add('open'));
+  }
+
+  // Link "Themes" navega E abre o dropdown do grupo ao mesmo tempo
+  {
+    const themesGroup = document.querySelector<HTMLElement>('[data-nav-group="themes"]');
+    const themesLink = themesGroup?.querySelector<HTMLAnchorElement>(':scope > a.nav-item');
+    themesLink?.addEventListener('click', () => themesGroup?.classList.add('open'));
   }
 
   createIcons({ icons });
@@ -569,21 +564,6 @@ const settingsChildren = [
     color: #fff;
   }
 
-  /* Seta decorativa dentro do link de content type com taxonomias: clicar
-     navega e abre o dropdown ao mesmo tempo (não é mais um botão separado). */
-  .nav-type-caret {
-    margin-left: auto;
-    padding-left: 0.35rem;
-    font-size: 0.7rem;
-    line-height: 1;
-    opacity: 0.65;
-    transform: rotate(0deg);
-    transition: transform 0.15s ease;
-    flex-shrink: 0;
-  }
-
-  .nav-type-link.is-expanded .nav-type-caret { transform: rotate(180deg); }
-
   .nav-type-row {
     display: flex;
     align-items: center;
@@ -595,9 +575,9 @@ const settingsChildren = [
 
   .nav-taxonomy-menu {
     display: none;
-    margin: 0 0 0.25rem 1rem;
-    padding-left: 0.65rem;
-    border-left: 1px solid rgba(216,180,94,0.6);
+    margin: 0.25rem 0 0.5rem 1.5rem;
+    padding-left: 0.75rem;
+    border-left: 2px solid var(--color-primary);
   }
 
   .nav-taxonomy-menu.open { display: block; }

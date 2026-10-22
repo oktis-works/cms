@@ -12,8 +12,6 @@ const taxonomySlug = Astro.url.searchParams.get('taxonomy') ?? '';
   <PageHeader
     title={t('content.taxonomy.title')}
     description={taxonomySlug || t('content.taxonomy.choose')}
-    eyebrow={contentType}
-    actions={<a class="fb-back-link" href={`/content/${encodeURIComponent(contentType)}`}>{t('content.taxonomy.back')}</a>}
   />
   <TaxonomyTermsManager client:load taxonomySlug={taxonomySlug} contentType={contentType} />
 </DashboardLayout>
