@@ -136,6 +136,8 @@ export async function scaffoldProject(
         '@oktis-works/admin': appRange,
         '@oktis-works/web': appRange,
         '@oktis-works/worker': appRange,
+        '@oktis-works/core': appRange,
+        '@oktis-works/plugin-runtime': appRange,
       },
       devDependencies: {
         // CLI disponível como binário local: `okcms ...` usa a versão local compatível
