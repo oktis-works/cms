@@ -336,7 +336,7 @@ const settingsChildren = [
             const taxonomyLink = createSidebarLink(
               label,
               `/content/${encodeURIComponent(type.slug)}/taxonomy?taxonomy=${encodeURIComponent(taxonomy.slug)}`,
-              'nav-subitem nav-taxonomy-item'
+              'nav-subitem'
             );
             const taxonomyUrl = new URL(taxonomyLink.href, window.location.origin);
             taxonomyLink.classList.toggle(
@@ -582,10 +582,9 @@ const settingsChildren = [
 
   .nav-taxonomy-menu.open { display: block; }
 
-  .nav-taxonomy-item {
-    font-size: 0.75rem;
-    padding-top: 0.25rem;
-    padding-bottom: 0.25rem;
+  .nav-taxonomy-menu .nav-subitem {
+    font-size: 0.8125rem;
+    padding: 0.375rem 0.75rem;
   }
 
   .nav-item:hover {
