@@ -559,11 +559,6 @@ export class ApiClient {
     const send = async (): Promise<Response> => {
       const requestHeaders: Record<string, string> = { ...headers };
       const hasBody = options?.bodyInit !== undefined || body !== undefined;
-      // Sem corpo não há o que serializar — e enviar Content-Type: json em GET
-      // forçava um preflight CORS por requisição no modo cross-origin.
-      // bodyInit (FormData no upload de mídia) NÃO recebe o header: o fetch
-      // precisa gerar o multipart boundary sozinho — forçar application/json
-      // fazia a API cair no branch JSON e responder 400.
       if (hasBody && options?.bodyInit === undefined) requestHeaders['Content-Type'] = 'application/json';
 
       if (!['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase())) {
@@ -571,12 +566,21 @@ export class ApiClient {
         if (csrf) requestHeaders['x-csrf-token'] = csrf;
       }
 
-      return fetch(url, {
-        method,
-        headers: requestHeaders,
-        credentials: 'include',
-        body: options?.bodyInit ?? (body !== undefined ? JSON.stringify(body) : undefined),
-      });
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+      try {
+        return await fetch(url, {
+          method,
+          headers: requestHeaders,
+          credentials: 'include',
+          body: options?.bodyInit ?? (body !== undefined ? JSON.stringify(body) : undefined),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
     };
 
     let response = await send();

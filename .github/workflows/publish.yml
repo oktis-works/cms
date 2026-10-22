@@ -11,12 +11,6 @@ name: Publish to npm
 on:
   repository_dispatch:
     types: [publish-release]
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Tag da release (ex: v0.6.1)'
-        required: true
-        type: string
 
 permissions:
   contents: read
@@ -31,8 +25,8 @@ jobs:
     name: Publish workspaces (OIDC)
     runs-on: ubuntu-latest
     env:
-      # Tag vem do repository_dispatch (CI) ou workflow_dispatch (manual)
-      RELEASE_TAG: ${{ github.event.client_payload.tag || github.event.inputs.tag || '' }}
+      # Tag vem do repository_dispatch (CI)
+      RELEASE_TAG: ${{ github.event.client_payload.tag }}
     steps:
       # Publica exatamente o código da tag (dispatch sem ref cai no default branch)
       - uses: actions/checkout@v4

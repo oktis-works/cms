@@ -53,6 +53,7 @@ export function ReadingSettings() {
         gmt_offset: map['gmt_offset'] ?? '',
       });
     } catch (err) {
+      console.error('[ReadingSettings] Failed to load data:', err);
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
