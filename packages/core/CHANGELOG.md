@@ -1,5 +1,23 @@
 # @oktis-works/core
 
+## 0.11.1
+
+### Patch Changes
+
+- Fix plugin runtime sync failure in published installs
+  
+  The plugin loader (`packages/core/src/plugin/load.ts`) resolved
+  `@oktis-works/plugin-runtime` through a CommonJS `require()`. The published
+  package is ESM-only (`"type": "module"`) and its dependency's `exports` map
+  only exposes `import`/`types` conditions, so resolution always failed at
+  runtime with:
+  
+  `[plugins] sync unavailable (tenant:...): ResolveMessage: Cannot find module
+  '@oktis-works/plugin-runtime' from .../core/dist/plugin/load.js`
+  
+  The loader now uses a native dynamic `import()`, which resolves under the
+  `import` export condition. `bunx okcms start` boots cleanly again.
+
 ## 0.11.0
 
 ### Minor Changes
