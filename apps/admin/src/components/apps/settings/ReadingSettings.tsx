@@ -28,9 +28,18 @@ export function ReadingSettings() {
   const [info, setInfo] = createSignal('');
 
   onMount(async () => {
+    // Safety timeout: if loading takes >35s, show error instead of infinite spinner
+    const safetyTimer = setTimeout(() => {
+      console.error('[ReadingSettings] Safety timeout triggered after 35s');
+      setError('Loading timed out. Please check your connection and try again.');
+      setLoading(false);
+    }, 35000);
+
     try {
+      console.log('[ReadingSettings] Starting to load data...');
       // Carrega páginas publicadas (type=page) para os selects
       const pageRows = await apiClient.getContent({ type: 'page', status: 'PUBLISHED', limit: 100 });
+      console.log('[ReadingSettings] Pages loaded:', pageRows.data.length);
       const pageOptions = pageRows.data.map((p) => ({
         value: p.id,
         label: p.title || p.slug,
@@ -39,6 +48,7 @@ export function ReadingSettings() {
 
       // Carrega settings de leitura existentes
       const rows = await apiClient.getSettings('reading');
+      console.log('[ReadingSettings] Settings loaded:', rows.length);
       const map: Record<string, string> = {};
       for (const row of rows) {
         map[row.key] = typeof row.value === 'string' ? row.value : JSON.stringify(row.value ?? '');
@@ -52,10 +62,12 @@ export function ReadingSettings() {
         timezone_string: map['timezone_string'] ?? '',
         gmt_offset: map['gmt_offset'] ?? '',
       });
+      console.log('[ReadingSettings] Values set, loading=false');
     } catch (err) {
       console.error('[ReadingSettings] Failed to load data:', err);
       setError(err instanceof Error ? err.message : String(err));
     } finally {
+      clearTimeout(safetyTimer);
       setLoading(false);
     }
   });

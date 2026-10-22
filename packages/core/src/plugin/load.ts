@@ -33,35 +33,55 @@ import { auditService } from '../observability/audit.js';
 import { getCache } from '../cache/index.js';
 import { queueProducer } from '../queue/producer.js';
 import { getCurrentTenantIdSync, getCurrentUserIdSync, getCurrentRequestIdSync } from '../tenant/context.js';
-import type { RouteDefinition, PluginBootstrapResult, PluginApiDependencies } from '@oktis-works/plugin-runtime';
+import type { RouteDefinition, PluginBootstrapResult, PluginApiDependencies, BootstrapPluginsOptions } from '@oktis-works/plugin-runtime';
 import type { AdminExtensionsState, PluginBlockManifest, PluginPatternManifest } from '@oktis-works/types';
 import type { EnqueuedAsset, PluginHealthCheck } from '@oktis-works/plugin-sdk';
 
 // Dynamic imports for the circular dependency with plugin-runtime
-// (non-literal require so TypeScript cannot resolve it at build time)
-const getPluginRuntime = async () => {
-  return require('@oktis-works/plugin-runtime');
+// (non-literal import so TypeScript cannot resolve it at build time)
+type PluginRuntimeModule = {
+  bootstrapPlugins: (options: BootstrapPluginsOptions) => Promise<PluginBootstrapResult>;
+  getHookRegistryStore: () => { invalidateTenant: (tenantId: string) => void };
+  unloadTenant: (tenantId: string) => boolean;
+  getLoadedPluginRoutes: (scopeKey: string) => Promise<any>;
+  getLoadedPluginJobHandlers: (scopeKey: string) => Promise<any>;
+  getLoadedPluginAdminExtensions: (scopeKey: string) => Promise<any>;
+  getLoadedPluginBlocks: (scopeKey: string) => Promise<any>;
+  getLoadedPluginPatterns: (scopeKey: string) => Promise<any>;
+  getLoadedPluginAssets: (scopeKey: string) => Promise<any>;
+  getLoadedPluginHealthChecks: (scopeKey: string) => Promise<any>;
 };
 
-let _pluginRuntimeCache: ReturnType<typeof getPluginRuntime> | null = null;
+let _pluginRuntimeCache: PluginRuntimeModule | null = null;
 
-const getPluginRuntimeCached = async () => {
+const getPluginRuntimeCached = async (): Promise<PluginRuntimeModule> => {
   if (!_pluginRuntimeCache) {
-    _pluginRuntimeCache = await getPluginRuntime();
+    const mod = await import('@oktis-works/plugin-runtime');
+    // The ESM import returns a module namespace object with named exports
+    _pluginRuntimeCache = mod as unknown as PluginRuntimeModule;
   }
   return _pluginRuntimeCache;
 };
 
-const getBootstrapPlugins = async () => (await getPluginRuntimeCached()).bootstrapPlugins;
-const getHookRegistryStore = async () => (await getPluginRuntimeCached()).getHookRegistryStore;
-const unloadTenant = async () => (await getPluginRuntimeCached()).unloadTenant;
-const getLoadedPluginRoutes = async () => (await getPluginRuntimeCached()).getLoadedPluginRoutes;
-const getLoadedPluginJobHandlers = async () => (await getPluginRuntimeCached()).getLoadedPluginJobHandlers;
-const getLoadedPluginAdminExtensions = async () => (await getPluginRuntimeCached()).getLoadedPluginAdminExtensions;
-const getLoadedPluginBlocks = async () => (await getPluginRuntimeCached()).getLoadedPluginBlocks;
-const getLoadedPluginPatterns = async () => (await getPluginRuntimeCached()).getLoadedPluginPatterns;
-const getLoadedPluginAssets = async () => (await getPluginRuntimeCached()).getLoadedPluginAssets;
-const getLoadedPluginHealthChecks = async () => (await getPluginRuntimeCached()).getLoadedPluginHealthChecks;
+const getBootstrapPlugins = async (): Promise<(options: BootstrapPluginsOptions) => Promise<PluginBootstrapResult>> => {
+  const mod = await getPluginRuntimeCached();
+  return mod.bootstrapPlugins;
+};
+const getHookRegistryStore = async (): Promise<() => { invalidateTenant: (tenantId: string) => void }> => {
+  const mod = await getPluginRuntimeCached();
+  return mod.getHookRegistryStore;
+};
+const unloadTenant = async (tenantId: string): Promise<boolean> => {
+  const mod = await getPluginRuntimeCached();
+  return mod.unloadTenant(tenantId);
+};
+const getLoadedPluginRoutes = async (scopeKey: string) => (await getPluginRuntimeCached()).getLoadedPluginRoutes(scopeKey);
+const getLoadedPluginJobHandlers = async (scopeKey: string) => (await getPluginRuntimeCached()).getLoadedPluginJobHandlers(scopeKey);
+const getLoadedPluginAdminExtensions = async (scopeKey: string) => (await getPluginRuntimeCached()).getLoadedPluginAdminExtensions(scopeKey);
+const getLoadedPluginBlocks = async (scopeKey: string) => (await getPluginRuntimeCached()).getLoadedPluginBlocks(scopeKey);
+const getLoadedPluginPatterns = async (scopeKey: string) => (await getPluginRuntimeCached()).getLoadedPluginPatterns(scopeKey);
+const getLoadedPluginAssets = async (scopeKey: string) => (await getPluginRuntimeCached()).getLoadedPluginAssets(scopeKey);
+const getLoadedPluginHealthChecks = async (scopeKey: string) => (await getPluginRuntimeCached()).getLoadedPluginHealthChecks(scopeKey);
 
 /** Plugin job handler (dispatched by the worker). */
 export type PluginJobHandlerFn = (
@@ -85,7 +105,7 @@ export async function getPluginJobHandler(
   jobName: string
 ): Promise<PluginJobHandlerFn | null> {
   try {
-    const entries = await (await getLoadedPluginJobHandlers())(scopeKey(tenantId));
+    const entries = await getLoadedPluginJobHandlers(scopeKey(tenantId));
     for (const entry of entries) {
       if (entry.pluginName === pluginName) {
         return (entry.handlers.get(jobName) as PluginJobHandlerFn | undefined) ?? null;
@@ -106,7 +126,7 @@ export async function getPluginAdminExtensions(
   tenantId: string | null
 ): Promise<Array<{ pluginName: string; state: AdminExtensionsState }>> {
   try {
-    return await (await getLoadedPluginAdminExtensions())(scopeKey(tenantId));
+    return await getLoadedPluginAdminExtensions(scopeKey(tenantId));
   } catch {
     return [];
   }
@@ -121,7 +141,7 @@ export async function getPluginBlocks(
   tenantId: string | null
 ): Promise<Array<{ pluginName: string; blocks: Array<PluginBlockManifest & { pluginName: string }> }>> {
   try {
-    return await (await getLoadedPluginBlocks())(scopeKey(tenantId));
+    return await getLoadedPluginBlocks(scopeKey(tenantId));
   } catch {
     return [];
   }
@@ -136,7 +156,7 @@ export async function getPluginPatterns(
   tenantId: string | null
 ): Promise<Array<{ pluginName: string; patterns: Array<PluginPatternManifest & { pluginName: string }> }>> {
   try {
-    return await (await getLoadedPluginPatterns())(scopeKey(tenantId));
+    return await getLoadedPluginPatterns(scopeKey(tenantId));
   } catch {
     return [];
   }
@@ -151,7 +171,7 @@ export async function getPluginAssets(
   tenantId: string | null
 ): Promise<Array<{ pluginName: string; assets: EnqueuedAsset[] }>> {
   try {
-    return await (await getLoadedPluginAssets())(scopeKey(tenantId));
+    return await getLoadedPluginAssets(scopeKey(tenantId));
   } catch {
     return [];
   }
@@ -166,7 +186,7 @@ export async function getPluginHealthChecks(
   tenantId: string | null
 ): Promise<Array<{ pluginName: string; checks: Array<{ name: string; check: PluginHealthCheck }> }>> {
   try {
-    return await (await getLoadedPluginHealthChecks())(scopeKey(tenantId));
+    return await getLoadedPluginHealthChecks(scopeKey(tenantId));
   } catch {
     return [];
   }
@@ -546,7 +566,7 @@ async function syncScope(tenantId: string | null, force: boolean): Promise<Plugi
       
       // Coleta rotas registradas pelos plugins neste escopo
       const scopeKey = key; // 'platform' ou 'tenant:<id>'
-      const pluginRoutes = await (await getLoadedPluginRoutes())(scopeKey);
+      const pluginRoutes = await getLoadedPluginRoutes(scopeKey);
       for (const { pluginName, routes, rpm } of pluginRoutes) {
         registerPluginRoutes(pluginName, routes, rpm);
       }
@@ -594,8 +614,8 @@ async function evictOldTenants(maxTenants: number): Promise<void> {
     if (states.size <= maxTenants) break;
     if (state.tenantId === null) continue; // platform nunca sai
     states.delete(key);
-    await (await unloadTenant())(state.tenantId);
-    (await (await getHookRegistryStore())).invalidateTenant(state.tenantId);
+    await unloadTenant(state.tenantId);
+    (await getHookRegistryStore())().invalidateTenant(state.tenantId);
   }
 }
 
@@ -644,8 +664,8 @@ export async function invalidateTenantPlugins(tenantId: string): Promise<void> {
   const key = scopeKey(tenantId);
   states.delete(key);
   inflight.delete(key);
-  await (await unloadTenant())(tenantId);
-  (await (await getHookRegistryStore())).invalidateTenant(tenantId);
+  await unloadTenant(tenantId);
+  (await getHookRegistryStore())().invalidateTenant(tenantId);
 }
 
 /** Invalidates the platform scope (after global changes). */

@@ -49,9 +49,13 @@ export function createConnection(config: DatabaseConfig): RepoSql {
     password: config.password,
     ssl: config.ssl,
     max: config.maxConnections,
-    idle_timeout: 20,
+    idle_timeout: 60,
     connect_timeout: 10,
+    max_lifetime: 60 * 30,
     transform: { undefined: null },
+    onnotice: (notice) => {
+      if (notice['severity'] === 'WARNING') console.warn('[postgres]', notice['message']);
+    },
   }) as RepoSql;
 
   if (config.replica?.enabled) {
@@ -63,8 +67,13 @@ export function createConnection(config: DatabaseConfig): RepoSql {
       password: config.password,
       ssl: config.ssl,
       max: config.maxConnections,
-      idle_timeout: 20,
+      idle_timeout: 60,
       connect_timeout: 10,
+      max_lifetime: 60 * 30,
+      transform: { undefined: null },
+      onnotice: (notice) => {
+        if (notice['severity'] === 'WARNING') console.warn('[postgres]', notice['message']);
+      },
     }) as RepoSql;
   }
 
