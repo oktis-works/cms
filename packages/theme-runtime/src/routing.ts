@@ -48,6 +48,15 @@ export class RuntimeRouter {
   ) {}
 
   /**
+   * Lê uma setting pública tratando string vazia como ausente (o formulário
+   * do admin salva `''` quando nenhum valor foi escolhido).
+   */
+  private async setting(key: string): Promise<string | null> {
+    const value = await this.lookup.getSetting(key);
+    return value && value.length > 0 ? value : null;
+  }
+
+  /**
    * Resolve um caminho arbitrário (catch-all [...slug]) para um template.
    * Ordem: Static Front Page → content-type archive → conteúdo por slug.
    */
@@ -56,8 +65,18 @@ export class RuntimeRouter {
     const segments = normalized.split('/').filter(Boolean);
 
     if (segments.length === 0) {
-      // Static Front Page: verifica se há página configurada como home
-      const staticFrontPageId = await this.lookup.getSetting('static_front_page');
+      // Static Front Page: a página configurada como home. As chaves canônicas
+      // são as que o admin salva (frontPageDisplays/frontPage); as chaves
+      // legadas do seed (static_front_page) permanecem como fallback para
+      // instalações que nunca salvaram o formulário. 'latest' desativa a
+      // página estática explicitamente (o usuário pediu lista de posts).
+      const displays = await this.setting('frontPageDisplays');
+      const staticFrontPageId =
+        displays === 'static'
+          ? await this.setting('frontPage')
+          : displays === 'latest'
+            ? null
+            : await this.setting('static_front_page');
       if (staticFrontPageId) {
         const page = await this.lookup.findById(staticFrontPageId);
         if (page && page.type === 'page') {
@@ -77,8 +96,8 @@ export class RuntimeRouter {
         }
       }
 
-      // Fallback: page_for_posts (página que lista posts)
-      const pageForPostsId = await this.lookup.getSetting('page_for_posts');
+      // Fallback: página de posts (postsPage do admin, depois a legada page_for_posts)
+      const pageForPostsId = (await this.setting('postsPage')) ?? (await this.setting('page_for_posts'));
       if (pageForPostsId) {
         const page = await this.lookup.findById(pageForPostsId);
         if (page && page.type === 'page') {

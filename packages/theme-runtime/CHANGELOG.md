@@ -1,5 +1,19 @@
 # @oktis-works/theme-runtime
 
+## 0.8.1
+
+### Patch Changes
+
+- Respect the admin Reading Settings on runtime routing
+  
+  The RuntimeRouter only read the legacy seeded keys (`static_front_page`,
+  `page_for_posts`), so changing "Your homepage displays" in the admin had no
+  effect on the public site. The router now reads the keys the admin saves —
+  `frontPageDisplays`/`frontPage`/`postsPage` — with the legacy keys kept as a
+  fallback for projects that never saved the form. `frontPageDisplays: latest`
+  explicitly disables the static front page, and empty setting values are
+  treated as unset.
+
 ## 0.8.0
 
 ### Minor Changes

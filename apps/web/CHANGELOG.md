@@ -1,5 +1,23 @@
 # @oktis-works/web
 
+## 0.10.6
+
+### Patch Changes
+
+- Normalize content body before theme rendering
+  
+  `createContentLookup().findByPath/findById` now normalize the `body` column
+  through a defensive `normalizeBody` helper: when the column holds the JSON
+  text as a string (legacy double-encoded rows), it is parsed into the fields
+  object; invalid JSON degrades to an empty body instead of breaking the
+  render. Fixes themes receiving `content.html`/`content.content` as undefined
+  and rendering pages with an empty `entry__body`.
+- Updated dependencies
+- Updated dependencies
+  - @oktis-works/database@0.12.1
+  - @oktis-works/theme-runtime@0.8.1
+  - @oktis-works/core@0.11.2
+
 ## 0.10.5
 
 ### Patch Changes

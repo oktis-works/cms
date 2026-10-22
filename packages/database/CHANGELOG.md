@@ -1,5 +1,22 @@
 # @oktis-works/database
 
+## 0.12.1
+
+### Patch Changes
+
+- Fix double-encoded demo content bodies and repair existing rows
+  
+  The demo seed inserted `content.body` with `to_jsonb($5::text)` after
+  `JSON.stringify`, which stores the document as a jsonb STRING (the JSON text
+  becomes the string value) instead of a jsonb object. The site renderer then
+  received the raw JSON text and rendered pages with an empty body.
+  
+  - Seed upserts (pages and posts) now use the `$5::jsonb` cast, which parses
+    the serialized document into a real jsonb object.
+  - New migration `V021__core__fix_double_encoded_content_body` converts
+    existing double-encoded rows in place. Safe and idempotent: only string
+    bodies whose inner text parses as a JSON object/array are converted.
+
 ## 0.12.0
 
 ### Minor Changes

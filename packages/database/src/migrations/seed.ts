@@ -253,11 +253,13 @@ export async function seedDemoContent(
     let result;
     try {
       // Use CTE-based upsert to avoid constraint caching issues
+      // `$5::jsonb` PARSES the serialized document into a jsonb object;
+      // `to_jsonb($5::text)` would wrap it as a jsonb string (double-encoded).
       result = await sql.unsafe(
         `WITH upsert AS (
           UPDATE content
           SET title = $3,
-              body = to_jsonb($5::text),
+              body = $5::jsonb,
               excerpt = $6,
               status = 'PUBLISHED',
               author_id = $7,
@@ -267,7 +269,7 @@ export async function seedDemoContent(
           RETURNING id
         )
         INSERT INTO content (tenant_id, type, title, slug, body, excerpt, status, author_id, published_at, created_at, updated_at)
-        SELECT $1, $2, $3, $4, to_jsonb($5::text), $6, 'PUBLISHED', $7, $8, $9, $10
+        SELECT $1, $2, $3, $4, $5::jsonb, $6, 'PUBLISHED', $7, $8, $9, $10
         WHERE NOT EXISTS (SELECT 1 FROM content WHERE tenant_id = $1 AND type = $2 AND slug = $4)
         RETURNING id`,
       [tenantId, page.type, page.title, page.slug, JSON.stringify(page.body), page.excerpt, authorId, now, now, now]
@@ -354,10 +356,12 @@ export async function seedDemoContent(
   for (const post of posts) {
     console.log('[seedDemoContent] Inserting post:', post.slug, 'tenantId:', tenantId, 'authorId:', authorId);
     const result = await sql.unsafe(
+      // `$5::jsonb` parses (see the pages upsert above) — `to_jsonb($5::text)`
+      // would store the document as a double-encoded jsonb string.
       `WITH upsert AS (
         UPDATE content
         SET title = $3,
-            body = to_jsonb($5::text),
+            body = $5::jsonb,
             excerpt = $6,
             status = 'PUBLISHED',
             author_id = $7,
@@ -367,7 +371,7 @@ export async function seedDemoContent(
         RETURNING id
       )
       INSERT INTO content (tenant_id, type, title, slug, body, excerpt, status, author_id, published_at, created_at, updated_at)
-      SELECT $1, $2, $3, $4, to_jsonb($5::text), $6, 'PUBLISHED', $7, $8, $9, $10
+      SELECT $1, $2, $3, $4, $5::jsonb, $6, 'PUBLISHED', $7, $8, $9, $10
       WHERE NOT EXISTS (SELECT 1 FROM content WHERE tenant_id = $1 AND type = $2 AND slug = $4)
       RETURNING id`,
       [tenantId, post.type, post.title, post.slug, JSON.stringify(post.body), post.excerpt, authorId, now, now, now]

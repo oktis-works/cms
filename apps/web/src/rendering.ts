@@ -550,6 +550,30 @@ async function attachTerms(sql: ReturnType<typeof getConnection>, contentId: str
   data['_terms'] = grouped;
 }
 
+/**
+ * Normalizes the content `body` column into a fields object. The demo seed
+ * historically double-encoded the document (jsonb string containing the JSON
+ * text), so the driver may hand over a raw string instead of the parsed
+ * object. Parses defensively — invalid JSON degrades to an empty body and
+ * never breaks the render.
+ */
+function normalizeBody(value: unknown): Record<string, unknown> {
+  if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  if (typeof value === 'string') {
+    try {
+      const parsed: unknown = JSON.parse(value);
+      if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      // fall through — a plain-text body simply yields no fields
+    }
+  }
+  return {};
+}
+
 export function createContentLookup(): ContentLookup {
   return {
     async findByPath(path) {
@@ -562,7 +586,7 @@ export function createContentLookup(): ContentLookup {
       const row = result[0] as Record<string, unknown> | undefined;
       if (!row) return null;
 
-      const data = ((row['body'] as Record<string, unknown>) ?? {}) as Record<string, unknown>;
+      const data = normalizeBody(row['body']);
 
       // Enriquecimento em lote: mídia real e termos agregados
       try {
@@ -591,7 +615,7 @@ export function createContentLookup(): ContentLookup {
       const row = result[0] as Record<string, unknown> | undefined;
       if (!row) return null;
 
-      const data = ((row['body'] as Record<string, unknown>) ?? {}) as Record<string, unknown>;
+      const data = normalizeBody(row['body']);
 
       try {
         await enrichMedia(sql, data);
