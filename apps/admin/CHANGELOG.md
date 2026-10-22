@@ -1,5 +1,23 @@
 # @oktis-works/admin
 
+## 0.19.1
+
+### Patch Changes
+
+- Fix /settings/reading stuck in infinite loading
+  
+  The ReadingSettings component switched its loading state with a top-level
+  `if (loading())` early return. Solid component bodies run once, so the
+  initial "Loading..." markup was returned permanently: fetches completed
+  successfully (no errors anywhere) but the UI never left the loading branch —
+  including the safety timeout added earlier, which only mutated signals the
+  frozen conditional could not see.
+  
+  The render now uses the reactive `<Show when={!loading()}>` pattern (the same
+  one used by ApiKeysManager, LogsManager and WebhooksManager), and the debug
+  console.log calls added while chasing the symptom were removed. The 35s
+  safety timeout is kept and now actually surfaces its error in the UI.
+
 ## 0.19.0
 
 ### Minor Changes

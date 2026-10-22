@@ -28,27 +28,23 @@ export function ReadingSettings() {
   const [info, setInfo] = createSignal('');
 
   onMount(async () => {
-    // Safety timeout: if loading takes >35s, show error instead of infinite spinner
+    // Safety timeout: if loading takes >35s, show an error instead of a stuck spinner
     const safetyTimer = setTimeout(() => {
-      console.error('[ReadingSettings] Safety timeout triggered after 35s');
       setError('Loading timed out. Please check your connection and try again.');
       setLoading(false);
     }, 35000);
 
     try {
-      console.log('[ReadingSettings] Starting to load data...');
-      // Carrega páginas publicadas (type=page) para os selects
+      // Load published pages (type=page) for the front page / posts page selects
       const pageRows = await apiClient.getContent({ type: 'page', status: 'PUBLISHED', limit: 100 });
-      console.log('[ReadingSettings] Pages loaded:', pageRows.data.length);
       const pageOptions = pageRows.data.map((p) => ({
         value: p.id,
         label: p.title || p.slug,
       }));
       setPages(pageOptions);
 
-      // Carrega settings de leitura existentes
+      // Load existing reading settings
       const rows = await apiClient.getSettings('reading');
-      console.log('[ReadingSettings] Settings loaded:', rows.length);
       const map: Record<string, string> = {};
       for (const row of rows) {
         map[row.key] = typeof row.value === 'string' ? row.value : JSON.stringify(row.value ?? '');
@@ -62,9 +58,7 @@ export function ReadingSettings() {
         timezone_string: map['timezone_string'] ?? '',
         gmt_offset: map['gmt_offset'] ?? '',
       });
-      console.log('[ReadingSettings] Values set, loading=false');
     } catch (err) {
-      console.error('[ReadingSettings] Failed to load data:', err);
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       clearTimeout(safetyTimer);
@@ -96,88 +90,89 @@ export function ReadingSettings() {
     }
   };
 
-  if (loading()) {
-    return <p class="muted">{t('settings.reading.loading')}</p>;
-  }
-
+  // Reactive render: Solid component bodies run once, so the loading state
+  // must be switched with <Show> (a top-level early return would freeze the
+  // initial "Loading..." markup forever).
   return (
     <div class="reading-settings">
-      <Show when={error()}>
-        <div class="notice notice--error">{error()}</div>
-      </Show>
-      <Show when={info()}>
-        <div class="notice">{info()}</div>
-      </Show>
+      <Show when={!loading()} fallback={<p class="muted">{t('settings.reading.loading')}</p>}>
+        <Show when={error()}>
+          <div class="notice notice--error">{error()}</div>
+        </Show>
+        <Show when={info()}>
+          <div class="notice">{info()}</div>
+        </Show>
 
-      <Card>
-        <form onSubmit={submit}>
-          <div class="form-grid">
-            <div class="form-field">
-              <label>{t('settings.reading.frontPageDisplays')}</label>
-              <Select
-                name="frontPageDisplays"
-                value={values()['frontPageDisplays']}
-                options={[
-                  { value: 'latest', label: t('settings.reading.frontPageDisplaysOptions.latest') },
-                  { value: 'static', label: t('settings.reading.frontPageDisplaysOptions.static') },
-                ]}
-                onChange={(value) => setValues({ ...values(), frontPageDisplays: value })}
-              />
-            </div>
-
-            <Show when={values()['frontPageDisplays'] === 'static'}>
+        <Card>
+          <form onSubmit={submit}>
+            <div class="form-grid">
               <div class="form-field">
-                <label>{t('settings.reading.frontPage')}</label>
+                <label>{t('settings.reading.frontPageDisplays')}</label>
                 <Select
-                  name="frontPage"
-                  value={values()['frontPage']}
-                  options={[{ value: '', label: t('settings.reading.selectPage') }, ...pages()]}
-                  onChange={(value) => setValues({ ...values(), frontPage: value })}
+                  name="frontPageDisplays"
+                  value={values()['frontPageDisplays']}
+                  options={[
+                    { value: 'latest', label: t('settings.reading.frontPageDisplaysOptions.latest') },
+                    { value: 'static', label: t('settings.reading.frontPageDisplaysOptions.static') },
+                  ]}
+                  onChange={(value) => setValues({ ...values(), frontPageDisplays: value })}
                 />
               </div>
 
+              <Show when={values()['frontPageDisplays'] === 'static'}>
+                <div class="form-field">
+                  <label>{t('settings.reading.frontPage')}</label>
+                  <Select
+                    name="frontPage"
+                    value={values()['frontPage']}
+                    options={[{ value: '', label: t('settings.reading.selectPage') }, ...pages()]}
+                    onChange={(value) => setValues({ ...values(), frontPage: value })}
+                  />
+                </div>
+
+                <div class="form-field">
+                  <label>{t('settings.reading.postsPage')}</label>
+                  <Select
+                    name="postsPage"
+                    value={values()['postsPage']}
+                    options={[{ value: '', label: t('settings.reading.selectPage') }, ...pages()]}
+                    onChange={(value) => setValues({ ...values(), postsPage: value })}
+                  />
+                </div>
+              </Show>
+
               <div class="form-field">
-                <label>{t('settings.reading.postsPage')}</label>
-                <Select
-                  name="postsPage"
-                  value={values()['postsPage']}
-                  options={[{ value: '', label: t('settings.reading.selectPage') }, ...pages()]}
-                  onChange={(value) => setValues({ ...values(), postsPage: value })}
+                <label>{t('settings.reading.timezoneString')}</label>
+                <TimezoneSelect
+                  value={values()['timezone_string'] ?? ''}
+                  placeholder={t('settings.reading.timezoneStringPlaceholder')}
+                  searchPlaceholder={t('settings.reading.timezoneStringPlaceholder')}
+                  onChange={(value) => setValues({ ...values(), timezone_string: value })}
                 />
+                <p class="form-hint">{t('settings.reading.timezoneDescription')}</p>
               </div>
-            </Show>
 
-            <div class="form-field">
-              <label>{t('settings.reading.timezoneString')}</label>
-              <TimezoneSelect
-                value={values()['timezone_string'] ?? ''}
-                placeholder={t('settings.reading.timezoneStringPlaceholder')}
-                searchPlaceholder={t('settings.reading.timezoneStringPlaceholder')}
-                onChange={(value) => setValues({ ...values(), timezone_string: value })}
-              />
-              <p class="form-hint">{t('settings.reading.timezoneDescription')}</p>
+              <div class="form-field">
+                <label>{t('settings.reading.gmtOffset')}</label>
+                <Input
+                  name="gmt_offset"
+                  type="number"
+                  value={values()['gmt_offset'] ?? ''}
+                  placeholder={t('settings.reading.gmtOffsetPlaceholder')}
+                  onInput={(value) => setValues({ ...values(), gmt_offset: value })}
+                />
+                <p class="form-hint">{t('settings.reading.gmtOffsetDescription')}</p>
+              </div>
             </div>
 
-            <div class="form-field">
-              <label>{t('settings.reading.gmtOffset')}</label>
-              <Input
-                name="gmt_offset"
-                type="number"
-                value={values()['gmt_offset'] ?? ''}
-                placeholder={t('settings.reading.gmtOffsetPlaceholder')}
-                onInput={(value) => setValues({ ...values(), gmt_offset: value })}
-              />
-              <p class="form-hint">{t('settings.reading.gmtOffsetDescription')}</p>
+            <div class="media-details__actions">
+              <Button variant="primary" type="submit" disabled={saving()} loading={saving()}>
+                {t('settings.reading.save')}
+              </Button>
             </div>
-          </div>
-
-          <div class="media-details__actions">
-            <Button variant="primary" type="submit" disabled={saving()} loading={saving()}>
-              {t('settings.reading.save')}
-            </Button>
-          </div>
-        </form>
-      </Card>
+          </form>
+        </Card>
+      </Show>
     </div>
   );
 }
