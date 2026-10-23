@@ -1,5 +1,26 @@
 # @oktis-works/web
 
+## 0.11.0
+
+### Minor Changes
+
+- Fetch posts for the static front page and listing pages
+  
+  The catch-all renderer now fetches recent items for the static front page
+  (`isFrontPage`) the same way it already did for `page_for_posts`, so theme
+  sections like "Latest posts" render real content on the configured homepage.
+  Listing pages (front page and page-for-posts) always list posts; plain
+  archives keep listing their own content type and the unconfigured home keeps
+  listing everything published.
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+  - @oktis-works/database@0.13.0
+  - @oktis-works/theme-runtime@0.9.0
+  - @oktis-works/core@0.11.3
+
 ## 0.10.6
 
 ### Patch Changes

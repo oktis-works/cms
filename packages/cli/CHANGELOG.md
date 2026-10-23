@@ -1,5 +1,36 @@
 # @oktis-works/cms
 
+## 0.11.0
+
+### Minor Changes
+
+- Redesigned default theme: header menu, footer, richer sections
+  
+  The default theme scaffolded by `okcms init` was minimal — no site header,
+  no navigation, no footer and a bare stylesheet. The theme is now a proper
+  starter design:
+  
+  - Sticky glass header with the site brand and the `header` menu rendered
+    from the runtime `menus` context (`menus.header.items`).
+  - Dark footer with the site description and the `footer` menu.
+  - New `front-page.astro` template for the static homepage: renders the page
+    body (hero/about/contact sections) plus a real "Latest posts" grid.
+  - Gradient hero with CTA buttons, card grids with hover elevation, styled
+    prose (headings, quotes, code), category badges on posts, a redesigned 404,
+    and a responsive CSS design system (~10× larger) scoped under
+    `[data-theme="default"]`.
+  - Theme manifest bumped to 0.2.0 with `front-page` declared in
+    `provides.layouts`; all manifest labels in English.
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+  - @oktis-works/database@0.13.0
+  - @oktis-works/theme-runtime@0.9.0
+  - @oktis-works/auth@0.7.8
+  - @oktis-works/core@0.11.3
+
 ## 0.10.10
 
 ### Patch Changes

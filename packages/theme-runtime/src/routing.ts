@@ -16,6 +16,8 @@ export interface RouteResolution {
   record?: Record<string, unknown>;
   /** True quando a rota resolveu para a página configurada como page_for_posts. */
   isPageForPosts?: boolean;
+  /** True quando a rota é a front page estática (Reading Settings → homepage). */
+  isFrontPage?: boolean;
 }
 
 export interface ContentLookup {
@@ -83,6 +85,7 @@ export class RuntimeRouter {
           const resolved = await this.resolver.resolve({
             type: page.type,
             slug: page.slug,
+            isFrontPage: true,
             layoutOverride: page.layout ?? undefined
           });
           return {
@@ -91,7 +94,8 @@ export class RuntimeRouter {
             contentType: page.type,
             slug: page.slug,
             data: page.data,
-            record: page.record
+            record: page.record,
+            isFrontPage: true
           };
         }
       }

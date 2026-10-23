@@ -1,5 +1,18 @@
 # @oktis-works/theme-runtime
 
+## 0.9.0
+
+### Minor Changes
+
+- front-page template support in the hierarchy
+  
+  `TemplateContext` gained `isFrontPage` and the chain builder now tries
+  `front-page.astro` BEFORE the regular page chain when resolving the static
+  front page (WordPress-like `front-page.php` behavior). The `RuntimeRouter`
+  flags the static front page resolution with `isFrontPage` and passes the hint
+  to the resolver. Themes without a `front-page.astro` fall back to the page
+  chain unchanged.
+
 ## 0.8.1
 
 ### Patch Changes

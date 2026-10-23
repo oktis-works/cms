@@ -1,9 +1,9 @@
-// @oktis-works/database - Seeds de dados padrão (roles + settings)
+// @oktis-works/database - Default data seeds (roles + settings)
 //
 // - As 5 roles do DEFAULT_POLICY do @oktis-works/auth precisam EXISTIR no
-//   banco: o JWT carrega só os slugs (lidos de roles via tenant_users) e sem
-//   a linha da role o usuário nasce sem papel → 403 em toda rota protegida
-//   (registrava, logava, mas não operava nada).
+//   database: the JWT carries only the slugs (read from roles via tenant_users); without
+//   the role row the user is born roleless → 403 on every protected route
+//   (they could register and log in, but could do nothing).
 // - Settings do grupo `general` para o admin ter o que editar (a tabela
 //   nasce vazia).
 //
@@ -16,30 +16,30 @@ import type postgres from 'postgres';
 
 type Sql = postgres.Sql;
 
-/** Roles canônicas — DEVEM casar com os slugs do DEFAULT_POLICY do auth. */
+/** Canonical roles — MUST match the slugs of auth's DEFAULT_POLICY. */
 export const DEFAULT_ROLES = [
   { name: 'Super Admin', slug: 'SUPER_ADMIN' },
-  { name: 'Administrador', slug: 'TENANT_ADMIN' },
+  { name: 'Administrator', slug: 'TENANT_ADMIN' },
   { name: 'Editor', slug: 'EDITOR' },
-  { name: 'Autor', slug: 'AUTHOR' },
-  { name: 'Leitor', slug: 'VIEWER' },
+  { name: 'Author', slug: 'AUTHOR' },
+  { name: 'Reader', slug: 'VIEWER' },
 ] as const;
 
-/** Settings iniciais do grupo `general` (form de Settings → General da admin). */
+/** Initial settings of the `general` group (admin Settings → General form). */
 export const DEFAULT_SETTINGS = [
-  { key: 'siteTitle', value: 'Meu Site', type: 'string' },
-  { key: 'siteDescription', value: 'Um novo site feito com OkCMS', type: 'string' },
-  { key: 'language', value: 'pt-BR', type: 'string' },
-  { key: 'timezone', value: 'America/Sao_Paulo', type: 'string' },
+  { key: 'siteTitle', value: 'My Site', type: 'string' },
+  { key: 'siteDescription', value: 'A brand new site built with OkCMS', type: 'string' },
+  { key: 'language', value: 'en', type: 'string' },
+  { key: 'timezone', value: 'UTC', type: 'string' },
 ] as const;
 
-/** Cria (se faltar) as roles globais (tenant_id NULL) da política. Retorna qtd criada. */
+/** Creates (if missing) the policy's global roles (tenant_id NULL). Returns the created count. */
 export async function seedDefaultRoles(sql: Sql = getConnection()): Promise<number> {
   let inserted = 0;
   for (const role of DEFAULT_ROLES) {
-    // Cast explícito: $2 aparece em dois contextos (valor de inserção e
-    // comparação de coluna) — sem cast o Postgres deduz tipos diferentes
-    // para o mesmo parâmetro e falha com "inconsistent types deduced".
+    // Explicit cast: $2 appears in two contexts (insert value and
+    // column comparison) — without it Postgres deduces different types
+    // for the same parameter and fails with "inconsistent types deduced".
     const rows = await sql.unsafe(
       `INSERT INTO roles (name, slug, is_system, permissions)
        SELECT $1::varchar, $2::varchar, true, '[]'::jsonb
@@ -52,7 +52,7 @@ export async function seedDefaultRoles(sql: Sql = getConnection()): Promise<numb
   return inserted;
 }
 
-/** Cria (se faltar) os settings iniciais no tenant dado. Retorna qtd criada. */
+/** Creates (if missing) the initial settings in the given tenant. Returns the created count. */
 export async function seedDefaultSettings(
   tenantId: string,
   sql: Sql = getConnection()
@@ -60,7 +60,7 @@ export async function seedDefaultSettings(
   let inserted = 0;
   for (const s of DEFAULT_SETTINGS) {
     // RETURNING: sem ele o driver devolve [] mesmo com insert bem-sucedido
-    // (contaria 0 no log e quebraria a detecção de idempotência).
+    // (it would count 0 in the log and break idempotency detection).
     const rows = await sql.unsafe(
       `INSERT INTO settings (tenant_id, key, value, "group", type)
        VALUES ($1, $2, to_jsonb($3::text), 'general', $4)
@@ -75,7 +75,7 @@ export async function seedDefaultSettings(
 
 /**
  * Seed completo (roles + settings do tenant default). Idempotente — usar em
- * `db:migrate`/`seed` da CLI e como fallback no registro do primeiro usuário.
+ * the CLI's `db:migrate`/`seed` and as a fallback on first-user registration.
  */
 export async function seedCoreData(
   sql: Sql = getConnection()
@@ -89,7 +89,7 @@ export async function seedCoreData(
 /** Lorem ipsum curto para campos de texto. */
 const LOREM_IPSUM = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.';
 
-/** Lorem ipsum longo para conteúdo de posts/páginas. */
+/** Long lorem ipsum for post/page content. */
 const LOREM_LONG = `
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
 
@@ -98,7 +98,7 @@ Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu 
 Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo.
 `;
 
-/** Estrutura padrão do body do editor (blocos + html renderizado). */
+/** Default editor body structure (blocks + rendered html). */
 function makeBody(html: string, blocks: unknown[] = []): Record<string, unknown> {
   return {
     html,
@@ -109,16 +109,16 @@ function makeBody(html: string, blocks: unknown[] = []): Record<string, unknown>
 }
 
 /**
- * Seed de conteúdo demonstrativo (páginas, posts, menus, settings de leitura).
- * Idempotente: usa ON CONFLICT em content (tenant_id, type, slug), menus (tenant_id, slug),
- * e settings (key, tenant_id).
+ * Demo content seed (pages, posts, menus, reading settings).
+ * Idempotent: ON CONFLICT on content (tenant_id, type, slug), menus (tenant_id, slug),
+ * and settings (key, tenant_id).
  */
 export async function seedDemoContent(
   sql: Sql = getConnection()
 ): Promise<{ pages: number; posts: number; menus: number; readingSettings: number }> {
   const tenantId = await resolveTenantId('default');
 
-  // Limpar dados demo anteriores para garantir idempotência
+  // Clear previous demo data to guarantee idempotency
   await sql.unsafe(`
     DELETE FROM settings WHERE tenant_id = $1 AND "group" = 'reading'
       AND key IN ('static_front_page', 'page_for_posts', 'timezone_string', 'gmt_offset')
@@ -126,8 +126,13 @@ export async function seedDemoContent(
   await sql.unsafe(`
     DELETE FROM menus WHERE tenant_id = $1 AND slug IN ('header', 'footer')
   `, [tenantId]);
+  // Cleanup covers BOTH the current English slugs and the legacy Portuguese
+  // ones (pre-i18n seeds), so re-seeding never leaves orphaned demo rows.
   await sql.unsafe(`
-    DELETE FROM content WHERE tenant_id = $1 AND slug IN ('home', 'sobre', 'blog', 'primeiro-post', 'segundo-post')
+    DELETE FROM content WHERE tenant_id = $1 AND slug IN (
+      'home', 'about', 'blog', 'first-post', 'getting-started',
+      'sobre', 'primeiro-post', 'segundo-post'
+    )
   `, [tenantId]);
   await sql.unsafe(`
     DELETE FROM tenant_users WHERE tenant_id = $1 AND user_id IN (
@@ -146,17 +151,17 @@ export async function seedDemoContent(
   `);
   console.log('[seedDemoContent] constraints on content:', constraintCheck);
 
-  // Autor padrão: primeiro usuário do tenant (ou cria um se não houver)
+  // Default author: first user of the tenant (creates one if none exists)
   const authorResult = await sql.unsafe(
     `SELECT id FROM users WHERE id IN (SELECT user_id FROM tenant_users WHERE tenant_id = $1) LIMIT 1`,
     [tenantId]
   );
   let authorId: string;
   if (authorResult.length === 0) {
-    // Fallback: cria usuário admin se não houver nenhum
+    // Fallback: creates an admin user when none exists
     const newUser = await sql.unsafe(
       `INSERT INTO users (email, name, password_hash, status)
-       VALUES ('admin@local', 'Administrador', '$2b$10$dummy', 'ACTIVE')
+       VALUES ('admin@local', 'Administrator', '$2b$10$dummy', 'ACTIVE')
        ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name RETURNING id`
     );
     authorId = String(newUser[0]?.['id'] ?? '');
@@ -172,61 +177,65 @@ export async function seedDemoContent(
 
   const now = new Date();
 
-  // ---- PÁGINAS ----
+  // ---- PAGES ----
   const pages = [
     {
       type: 'page',
       slug: 'home',
-      title: 'Início',
-      excerpt: 'Bem-vindo ao seu novo site com OkCMS.',
+      title: 'Home',
+      excerpt: 'Welcome to your brand new OkCMS site.',
       body: makeBody(`
         <section class="hero">
-          <h1>Bem-vindo ao OkCMS</h1>
-          <p>Seu novo site está pronto para personalizar.</p>
-          <a href="/blog" class="btn btn-primary">Ver Blog</a>
+          <p class="hero__kicker">Welcome to OkCMS</p>
+          <h1 class="hero__title">Your new site is ready</h1>
+          <p class="hero__description">Start publishing in minutes — create pages, posts and menus from the admin dashboard, then make this page your own.</p>
+          <div class="hero__actions">
+            <a href="/blog" class="btn btn--primary">Go to the blog</a>
+            <a href="#contact" class="btn btn--ghost">Get in touch</a>
+          </div>
         </section>
-        <section id="sobre" class="about-preview">
-          <h2>Sobre Nós</h2>
-          <p>${LOREM_IPSUM}</p>
-          <a href="/sobre">Ler mais →</a>
+
+        <section id="about" class="section about-preview">
+          <div>
+            <p class="section__kicker">About</p>
+            <h2 class="section__title">About Us</h2>
+            <p class="section__lead">${LOREM_IPSUM}</p>
+            <a class="btn btn--outline" href="/about">Read more →</a>
+          </div>
         </section>
-        <section class="latest-posts">
-          <h2>Últimos Artigos</h2>
-          <p>Os artigos mais recentes aparecerão aqui automaticamente.</p>
-        </section>
-        <section id="contato" class="contact">
-          <h2>Entre em Contato</h2>
-          <p>Preencha o formulário ou envie um e-mail para contato@exemplo.com</p>
+
+        <section id="contact" class="section contact">
+          <p class="section__kicker">Contact</p>
+          <h2 class="section__title">Get in Touch</h2>
+          <p class="section__lead">Questions, feedback or ideas? Send us an email at <a href="mailto:hello@example.com">hello@example.com</a> — we would love to hear from you.</p>
         </section>
       `, [
-        { type: 'heading', level: 1, content: 'Bem-vindo ao OkCMS' },
-        { type: 'paragraph', content: 'Seu novo site está pronto para personalizar.' },
-        { type: 'heading', level: 2, content: 'Sobre Nós' },
+        { type: 'heading', level: 1, content: 'Your new site is ready' },
+        { type: 'paragraph', content: 'Start publishing in minutes — create pages, posts and menus from the admin dashboard, then make this page your own.' },
+        { type: 'heading', level: 2, content: 'About Us' },
         { type: 'paragraph', content: LOREM_IPSUM },
-        { type: 'heading', level: 2, content: 'Últimos Artigos' },
-        { type: 'paragraph', content: 'Os artigos mais recentes aparecerão aqui automaticamente.' },
-        { type: 'heading', level: 2, content: 'Entre em Contato' },
-        { type: 'paragraph', content: 'Preencha o formulário ou envie um e-mail para contato@exemplo.com' },
+        { type: 'heading', level: 2, content: 'Get in Touch' },
+        { type: 'paragraph', content: 'Questions, feedback or ideas? Send us an email at hello@example.com — we would love to hear from you.' },
       ]),
     },
     {
       type: 'page',
-      slug: 'sobre',
-      title: 'Sobre Nós',
-      excerpt: 'Conheça nossa história e missão.',
+      slug: 'about',
+      title: 'About Us',
+      excerpt: 'Learn more about our story and mission.',
       body: makeBody(`
-        <h2>Nossa História</h2>
+        <h2>Our Story</h2>
         <p>${LOREM_LONG}</p>
-        <h2>Nossa Missão</h2>
+        <h2>Our Mission</h2>
         <p>${LOREM_IPSUM}</p>
-        <h2>Equipe</h2>
+        <h2>Our Team</h2>
         <p>${LOREM_IPSUM}</p>
       `, [
-        { type: 'heading', level: 2, content: 'Nossa História' },
+        { type: 'heading', level: 2, content: 'Our Story' },
         { type: 'paragraph', content: LOREM_LONG },
-        { type: 'heading', level: 2, content: 'Nossa Missão' },
+        { type: 'heading', level: 2, content: 'Our Mission' },
         { type: 'paragraph', content: LOREM_IPSUM },
-        { type: 'heading', level: 2, content: 'Equipe' },
+        { type: 'heading', level: 2, content: 'Our Team' },
         { type: 'paragraph', content: LOREM_IPSUM },
       ]),
     },
@@ -234,13 +243,13 @@ export async function seedDemoContent(
       type: 'page',
       slug: 'blog',
       title: 'Blog',
-      excerpt: 'Artigos, tutoriais e novidades.',
+      excerpt: 'Articles, tutorials and release notes.',
       body: makeBody(`
-        <p>Bem-vindo ao nosso blog. Aqui você encontrará artigos, tutoriais e novidades sobre OkCMS.</p>
-        <p>Os posts mais recentes são listados abaixo automaticamente.</p>
+        <p>Welcome to our blog. Here you will find articles, tutorials and news about OkCMS.</p>
+        <p>The latest posts are listed below automatically.</p>
       `, [
-        { type: 'paragraph', content: 'Bem-vindo ao nosso blog. Aqui você encontrará artigos, tutoriais e novidades sobre OkCMS.' },
-        { type: 'paragraph', content: 'Os posts mais recentes são listados abaixo automaticamente.' },
+        { type: 'paragraph', content: 'Welcome to our blog. Here you will find articles, tutorials and news about OkCMS.' },
+        { type: 'paragraph', content: 'The latest posts are listed below automatically.' },
       ]),
     },
   ] as const;
@@ -286,65 +295,65 @@ export async function seedDemoContent(
   const posts = [
     {
       type: 'post',
-      slug: 'primeiro-post',
-      title: 'Primeiro Artigo do Blog',
-      excerpt: 'Este é o primeiro artigo de demonstração do blog.',
+      slug: 'first-post',
+      title: 'My First Blog Post',
+      excerpt: 'This is the first demo post of the blog.',
       body: makeBody(`
-        <h1>Primeiro Artigo do Blog</h1>
+        <h1>My First Blog Post</h1>
         <p>${LOREM_IPSUM}</p>
-        <h2>Introdução</h2>
+        <h2>Introduction</h2>
         <p>${LOREM_LONG}</p>
-        <h2>Desenvolvimento</h2>
+        <h2>Main Content</h2>
         <p>${LOREM_IPSUM}</p>
-        <h3>Subseção Exemplo</h3>
+        <h3>Example Subsection</h3>
         <p>${LOREM_IPSUM}</p>
-        <h2>Conclusão</h2>
+        <h2>Wrapping Up</h2>
         <p>${LOREM_LONG}</p>
       `, [
-        { type: 'heading', level: 1, content: 'Primeiro Artigo do Blog' },
+        { type: 'heading', level: 1, content: 'My First Blog Post' },
         { type: 'paragraph', content: LOREM_IPSUM },
-        { type: 'heading', level: 2, content: 'Introdução' },
+        { type: 'heading', level: 2, content: 'Introduction' },
         { type: 'paragraph', content: LOREM_LONG },
-        { type: 'heading', level: 2, content: 'Desenvolvimento' },
+        { type: 'heading', level: 2, content: 'Main Content' },
         { type: 'paragraph', content: LOREM_IPSUM },
-        { type: 'heading', level: 3, content: 'Subseção Exemplo' },
+        { type: 'heading', level: 3, content: 'Example Subsection' },
         { type: 'paragraph', content: LOREM_IPSUM },
-        { type: 'heading', level: 2, content: 'Conclusão' },
+        { type: 'heading', level: 2, content: 'Wrapping Up' },
         { type: 'paragraph', content: LOREM_LONG },
       ]),
     },
     {
       type: 'post',
-      slug: 'segundo-post',
-      title: 'Dicas para Começar com OkCMS',
-      excerpt: 'Aprenda os primeiros passos para criar seu site com OkCMS.',
+      slug: 'getting-started',
+      title: 'Getting Started with OkCMS',
+      excerpt: 'Learn the first steps to build your site with OkCMS.',
       body: makeBody(`
-        <h1>Dicas para Começar com OkCMS</h1>
+        <h1>Getting Started with OkCMS</h1>
         <p>${LOREM_IPSUM}</p>
-        <h2>Instalação</h2>
+        <h2>Installation</h2>
         <p>${LOREM_LONG}</p>
-        <h2>Configuração Inicial</h2>
+        <h2>Initial Setup</h2>
         <p>${LOREM_IPSUM}</p>
-        <h3>Temas</h3>
+        <h3>Themes</h3>
         <p>${LOREM_IPSUM}</p>
         <h3>Plugins</h3>
         <p>${LOREM_IPSUM}</p>
-        <h2>Criando Conteúdo</h2>
+        <h2>Creating Content</h2>
         <p>${LOREM_LONG}</p>
         <h2>Deploy</h2>
         <p>${LOREM_IPSUM}</p>
       `, [
-        { type: 'heading', level: 1, content: 'Dicas para Começar com OkCMS' },
+        { type: 'heading', level: 1, content: 'Getting Started with OkCMS' },
         { type: 'paragraph', content: LOREM_IPSUM },
-        { type: 'heading', level: 2, content: 'Instalação' },
+        { type: 'heading', level: 2, content: 'Installation' },
         { type: 'paragraph', content: LOREM_LONG },
-        { type: 'heading', level: 2, content: 'Configuração Inicial' },
+        { type: 'heading', level: 2, content: 'Initial Setup' },
         { type: 'paragraph', content: LOREM_IPSUM },
-        { type: 'heading', level: 3, content: 'Temas' },
+        { type: 'heading', level: 3, content: 'Themes' },
         { type: 'paragraph', content: LOREM_IPSUM },
         { type: 'heading', level: 3, content: 'Plugins' },
         { type: 'paragraph', content: LOREM_IPSUM },
-        { type: 'heading', level: 2, content: 'Criando Conteúdo' },
+        { type: 'heading', level: 2, content: 'Creating Content' },
         { type: 'paragraph', content: LOREM_LONG },
         { type: 'heading', level: 2, content: 'Deploy' },
         { type: 'paragraph', content: LOREM_IPSUM },
@@ -381,19 +390,19 @@ export async function seedDemoContent(
 
   // ---- MENUS ----
   const headerMenuItems = [
-    { type: 'home', label: 'Início', url: '/' },
-    { type: 'page', label: 'Sobre', url: '/sobre', contentId: pageIds['sobre'] },
+    { type: 'home', label: 'Home', url: '/' },
+    { type: 'page', label: 'About', url: '/about', contentId: pageIds['about'] },
     { type: 'page', label: 'Blog', url: '/blog', contentId: pageIds['blog'] },
   ];
   const footerMenuItems = [
-    { type: 'custom', label: 'Contato', url: '/#contato' },
-    { type: 'custom', label: 'Privacidade', url: '/privacidade' },
+    { type: 'custom', label: 'Contact', url: '/#contact' },
+    { type: 'custom', label: 'Privacy', url: '/privacy' },
   ];
 
   let menusCreated = 0;
   for (const [slug, name, items] of [
-    ['header', 'Menu Principal', headerMenuItems],
-    ['footer', 'Rodapé', footerMenuItems],
+    ['header', 'Main Menu', headerMenuItems],
+    ['footer', 'Footer', footerMenuItems],
   ] as const) {
     console.log('[seedDemoContent] Inserting menu:', slug, 'tenantId:', tenantId);
     const result = await sql.unsafe(
@@ -405,14 +414,14 @@ export async function seedDemoContent(
     menusCreated += result.length;
   }
 
-  // ---- SETTINGS DE LEITURA (Static Front Page) ----
+  // ---- READING SETTINGS (Static Front Page) ----
   let readingSettingsCreated = 0;
   if (pageIds['home'] && pageIds['blog']) {
     for (const [key, value] of [
       ['static_front_page', pageIds['home']],
       ['page_for_posts', pageIds['blog']],
-      ['timezone_string', 'America/Sao_Paulo'],
-      ['gmt_offset', -3],
+      ['timezone_string', 'UTC'],
+      ['gmt_offset', 0],
     ] as const) {
       console.log('[seedDemoContent] Inserting setting:', key, 'tenantId:', tenantId);
       const result = await sql.unsafe(
@@ -428,14 +437,14 @@ export async function seedDemoContent(
   return { pages: pagesCreated, posts: postsCreated, menus: menusCreated, readingSettings: readingSettingsCreated };
 }
 
-/** Ativa o tema default se ainda não houver tema ativo. */
+/** Activates the default theme when no active theme exists yet. */
 export async function seedActivateDefaultTheme(
   sql: Sql = getConnection()
 ): Promise<void> {
   try {
     const tenantId = await resolveTenantId('default');
     
-    // Verifica se já existe tema ativo
+    // Check if an active theme already exists
     const activeTheme = await sql.unsafe(
       `SELECT id FROM themes WHERE status = 'ACTIVE' AND tenant_id = $1 LIMIT 1`,
       [tenantId]
@@ -460,6 +469,6 @@ export async function seedActivateDefaultTheme(
       }
     }
   } catch {
-    // Silencioso - ativação do tema é best-effort
+    // Silent — theme activation is best-effort
   }
 }

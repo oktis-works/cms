@@ -171,14 +171,19 @@ async function main() {
         }
       }
 
-      // B1 — archives/home/page_for_posts: itens publicados recentes do tipo resolvido
+      // B1 — archives/home/page_for_posts/front page: itens publicados recentes.
+      // A front page estática e a page_for_posts sempre listam POSTS (são
+      // páginas de listagem); archives listam o próprio tipo; a home "pelada"
+      // (sem nenhuma configuração) lista tudo que está publicado.
       const items: Record<string, unknown>[] = [];
-      const shouldFetchItems = !resolution.slug || (resolution as any).isPageForPosts;
+      const isListingPage = resolution.isPageForPosts === true || resolution.isFrontPage === true;
+      const shouldFetchItems = !resolution.slug || isListingPage;
       if (shouldFetchItems) {
-        const typeFilter = resolution.contentType
+        const itemsType = isListingPage ? 'post' : resolution.contentType;
+        const typeFilter = itemsType
           ? 'WHERE type = $1 AND status = \'PUBLISHED\''
           : "WHERE status = 'PUBLISHED'";
-        const params = resolution.contentType ? [resolution.contentType] : [];
+        const params = itemsType ? [itemsType] : [];
         const rows = await getConnection().unsafe(
           `SELECT * FROM content ${typeFilter} ORDER BY published_at DESC NULLS LAST, updated_at DESC LIMIT 20`,
           params

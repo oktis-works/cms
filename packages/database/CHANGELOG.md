@@ -1,5 +1,24 @@
 # @oktis-works/database
 
+## 0.13.0
+
+### Minor Changes
+
+- English demo seed aligned with the redesigned default theme
+  
+  All seeded demo content is now English-only (repo language standard):
+  settings (siteTitle "My Site", description, `language: en`, `timezone: UTC`),
+  pages (Home, About, Blog), posts (My First Blog Post, Getting Started with
+  OkCMS), menus (Main Menu, Footer) and role display names.
+  
+  - The seeded homepage body now uses the redesigned theme's section classes
+    (hero with CTAs, about preview, contact) and no longer includes a static
+    "latest posts" placeholder — the front-page template renders real posts.
+  - The idempotency cleanup now also deletes the legacy Portuguese slugs
+    (`sobre`, `primeiro-post`, `segundo-post`), so re-seeding a pre-i18n
+    project leaves no orphaned demo rows.
+  - Reading settings seed uses `timezone_string: UTC` / `gmt_offset: 0`.
+
 ## 0.12.1
 
 ### Patch Changes

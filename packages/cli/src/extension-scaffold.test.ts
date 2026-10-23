@@ -65,7 +65,10 @@ describe('scaffoldTheme (formato do runtime web)', () => {
     const home = readFileSync(join(dir, 'home.astro'), 'utf-8');
 
     expect(home).toContain('{{#each items}}');
-    expect(home).not.toContain('posts');
+    // The runtime collection is `items` — a `posts` data variable does not
+    // exist (UI copy may still contain the word, e.g. "Browse posts").
+    expect(home).not.toContain('{{posts');
+    expect(home).not.toContain('each posts');
   });
 
   it('rejeita nome inseguro e diretório existente', () => {

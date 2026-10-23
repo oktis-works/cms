@@ -9,6 +9,11 @@ export interface TemplateContext {
   isArchive?: boolean;
   isHome?: boolean;
   /**
+   * Static front page (Reading Settings → homepage). Tries `front-page.astro`
+   * BEFORE the regular page chain — WordPress-like `front-page.php` behavior.
+   */
+  isFrontPage?: boolean;
+  /**
    * Override manual de layout (content.layout): template escolhido no editor.
    * Quando presente, é tentado ANTES de toda a cadeia automática (TASK-058).
    */
@@ -60,6 +65,13 @@ export function buildTemplateChain(context: TemplateContext): string[] {
   }
 
   chain.push('404.astro');
+
+  // Static front page: try the dedicated front-page template first, then the
+  // regular page chain (front-page.astro → {type}-{slug}.astro → {type}.astro
+  // → index.astro → 404.astro).
+  if (context.isFrontPage) {
+    return [...layoutHead, 'front-page.astro', ...chain];
+  }
 
   return [...layoutHead, ...chain];
 }
