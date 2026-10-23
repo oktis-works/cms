@@ -38,7 +38,7 @@ function makeClient() {
 vi.mock('../connection.js', () => ({ getConnection: vi.fn() }));
 
 import { getConnection } from '../connection.js';
-import { seedCoreData, seedDefaultRoles, seedDefaultSettings, DEFAULT_ROLES, DEFAULT_SETTINGS } from './seed.js';
+import { seedCoreData, seedDefaultRoles, seedDefaultSettings, seedDemoContent, DEFAULT_ROLES, DEFAULT_SETTINGS } from './seed.js';
 
 beforeEach(() => {
   calls = [];
@@ -116,5 +116,37 @@ describe('seedCoreData', () => {
     // settings apontam para o UUID real do tenant
     const settingsInserts = unsafeCalls().filter((c) => c.query.includes('INSERT INTO settings'));
     expect(settingsInserts.every((c) => c.values[0] === uuid)).toBe(true);
+  });
+});
+
+describe('seedDemoContent menus', () => {
+  it('INSERT maps (name, slug) columns to (name, slug) values — never swapped', async () => {
+    // Regression: the columns are declared (name, slug) while the seed tuple
+    // is (slug, name). A swapped binding landed menus with slug='Main Menu',
+    // so the theme's `menus.header` lookup found nothing and the header nav
+    // rendered without links.
+    selectResults['SELECT id FROM tenants'] = [{ id: 't-menu' }];
+    selectResults['INSERT INTO users'] = [{ id: 'u1' }];
+    selectResults['INSERT INTO tenant_users'] = [];
+    selectResults['INSERT INTO content'] = [{ id: 'c1' }];
+    selectResults['INSERT INTO menus'] = [{ id: 'm1' }];
+    selectResults['INSERT INTO settings'] = [{ id: 's1' }];
+
+    await seedDemoContent();
+
+    const menuInserts = unsafeCalls().filter((c) => c.query.includes('INSERT INTO menus'));
+    expect(menuInserts).toHaveLength(2);
+
+    const bySlug = new Map(menuInserts.map((c) => [c.values[2], c.values[1]]));
+    // values[1] = name column, values[2] = slug column
+    expect(bySlug.get('header')).toBe('Main Menu');
+    expect(bySlug.get('footer')).toBe('Footer');
+
+    // cleanup also targets the broken legacy rows (swapped slug/name)
+    const menuCleanup = unsafeCalls().find(
+      (c) => c.query.includes('DELETE FROM menus')
+    );
+    expect(menuCleanup?.query).toContain("'Main Menu'");
+    expect(menuCleanup?.query).toContain("name IN ('header', 'footer')");
   });
 });

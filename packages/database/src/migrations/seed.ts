@@ -123,8 +123,14 @@ export async function seedDemoContent(
     DELETE FROM settings WHERE tenant_id = $1 AND "group" = 'reading'
       AND key IN ('static_front_page', 'page_for_posts', 'timezone_string', 'gmt_offset')
   `, [tenantId]);
+  // Cleanup covers the correct slugs AND the broken rows left by earlier
+  // seeds that swapped name/slug on insert (slug='Main Menu'/'Footer',
+  // name='header'/'footer').
   await sql.unsafe(`
-    DELETE FROM menus WHERE tenant_id = $1 AND slug IN ('header', 'footer')
+    DELETE FROM menus WHERE tenant_id = $1 AND (
+      slug IN ('header', 'footer', 'Main Menu', 'Footer')
+      OR name IN ('header', 'footer')
+    )
   `, [tenantId]);
   // Cleanup covers BOTH the current English slugs and the legacy Portuguese
   // ones (pre-i18n seeds), so re-seeding never leaves orphaned demo rows.
@@ -406,10 +412,13 @@ export async function seedDemoContent(
   ] as const) {
     console.log('[seedDemoContent] Inserting menu:', slug, 'tenantId:', tenantId);
     const result = await sql.unsafe(
+      // Column order is (name, slug) but the tuple is (slug, name) — the
+      // params must swap accordingly, otherwise the menu lands with
+      // slug='Main Menu' and the theme never finds `menus.header`.
       `INSERT INTO menus (tenant_id, name, slug, items)
        VALUES ($1, $2, $3, $4::jsonb)
        RETURNING id`,
-      [tenantId, slug, name, items]
+      [tenantId, name, slug, items]
     );
     menusCreated += result.length;
   }

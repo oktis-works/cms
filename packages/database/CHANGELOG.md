@@ -1,5 +1,23 @@
 # @oktis-works/database
 
+## 0.13.1
+
+### Patch Changes
+
+- Fix seeded menus landing with swapped name/slug
+  
+  The demo seed's menu INSERT declared the columns as `(name, slug)` but bound
+  the parameters in `(slug, name)` order, so every seeded menu landed with
+  `slug='Main Menu'`/`'Footer'` and `name='header'`/`'footer'`. The theme's
+  `menus.header` lookup found nothing and the header/footer navigation
+  rendered without any links.
+  
+  - The INSERT now binds `name` → name column and `slug` → slug column.
+  - The seed cleanup also deletes the broken legacy rows (swapped slug/name),
+    so re-running the seed repairs existing projects.
+  
+  Regression test asserts the INSERT binding and the extended cleanup.
+
 ## 0.13.0
 
 ### Minor Changes
