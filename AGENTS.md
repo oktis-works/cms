@@ -17,7 +17,8 @@ This document defines strict operational rules and workflows that the AI Agent m
 Before preparing or recommending a push to GitHub, evaluate if the updates trigger the CI/CD and Publish workflows.
 
 ### CI triggers (`.github/workflows/ci.yml`)
-* `push` to `main` / `develop` and `push` of tags `v*`, plus `pull_request` to `main` / `develop`.
+* `push` of tags `v*` and `pull_request` to `main` / `develop`.
+* **NO CI on push to `main` / `develop`** — only tags and PRs trigger CI.
 * Jobs `test`, `typecheck` (build all packages + `tsc --noEmit`), `lint` run in parallel.
 * On a `v*` tag push with all jobs green, the `trigger-publish` job sends a `repository_dispatch` (`publish-release`) that fires `publish.yml`.
 
