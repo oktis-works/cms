@@ -68,10 +68,15 @@ export function toSiteSettings(raw: Record<string, unknown>): SiteSettings {
  * overlays draft theme settings on top of the saved config for THIS request
  * only — nothing is persisted. Invalid payloads are ignored and the preview
  * degrades to the saved configuration.
+ * 
+ * SECURITY: When `allowedKeys` is provided, only keys declared in the theme
+ * manifest settings are accepted — prevents injection of arbitrary config keys
+ * during preview (defense in depth, preview is request-only anyway).
  */
 export function mergePreviewSettings(
   saved: Record<string, unknown> | null | undefined,
-  previewParam: string | undefined
+  previewParam: string | undefined,
+  allowedKeys?: string[] // Whitelist of setting names from manifest.settings
 ): Record<string, unknown> | null {
   if (!previewParam) return saved ?? null;
   const parse = (value: string): unknown => {
@@ -92,7 +97,20 @@ export function mergePreviewSettings(
     }
   }
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return saved ?? null;
-  return { ...(saved ?? {}), ...(parsed as Record<string, unknown>) };
+  
+  // SECURITY: Whitelist validation - only allow keys declared in manifest.settings
+  const parsedObj = parsed as Record<string, unknown>;
+  if (allowedKeys && allowedKeys.length > 0) {
+    const filtered: Record<string, unknown> = {};
+    for (const key of allowedKeys) {
+      if (Object.prototype.hasOwnProperty.call(parsedObj, key)) {
+        filtered[key] = parsedObj[key];
+      }
+    }
+    return { ...(saved ?? {}), ...filtered };
+  }
+  
+  return { ...(saved ?? {}), ...parsedObj };
 }
 
 

@@ -10,7 +10,8 @@
       "menus": "Menüler",
       "settings": "Ayarlar",
       "plugins": "Eklentiler",
-      "themes": "Temalar"
+      "themes": "Temalar",
+      "customize": "Özelleştir"
     },
     "actions": {
       "logout": "Çıkış",
@@ -124,7 +125,9 @@
       "save": "Kaydet",
       "saved": "İçerik başarıyla kaydedildi."
     },
-    "taxonomy": { "editTerm": "Terimi düzenle" }
+    "taxonomy": {
+      "editTerm": "Terimi düzenle"
+    }
   },
   "menus": {
     "title": "Menüler",
@@ -423,5 +426,30 @@
     "title": "Ekran seçenekleri",
     "label": "Ekran seçenekleri",
     "showOnScreen": "Ekranda göster"
+  },
+  "themes": {
+    "title": "Temalar",
+    "description": "Kurulu temaları yönetin.",
+    "directoryHint": "Projenin themes/ dizininden otomatik algılanır. Tema eklemek için CLI veya dosya dağıtımını kullanın.",
+    "version": "Sürüm",
+    "active": "Aktif",
+    "status": {
+      "active": "Aktif",
+      "installed": "Kurulu",
+      "inactive": "Pasif"
+    },
+    "activate": "Etkinleştir",
+    "deactivate": "Devre Dışı Bırak",
+    "customize": "Özelleştir",
+    "install": "Tema Yükle",
+    "name": "Tema Adı",
+    "manifest": "Manifest (JSON)",
+    "loadError": "Temalar yüklenemedi.",
+    "activateError": "Tema etkinleştirilemedi.",
+    "deactivateError": "Tema devre dışı bırakılamadı.",
+    "deactivateBlocked": "En az bir tema aktif kalmalıdır.",
+    "installError": "Tema yüklenemedi.",
+    "reload": "Yenile",
+    "empty": "Yüklü tema yok."
   }
 }

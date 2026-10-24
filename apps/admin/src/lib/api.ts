@@ -2,6 +2,9 @@
 
 import { joinApiUrl } from './api-url.js';
 import type { AdminExtensionsState } from '@oktis-works/plugin-sdk';
+import type { ThemeSettingField } from '@oktis-works/types';
+
+export type { ThemeSettingField };
 
 /**
  * Erro tipado da API: o STATUS é o contrato, não a string do corpo.
@@ -228,14 +231,6 @@ export interface Content {
   updatedAt: string;
   /** Presente quando ?include=author (expandido pelo backend em uma query). */
   author?: { id: string; name: string; email: string; avatar?: string | null } | null;
-}
-
-export interface ThemeSettingField {
-  name: string;
-  type?: string;
-  label?: string;
-  default?: unknown;
-  options?: Array<string | { value: string; label: string }>;
 }
 
 export interface ThemeInfo {

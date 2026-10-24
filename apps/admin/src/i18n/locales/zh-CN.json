@@ -10,7 +10,8 @@
       "menus": "菜单",
       "settings": "设置",
       "plugins": "插件",
-      "themes": "主题"
+      "themes": "主题",
+      "customize": "自定义"
     },
     "actions": {
       "logout": "退出",
@@ -124,7 +125,9 @@
       "save": "保存",
       "saved": "内容保存成功。"
     },
-    "taxonomy": { "editTerm": "编辑术语" }
+    "taxonomy": {
+      "editTerm": "编辑术语"
+    }
   },
   "menus": {
     "title": "菜单",
@@ -423,5 +426,30 @@
     "title": "屏幕选项",
     "label": "屏幕选项",
     "showOnScreen": "在屏幕上显示"
+  },
+  "themes": {
+    "title": "主题",
+    "description": "管理已安装的主题。",
+    "directoryHint": "从项目的 themes/ 目录自动检测。使用 CLI 或部署文件来添加主题。",
+    "version": "版本",
+    "active": "激活",
+    "status": {
+      "active": "激活",
+      "installed": "已安装",
+      "inactive": "未激活"
+    },
+    "activate": "激活",
+    "deactivate": "停用",
+    "customize": "自定义",
+    "install": "安装主题",
+    "name": "主题名称",
+    "manifest": "清单 (JSON)",
+    "loadError": "无法加载主题。",
+    "activateError": "无法激活主题。",
+    "deactivateError": "无法停用主题。",
+    "deactivateBlocked": "至少必须保留一个激活的主题。",
+    "installError": "无法安装主题。",
+    "reload": "重新加载",
+    "empty": "没有已安装的主题。"
   }
 }

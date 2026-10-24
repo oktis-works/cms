@@ -1,9 +1,9 @@
 <main data-template="index" data-type="{{page.type}}" class="page">
   <header class="page-header">
     <div class="container">
-      <h1>{{page.title}}</h1>
-      {{#if site.description}}
-      <p class="page-description">{{site.description}}</p>
+      <h1>{{settings.theme.siteTitle || page.title}}</h1>
+      {{#if settings.theme.siteDescription}}
+      <p class="page-description">{{settings.theme.siteDescription}}</p>
       {{/if}}
     </div>
   </header>

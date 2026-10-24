@@ -8,6 +8,7 @@
 import { For, Show, createMemo, createSignal, onMount } from 'solid-js';
 import { useTranslation } from '../../../i18n';
 import { apiClient, type ThemeInfo, type ThemeSettingField } from '../../../lib/api';
+import { FieldRendererFactory, type CustomFieldConfig } from '../../shared/FieldRendererFactory';
 
 const PREVIEW_DEBOUNCE_MS = 800;
 
@@ -18,12 +19,47 @@ function defaultForField(field: ThemeSettingField): unknown {
   return '';
 }
 
-function optionValue(option: string | { value: string; label?: string }): string {
-  return typeof option === 'string' ? option : option.value;
+/** Converte ThemeSettingField para CustomFieldConfig */
+function toCustomFieldConfig(field: ThemeSettingField): CustomFieldConfig {
+  const f = field as any; // Use any to access extended properties safely
+  return {
+    name: field.name,
+    type: field.type ?? 'text',
+    label: field.label,
+    default: field.default,
+    options: field.options as CustomFieldConfig['options'],
+    required: field.required,
+    placeholder: field.placeholder,
+    min: field.min as number | undefined,
+    max: field.max as number | undefined,
+    step: field.step as number | undefined,
+    minLength: field.minLength as number | undefined,
+    maxLength: field.maxLength as number | undefined,
+    pattern: field.pattern,
+    postType: f.postType as string | undefined,
+    multiple: f.multiple as boolean | undefined,
+    accept: f.accept as string | undefined,
+    entityType: f.entityType as 'taxonomy' | 'user' | undefined,
+    taxonomy: f.taxonomy as string | undefined,
+    itemLabel: f.itemLabel as string | undefined,
+    minRows: f.minRows as number | undefined,
+    maxRows: f.maxRows as number | undefined,
+    collapsible: f.collapsible as boolean | undefined,
+    defaultExpanded: f.defaultExpanded as boolean | undefined,
+    subFields: field.subFields?.map(toCustomFieldConfig),
+    layouts: field.layouts?.map((l) => ({
+      name: l.name,
+      label: l.label,
+      subFields: l.subFields?.map(toCustomFieldConfig) || [],
+    })),
+  };
 }
 
-function optionLabel(option: string | { value: string; label?: string }): string {
-  return typeof option === 'string' ? option : (option.label ?? option.value);
+/** Extrai o themeId da query string ?theme=<id> */
+function getThemeIdFromQuery(): string | null {
+  if (typeof window === 'undefined') return null;
+  const params = new URLSearchParams(window.location.search);
+  return params.get('theme');
 }
 
 export function ThemeCustomizer() {
@@ -37,18 +73,28 @@ export function ThemeCustomizer() {
   const [saved, setSaved] = createSignal(false);
   const [previewPath, setPreviewPath] = createSignal('/');
   const [previewNonce, setPreviewNonce] = createSignal(0);
+  const [selectedThemeId, setSelectedThemeId] = createSignal<string | null>(null);
 
   let debounceHandle: ReturnType<typeof setTimeout> | null = null;
 
-  const activeTheme = createMemo(() => themes().find((theme) => theme.status === 'ACTIVE') ?? null);
+  // Tema selecionado: via query param ?theme=<id> ou tema ativo como fallback
+  const selectedTheme = createMemo(() => {
+    const id = selectedThemeId();
+    if (id) return themes().find((t) => t.id === id) ?? null;
+    return themes().find((theme) => theme.status === 'ACTIVE') ?? null;
+  });
+  
   const fields = createMemo(() =>
-    (activeTheme()?.manifest?.settings ?? []).filter(
+    (selectedTheme()?.manifest?.settings ?? []).filter(
       (field): field is ThemeSettingField => Boolean(field) && typeof field.name === 'string'
     )
   );
   const dirty = createMemo(() => JSON.stringify(draft()) !== JSON.stringify(savedConfig()));
 
   onMount(async () => {
+    // Check for theme ID in query params
+    const queryThemeId = getThemeIdFromQuery();
+    if (queryThemeId) setSelectedThemeId(queryThemeId);
     await load();
   });
 
@@ -58,11 +104,24 @@ export function ThemeCustomizer() {
       setLoading(true);
       const data = await apiClient.getThemes();
       setThemes(data);
-      const active = data.find((theme) => theme.status === 'ACTIVE') ?? null;
-      const config = (active?.config ?? {}) as Record<string, unknown>;
+      
+      // Determine which theme to customize
+      let targetTheme = data.find((t) => t.id === selectedThemeId()) ?? null;
+      if (!targetTheme) {
+        targetTheme = data.find((theme) => theme.status === 'ACTIVE') ?? null;
+      }
+      
+      if (!targetTheme) {
+        setError(t('customizer.noTheme'));
+        return;
+      }
+      
+      setSelectedThemeId(targetTheme.id);
+      
+      const config = (targetTheme.config ?? {}) as Record<string, unknown>;
       setSavedConfig(config);
       const initial: Record<string, unknown> = {};
-      for (const field of active?.manifest?.settings ?? []) {
+      for (const field of targetTheme.manifest?.settings ?? []) {
         initial[field.name] = config[field.name] !== undefined ? config[field.name] : defaultForField(field);
       }
       setDraft(initial);
@@ -97,7 +156,7 @@ export function ThemeCustomizer() {
   }
 
   async function save(): Promise<void> {
-    const theme = activeTheme();
+    const theme = selectedTheme();
     if (!theme) return;
     setError(null);
     setSaved(false);
@@ -125,7 +184,7 @@ export function ThemeCustomizer() {
     <div class="customizer">
       <Show when={!loading()} fallback={<div class="skeleton">Loading...</div>}>
         <Show
-          when={activeTheme()}
+          when={selectedTheme()}
           fallback={
             <div class="empty-state">
               {t('customizer.noTheme')}{' '}
@@ -135,66 +194,26 @@ export function ThemeCustomizer() {
         >
           <div class="customizer__layout">
             <aside class="customizer__panel">
-              <h3>{activeTheme()!.name} · {t('customizer.title')}</h3>
+              <h3>{selectedTheme()!.name} · {t('customizer.title')}</h3>
 
               <Show when={fields().length === 0}>
                 <p class="muted">{t('customizer.noSettings')}</p>
               </Show>
 
               <For each={fields()}>
-                {(field) => (
-                  <div class="customizer__field">
-                    <label for={`customizer-${field.name}`}>{field.label || field.name}</label>
-                    {field.type === 'textarea' ? (
-                      <textarea
-                        id={`customizer-${field.name}`}
-                        class="input"
-                        rows={3}
-                        value={String(draft()[field.name] ?? '')}
-                        onInput={(event) => setDraftValue(field.name, event.currentTarget.value)}
+                {(field) => {
+                  const config = toCustomFieldConfig(field);
+                  return (
+                    <div class="customizer__field" key={field.name}>
+                      <label for={`customizer-${field.name}`}>{field.label || field.name}</label>
+                      <FieldRendererFactory
+                        field={config}
+                        value={draft()[field.name]}
+                        onChange={(val) => setDraftValue(field.name, val)}
                       />
-                    ) : field.type === 'select' ? (
-                      <select
-                        id={`customizer-${field.name}`}
-                        class="input"
-                        value={String(draft()[field.name] ?? '')}
-                        onChange={(event) => setDraftValue(field.name, event.currentTarget.value)}
-                      >
-                        <For each={field.options ?? []}>
-                          {(option) => <option value={optionValue(option)}>{optionLabel(option)}</option>}
-                        </For>
-                      </select>
-                    ) : field.type === 'checkbox' ? (
-                      <input
-                        id={`customizer-${field.name}`}
-                        type="checkbox"
-                        checked={Boolean(draft()[field.name])}
-                        onChange={(event) => setDraftValue(field.name, event.currentTarget.checked)}
-                      />
-                    ) : field.type === 'color' ? (
-                      <input
-                        id={`customizer-${field.name}`}
-                        type="color"
-                        class="input customizer__color"
-                        value={String(draft()[field.name] ?? '#000000')}
-                        onInput={(event) => setDraftValue(field.name, event.currentTarget.value)}
-                      />
-                    ) : (
-                      <input
-                        id={`customizer-${field.name}`}
-                        type={field.type === 'number' ? 'number' : 'text'}
-                        class="input"
-                        value={String(draft()[field.name] ?? '')}
-                        onInput={(event) =>
-                          setDraftValue(
-                            field.name,
-                            field.type === 'number' ? Number(event.currentTarget.value) : event.currentTarget.value
-                          )
-                        }
-                      />
-                    )}
-                  </div>
-                )}
+                    </div>
+                  );
+                }}
               </For>
 
               <div class="customizer__actions">

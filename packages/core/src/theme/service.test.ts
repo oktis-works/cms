@@ -39,7 +39,14 @@ const themeRow = (overrides: Row = {}): Row => ({
   name: 'meu-tema',
   version: '1.0.0',
   status: 'INSTALLED',
-  manifest: { name: 'meu-tema', version: '1.0.0' },
+  manifest: { 
+    name: 'meu-tema', 
+    version: '1.0.0',
+    settings: [
+      { name: 'siteTitle', type: 'text', label: 'Site Title', default: 'Meu Site' },
+      { name: 'siteDescription', type: 'text', label: 'Site Description', default: '' }
+    ]
+  },
   config: {},
   ...overrides,
 });

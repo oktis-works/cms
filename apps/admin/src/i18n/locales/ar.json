@@ -10,7 +10,8 @@
       "menus": "القوائم",
       "settings": "الإعدادات",
       "plugins": "الإضافات",
-      "themes": "القوالب"
+      "themes": "القوالب",
+      "customize": "تخصيص"
     },
     "actions": {
       "logout": "تسجيل الخروج",
@@ -124,7 +125,9 @@
       "save": "حفظ",
       "saved": "تم حفظ المحتوى بنجاح."
     },
-    "taxonomy": { "editTerm": "تحرير المصطلح" }
+    "taxonomy": {
+      "editTerm": "تحرير المصطلح"
+    }
   },
   "menus": {
     "title": "القوائم",
@@ -423,5 +426,30 @@
     "title": "خيارات الشاشة",
     "label": "خيارات الشاشة",
     "showOnScreen": "إظهار على الشاشة"
+  },
+  "themes": {
+    "title": "القوالب",
+    "description": "إدارة القوالب المثبتة.",
+    "directoryHint": "يتم اكتشافها تلقائياً من دليل themes/ في المشروع. استخدم CLI أو انشر الملفات لإضافة قوالب.",
+    "version": "الإصدار",
+    "active": "نشط",
+    "status": {
+      "active": "نشط",
+      "installed": "مثبت",
+      "inactive": "غير نشط"
+    },
+    "activate": "تفعيل",
+    "deactivate": "إلغاء التفعيل",
+    "customize": "تخصيص",
+    "install": "تثبيت قالب",
+    "name": "اسم القالب",
+    "manifest": "البيان (JSON)",
+    "loadError": "تعذر تحميل القوالب.",
+    "activateError": "تعذر تفعيل القالب.",
+    "deactivateError": "تعذر إلغاء تفعيل القالب.",
+    "deactivateBlocked": "يجب أن يظل قالب واحد نشطاً على الأقل.",
+    "installError": "تعذر تثبيت القالب.",
+    "reload": "إعادة تحميل",
+    "empty": "لا توجد قوالب مثبتة."
   }
 }

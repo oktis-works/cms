@@ -10,7 +10,8 @@
       "menus": "Menu",
       "settings": "Impostazioni",
       "plugins": "Plugin",
-      "themes": "Temi"
+      "themes": "Temi",
+      "customize": "Personalizza"
     },
     "actions": {
       "logout": "Esci",
@@ -124,7 +125,9 @@
       "save": "Salva",
       "saved": "Contenuto salvato con successo."
     },
-    "taxonomy": { "editTerm": "Modifica termine" }
+    "taxonomy": {
+      "editTerm": "Modifica termine"
+    }
   },
   "menus": {
     "title": "Menu",
@@ -423,5 +426,30 @@
     "title": "Opzioni schermo",
     "label": "Opzioni schermo",
     "showOnScreen": "Mostra sullo schermo"
+  },
+  "themes": {
+    "title": "Temi",
+    "description": "Gestisci i temi installati.",
+    "directoryHint": "Rilevati automaticamente dalla directory themes/ del progetto. Usa la CLI o distribuisci i file per aggiungere temi.",
+    "version": "Versione",
+    "active": "Attivo",
+    "status": {
+      "active": "Attivo",
+      "installed": "Installato",
+      "inactive": "Inattivo"
+    },
+    "activate": "Attiva",
+    "deactivate": "Disattiva",
+    "customize": "Personalizza",
+    "install": "Installa tema",
+    "name": "Nome del tema",
+    "manifest": "Manifesto (JSON)",
+    "loadError": "Impossibile caricare i temi.",
+    "activateError": "Impossibile attivare il tema.",
+    "deactivateError": "Impossibile disattivare il tema.",
+    "deactivateBlocked": "Almeno un tema deve rimanere attivo.",
+    "installError": "Impossibile installare il tema.",
+    "reload": "Ricarica",
+    "empty": "Nessun tema installato."
   }
 }

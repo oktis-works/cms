@@ -92,6 +92,33 @@ export function scaffoldTheme(name: string, baseDir?: string, style: ScaffoldThe
       ...(style === 'css' ? { assets: ['dist/theme.css'] } : {}),
     },
     ...(styleConfig ? { stylesConfig: styleConfig } : {}),
+    // Example settings for the customizer (demonstrates text, color, select)
+    settings: [
+      {
+        name: 'siteTitle',
+        type: 'text',
+        label: 'Site Title',
+        default: name.charAt(0).toUpperCase() + name.slice(1),
+        required: true,
+      },
+      {
+        name: 'primaryColor',
+        type: 'color',
+        label: 'Primary Color',
+        default: '#6366f1',
+      },
+      {
+        name: 'headerLayout',
+        type: 'select',
+        label: 'Header Layout',
+        default: 'centered',
+        options: [
+          { value: 'centered', label: 'Centered' },
+          { value: 'left', label: 'Left Aligned' },
+          { value: 'split', label: 'Split' },
+        ],
+      },
+    ],
   };
 
   const selfCheck = { ...manifest };

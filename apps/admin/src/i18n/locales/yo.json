@@ -10,7 +10,8 @@
       "menus": "Àwọn Àkójọ",
       "settings": "Ẹ̀tọ́",
       "plugins": "Àfikún",
-      "themes": "Àwọn àkòrí"
+      "themes": "Àwọn àkòrí",
+      "customize": "Ṣàlàyé"
     },
     "actions": {
       "logout": "Jadé",
@@ -124,7 +125,9 @@
       "save": "Fifipamọ́",
       "saved": "Ọrọ̀ ti fifipamọ́ lóríire."
     },
-    "taxonomy": { "editTerm": "Ṣàtúnṣe ọ̀rọ̀" }
+    "taxonomy": {
+      "editTerm": "Ṣàtúnṣe ọ̀rọ̀"
+    }
   },
   "menus": {
     "title": "Àwọn Àkójọ",
@@ -423,5 +426,30 @@
     "title": "Àwọn ìtọ́nisọ́nà ìtàbì",
     "label": "Àwọn ìtọ́nisọ́nà ìtàbì",
     "showOnScreen": "Fi hàn lórí ìtàbì"
+  },
+  "themes": {
+    "title": "Àwọn àkòrí",
+    "description": "Ba àwọn àkòrí tí a ti sàkóso.",
+    "directoryHint": "A wulẹ̀ lórí ìtàn síi láti àgbègbè themes/ tí ìpinnu. Wá aṣájú CLI tàbí fífi faili sílẹ̀ láti fi àkòrí kún.",
+    "version": "Ìdájọ́",
+    "active": "Ṣíṣẹ́",
+    "status": {
+      "active": "Ṣíṣẹ́",
+      "installed": "Tí a ti sàkóso",
+      "inactive": "Kò ṣíṣẹ́"
+    },
+    "activate": "Bẹ́rẹ̀",
+    "deactivate": "Pa",
+    "customize": "Ṣàlàyé",
+    "install": "Sàkóso àkòrí",
+    "name": "Orúkọ àkòrí",
+    "manifest": "Manifesto (JSON)",
+    "loadError": "Kò ṣe lè gba àwọn àkòrí.",
+    "activateError": "Kò ṣe lè bẹ́rẹ̀ àkòrí.",
+    "deactivateError": "Kò ṣe lè fi àkòrí sílẹ̀.",
+    "deactivateBlocked": "Àkòrí kànkàn kan yẹ kí ó lè wà ní ṣíṣẹ́.",
+    "installError": "Kò ṣe lè ṣàkóso àkòrí.",
+    "reload": "Tún ṣí",
+    "empty": "Kò sí àkòrí tí a ti sàkóso."
   }
 }

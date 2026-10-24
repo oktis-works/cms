@@ -10,7 +10,8 @@
       "menus": "תפריטים",
       "settings": "הגדרות",
       "plugins": "תוספים",
-      "themes": "ערכות נושא"
+      "themes": "ערכות נושא",
+      "customize": "התאמה אישית"
     },
     "actions": {
       "logout": "התנתקות",
@@ -124,7 +125,9 @@
       "save": "שמור",
       "saved": "התוכן נשמר בהצלחה."
     },
-    "taxonomy": { "editTerm": "עריכת מונח" }
+    "taxonomy": {
+      "editTerm": "עריכת מונח"
+    }
   },
   "menus": {
     "title": "תפריטים",
@@ -423,5 +426,30 @@
     "title": "אפשרויות מסך",
     "label": "אפשרויות מסך",
     "showOnScreen": "הצג במסך"
+  },
+  "themes": {
+    "title": "ערכות נושא",
+    "description": "ניהול ערכות נושא מותקנות.",
+    "directoryHint": "מזוהות אוטומטית מתיקיית themes/ של הפרויקט. השתמש ב-CLI או פרוס קבצים כדי להוסיף ערכות נושא.",
+    "version": "גרסה",
+    "active": "פעיל",
+    "status": {
+      "active": "פעיל",
+      "installed": "מותקן",
+      "inactive": "לא פעיל"
+    },
+    "activate": "הפעל",
+    "deactivate": "השבת",
+    "customize": "התאמה אישית",
+    "install": "התקן ערכת נושא",
+    "name": "שם ערכת הנושא",
+    "manifest": "מניפסט (JSON)",
+    "loadError": "לא ניתן לטעון ערכות נושא.",
+    "activateError": "לא ניתן להפעיל את ערכת הנושא.",
+    "deactivateError": "לא ניתן להשבית את ערכת הנושא.",
+    "deactivateBlocked": "לפחות ערכת נושא אחת חייבת להישאר פעילה.",
+    "installError": "לא ניתן להתקין את ערכת הנושא.",
+    "reload": "טען מחדש",
+    "empty": "אין ערכות נושא מותקנות."
   }
 }

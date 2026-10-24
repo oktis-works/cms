@@ -10,7 +10,8 @@
       "menus": "Menús",
       "settings": "Ajustes",
       "plugins": "Plugins",
-      "themes": "Temas"
+      "themes": "Temas",
+      "customize": "Personalizar"
     },
     "actions": {
       "logout": "Salir",
@@ -124,7 +125,9 @@
       "save": "Guardar",
       "saved": "Contenido guardado correctamente."
     },
-    "taxonomy": { "editTerm": "Editar término" }
+    "taxonomy": {
+      "editTerm": "Editar término"
+    }
   },
   "menus": {
     "title": "Menús",
@@ -423,5 +426,30 @@
     "title": "Opciones de pantalla",
     "label": "Opciones de pantalla",
     "showOnScreen": "Mostrar en pantalla"
+  },
+  "themes": {
+    "title": "Temas",
+    "description": "Gestionar temas instalados.",
+    "directoryHint": "Detectados automáticamente desde el directorio themes/ del proyecto. Usa la CLI o despliega archivos para añadir temas.",
+    "version": "Versión",
+    "active": "Activo",
+    "status": {
+      "active": "Activo",
+      "installed": "Instalado",
+      "inactive": "Inactivo"
+    },
+    "activate": "Activar",
+    "deactivate": "Desactivar",
+    "customize": "Personalizar",
+    "install": "Instalar tema",
+    "name": "Nombre del tema",
+    "manifest": "Manifiesto (JSON)",
+    "loadError": "No se pudieron cargar los temas.",
+    "activateError": "No se pudo activar el tema.",
+    "deactivateError": "No se pudo desactivar el tema.",
+    "deactivateBlocked": "Al menos un tema debe permanecer activo.",
+    "installError": "No se pudo instalar el tema.",
+    "reload": "Recargar",
+    "empty": "No hay temas instalados."
   }
 }

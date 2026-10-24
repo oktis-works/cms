@@ -964,6 +964,7 @@
     },
     "activate": "Activate",
     "deactivate": "Deactivate",
+    "customize": "Customize",
     "install": "Install theme",
     "name": "Theme name",
     "manifest": "Manifest (JSON)",

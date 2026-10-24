@@ -1,5 +1,37 @@
 # @oktis-works/admin
 
+## 0.21.0
+
+### Minor Changes
+
+- ### Features
+  
+  - **Advanced Field Types for Theme Customizer**: Implemented 10+ advanced field types for the Theme Customizer:
+    - `image` / `file` / `gallery` — MediaPickerCustomizer with Media Library integration, upload, preview, multiple selection
+    - `wysiwyg` — RichTextCustomizer with full toolbar (formatBlock H1-H4, bold, italic, underline, strikeThrough, lists, link, unlink, code, blockquote, undo/redo), sanitization onBlur
+    - `date_picker` / `date_time_picker` / `time_picker` — DateTimeCustomizer with native inputs and validation
+    - `google_map` — GoogleMapCustomizer with address autocomplete (Nominatim/OpenStreetMap), lat/lng inputs, preview
+    - `link` — LinkCustomizer with URL + target (_self/_blank)
+    - `relationship` / `post_object` — RelationshipCustomizer with content search, pagination, single/multiple selection
+    - `taxonomy` / `user` — EntitySelectorCustomizer with search, pagination, multi/single selection
+    - `repeater` — RepeaterCustomizer with add/remove/move rows, collapsible rows, nested subfields
+    - `flexible_content` — FlexibleContentCustomizer with layout picker, per-layout subfields, drag-reorder
+    - `group` — GroupCustomizer with collapsible fieldset, nested subfields, description
+  
+  - **Shared Infrastructure**:
+    - `RichTextEditor` — Shared component used by ContentEditor and WYSIWYG customizer field
+    - `FieldRendererFactory` — Factory mapping 21 field types to their customizer components
+    - `MediaPickerCustomizer` — Wrapper for Media Library picker with upload/selection
+    - `LinkCustomizer`, `DateTimeCustomizer`, `GoogleMapCustomizer`, `RelationshipCustomizer`, `EntitySelectorCustomizer`, `RepeaterCustomizer`, `FlexibleContentCustomizer`, `GroupCustomizer` — New customizer components
+  
+  - **Theme Customizer Integration**: Updated to use `FieldRendererFactory` for all field types, with automatic conversion from `ThemeSettingField` to `CustomFieldConfig`
+  
+  - **CLI Scaffold**: `theme:create` now generates example settings (siteTitle, primaryColor, headerLayout) in new themes
+  
+  - **i18n**: Added translations for all new field types and customizer UI in 14 languages (EN, PT-BR, ES, HE, IT, JA, PL, RU, SW, TR, UK, YO, ZH-CN, AR)
+  
+  - **Default Theme**: Updated templates (index.astro, page.astro, archive.astro) to use `settings.theme.siteTitle` and `settings.theme.siteDescription`
+
 ## 0.20.0
 
 ### Minor Changes

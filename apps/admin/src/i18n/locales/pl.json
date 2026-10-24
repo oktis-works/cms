@@ -10,7 +10,8 @@
       "menus": "Menu",
       "settings": "Ustawienia",
       "plugins": "Wtyczki",
-      "themes": "Motywy"
+      "themes": "Motywy",
+      "customize": "Dostosuj"
     },
     "actions": {
       "logout": "Wyloguj",
@@ -124,7 +125,9 @@
       "save": "Zapisz",
       "saved": "Treść zapisana pomyślnie."
     },
-    "taxonomy": { "editTerm": "Edytuj termin" }
+    "taxonomy": {
+      "editTerm": "Edytuj termin"
+    }
   },
   "menus": {
     "title": "Menu",
@@ -423,5 +426,30 @@
     "title": "Opcje ekranu",
     "label": "Opcje ekranu",
     "showOnScreen": "Pokaż na ekranie"
+  },
+  "themes": {
+    "title": "Motywy",
+    "description": "Zarządzaj zainstalowanymi motywami.",
+    "directoryHint": "Wykrywane automatycznie z katalogu themes/ projektu. Użyj CLI lub wdrożenia plików, aby dodać motywy.",
+    "version": "Wersja",
+    "active": "Aktywny",
+    "status": {
+      "active": "Aktywny",
+      "installed": "Zainstalowany",
+      "inactive": "Nieaktywny"
+    },
+    "activate": "Aktywuj",
+    "deactivate": "Dezaktywuj",
+    "customize": "Dostosuj",
+    "install": "Zainstaluj motyw",
+    "name": "Nazwa motywu",
+    "manifest": "Manifest (JSON)",
+    "loadError": "Nie udało się załadować motywów.",
+    "activateError": "Nie udało się aktywować motywu.",
+    "deactivateError": "Nie udało się dezaktywować motywu.",
+    "deactivateBlocked": "Przynajmniej jeden motyw musi pozostać aktywny.",
+    "installError": "Nie udało się zainstalować motywu.",
+    "reload": "Odśwież",
+    "empty": "Brak zainstalowanych motywów."
   }
 }

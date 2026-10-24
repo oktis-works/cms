@@ -234,13 +234,23 @@ async function main() {
         // vêm do provider do tema (mesma fonte/contrato das demais consultas,
         // com filtro de tenant) — não de uma query ad-hoc sem tenant_id.
         const rawSettings = await provider.getSettings().catch(() => ({}));
+        
+        // Extract allowed setting keys from manifest for preview whitelist
+        const manifest = active.row?.['manifest'] as Record<string, unknown> | null;
+        const allowedKeys = Array.isArray(manifest?.['settings'])
+          ? (manifest['settings'] as unknown[])
+              .map((s: unknown) => (s as Record<string, unknown>)['name'])
+              .filter((n: unknown): n is string => typeof n === 'string')
+          : [];
+        
         const settings = {
           ...toSiteSettings(rawSettings),
           theme: buildThemeSettings(
-            active.row?.['manifest'] as Record<string, unknown> | null,
+            manifest,
             mergePreviewSettings(
               active.row?.['config'] as Record<string, unknown> | null,
-              c.req.query('preview_settings')
+              c.req.query('preview_settings'),
+              allowedKeys
             )
           ),
         };

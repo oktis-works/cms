@@ -10,7 +10,8 @@
       "menus": "Menyu",
       "settings": "Mipangilio",
       "plugins": "Programu-jalizi",
-      "themes": "Mandhari"
+      "themes": "Mandhari",
+      "customize": "Kipekee"
     },
     "actions": {
       "logout": "Ondoka",
@@ -124,7 +125,9 @@
       "save": "Hifadhi",
       "saved": "Maudhui yamehifadhiwa kwa mafanikio."
     },
-    "taxonomy": { "editTerm": "Hariri neno" }
+    "taxonomy": {
+      "editTerm": "Hariri neno"
+    }
   },
   "menus": {
     "title": "Menyu",
@@ -423,5 +426,30 @@
     "title": "Chaguo za skrini",
     "label": "Chaguo za skrini",
     "showOnScreen": "Onyesha kwenye skrini"
+  },
+  "themes": {
+    "title": "Mandhari",
+    "description": "Usimamie mandhari zilizosakinishwa.",
+    "directoryHint": "Zinagunduliwa kwa njia ya kivio kutoka kwenye direkta ya themes/ ya mradi. Tumia CLI au sakinisha faili kuongeza mandhari.",
+    "version": "Toleo",
+    "active": "Inayofanya kazi",
+    "status": {
+      "active": "Inayofanya kazi",
+      "installed": "Imewekwa",
+      "inactive": "Haifanyi kazi"
+    },
+    "activate": "Anza",
+    "deactivate": "Futa",
+    "customize": "Kipekee",
+    "install": "Sakinisha mandhari",
+    "name": "Jina la mandhari",
+    "manifest": "Manifesto (JSON)",
+    "loadError": "Imwezekana kukupata mandhari.",
+    "activateError": "Imwezekana kuanzisha mandhari.",
+    "deactivateError": "Imwezekana kufuta mandhari.",
+    "deactivateBlocked": "Angalau mandhari moja inapaswa kuwa hai.",
+    "installError": "Imwezekana kuweka mandhari.",
+    "reload": "Upya",
+    "empty": "Hakuna mandhari zilizosakinishwa."
   }
 }

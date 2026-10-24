@@ -10,7 +10,8 @@
       "menus": "メニュー",
       "settings": "設定",
       "plugins": "プラグイン",
-      "themes": "テーマ"
+      "themes": "テーマ",
+      "customize": "カスタマイズ"
     },
     "actions": {
       "logout": "ログアウト",
@@ -124,7 +125,9 @@
       "save": "保存",
       "saved": "コンテンツを保存しました。"
     },
-    "taxonomy": { "editTerm": "タームを編集" }
+    "taxonomy": {
+      "editTerm": "タームを編集"
+    }
   },
   "menus": {
     "title": "メニュー",
@@ -423,5 +426,30 @@
     "title": "画面オプション",
     "label": "画面オプション",
     "showOnScreen": "画面に表示"
+  },
+  "themes": {
+    "title": "テーマ",
+    "description": "インストール済みテーマを管理します。",
+    "directoryHint": "プロジェクトの themes/ ディレクトリから自動検出されます。CLI またはデプロイでテーマを追加してください。",
+    "version": "バージョン",
+    "active": "有効",
+    "status": {
+      "active": "有効",
+      "installed": "インストール済み",
+      "inactive": "無効"
+    },
+    "activate": "有効化",
+    "deactivate": "無効化",
+    "customize": "カスタマイズ",
+    "install": "テーマをインストール",
+    "name": "テーマ名",
+    "manifest": "マニフェスト (JSON)",
+    "loadError": "テーマを読み込めませんでした。",
+    "activateError": "テーマを有効化できませんでした。",
+    "deactivateError": "テーマを無効化できませんでした。",
+    "deactivateBlocked": "少なくとも 1 つのテーマを有効にする必要があります。",
+    "installError": "テーマをインストールできませんでした。",
+    "reload": "再読み込み",
+    "empty": "インストール済みのテーマがありません。"
   }
 }

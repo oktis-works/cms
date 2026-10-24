@@ -4,7 +4,7 @@
 // when the npm registry cannot be reached.
 export const APP_VERSIONS: Record<string, string> = {
   '@oktis-works/api': '0.14.5',
-  '@oktis-works/admin': '0.20.0',
+  '@oktis-works/admin': '0.21.0',
   '@oktis-works/web': '0.11.2',
   '@oktis-works/worker': '0.8.8',
   '@oktis-works/core': '0.11.5',

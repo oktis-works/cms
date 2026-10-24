@@ -154,6 +154,12 @@ export function ThemeManager() {
                         ? t('themes.deactivate')
                         : t('themes.activate')}
                     </button>
+                    <a
+                      class="btn btn-secondary"
+                      href={`/customize${theme.status === 'ACTIVE' ? '' : `?theme=${encodeURIComponent(theme.id)}`}`}
+                    >
+                      {t('themes.customize')}
+                    </a>
                   </div>
                 </div>
               );

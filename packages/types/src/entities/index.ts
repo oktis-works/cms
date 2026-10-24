@@ -609,6 +609,54 @@ export interface Plugin extends Timestamps {
 
 export type ThemeStatus = 'ACTIVE' | 'INACTIVE' | 'INSTALLED';
 
+export type ThemeSettingType = 
+  | 'text' | 'textarea' | 'select' | 'checkbox' | 'color' | 'number'
+  | 'image' | 'file' | 'gallery' | 'wysiwyg'
+  | 'date_picker' | 'date_time_picker' | 'time_picker'
+  | 'google_map' | 'link'
+  | 'relationship' | 'post_object' | 'taxonomy' | 'user'
+  | 'repeater' | 'flexible_content' | 'group';
+
+export interface ThemeSettingField {
+  name: string;
+  type?: ThemeSettingType;
+  label?: string;
+  default?: unknown;
+  options?: Array<string | { value: string; label: string }>;
+  // Validation & UI hints
+  required?: boolean;
+  placeholder?: string;
+  description?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  // Conditional logic (same as field definitions)
+  conditionalLogic?: {
+    groups?: Array<{
+      match?: 'ALL' | 'ANY';
+      rules?: Array<{
+        field: string;
+        operator: 'eq' | 'neq' | 'gt' | 'lt' | 'contains' | 'pattern_matches' | 'has_any_value' | 'has_no_value';
+        value: unknown;
+      }>;
+    }>;
+  };
+  // Grouping for tabs/accordion in customizer UI
+  group?: string;
+  groupOrder?: number;
+  // Nested fields for complex types
+  subFields?: ThemeSettingField[];
+  // Layouts for flexible_content
+  layouts?: Array<{
+    name: string;
+    label?: string;
+    subFields?: ThemeSettingField[];
+  }>;
+}
+
 export interface ThemeManifest {
   name: string;
   version: string;
@@ -618,6 +666,26 @@ export interface ThemeManifest {
   entrypoints: {
     astro?: string;
     config?: string;
+  };
+  provides?: {
+    layouts?: string[];
+    components?: string[];
+    styles?: string[];
+    assets?: string[];
+  };
+  parent?: string;
+  settings?: ThemeSettingField[];
+  components?: Array<{
+    name: string;
+    type: 'layout' | 'component' | 'page' | 'partial';
+    file: string;
+    props?: Record<string, unknown>;
+  }>;
+  stylesConfig?: {
+    engine?: 'tailwind' | 'scss' | 'css';
+    entry?: string;
+    output?: string;
+    isolation?: true | 'manual';
   };
 }
 

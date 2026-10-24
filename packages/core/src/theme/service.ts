@@ -12,6 +12,360 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+/** Tipos de campo suportados no manifest.settings do tema. */
+type ThemeSettingType = 
+  | 'text' | 'textarea' | 'select' | 'checkbox' | 'color' | 'number'
+  | 'image' | 'file' | 'gallery' | 'wysiwyg'
+  | 'date_picker' | 'date_time_picker' | 'time_picker'
+  | 'google_map' | 'link'
+  | 'relationship' | 'post_object' | 'taxonomy' | 'user'
+  | 'repeater' | 'flexible_content' | 'group';
+
+interface ThemeSettingField {
+  name: string;
+  type?: ThemeSettingType;
+  label?: string;
+  default?: unknown;
+  options?: Array<string | { value: string; label: string }>;
+  required?: boolean;
+  min?: number;
+  max?: number;
+  step?: number;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  conditionalLogic?: unknown;
+  group?: string;
+  subFields?: ThemeSettingField[];
+  layouts?: Array<{ name: string; label?: string; subFields?: ThemeSettingField[] }>;
+}
+
+/** Resultado da validação de config de tema. */
+interface ThemeConfigValidationResult {
+  valid: boolean;
+  errors: string[];
+  sanitized: Record<string, unknown>;
+}
+
+/**
+ * Valida e sanitiza o config do tema contra o schema do manifesto.
+ * - Rejeita chaves não declaradas no manifest.settings
+ * - Valida required, type, min/max, minLength/maxLength, pattern, enum (select)
+ * - Sanitiza HTML em wysiwyg/textarea (strip tags perigosos)
+ * - Para repeater/flexible_content/group: valida recursivamente subFields
+ */
+function validateThemeConfig(
+  config: Record<string, unknown>,
+  manifestSettings: unknown[]
+): ThemeConfigValidationResult {
+  const errors: string[] = [];
+  const sanitized: Record<string, unknown> = {};
+  const allowedKeys = new Set<string>();
+
+  // Build allowed keys set from manifest
+  const declaredSettings = Array.isArray(manifestSettings) ? manifestSettings : [];
+  for (const field of declaredSettings) {
+    if (!field || typeof field !== 'object') continue;
+    const record = field as Record<string, unknown>;
+    const name = record['name'];
+    if (typeof name === 'string' && name) {
+      allowedKeys.add(name);
+    }
+  }
+
+  // Validate each key in config
+  for (const [key, value] of Object.entries(config)) {
+    if (!allowedKeys.has(key)) {
+      errors.push(`Setting "${key}" is not declared in theme manifest.settings`);
+      continue; // Skip undeclared keys
+    }
+
+    // Find field definition
+    const fieldDef = declaredSettings.find((f) => {
+      if (!f || typeof f !== 'object') return false;
+      return (f as Record<string, unknown>)['name'] === key;
+    }) as ThemeSettingField | undefined;
+
+    if (!fieldDef) {
+      // Should not happen since allowedKeys check passed
+      continue;
+    }
+
+    // Validate required
+    if (fieldDef.required && (value === undefined || value === null || value === '')) {
+      errors.push(`Setting "${key}" is required`);
+      continue;
+    }
+
+    // If value is empty and not required, skip further validation
+    if (value === undefined || value === null || value === '') {
+      sanitized[key] = fieldDef.default ?? '';
+      continue;
+    }
+
+    // Type-specific validation
+    const validation = validateFieldValue(key, value, fieldDef);
+    if (!validation.valid) {
+      errors.push(...validation.errors);
+      continue;
+    }
+    sanitized[key] = validation.sanitized;
+  }
+
+  return { valid: errors.length === 0, errors, sanitized };
+}
+
+/** Valida um valor individual contra a definição do campo. */
+function validateFieldValue(
+  key: string,
+  value: unknown,
+  field: ThemeSettingField
+): { valid: boolean; errors: string[]; sanitized: unknown } {
+  const errors: string[] = [];
+  let sanitized: unknown = value;
+  const type = field.type ?? 'text';
+
+  switch (type) {
+    case 'text':
+    case 'textarea':
+    case 'wysiwyg': {
+      if (typeof value !== 'string') {
+        errors.push(`Setting "${key}" must be a string`);
+        break;
+      }
+      if (field.minLength !== undefined && value.length < field.minLength) {
+        errors.push(`Setting "${key}" must be at least ${field.minLength} characters`);
+      }
+      if (field.maxLength !== undefined && value.length > field.maxLength) {
+        errors.push(`Setting "${key}" must be at most ${field.maxLength} characters`);
+      }
+      if (field.pattern && typeof field.pattern === 'string') {
+        try {
+          const re = new RegExp(field.pattern);
+          if (!re.test(value)) {
+            errors.push(`Setting "${key}" does not match required pattern`);
+          }
+        } catch {
+          errors.push(`Setting "${key}" has invalid pattern regex`);
+        }
+      }
+      // Sanitize HTML for wysiwyg/textarea
+      if ((type === 'wysiwyg' || type === 'textarea') && value.includes('<')) {
+        sanitized = sanitizeHtml(value);
+      }
+      break;
+    }
+
+    case 'select': {
+      if (typeof value !== 'string') {
+        errors.push(`Setting "${key}" must be a string`);
+        break;
+      }
+      const options = field.options ?? [];
+      const validValues = options.map((o) => (typeof o === 'string' ? o : o.value));
+      if (options.length > 0 && !validValues.includes(value)) {
+        errors.push(`Setting "${key}" must be one of: ${validValues.join(', ')}`);
+      }
+      break;
+    }
+
+    case 'checkbox': {
+      sanitized = Boolean(value);
+      break;
+    }
+
+    case 'color': {
+      if (typeof value !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(value)) {
+        errors.push(`Setting "${key}" must be a valid hex color (e.g., #ff0000)`);
+      }
+      break;
+    }
+
+    case 'number': {
+      const num = Number(value);
+      if (Number.isNaN(num)) {
+        errors.push(`Setting "${key}" must be a number`);
+        break;
+      }
+      if (field.min !== undefined && num < field.min) {
+        errors.push(`Setting "${key}" must be at least ${field.min}`);
+      }
+      if (field.max !== undefined && num > field.max) {
+        errors.push(`Setting "${key}" must be at most ${field.max}`);
+      }
+      sanitized = num;
+      break;
+    }
+
+    case 'date_picker':
+    case 'date_time_picker':
+    case 'time_picker': {
+      if (typeof value !== 'string') {
+        errors.push(`Setting "${key}" must be a string`);
+        break;
+      }
+      // Basic format validation (YYYY-MM-DD, YYYY-MM-DDTHH:mm, HH:mm)
+      const patterns = {
+        date_picker: /^\d{4}-\d{2}-\d{2}$/,
+        date_time_picker: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/,
+        time_picker: /^\d{2}:\d{2}$/,
+      };
+      if (!patterns[type].test(value)) {
+        errors.push(`Setting "${key}" has invalid format`);
+      }
+      break;
+    }
+
+    case 'google_map': {
+      if (!isPlainObject(value)) {
+        errors.push(`Setting "${key}" must be an object with address, lat, lng`);
+        break;
+      }
+      const map = value as Record<string, unknown>;
+      if (typeof map['address'] !== 'string' || typeof map['lat'] !== 'number' || typeof map['lng'] !== 'number') {
+        errors.push(`Setting "${key}" must have address (string), lat (number), lng (number)`);
+      }
+      const lat = map['lat'] as number | undefined;
+      const lng = map['lng'] as number | undefined;
+      if (lat !== undefined && (lat < -90 || lat > 90)) {
+        errors.push(`Setting "${key}" latitude must be between -90 and 90`);
+      }
+      if (lng !== undefined && (lng < -180 || lng > 180)) {
+        errors.push(`Setting "${key}" longitude must be between -180 and 180`);
+      }
+      break;
+    }
+
+    case 'link': {
+      if (!isPlainObject(value)) {
+        errors.push(`Setting "${key}" must be an object with url and target`);
+        break;
+      }
+      const link = value as Record<string, unknown>;
+      if (typeof link['url'] !== 'string' || !link['url']) {
+        errors.push(`Setting "${key}" must have a url`);
+      }
+      if (link['target'] !== undefined && !['_self', '_blank'].includes(link['target'] as string)) {
+        errors.push(`Setting "${key}" target must be _self or _blank`);
+      }
+      break;
+    }
+
+    case 'relationship':
+    case 'post_object': {
+      // Value can be string (single) or string[] (multiple)
+      if (!Array.isArray(value) && typeof value !== 'string') {
+        errors.push(`Setting "${key}" must be a string or array of strings`);
+      }
+      break;
+    }
+
+    case 'taxonomy':
+    case 'user': {
+      if (!Array.isArray(value) && typeof value !== 'string') {
+        errors.push(`Setting "${key}" must be a string or array of strings`);
+      }
+      break;
+    }
+
+    case 'repeater': {
+      if (!Array.isArray(value)) {
+        errors.push(`Setting "${key}" must be an array`);
+        break;
+      }
+      const subFields = field.subFields ?? [];
+      if (subFields.length > 0) {
+        for (let i = 0; i < value.length; i++) {
+          const row = value[i];
+          if (!isPlainObject(row)) {
+            errors.push(`Setting "${key}[${i}]" must be an object`);
+            continue;
+          }
+          const rowResult = validateThemeConfig(row, subFields);
+          if (!rowResult.valid) {
+            errors.push(...rowResult.errors.map((e) => `${key}[${i}]: ${e}`));
+          }
+        }
+      }
+      sanitized = value;
+      break;
+    }
+
+    case 'flexible_content': {
+      if (!Array.isArray(value)) {
+        errors.push(`Setting "${key}" must be an array`);
+        break;
+      }
+      const layouts = field.layouts ?? [];
+      for (let i = 0; i < value.length; i++) {
+        const row = value[i];
+        if (!isPlainObject(row)) {
+          errors.push(`Setting "${key}[${i}]" must be an object`);
+          continue;
+        }
+        const rowRecord = row as Record<string, unknown>;
+        const layoutName = rowRecord['fc_layout'] as string;
+        const layoutDef = layouts.find((l) => l.name === layoutName);
+        if (!layoutDef) {
+          errors.push(`Setting "${key}[${i}]" has unknown layout "${layoutName}"`);
+          continue;
+        }
+        const subFields = layoutDef.subFields ?? [];
+        if (subFields.length > 0) {
+          const rowData = { ...row };
+          delete rowData['fc_layout'];
+          const rowResult = validateThemeConfig(rowData, subFields);
+          if (!rowResult.valid) {
+            errors.push(...rowResult.errors.map((e) => `${key}[${i}]: ${e}`));
+          }
+        }
+      }
+      sanitized = value;
+      break;
+    }
+
+    case 'group': {
+      if (!isPlainObject(value)) {
+        errors.push(`Setting "${key}" must be an object`);
+        break;
+      }
+      const subFields = field.subFields ?? [];
+      if (subFields.length > 0) {
+        const groupResult = validateThemeConfig(value as Record<string, unknown>, subFields);
+        if (!groupResult.valid) {
+          errors.push(...groupResult.errors.map((e) => `${key}: ${e}`));
+        }
+        sanitized = groupResult.sanitized;
+      }
+      break;
+    }
+
+    case 'image':
+    case 'file':
+    case 'gallery': {
+      // These are handled by MediaPicker - value can be string (id) or File object
+      // We accept string, number, or File-like object
+      break;
+    }
+
+    default:
+      // Unknown type - accept as-is but warn
+      break;
+  }
+
+  return { valid: errors.length === 0, errors, sanitized };
+}
+
+/** Sanitização básica de HTML para prevenir XSS em campos wysiwyg/textarea. */
+function sanitizeHtml(html: string): string {
+  return html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove script tags
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '') // Remove iframe tags
+    .replace(/on\w+="[^"]*"/gi, '') // Remove onclick, onload, etc.
+    .replace(/on\w+='[^']*'/gi, '')
+    .replace(/javascript:/gi, ''); // Remove javascript: URLs
+}
+
 export class ThemeService {
   /**
    * Descobre temas presentes no diretório configurado do projeto e faz upsert
@@ -199,7 +553,7 @@ export class ThemeService {
     return (result[0] as unknown as Theme) ?? null;
   }
 
-  /** Atualiza o config (customizador) do tema — validado como objeto simples. */
+  /** Atualiza o config (customizador) do tema — validado contra manifest.settings. */
   async updateConfig(id: string, config: unknown): Promise<Theme | null> {
     if (!isPlainObject(config)) {
       throw new Error('Theme config must be an object');
@@ -208,10 +562,19 @@ export class ThemeService {
     const existing = await this.getById(id);
     if (!existing) return null;
 
+    // Validate config against manifest.settings
+    const manifest = existing.manifest as { settings?: unknown[] } | null;
+    const manifestSettings = manifest?.settings ?? [];
+    const validation = validateThemeConfig(config as Record<string, unknown>, manifestSettings);
+    
+    if (!validation.valid) {
+      throw new Error(`Theme config validation failed: ${validation.errors.join('; ')}`);
+    }
+
     const sql = getConnection();
     const result = await sql.unsafe(
       `UPDATE themes SET config = $1::jsonb, updated_at = NOW() WHERE id = $2 RETURNING *`,
-      [config, id]
+      [validation.sanitized, id]
     );
 
     return (result[0] as unknown as Theme) ?? null;
