@@ -81,7 +81,7 @@ describe('NPM Publication Readiness (REQU-020)', () => {
       string,
       unknown
     >;
-    expect(rootPkg['engines']).toMatchObject({ node: '>=20.0.0' });
+    expect(rootPkg['engines']).toMatchObject({ node: '>=22.17.0' });
     expect(String(rootPkg['packageManager'])).toMatch(/^bun@\d+/);
   });
 });

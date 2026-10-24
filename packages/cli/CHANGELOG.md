@@ -1,5 +1,18 @@
 # @oktis-works/cms
 
+## 0.13.1
+
+### Patch Changes
+
+- ### Security
+  
+  - **Bun runtime updated from 1.3.14 to 1.4.4** — fixes critical vulnerabilities:
+    - CVE-2026-111497 (GHSA-663w-cv8g-jj2p): Brotli decoder out-of-bounds write (HIGH)
+    - GHSA-26q8-h657-pf84: Compromised eMudhra (emSign) root certificates in trust store (HIGH)
+    - Embedded Node.js updated from 24.3.0 to 26.3.0 — includes patches for CVE-2025-27210 (Windows path traversal) and CVE-2025-27209 (HashDoS)
+  - **CI Node.js version pinned to 22.17** (LTS maintenance) — patched for all 2025 CVEs
+  - **Root package.json engines updated**: `node >=22.17.0`, `bun >=1.4.4`
+
 ## 0.13.0
 
 ### Minor Changes
