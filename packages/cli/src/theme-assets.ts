@@ -62,6 +62,12 @@ export const DEFAULT_THEME_CSS = `/* OkCMS default theme — design system (serv
 
 [data-theme="default"] *,[data-theme="default"] *::before,[data-theme="default"] *::after{ box-sizing: border-box; }
 
+/* Page-level reset: the UA default body margin (8px) would frame the whole
+   site in white on every side (top/left/right/bottom). Scoped with :has so
+   this stylesheet — also the last fallback of the project chain — never
+   changes the page box of another theme. */
+body:has([data-theme="default"]){ margin: 0; padding: 0; }
+
 [data-theme="default"]{
   margin: 0;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;

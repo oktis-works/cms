@@ -1,5 +1,20 @@
 # @oktis-works/cms
 
+## 0.12.1
+
+### Patch Changes
+
+- Default theme: remove the white frame around the site (UA body margin)
+  
+  The design system reset only reached the `[data-theme]` wrapper — the
+  browser's default `<body>` margin (8px) kept showing as a blank white
+  frame on every side (top/left/right/bottom), because `wrapDocument` emits
+  a bare `<body>` with no reset of its own.
+  
+  Adds a page-level reset scoped with `:has([data-theme="default"])` so the
+  stylesheet (also the last fallback of the project chain) never changes the
+  page box of another theme. Guarded by a regression test.
+
 ## 0.12.0
 
 ### Minor Changes

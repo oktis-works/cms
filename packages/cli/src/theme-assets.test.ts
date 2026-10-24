@@ -54,6 +54,12 @@ describe('DEFAULT_THEME_FILES (default theme embedded by init)', () => {
     expect(Object.keys(DEFAULT_THEME_FILES)).toContain('theme.json');
   });
 
+  it('resets the UA body margin so the site never renders inside a white frame', () => {
+    // The wrapper's `margin: 0` does not touch <body> — without an explicit,
+    // theme-scoped body reset the browser's 8px margin shows on every side.
+    expect(DEFAULT_THEME_FILES['dist/theme.css']).toContain('body:has([data-theme="default"]){ margin: 0; padding: 0; }');
+  });
+
   it('covers exactly manifest + 8 templates + css (screenshot is separate binary)', () => {
     expect(Object.keys(DEFAULT_THEME_FILES).sort()).toEqual(
       ['404.astro', 'archive.astro', 'dist/theme.css', 'front-page.astro', 'home.astro', 'index.astro', 'theme.json', 'page.astro', 'posts.astro', 'single.astro'].sort()
