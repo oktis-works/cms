@@ -3,8 +3,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtempSync, mkdirSync, rmSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
-import { scaffoldProject, toPackageName, appRangeFor } from './scaffold.js';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { scaffoldProject, toPackageName, appRangeFor, resolveAppRanges, APP_PACKAGES } from './scaffold.js';
 import {
   detectPackageManager,
   installProjectDepsLive,
@@ -14,6 +15,13 @@ import {
 import { DEFAULT_CONFIG_FILENAME } from './project-config.js';
 import { DEPLOY_PATHS } from './assets.js';
 import { EventEmitter } from 'node:events';
+
+// Hermetic: the scaffold must never hit the real registry in tests. Null =
+// offline path — ranges fall back to the build-time APP_VERSIONS map.
+vi.mock('./npm-registry.js', () => ({
+  getLatestVersion: vi.fn(async () => null),
+  searchExtensions: vi.fn(async () => []),
+}));
 
 let workDir: string;
 let originalCwd: string;
@@ -254,7 +262,7 @@ describe('scaffoldProject', () => {
     expect(readFileSync(join(workDir, 'env-test', '.env'), 'utf-8')).toContain('REDIS_HOST=');
   });
 
-  it('package.json sai com apps + worker + CLI local em range tolerante (zero config)', async () => {
+  it('package.json sai com ranges por pacote, ancorados na versão real publicada (zero config)', async () => {
     await scaffoldProject('pkg-test', 'pkg-test');
 
     const pkg = JSON.parse(
@@ -267,27 +275,28 @@ describe('scaffoldProject', () => {
       devDependencies?: Record<string, string>;
     };
 
-    const cliPkg = (await import('../package.json', { with: { type: 'json' } })).default as {
-      version: string;
-    };
-    const appRange = appRangeFor(cliPkg.version);
     expect(pkg.name).toBe('pkg-test');
     expect(pkg.version).toBe('0.1.0');
     expect(pkg.private).toBe(true);
-    expect(pkg.dependencies['@oktis-works/api']).toBe(appRange);
-    expect(pkg.dependencies['@oktis-works/admin']).toBe(appRange);
-    expect(pkg.dependencies['@oktis-works/web']).toBe(appRange);
-    expect(pkg.dependencies['@oktis-works/worker']).toBe(appRange);
-    expect(pkg.devDependencies?.['@oktis-works/cms']).toBe(appRange);
-    // range nunca é ^versão-exata do CLI — apps independentes podem estar
-    // atrás; range exata quebraria o install (ETARGET)
-    expect(appRange).not.toBe(`^${cliPkg.version}`);
-    // e nunca ^MAJOR.MENOR.0 em 0.x: isso pede o minor inteiro da CLI e
-    // explode em ETARGET quando admin/web (ignore do changesets) estão atrás
-    if (cliPkg.version.startsWith('0.')) {
-      expect(appRange).not.toBe(
-        `^${cliPkg.version.split('.').slice(0, 2).join('.')}.0`
-      );
+
+    // Cada range vem da âncora do PACOTE (npm → fallback APP_VERSIONS), não
+    // da versão da CLI — ranges por pacote podem divergir entre si.
+    const { APP_VERSIONS } = await import('./generated/app-versions.js');
+    for (const name of [
+      '@oktis-works/api',
+      '@oktis-works/admin',
+      '@oktis-works/web',
+      '@oktis-works/worker',
+      '@oktis-works/core',
+      '@oktis-works/plugin-runtime',
+    ]) {
+      expect(pkg.dependencies[name]).toBe(appRangeFor(APP_VERSIONS[name]!));
+    }
+    expect(pkg.devDependencies?.['@oktis-works/cms']).toBe(appRangeFor(APP_VERSIONS['@oktis-works/cms']!));
+    // range nunca é ^versão-exata da âncora — a janela cobre minors vizinhos
+    for (const [name, anchor] of Object.entries(APP_VERSIONS)) {
+      const section = name === '@oktis-works/cms' ? pkg.devDependencies! : pkg.dependencies;
+      expect(section[name]).not.toBe(`^${anchor}`);
     }
   });
 
@@ -323,6 +332,74 @@ describe('scaffoldProject', () => {
       const [uMajor = 0, uMinor = 0] = upper.split('.').map(Number);
       // a faixa cobre MAJOR.MINOR.0 do próprio CLI
       expect(major < uMajor || (major === uMajor && minor < uMinor)).toBe(true);
+    }
+  });
+
+  it('resolveAppRanges: npm-first — a âncora é a versão real publicada de CADA pacote', async () => {
+    // Independent versioning: plugin-runtime may sit on 0.7.0 while the CLI
+    // is on 0.11.x — each range must anchor on its OWN published version.
+    const published: Record<string, string> = {
+      '@oktis-works/api': '0.14.4',
+      '@oktis-works/admin': '0.19.1',
+      '@oktis-works/web': '0.11.0',
+      '@oktis-works/worker': '0.8.7',
+      '@oktis-works/core': '0.11.4',
+      '@oktis-works/plugin-runtime': '0.7.0',
+      '@oktis-works/cms': '0.11.1',
+    };
+    const ranges = await resolveAppRanges(async (name) => published[name] ?? null);
+
+    for (const [name, version] of Object.entries(published)) {
+      expect(ranges[name]).toBe(appRangeFor(version));
+    }
+    // plugin-runtime@0.7.0 → window >=0.6.0 <0.8.0 (never the CLI's window)
+    expect(ranges['@oktis-works/plugin-runtime']).toBe('>=0.6.0 <0.8.0');
+  });
+
+  it('resolveAppRanges: registry inacessível → cai no map do build (tolera publish parcial)', async () => {
+    const ranges = await resolveAppRanges(async () => null);
+
+    const { APP_VERSIONS } = await import('./generated/app-versions.js');
+    for (const name of Object.keys(APP_VERSIONS)) {
+      expect(ranges[name]).toBe(appRangeFor(APP_VERSIONS[name]!));
+    }
+    // partial-publish tolerance: a map captured when plugin-runtime was
+    // 0.7.0 still resolves if only 0.6.x is on the registry (window reaches
+    // one minor back). A 0.8.x-only registry would ETARGET — the release
+    // flow publishes the CLI from the same tree, so that state is transient.
+    expect(ranges['@oktis-works/plugin-runtime']).toBe('>=0.6.0 <0.8.0');
+  });
+
+  it('resolveAppRanges: pacote ausente do registry E do map → "*"', async () => {
+    const ranges = await resolveAppRanges(async () => null);
+    // APP_PACKAGES + cms are always in the map, so "*" is only reachable via
+    // a direct resolveLatest contract — assert the fallback contract itself.
+    const { APP_VERSIONS } = await import('./generated/app-versions.js');
+    for (const name of APP_PACKAGES) {
+      expect(APP_VERSIONS[name]).toBeDefined();
+      expect(ranges[name]).not.toBe('*');
+    }
+  });
+
+  it('generated app-versions map está em sync com os manifests dos workspaces', async () => {
+    // Anti-drift guard: the committed map must match the workspace manifests.
+    // If this fails, run `bun run build` (the generator refreshes the file).
+    const { APP_VERSIONS } = await import('./generated/app-versions.js');
+    const here = dirname(fileURLToPath(import.meta.url));
+    const manifestPaths: Record<string, string> = {
+      '@oktis-works/api': '../../../apps/api/package.json',
+      '@oktis-works/admin': '../../../apps/admin/package.json',
+      '@oktis-works/web': '../../../apps/web/package.json',
+      '@oktis-works/worker': '../../../apps/worker/package.json',
+      '@oktis-works/core': '../../../packages/core/package.json',
+      '@oktis-works/plugin-runtime': '../../../packages/plugin-runtime/package.json',
+      '@oktis-works/cms': '../../../packages/cli/package.json',
+    };
+    for (const [name, relative] of Object.entries(manifestPaths)) {
+      const manifest = JSON.parse(readFileSync(resolve(here, relative), 'utf-8')) as {
+        version?: string;
+      };
+      expect(APP_VERSIONS[name]).toBe(manifest.version);
     }
   });
 

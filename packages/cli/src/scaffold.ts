@@ -9,6 +9,8 @@ import { DEFAULT_THEME_FILES, DEFAULT_THEME_BINARY_FILES } from './theme-assets.
 import { writeDeployAssets } from './bluegreen.js';
 import { DEFAULT_DOCS_LANG, docsLangLabel, pluginDoc, projectReadme, themeDoc } from './scaffold-docs.js';
 import type { DocsLang } from './scaffold-docs.js';
+import { getLatestVersion } from './npm-registry.js';
+import { APP_VERSIONS } from './generated/app-versions.js';
 import { style, symbol } from './prompt.js';
 
 /** Normaliza o nome do projeto para um npm name válido (slug). */
@@ -21,31 +23,76 @@ export function toPackageName(name: string): string {
 }
 
 /**
- * Range que o projeto usa para os 5 pacotes do OkCMS (4 apps + a própria CLI).
+ * Range que o projeto usa para cada pacote do OkCMS (apps + core +
+ * plugin-runtime + a própria CLI), ancorado na versão REAL publicada do
+ * pacote — npm primeiro; fallback = `APP_VERSIONS`, capturado dos manifests
+ * no build.
  *
- * Por que não `^0.2.0` (o minor da CLI):
- *   `^0.2.0` em 0.x é `>=0.2.0 <0.3.0` — se os apps ainda não foram publicados
- *   nesse minor (mudanças no `ignore` do changeset, como admin/web, podem ficar
- *   um release atrás), o `bun install` do scaffold cai em ETARGET. Foi
- *   exatamente esse o bug de 0.1.14 → 0.2.0.
+ * Por que a âncora NÃO é a versão da CLI (bug histórico do ETARGET): os
+ * pacotes são versionados de forma independente (plugin-runtime parado em
+ * 0.7.0 enquanto a CLI andou para 0.11.x) e a janela derivada da CLI não
+ * encontrava nada — ETARGET em todo `okcms init`.
  *
- * A janela é de DOIS minors em 0.x — para cima e para baixo — então o npm/bun
- * sempre acha a versão mais nova publicada dentro dela. Como os cinco
- * pacotes compartilham o MESMO range, eles também ficam consistentes entre si.
- * A partir de 1.x vira `^MAJOR.0.0` (compatibilidade semântica madura).
+ * A janela cobre o anchor e um minor abaixo em 0.x — então um map um minor
+ * À FRENTE do registry (publish parcial) ainda resolve. A partir de 1.x
+ * vira `>=MAJOR.0.0 <(MAJOR+1).0.0`.
  */
-export function appRangeFor(cliVersion: string): string {
-  const [rawMajor, rawMinor] = cliVersion.split('.');
+export function appRangeFor(version: string): string {
+  const [rawMajor, rawMinor] = version.split('.');
   const major = Number(rawMajor);
   const minor = Number(rawMinor);
   if (!Number.isInteger(major) || !Number.isInteger(minor) || major < 0 || minor < 0) {
     // versão ilegível → cai no comportamento histórico em vez de quebrar o init
-    return `^${cliVersion}`;
+    return `^${version}`;
   }
   if (major > 0) return `>=${major}.0.0 <${major + 1}.0.0`;
   const lower = minor > 0 ? minor - 1 : 0;
   return `>=0.${lower}.0 <0.${minor + 1}.0`;
 }
+
+/** Packages written into the scaffolded project's package.json. */
+export const APP_PACKAGES = [
+  '@oktis-works/api',
+  '@oktis-works/admin',
+  '@oktis-works/web',
+  '@oktis-works/worker',
+  '@oktis-works/core',
+  '@oktis-works/plugin-runtime',
+] as const;
+
+/** devDependency: the CLI itself, pinned to a compatible local binary. */
+const CLI_PACKAGE = '@oktis-works/cms';
+
+/**
+ * Resolves the install range for every scaffolded package INDEPENDENTLY:
+ * anchored on the version actually published on npm (`getLatestVersion`),
+ * falling back to the build-time `APP_VERSIONS` map when the registry is
+ * unreachable. The window (anchor + one minor back in 0.x) tolerates the map
+ * running one minor AHEAD of the registry (partial publish) — never the
+ * opposite, which is what made the CLI-anchored window ETARGET.
+ */
+export async function resolveAppRanges(
+  resolveLatest: (name: string) => Promise<string | null> = getLatestVersion
+): Promise<Record<string, string>> {
+  const names = [...APP_PACKAGES, CLI_PACKAGE];
+  const entries = await Promise.all(
+    names.map(async (name) => {
+      const latest = await resolveLatest(name);
+      const anchor = latest ?? APP_VERSIONS[name];
+      return { name, range: anchor ? appRangeFor(anchor) : '*', fromRegistry: latest !== null };
+    })
+  );
+
+  const misses = entries.filter((entry) => !entry.fromRegistry).length;
+  if (misses > 0) {
+    console.log(
+      `[scaffold] npm lookup missed ${misses}/${names.length} package(s) — using bundled versions`
+    );
+  }
+
+  return Object.fromEntries(entries.map(({ name, range }) => [name, range]));
+}
+
 
 /**
  * Acrescenta ao `.gitignore` do projeto só o que ainda não está lá.
@@ -107,13 +154,13 @@ export async function scaffoldProject(
     'utf-8'
   );
 
-  // package.json do projeto — apps do OkCMS como dependências. O range vem de
-  // `appRangeFor` (janela de dois minors em 0.x) e NUNCA é a versão exata do
-  // CLI; ver a documentação dessa função para o histórico do ETARGET.
-  // Não sobrescreve manifest existente.
-  const cliPkg = await import('../package.json', { with: { type: 'json' } });
-  const cliVersion = cliPkg.default.version as string;
-  const appRange = appRangeFor(cliVersion);
+  // package.json do projeto — apps do OkCMS como dependências. Cada range é
+  // resolvido INDEPENDENTEMENTE pela versão real publicada do pacote (npm →
+  // fallback `APP_VERSIONS` do build) e passado pela janela de dois minors de
+  // `appRangeFor`. Ancorar na versão da CLI era o bug de ETARGET: os pacotes
+  // são versionados de forma independente e a janela da CLI não encontrava
+  // nada. Não sobrescreve manifest existente.
+  const appRanges = await resolveAppRanges();
   const manifestPath = join(root, 'package.json');
   if (!existsSync(manifestPath)) {
     const manifest = {
@@ -132,17 +179,17 @@ export async function scaffoldProject(
         backup: 'okcms db:backup',
       },
       dependencies: {
-        '@oktis-works/api': appRange,
-        '@oktis-works/admin': appRange,
-        '@oktis-works/web': appRange,
-        '@oktis-works/worker': appRange,
-        '@oktis-works/core': appRange,
-        '@oktis-works/plugin-runtime': appRange,
+        '@oktis-works/api': appRanges['@oktis-works/api'],
+        '@oktis-works/admin': appRanges['@oktis-works/admin'],
+        '@oktis-works/web': appRanges['@oktis-works/web'],
+        '@oktis-works/worker': appRanges['@oktis-works/worker'],
+        '@oktis-works/core': appRanges['@oktis-works/core'],
+        '@oktis-works/plugin-runtime': appRanges['@oktis-works/plugin-runtime'],
       },
       devDependencies: {
         // CLI disponível como binário local: `okcms ...` usa a versão local compatível
         // com os apps instalados (sem buscar outra no registry).
-        '@oktis-works/cms': appRange,
+        '@oktis-works/cms': appRanges['@oktis-works/cms'],
       },
     };
     await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf-8');
