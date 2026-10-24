@@ -86,6 +86,97 @@ export async function seedCoreData(
   return { roles, settings };
 }
 
+/**
+ * Seeds default field groups for Post and Page content types.
+ * Idempotent — safe to run on any database (fresh or existing).
+ * Creates: core-fields-post, core-fields-page with core fields (title, slug, content, etc.)
+ */
+export async function seedDefaultFieldGroups(
+  sql: Sql = getConnection()
+): Promise<{ fieldGroups: number; fieldDefinitions: number }> {
+  const _tenantId = await resolveTenantId('default');
+  let fieldGroupsCreated = 0;
+  let fieldDefinitionsCreated = 0;
+
+  // Create or get core-fields-post group
+  const pgResult = await sql.unsafe(
+    `INSERT INTO field_groups (tenant_id, title, key, location_rules, position, display_style, active, metadata)
+     VALUES (NULL, 'Campos Padrão - Post', 'core-fields-post', '{"content_type": ["post"]}'::jsonb, 'normal', 'standard', true, '{}'::jsonb)
+     ON CONFLICT (key) DO UPDATE SET
+       title = EXCLUDED.title,
+       location_rules = EXCLUDED.location_rules,
+       active = EXCLUDED.active,
+       updated_at = NOW()
+     RETURNING id`
+  );
+  const pgGroupId = String(pgResult[0]?.['id']);
+  if (pgResult.length > 0) fieldGroupsCreated++;
+
+  // Create or get core-fields-page group
+  const paResult = await sql.unsafe(
+    `INSERT INTO field_groups (tenant_id, title, key, location_rules, position, display_style, active, metadata)
+     VALUES (NULL, 'Campos Padrão - Page', 'core-fields-page', '{"content_type": ["page"]}'::jsonb, 'normal', 'standard', true, '{}'::jsonb)
+     ON CONFLICT (key) DO UPDATE SET
+       title = EXCLUDED.title,
+       location_rules = EXCLUDED.location_rules,
+       active = EXCLUDED.active,
+       updated_at = NOW()
+     RETURNING id`
+  );
+  const paGroupId = String(paResult[0]?.['id']);
+  if (paResult.length > 0) fieldGroupsCreated++;
+
+  // Core fields for Post
+  const postCoreFields = [
+    { type: 'text', name: 'title', key: 'title', label: 'Título', instructions: 'Título do post', required: true, config: '{}', sort_order: 1, is_locked: true, core_field_key: 'title' },
+    { type: 'slug', name: 'slug', key: 'slug', label: 'Slug', instructions: 'URL amigável (único)', required: true, config: '{}', sort_order: 2, is_locked: true, core_field_key: 'slug' },
+    { type: 'wysiwyg', name: 'content', key: 'content', label: 'Conteúdo', instructions: 'Corpo principal do post', required: true, config: '{}', sort_order: 3, is_locked: false, core_field_key: 'content' },
+    { type: 'textarea', name: 'excerpt', key: 'excerpt', label: 'Resumo', instructions: 'Resumo curto para listagens', required: false, config: '{}', sort_order: 4, is_locked: false, core_field_key: 'excerpt' },
+    { type: 'image', name: 'featured_image', key: 'featured_image', label: 'Imagem Destacada', instructions: 'Imagem principal do post', required: false, config: '{}', sort_order: 5, is_locked: false, core_field_key: 'featured_image' },
+    { type: 'text', name: 'seo_title', key: 'seo_title', label: 'SEO Title', instructions: 'Título para SEO (meta title)', required: false, config: '{}', sort_order: 6, is_locked: false, core_field_key: 'seo_title' },
+    { type: 'textarea', name: 'seo_description', key: 'seo_description', label: 'SEO Description', instructions: 'Descrição para SEO (meta description)', required: false, config: '{}', sort_order: 7, is_locked: false, core_field_key: 'seo_description' },
+    { type: 'select', name: 'status', key: 'status', label: 'Status', instructions: 'Status de publicação', required: true, config: '{"options":[{"value":"DRAFT","label":"Rascunho"},{"value":"PUBLISHED","label":"Publicado"},{"value":"ARCHIVED","label":"Arquivado"},{"value":"TRASHED","label":"Lixeira"}]}', sort_order: 8, is_locked: false, core_field_key: 'status' },
+    { type: 'user', name: 'author', key: 'author', label: 'Autor', instructions: 'Autor do post', required: true, config: '{}', sort_order: 9, is_locked: false, core_field_key: 'author' },
+  ];
+
+  // Core fields for Page
+  const pageCoreFields = [
+    { type: 'text', name: 'title', key: 'title', label: 'Título', instructions: 'Título da página', required: true, config: '{}', sort_order: 1, is_locked: true, core_field_key: 'title' },
+    { type: 'slug', name: 'slug', key: 'slug', label: 'Slug', instructions: 'URL amigável (único)', required: true, config: '{}', sort_order: 2, is_locked: true, core_field_key: 'slug' },
+    { type: 'wysiwyg', name: 'content', key: 'content', label: 'Conteúdo', instructions: 'Corpo principal da página', required: true, config: '{}', sort_order: 3, is_locked: false, core_field_key: 'content' },
+    { type: 'textarea', name: 'excerpt', key: 'excerpt', label: 'Resumo', instructions: 'Resumo curto para listagens', required: false, config: '{}', sort_order: 4, is_locked: false, core_field_key: 'excerpt' },
+    { type: 'image', name: 'featured_image', key: 'featured_image', label: 'Imagem Destacada', instructions: 'Imagem principal da página', required: false, config: '{}', sort_order: 5, is_locked: false, core_field_key: 'featured_image' },
+    { type: 'text', name: 'seo_title', key: 'seo_title', label: 'SEO Title', instructions: 'Título para SEO (meta title)', required: false, config: '{}', sort_order: 6, is_locked: false, core_field_key: 'seo_title' },
+    { type: 'textarea', name: 'seo_description', key: 'seo_description', label: 'SEO Description', instructions: 'Descrição para SEO (meta description)', required: false, config: '{}', sort_order: 7, is_locked: false, core_field_key: 'seo_description' },
+    { type: 'select', name: 'status', key: 'status', label: 'Status', instructions: 'Status de publicação', required: true, config: '{"options":[{"value":"DRAFT","label":"Rascunho"},{"value":"PUBLISHED","label":"Publicado"},{"value":"ARCHIVED","label":"Arquivado"},{"value":"TRASHED","label":"Lixeira"}]}', sort_order: 8, is_locked: false, core_field_key: 'status' },
+    { type: 'user', name: 'author', key: 'author', label: 'Autor', instructions: 'Autor da página', required: true, config: '{}', sort_order: 9, is_locked: false, core_field_key: 'author' },
+  ];
+
+  for (const field of postCoreFields) {
+    const result = await sql.unsafe(
+      `INSERT INTO field_definitions (group_id, parent_field_id, type, name, key, label, instructions, required, config, sort_order, is_core_field, is_locked, core_field_key)
+       VALUES ($1, NULL, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, true, $10, $11)
+       ON CONFLICT (key) DO NOTHING
+       RETURNING id`,
+      [pgGroupId, field.type, field.name, field.key, field.label, field.instructions, field.required, field.config, field.sort_order, field.is_locked, field.core_field_key]
+    );
+    fieldDefinitionsCreated += result.length;
+  }
+
+  for (const field of pageCoreFields) {
+    const result = await sql.unsafe(
+      `INSERT INTO field_definitions (group_id, parent_field_id, type, name, key, label, instructions, required, config, sort_order, is_core_field, is_locked, core_field_key)
+       VALUES ($1, NULL, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, true, $10, $11)
+       ON CONFLICT (key) DO NOTHING
+       RETURNING id`,
+      [paGroupId, field.type, field.name, field.key, field.label, field.instructions, field.required, field.config, field.sort_order, field.is_locked, field.core_field_key]
+    );
+    fieldDefinitionsCreated += result.length;
+  }
+
+  return { fieldGroups: fieldGroupsCreated, fieldDefinitions: fieldDefinitionsCreated };
+}
+
 /** Lorem ipsum curto para campos de texto. */
 const LOREM_IPSUM = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.';
 
@@ -102,6 +193,7 @@ Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium dolor
 function makeBody(html: string, blocks: unknown[] = []): Record<string, unknown> {
   return {
     html,
+    content: html, // Keep in sync so classic editor reads it back
     blocks: blocks.length > 0 ? blocks : [
       { type: 'paragraph', content: html.replace(/<[^>]*>/g, '').slice(0, 200) },
     ],

@@ -140,7 +140,21 @@
       "customFields": "Campos personalizados",
       "inspectTypes": "Inspecionar tipos disponíveis",
       "save": "Salvar",
-      "saved": "Conteúdo salvo com sucesso."
+      "saved": "Conteúdo salvo com sucesso.",
+      "format": "Formato",
+      "formatParagraph": "Parágrafo",
+      "formatH1": "Título 1",
+      "formatH2": "Título 2",
+      "formatH3": "Título 3",
+      "formatH4": "Título 4",
+      "formatBlockquote": "Bloco de citação",
+      "formatCode": "Código",
+      "bold": "Negrito",
+      "italic": "Itálico",
+      "underline": "Sublinhado",
+      "bulletList": "Lista com marcadores",
+      "numberedList": "Lista numerada",
+      "link": "Link"
     },
     "taxonomy": {
       "title": "Termos da taxonomia",

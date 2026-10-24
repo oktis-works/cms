@@ -1583,6 +1583,51 @@ label.checkbox-label {
 .classic-editor__toolbar button:hover { border-color: var(--color-border); background: var(--color-white); }
 .classic-editor__toolbar-divider { width: 1px; height: 1.5rem; background: var(--color-border); margin: 0 0.25rem; }
 
+/* Field Renderer WYSIWYG (shared toolbar style with classic editor) */
+.field-renderer__wysiwyg { display: grid; gap: 0.25rem; }
+.field-renderer__wysiwyg-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  background: #f0f0f1;
+  border: 1px solid var(--color-border);
+  border-bottom: 0;
+  padding: 0.45rem;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+.field-renderer__wysiwyg-toolbar select.input {
+  max-width: 160px;
+  padding: 0.25rem 0.45rem;
+}
+.field-renderer__wysiwyg-divider { width: 1px; height: 1.5rem; background: var(--color-border); margin: 0 0.25rem; }
+.field-renderer__wysiwyg-toolbar button {
+  min-width: 2rem;
+  min-height: 2rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text);
+  padding: 0.25rem 0.45rem;
+}
+.field-renderer__wysiwyg-toolbar button:hover { border-color: var(--color-border); background: var(--color-white); }
+.field-renderer__wysiwyg-body {
+  min-height: 200px;
+  border: 1px solid var(--color-border);
+  border-top: 0;
+  background: var(--color-white);
+  color: var(--color-text);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  padding: 0.75rem;
+  outline: none;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
+.field-renderer__wysiwyg-body:focus { border-color: var(--color-primary); box-shadow: 0 0 0 1px var(--color-primary); }
+.field-renderer__wysiwyg-body:empty::before { content: attr(data-placeholder); color: var(--color-muted); }
+.field-renderer__wysiwyg-body blockquote { border-left: 3px solid var(--color-primary); margin: 1rem 0; padding-left: 1rem; color: var(--color-muted); }
+.field-renderer__wysiwyg-body pre { background: #f5f5f5; padding: 0.5rem; border-radius: var(--radius-sm); overflow-x: auto; }
+
 .classic-editor__body {
   min-height: 360px;
   border: 1px solid var(--color-border);

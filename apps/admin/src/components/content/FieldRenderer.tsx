@@ -2,6 +2,7 @@
 
 import { For, Show, createMemo, createSignal } from 'solid-js';
 import { validateFieldClient } from '../../lib/validation';
+import { sanitizeHtml } from '../../lib/sanitize';
 import type { ResolvedFieldDefinition } from './types';
 import { RelationshipPicker } from './RelationshipPicker';
 import { PluginFieldRenderer } from '../../content/PluginFieldRenderer';
@@ -148,6 +149,30 @@ interface FieldControlProps {
 function FieldControl(props: FieldControlProps) {
   const config = () => props.field.config ?? {};
 
+  // WYSIWYG editor helpers (execCommand-based, same as classic editor)
+  const formatBlock = (block: string): void => {
+    if (!block) return;
+    document.execCommand('formatBlock', false, block);
+    // Trigger onInput to update value
+    const editor = document.querySelector('.field-renderer__wysiwyg-body[contenteditable="true"]:focus');
+    if (editor) editor.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+
+  const formatInline = (command: string): void => {
+    document.execCommand(command, false);
+    const editor = document.querySelector('.field-renderer__wysiwyg-body[contenteditable="true"]:focus');
+    if (editor) editor.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+
+  const createLink = (): void => {
+    const url = window.prompt(props.t('content.editor.linkPrompt') || '');
+    if (url) {
+      document.execCommand('createLink', false, url);
+      const editor = document.querySelector('.field-renderer__wysiwyg-body[contenteditable="true"]:focus');
+      if (editor) editor.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  };
+
   switch (props.field.type) {
     case 'text':
       return (
@@ -174,11 +199,58 @@ function FieldControl(props: FieldControlProps) {
       );
     case 'wysiwyg':
       return (
-        <textarea
-          class="input wysiwyg"
-          rows={8}
-          onInput={(e) => props.onChange(e.currentTarget.value)}
-        />
+        <div class="field-renderer__wysiwyg">
+          <div class="field-renderer__wysiwyg-toolbar" role="toolbar" aria-label={props.t('content.editor.toolbar')}>
+            <select class="input" aria-label={props.t('content.editor.format')} onChange={(e) => formatBlock(e.currentTarget.value)} value="">
+              <option value="">{props.t('content.editor.formatParagraph')}</option>
+              <option value="<h1>">{props.t('content.editor.formatH1')}</option>
+              <option value="<h2>">{props.t('content.editor.formatH2')}</option>
+              <option value="<h3>">{props.t('content.editor.formatH3')}</option>
+              <option value="<h4>">{props.t('content.editor.formatH4')}</option>
+              <option value="<blockquote>">{props.t('content.editor.formatBlockquote')}</option>
+              <option value="<pre>">{props.t('content.editor.formatCode')}</option>
+            </select>
+            <span class="field-renderer__wysiwyg-divider" />
+            <button type="button" onClick={() => formatInline('bold')}>
+              <strong>{props.t('content.editor.bold')}</strong>
+            </button>
+            <button type="button" onClick={() => formatInline('italic')}>
+              <em>{props.t('content.editor.italic')}</em>
+            </button>
+            <button type="button" onClick={() => formatInline('underline')}>
+              <u>{props.t('content.editor.underline')}</u>
+            </button>
+            <span class="field-renderer__wysiwyg-divider" />
+            <button type="button" onClick={() => formatInline('insertUnorderedList')}>
+              {props.t('content.editor.bulletList')}
+            </button>
+            <button type="button" onClick={() => formatInline('insertOrderedList')}>
+              {props.t('content.editor.numberedList')}
+            </button>
+            <button type="button" onClick={() => createLink()}>
+              {props.t('content.editor.link')}
+            </button>
+          </div>
+          <div
+            class="field-renderer__wysiwyg-body input"
+            contentEditable={true}
+            role="textbox"
+            aria-multiline="true"
+            data-placeholder={config()['placeholder'] as string | undefined}
+            innerHTML={(props.value ?? config()['defaultValue'] ?? '') as string}
+            onInput={(event) => {
+              const html = event.currentTarget.innerHTML;
+              props.onChange(html);
+            }}
+            onBlur={(event) => {
+              const sanitized = sanitizeHtml(event.currentTarget.innerHTML);
+              if (sanitized !== event.currentTarget.innerHTML) {
+                event.currentTarget.innerHTML = sanitized;
+                props.onChange(sanitized);
+              }
+            }}
+          />
+        </div>
       );
     case 'number':
     case 'range':
@@ -194,11 +266,33 @@ function FieldControl(props: FieldControlProps) {
         />
       );
     case 'email':
-      return <input type="email" class="input" onInput={(e) => props.onChange(e.currentTarget.value)} />;
+      return (
+        <input
+          type="email"
+          class="input"
+          value={(props.value ?? config()['defaultValue'] ?? '') as string}
+          onInput={(e) => props.onChange(e.currentTarget.value)}
+        />
+      );
     case 'url':
-      return <input type="url" class="input" placeholder="https://" onInput={(e) => props.onChange(e.currentTarget.value)} />;
+      return (
+        <input
+          type="url"
+          class="input"
+          placeholder="https://"
+          value={(props.value ?? config()['defaultValue'] ?? '') as string}
+          onInput={(e) => props.onChange(e.currentTarget.value)}
+        />
+      );
     case 'password':
-      return <input type="password" class="input" onInput={(e) => props.onChange(e.currentTarget.value)} />;
+      return (
+        <input
+          type="password"
+          class="input"
+          value={(props.value ?? config()['defaultValue'] ?? '') as string}
+          onInput={(e) => props.onChange(e.currentTarget.value)}
+        />
+      );
     case 'slug':
       return (
         <input
@@ -223,6 +317,9 @@ function FieldControl(props: FieldControlProps) {
         <select
           class="input"
           multiple={config()['multiple'] === true}
+          value={config()['multiple'] === true
+            ? (Array.isArray(props.value) ? props.value : [])
+            : ((props.value ?? config()['defaultValue'] ?? '') as string)}
           onChange={(e) =>
             props.onChange(
               e.currentTarget.multiple
@@ -282,15 +379,38 @@ function FieldControl(props: FieldControlProps) {
         </div>
       );
     case 'date_picker':
-      return <input type="date" class="input" onInput={(e) => props.onChange(e.currentTarget.value)} />;
+      return (
+        <input
+          type="date"
+          class="input"
+          value={(props.value ?? config()['defaultValue'] ?? '') as string}
+          onInput={(e) => props.onChange(e.currentTarget.value)}
+        />
+      );
     case 'date_time_picker':
-      return <input type="datetime-local" class="input" onInput={(e) => props.onChange(e.currentTarget.value)} />;
+      return (
+        <input
+          type="datetime-local"
+          class="input"
+          value={(props.value ?? config()['defaultValue'] ?? '') as string}
+          onInput={(e) => props.onChange(e.currentTarget.value)}
+        />
+      );
     case 'time_picker':
-      return <input type="time" class="input" onInput={(e) => props.onChange(e.currentTarget.value)} />;
+      return (
+        <input
+          type="time"
+          class="input"
+          value={(props.value ?? config()['defaultValue'] ?? '') as string}
+          onInput={(e) => props.onChange(e.currentTarget.value)}
+        />
+      );
     case 'color_picker':
       return (
         <input
           type="color"
+          class="input"
+          value={(props.value ?? config()['defaultValue'] ?? '') as string}
           onChange={(e) => props.onChange(e.currentTarget.value)}
         />
       );
@@ -306,6 +426,7 @@ function FieldControl(props: FieldControlProps) {
             type="text"
             class="input"
             placeholder="Endereço"
+            value={((props.value as Record<string, unknown>)?.['address'] as string) ?? ''}
             onInput={(e) => {
               const map = (props.value as Record<string, unknown>) ?? {};
               props.onChange({ ...map, address: e.currentTarget.value });
@@ -318,6 +439,7 @@ function FieldControl(props: FieldControlProps) {
             step="any"
             min={-90}
             max={90}
+            value={((props.value as Record<string, unknown>)?.['lat'] as number) ?? ''}
             onInput={(e) => {
               const map = (props.value as Record<string, unknown>) ?? {};
               props.onChange({ ...map, lat: Number(e.currentTarget.value) });
@@ -330,6 +452,7 @@ function FieldControl(props: FieldControlProps) {
             step="any"
             min={-180}
             max={180}
+            value={((props.value as Record<string, unknown>)?.['lng'] as number) ?? ''}
             onInput={(e) => {
               const map = (props.value as Record<string, unknown>) ?? {};
               props.onChange({ ...map, lng: Number(e.currentTarget.value) });
@@ -344,6 +467,7 @@ function FieldControl(props: FieldControlProps) {
             type="url"
             class="input"
             placeholder="https:// ou /caminho"
+            value={((props.value as Record<string, unknown>)?.['url'] as string) ?? ''}
             onInput={(e) => {
               const link = (props.value as Record<string, unknown>) ?? {};
               props.onChange({ ...link, url: e.currentTarget.value });
@@ -351,6 +475,7 @@ function FieldControl(props: FieldControlProps) {
           />
           <select
             class="input"
+            value={((props.value as Record<string, unknown>)?.['target'] as string) ?? '_self'}
             onChange={(e) => {
               const link = (props.value as Record<string, unknown>) ?? {};
               props.onChange({ ...link, target: e.currentTarget.value });

@@ -1,5 +1,20 @@
 # @oktis-works/database
 
+## 0.14.0
+
+### Minor Changes
+
+- ### Fixes
+  
+  - **seedDemoContent**: Updated `makeBody()` to include `content` key (mirroring `html`) so classic editor reads content back; fixed body insertion to use `JSON.stringify(body)` with `$5::jsonb` cast (correctly parses to jsonb object, avoiding double-encoding)
+  - **seedCoreData**: Added `seedDefaultFieldGroups()` call in CLI's `prepareDb` so fresh installs get core-fields-post and core-fields-page groups (title, slug, content, excerpt, featured_image, seo_title, seo_description, status, author) without requiring migrations directory
+  - **Exports**: Exported `seedDefaultFieldGroups` from package entry point
+  
+  ### Related
+  
+  - Fresh `bunx @oktis-works/cms init` projects now have field groups populated → custom fields section appears in admin
+  - Demo content body no longer double-encoded in fresh installs
+
 ## 0.13.1
 
 ### Patch Changes

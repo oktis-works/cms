@@ -25,6 +25,7 @@ export {
   seedCoreData,
   seedDemoContent,
   seedActivateDefaultTheme,
+  seedDefaultFieldGroups,
   seedDefaultRoles,
   seedDefaultSettings,
   DEFAULT_ROLES,

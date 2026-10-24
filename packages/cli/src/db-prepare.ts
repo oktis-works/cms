@@ -24,7 +24,7 @@ export function getTenantId(options: Record<string, string>): string {
  */
 export async function prepareDb(options: Record<string, string>): Promise<string> {
   await initDb();
-  const { ensureCoreSchema, resolveTenantId, seedCoreData, seedDemoContent, seedActivateDefaultTheme } = await import('@oktis-works/database');
+  const { ensureCoreSchema, resolveTenantId, seedCoreData, seedDemoContent, seedActivateDefaultTheme, seedDefaultFieldGroups } = await import('@oktis-works/database');
   const applied = await ensureCoreSchema();
   if (applied) {
     console.log('✓ core schema applied (database initialized)');
@@ -38,6 +38,15 @@ export async function prepareDb(options: Record<string, string>): Promise<string
     }
   } catch (error) {
     console.warn('⚠ default data seed failed:', error instanceof Error ? error.message : error);
+  }
+  // Seed default field groups (core fields for post/page) — idempotent, runs on every init
+  try {
+    const fieldGroups = await seedDefaultFieldGroups();
+    if (fieldGroups.fieldGroups > 0 || fieldGroups.fieldDefinitions > 0) {
+      console.log(`✓ field groups: ${fieldGroups.fieldGroups} groups, ${fieldGroups.fieldDefinitions} definitions created`);
+    }
+  } catch (error) {
+    console.warn('⚠ default field groups seed failed:', error instanceof Error ? error.message : error);
   }
   // Seed de conteúdo demonstrativo (páginas, posts, menus, static front page)
   try {

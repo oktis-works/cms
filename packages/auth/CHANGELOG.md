@@ -1,5 +1,13 @@
 # @oktis-works/auth
 
+## 0.7.9
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/database@0.14.0
+  - @oktis-works/core@0.11.5
+
 ## 0.7.8
 
 ### Patch Changes

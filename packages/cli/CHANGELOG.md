@@ -1,5 +1,20 @@
 # @oktis-works/cms
 
+## 0.13.0
+
+### Minor Changes
+
+- ### Fixes
+  
+  - **db-prepare**: Import and call `seedDefaultFieldGroups()` in `prepareDb()` so default field groups are seeded on every `okcms dev`/`start`/`db:migrate`/`seed`, ensuring fresh projects have core-fields-post and core-fields-page available in admin
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/database@0.14.0
+  - @oktis-works/auth@0.7.9
+  - @oktis-works/core@0.11.5
+
 ## 0.12.1
 
 ### Patch Changes

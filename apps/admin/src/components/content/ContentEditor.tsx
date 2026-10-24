@@ -11,6 +11,36 @@ import type { AdminExtensionsState } from '@oktis-works/plugin-sdk';
 import { MetaBoxesSlot, PluginComponentHost } from '../../ext/slots';
 import { emptyExtensionsState, loadExtensions } from '../../ext/store';
 
+/**
+ * Normalizes content body: parses string (double-encoded) to object.
+ * Ensures `content` key exists for classic editor (falls back to `html`).
+ */
+function normalizeBody(value: unknown): Record<string, unknown> {
+  if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+    const body = value as Record<string, unknown>;
+    // Ensure `content` key for classic editor — fall back to `html` if missing
+    if (body['content'] === undefined && typeof body['html'] === 'string') {
+      body['content'] = body['html'];
+    }
+    return body;
+  }
+  if (typeof value === 'string') {
+    try {
+      const parsed: unknown = JSON.parse(value);
+      if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        const body = parsed as Record<string, unknown>;
+        if (body['content'] === undefined && typeof body['html'] === 'string') {
+          body['content'] = body['html'];
+        }
+        return body;
+      }
+    } catch {
+      // fall through — a plain-text body simply yields no fields
+    }
+  }
+  return {};
+}
+
 interface Draft {
   id?: string;
   type: string;
@@ -140,7 +170,7 @@ export function ContentEditor(props: Props) {
           status: existing.status,
           layout: existing.layout,
         });
-        setData((existing.body as Record<string, unknown> | undefined) ?? {});
+        setData(normalizeBody(existing.body));
       } catch (err) {
         setErrors([err instanceof Error ? err.message : String(err)]);
       }
@@ -173,10 +203,18 @@ export function ContentEditor(props: Props) {
     setSaving(true);
 
     try {
+      const html = sanitizeHtml(editorContent());
+      const currentData = data();
+      const body: Record<string, unknown> = { ...currentData, content: html };
+      // Sync `html` key if it existed in original body (legacy/demo content)
+      // so theme continues to render updated content (theme prefers content.html)
+      if ('html' in currentData) {
+        body['html'] = html;
+      }
       const payload = {
         ...draft(),
         layout: draft().layout || null,
-        body: { ...data(), content: sanitizeHtml(editorContent()) },
+        body,
         ...(hasSupport('excerpt') ? {} : { excerpt: undefined }),
         ...(hasSupport('thumbnail') ? {} : { featuredImageId: undefined }),
       };
@@ -243,14 +281,35 @@ export function ContentEditor(props: Props) {
                 }
               >
                 <div class="classic-editor__toolbar" role="toolbar" aria-label={t('content.editor.toolbar')}>
-                  <button type="button" onClick={() => formatEditor('bold')}><strong>B</strong></button>
-                  <button type="button" onClick={() => formatEditor('italic')}><em>I</em></button>
-                  <button type="button" onClick={() => formatEditor('underline')}><u>U</u></button>
+                  <select class="input" aria-label={t('content.editor.format')} onChange={(e) => formatEditor('formatBlock', e.currentTarget.value)} value="">
+                    <option value="">{t('content.editor.formatParagraph')}</option>
+                    <option value="<h1>">{t('content.editor.formatH1')}</option>
+                    <option value="<h2>">{t('content.editor.formatH2')}</option>
+                    <option value="<h3>">{t('content.editor.formatH3')}</option>
+                    <option value="<h4>">{t('content.editor.formatH4')}</option>
+                    <option value="<blockquote>">{t('content.editor.formatBlockquote')}</option>
+                    <option value="<pre>">{t('content.editor.formatCode')}</option>
+                  </select>
                   <span class="classic-editor__toolbar-divider" />
-                  <button type="button" onClick={() => formatEditor('formatBlock', 'blockquote')}>❝</button>
-                  <button type="button" onClick={() => formatEditor('insertUnorderedList')}>• List</button>
-                  <button type="button" onClick={() => formatEditor('insertOrderedList')}>1. List</button>
-                  <button type="button" onClick={() => formatEditor('createLink', window.prompt(t('content.editor.linkPrompt')) || '')}>Link</button>
+                  <button type="button" onClick={() => formatEditor('bold')}>
+                    <strong>{t('content.editor.bold')}</strong>
+                  </button>
+                  <button type="button" onClick={() => formatEditor('italic')}>
+                    <em>{t('content.editor.italic')}</em>
+                  </button>
+                  <button type="button" onClick={() => formatEditor('underline')}>
+                    <u>{t('content.editor.underline')}</u>
+                  </button>
+                  <span class="classic-editor__toolbar-divider" />
+                  <button type="button" onClick={() => formatEditor('insertUnorderedList')}>
+                    {t('content.editor.bulletList')}
+                  </button>
+                  <button type="button" onClick={() => formatEditor('insertOrderedList')}>
+                    {t('content.editor.numberedList')}
+                  </button>
+                  <button type="button" onClick={() => formatEditor('createLink', window.prompt(t('content.editor.linkPrompt')) || '')}>
+                    {t('content.editor.link')}
+                  </button>
                 </div>
                 <div
                   class="classic-editor__body"

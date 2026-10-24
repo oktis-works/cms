@@ -49,6 +49,15 @@ temp/
 *.d.ts.map
 *.js.map
 
+# Prevent compiled artifacts in src (Vite resolves .jsx/.js before .tsx/.ts)
+apps/admin/src/**/*.d.ts
+apps/admin/src/**/*.d.ts.map
+apps/admin/src/**/*.js.map
+apps/admin/src/**/*.jsx
+apps/admin/src/**/*.jsx.map
+apps/admin/src/**/*.js
+apps/admin/src/**/*.js.map
+
 # Package manager
 # bun.lock should be committed
 
@@ -65,3 +74,12 @@ packages/cli/migrations/
 !themes/**/dist/**
 !templates/project/themes/**/dist/
 !templates/project/themes/**/dist/**
+# Prevent compiled artifacts in src (Vite resolves .jsx/.js before .tsx/.ts)
+apps/admin/src/**/*.d.ts
+apps/admin/src/**/*.d.ts.map
+apps/admin/src/**/*.js.map
+apps/admin/src/**/*.jsx
+apps/admin/src/**/*.jsx.map
+apps/admin/src/**/*.js
+apps/admin/src/**/*.js.map
+!apps/admin/.astro/types.d.ts

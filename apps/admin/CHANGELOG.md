@@ -1,5 +1,23 @@
 # @oktis-works/admin
 
+## 0.20.0
+
+### Minor Changes
+
+- ### Fixes
+  
+  - **FieldRenderer**: Added `value` bindings to all field types (wysiwyg, email, url, password, date_picker, date_time_picker, time_picker, color_picker, select, image/file/gallery, google_map, link) so saved values display correctly in the admin editor
+  - **WYSIWYG field type**: Replaced plain textarea with a rich text editor (contentEditable + toolbar with format block dropdown for Paragraph/H1-H4/Blockquote/Code, bold/italic/underline, lists, link) and onBlur HTML sanitization
+  - **Classic editor body**: Added format block dropdown (Paragraph, H1-H4, Blockquote, Code) to toolbar alongside existing bold/italic/underline/lists/link
+  - **ContentEditor**: Added `normalizeBody()` to defensively parse string body (double-encoded JSON) to object; falls back `html` → `content` so legacy/demo content displays in editor; on save syncs `html` key if present so theme renders updated content
+  - **i18n**: Added English and Portuguese translations for new toolbar labels
+  
+  ### Related
+  
+  - Dynamic content now appears correctly in admin post/page edit fields
+  - WYSIWYG custom fields now offer typography choices (paragraph, headings, etc.)
+  - Removed stale compiled artifacts (.jsx/.js/.map/.d.ts) from src that shadowed .tsx sources
+
 ## 0.19.1
 
 ### Patch Changes

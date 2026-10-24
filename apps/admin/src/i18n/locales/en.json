@@ -140,7 +140,21 @@
       "customFields": "Custom Fields",
       "inspectTypes": "Inspect available types",
       "save": "Save",
-      "saved": "Content saved successfully."
+      "saved": "Content saved successfully.",
+      "format": "Format",
+      "formatParagraph": "Paragraph",
+      "formatH1": "Heading 1",
+      "formatH2": "Heading 2",
+      "formatH3": "Heading 3",
+      "formatH4": "Heading 4",
+      "formatBlockquote": "Blockquote",
+      "formatCode": "Code",
+      "bold": "Bold",
+      "italic": "Italic",
+      "underline": "Underline",
+      "bulletList": "Bullet List",
+      "numberedList": "Numbered List",
+      "link": "Link"
     },
     "taxonomy": {
       "title": "Taxonomy terms",
