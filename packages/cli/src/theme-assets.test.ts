@@ -12,12 +12,12 @@ describe('DEFAULT_THEME_FILES (default theme embedded by init)', () => {
     expect(manifest['version']).toBe('0.2.0');
     expect(manifest['type']).toBe('theme');
     expect((manifest['provides'] as Record<string, unknown>)['layouts']).toEqual([
-      'front-page', 'home', 'index', 'single', 'page', 'archive', '404',
+      'front-page', 'home', 'posts', 'index', 'single', 'page', 'archive', '404',
     ]);
   });
 
   it('ships the complete .astro template hierarchy at the theme root', () => {
-    for (const file of ['front-page.astro', 'home.astro', 'index.astro', 'single.astro', 'page.astro', 'archive.astro', '404.astro']) {
+    for (const file of ['front-page.astro', 'home.astro', 'posts.astro', 'index.astro', 'single.astro', 'page.astro', 'archive.astro', '404.astro']) {
       expect(Object.keys(THEME_TEMPLATE_FILES)).toContain(file);
       // All templates share the scoped shell: data-theme wrapper + header + footer
       expect(THEME_TEMPLATE_FILES[file]!.startsWith('<div class="site" data-theme=')).toBe(true);
@@ -41,14 +41,22 @@ describe('DEFAULT_THEME_FILES (default theme embedded by init)', () => {
     expect(THEME_TEMPLATE_FILES['archive.astro']).toContain('{{#each items}}');
   });
 
+  it('posts.astro (posts page / WP home.php) lists the items feed with the page title', () => {
+    expect(THEME_TEMPLATE_FILES['posts.astro']).toContain('{{page.title}}');
+    expect(THEME_TEMPLATE_FILES['posts.astro']).toContain('{{#each items}}');
+    expect(THEME_TEMPLATE_FILES['posts.astro']).toContain('{{{content.html}}}');
+    // listing template, never the static page body alone
+    expect(THEME_TEMPLATE_FILES['posts.astro']).toContain('data-template="posts"');
+  });
+
   it('includes servable dist/theme.css (the path the web app links)', () => {
     expect(DEFAULT_THEME_FILES['dist/theme.css']).toContain('--brand');
     expect(Object.keys(DEFAULT_THEME_FILES)).toContain('theme.json');
   });
 
-  it('covers exactly manifest + 7 templates + css (screenshot is separate binary)', () => {
+  it('covers exactly manifest + 8 templates + css (screenshot is separate binary)', () => {
     expect(Object.keys(DEFAULT_THEME_FILES).sort()).toEqual(
-      ['404.astro', 'archive.astro', 'dist/theme.css', 'front-page.astro', 'home.astro', 'index.astro', 'theme.json', 'page.astro', 'single.astro'].sort()
+      ['404.astro', 'archive.astro', 'dist/theme.css', 'front-page.astro', 'home.astro', 'index.astro', 'theme.json', 'page.astro', 'posts.astro', 'single.astro'].sort()
     );
     expect(Object.keys(DEFAULT_THEME_BINARY_FILES)).toEqual(['screenshot.png']);
   });

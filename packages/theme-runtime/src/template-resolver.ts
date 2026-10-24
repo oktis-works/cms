@@ -14,6 +14,13 @@ export interface TemplateContext {
    */
   isFrontPage?: boolean;
   /**
+   * Posts page (Reading Settings → posts page). WordPress-like `home.php`
+   * behavior: tries the dedicated `posts.astro` listing BEFORE the regular
+   * page chain, so the blog renders the `items` feed instead of the page's
+   * static body template.
+   */
+  isPostsPage?: boolean;
+  /**
    * Override manual de layout (content.layout): template escolhido no editor.
    * Quando presente, é tentado ANTES de toda a cadeia automática (TASK-058).
    */
@@ -71,6 +78,14 @@ export function buildTemplateChain(context: TemplateContext): string[] {
   // → index.astro → 404.astro).
   if (context.isFrontPage) {
     return [...layoutHead, 'front-page.astro', ...chain];
+  }
+
+  // Posts page (WP home.php): the dedicated listing template wins over the
+  // page chain (posts.astro → {type}-{slug}.astro → {type}.astro →
+  // index.astro → 404.astro) — the blog listing shows `items`, never the
+  // page's static body.
+  if (context.isPostsPage) {
+    return [...layoutHead, 'posts.astro', ...chain];
   }
 
   return [...layoutHead, ...chain];

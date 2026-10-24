@@ -34,6 +34,17 @@ describe('buildTemplateChain', () => {
 
     expect(chain).toEqual(['home.astro', 'index.astro', '404.astro']);
   });
+
+  it('página de posts: posts.astro antes da cadeia de page (home.php)', () => {
+    const chain = buildTemplateChain({ type: 'page', slug: 'blog', isPostsPage: true });
+
+    expect(chain).toEqual(['posts.astro', 'page-blog.astro', 'page.astro', 'index.astro', '404.astro']);
+  });
+
+  it('front page e página de posts têm templates dedicados independentes', () => {
+    expect(buildTemplateChain({ type: 'page', slug: 'home', isFrontPage: true })[0]).toBe('front-page.astro');
+    expect(buildTemplateChain({ type: 'page', slug: 'blog', isPostsPage: true })[0]).toBe('posts.astro');
+  });
 });
 
 describe('TemplateHierarchyResolver', () => {
@@ -76,6 +87,23 @@ describe('TemplateHierarchyResolver', () => {
     const result = await resolver.resolve({ type: 'page', isHome: true });
 
     expect(result.file).toBe('home.astro');
+  });
+
+  it('página de posts usa posts.astro quando presente', async () => {
+    const { resolver } = makeResolver(['posts.astro', 'page.astro']);
+
+    const result = await resolver.resolve({ type: 'page', slug: 'blog', isPostsPage: true });
+
+    expect(result.file).toBe('posts.astro');
+    expect(result.triedChain).toEqual(['posts.astro']);
+  });
+
+  it('página de posts sem posts.astro cai na cadeia de page (compatível com temas antigos)', async () => {
+    const { resolver } = makeResolver(['page-blog.astro']);
+
+    const result = await resolver.resolve({ type: 'page', slug: 'blog', isPostsPage: true });
+
+    expect(result.file).toBe('page-blog.astro');
   });
 
   it('fallback final é 404 com a cadeia inteira tentada', async () => {

@@ -23,7 +23,7 @@ export const DEFAULT_THEME_MANIFEST = `${JSON.stringify(
     // Preview card on the admin Themes screen (served from /themes/default/).
     screenshots: ['screenshot.png'],
     provides: {
-      layouts: ['front-page', 'home', 'index', 'single', 'page', 'archive', '404'],
+      layouts: ['front-page', 'home', 'posts', 'index', 'single', 'page', 'archive', '404'],
       assets: ['dist/theme.css'],
     },
     stylesConfig: {
@@ -332,7 +332,7 @@ const FOOTER = `<footer class="site-footer">
 </footer>
 `;
 
-/** Latest posts grid — fed by `items` (fetched for home/front-page/archive). */
+/** Latest posts grid — fed by `items` (fetched for home/front-page/posts page). */
 const POSTS_SECTION = `{{#if items}}
 <section class="section" id="posts">
   <div class="section__head">
@@ -459,7 +459,36 @@ ${HEADER}
   </main>
 ${FOOTER}</div>
 `,
-  // Archive (post type listing — e.g. the blog page configured as page_for_posts).
+  // Posts page (Reading Settings → posts page, WP `home.php`): title + intro
+  // from the page body, then the latest posts grid fed by `items`.
+  'posts.astro': `<div class="site" data-theme="{{site.theme}}" data-template="posts">
+${HEADER}
+  <main class="site-main">
+    <header class="archive-header">
+      <h1 class="archive-header__title">{{page.title}}</h1>
+      {{#if content.html}}
+      <div class="archive-header__description">{{{content.html}}}</div>
+      {{/if}}
+    </header>
+
+    <section class="section section--tight">
+      {{#if items}}
+      <div class="cards">
+        {{#each items}}
+        <article class="card">
+          {{#if published_at}}<time class="card__date" datetime="{{published_at}}">{{published_at}}</time>{{/if}}
+          <h2 class="card__title"><a href="/{{slug}}">{{title}}</a></h2>
+          {{#if excerpt}}<p class="card__excerpt">{{excerpt}}</p>{{/if}}
+          <a class="card__more" href="/{{slug}}">Read more →</a>
+        </article>
+        {{/each}}
+      </div>
+      {{/if}}
+    </section>
+  </main>
+${FOOTER}</div>
+`,
+  // Archive (post type listing — e.g. /post when the type has an archive).
   'archive.astro': `<div class="site" data-theme="{{site.theme}}" data-template="archive" data-type="{{page.type}}">
 ${HEADER}
   <main class="site-main">

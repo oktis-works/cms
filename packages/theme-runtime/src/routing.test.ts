@@ -69,6 +69,144 @@ describe('RuntimeRouter', () => {
     expect((result as any).isPageForPosts).toBe(true);
   });
 
+  it('fallback de / para a página de posts prefere posts.astro (home.php)', async () => {
+    const lookup: ContentLookup = {
+      findByPath: vi.fn(),
+      listTypes: vi.fn().mockResolvedValue([]),
+      findById: vi.fn().mockResolvedValue({ type: 'page', slug: 'blog', data: {}, record: {} }),
+      getSetting: vi.fn().mockImplementation((key) =>
+        key === 'page_for_posts' ? Promise.resolve('page-id-456') : Promise.resolve(null)
+      ),
+    };
+    const router = makeRouter(lookup, ['posts.astro', 'page-blog.astro']);
+
+    const result = await router.resolve('/');
+
+    expect(result.matched).toBe(true);
+    expect(result.template).toBe('posts.astro');
+    expect((result as any).isPageForPosts).toBe(true);
+  });
+
+  it('resolve /blog (página de posts acessada direto) como listagem — posts.astro + isPageForPosts', async () => {
+    const blogRecord = { id: 'page-id-456', title: 'Blog' };
+    const lookup: ContentLookup = {
+      findByPath: vi.fn().mockResolvedValue({ type: 'page', slug: 'blog', data: {}, record: blogRecord }),
+      listTypes: vi.fn().mockResolvedValue([]),
+      findById: vi.fn(),
+      getSetting: vi.fn().mockImplementation((key) =>
+        key === 'page_for_posts' ? Promise.resolve('page-id-456') : Promise.resolve(null)
+      ),
+    };
+    const router = makeRouter(lookup, ['posts.astro', 'page.astro']);
+
+    const result = await router.resolve('/blog');
+
+    expect(result.matched).toBe(true);
+    expect(result.template).toBe('posts.astro');
+    expect(result.contentType).toBe('page');
+    expect(result.slug).toBe('blog');
+    // o web usa este flag para buscar os itens publicados (tipo post)
+    expect((result as any).isPageForPosts).toBe(true);
+  });
+
+  it('sem posts.astro no tema, /blog ainda sinaliza a listagem e cai na cadeia de page', async () => {
+    const blogRecord = { id: 'page-id-456', title: 'Blog' };
+    const lookup: ContentLookup = {
+      findByPath: vi.fn().mockResolvedValue({ type: 'page', slug: 'blog', data: {}, record: blogRecord }),
+      listTypes: vi.fn().mockResolvedValue([]),
+      findById: vi.fn(),
+      getSetting: vi.fn().mockImplementation((key) =>
+        key === 'page_for_posts' ? Promise.resolve('page-id-456') : Promise.resolve(null)
+      ),
+    };
+    const router = makeRouter(lookup, ['page-blog.astro']);
+
+    const result = await router.resolve('/blog');
+
+    expect(result.template).toBe('page-blog.astro');
+    expect((result as any).isPageForPosts).toBe(true);
+  });
+
+  it('/blog usa a chave canônica postsPage com precedência sobre a legada page_for_posts', async () => {
+    const blogRecord = { id: 'canonical-id', title: 'Blog' };
+    const lookup: ContentLookup = {
+      findByPath: vi.fn().mockResolvedValue({ type: 'page', slug: 'blog', data: {}, record: blogRecord }),
+      listTypes: vi.fn().mockResolvedValue([]),
+      findById: vi.fn(),
+      getSetting: vi.fn().mockImplementation((key) => {
+        if (key === 'postsPage') return Promise.resolve('canonical-id');
+        if (key === 'page_for_posts') return Promise.resolve('legacy-id');
+        return Promise.resolve(null);
+      }),
+    };
+    const router = makeRouter(lookup, ['posts.astro']);
+
+    const result = await router.resolve('/blog');
+    expect((result as any).isPageForPosts).toBe(true);
+
+    // legada aponta para OUTRA página → a canônica vence, sem flag
+    blogRecord['id'] = 'legacy-id';
+    const second = await router.resolve('/blog');
+    expect(second.template).not.toBe('posts.astro');
+    expect((second as any).isPageForPosts).toBeUndefined();
+  });
+
+  it('página comum (não é a de posts) continua estática — sem listagem', async () => {
+    const aboutRecord = { id: 'about-id', title: 'About' };
+    const lookup: ContentLookup = {
+      findByPath: vi.fn().mockResolvedValue({ type: 'page', slug: 'about', data: {}, record: aboutRecord }),
+      listTypes: vi.fn().mockResolvedValue([]),
+      findById: vi.fn(),
+      getSetting: vi.fn().mockImplementation((key) =>
+        key === 'page_for_posts' ? Promise.resolve('page-id-456') : Promise.resolve(null)
+      ),
+    };
+    const router = makeRouter(lookup, ['posts.astro', 'page.astro']);
+
+    const result = await router.resolve('/about');
+
+    expect(result.template).toBe('page.astro');
+    expect((result as any).isPageForPosts).toBeUndefined();
+  });
+
+  it('conteúdo que não é page nunca vira página de posts (sem query extra de setting)', async () => {
+    const postRecord = { id: 'page-id-456', title: 'Hello' };
+    const getSetting = vi.fn().mockResolvedValue(null);
+    const lookup: ContentLookup = {
+      findByPath: vi.fn().mockResolvedValue({ type: 'post', slug: 'hello', data: {}, record: postRecord }),
+      listTypes: vi.fn().mockResolvedValue([]),
+      findById: vi.fn(),
+      getSetting,
+    };
+    const router = makeRouter(lookup, ['single.astro']);
+
+    const result = await router.resolve('/hello');
+
+    expect(result.template).toBe('single.astro');
+    expect((result as any).isPageForPosts).toBeUndefined();
+    expect(getSetting).not.toHaveBeenCalledWith('postsPage');
+    expect(getSetting).not.toHaveBeenCalledWith('page_for_posts');
+  });
+
+  it('/page/blog (aninhada) também resolve a listagem quando o slug é a página de posts', async () => {
+    const blogRecord = { id: 'page-id-456', title: 'Blog' };
+    const lookup: ContentLookup = {
+      findByPath: vi.fn().mockResolvedValue({ type: 'page', slug: 'blog', data: {}, record: blogRecord }),
+      listTypes: vi.fn().mockResolvedValue([]),
+      findById: vi.fn(),
+      getSetting: vi.fn().mockImplementation((key) =>
+        key === 'page_for_posts' ? Promise.resolve('page-id-456') : Promise.resolve(null)
+      ),
+    };
+    const router = makeRouter(lookup, ['posts.astro']);
+
+    const result = await router.resolve('/page/blog');
+
+    expect(result.matched).toBe(true);
+    expect(result.template).toBe('posts.astro');
+    expect((result as any).isPageForPosts).toBe(true);
+  });
+
   it('resolve home para archive de posts quando sem configuração', async () => {
     const lookup: ContentLookup = {
       findByPath: vi.fn(),

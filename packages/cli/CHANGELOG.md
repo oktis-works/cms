@@ -1,5 +1,22 @@
 # @oktis-works/cms
 
+## 0.12.0
+
+### Minor Changes
+
+- Default theme: blog page lists the latest posts
+  
+  New `posts.astro` template (declared in the theme manifest layouts): the
+  page configured as the posts page now renders its title and intro from the
+  page body plus the latest posts grid fed by the runtime `items` context —
+  instead of the static page body only. Pairs with the runtime posts-page
+  detection shipped in `@oktis-works/theme-runtime`.
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/theme-runtime@0.10.0
+
 ## 0.11.2
 
 ### Patch Changes

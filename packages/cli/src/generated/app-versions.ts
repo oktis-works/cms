@@ -5,9 +5,9 @@
 export const APP_VERSIONS: Record<string, string> = {
   '@oktis-works/api': '0.14.4',
   '@oktis-works/admin': '0.19.1',
-  '@oktis-works/web': '0.11.0',
+  '@oktis-works/web': '0.11.1',
   '@oktis-works/worker': '0.8.7',
   '@oktis-works/core': '0.11.4',
   '@oktis-works/plugin-runtime': '0.7.0',
-  '@oktis-works/cms': '0.11.2',
+  '@oktis-works/cms': '0.12.0',
 };

@@ -59,6 +59,33 @@ export class RuntimeRouter {
   }
 
   /**
+   * ID da página configurada como página de posts — canônica `postsPage`
+   * (o que o admin salva em Reading Settings) com fallback legado
+   * `page_for_posts` (chave do seed em instalações que nunca salvaram o
+   * formulário).
+   */
+  private async postsPageId(): Promise<string | null> {
+    return (await this.setting('postsPage')) ?? (await this.setting('page_for_posts'));
+  }
+
+  /**
+   * True quando o conteúdo É a página configurada como página de posts: a
+   * listagem do blog precisa do template dedicado (`posts.astro`, WP
+   * `home.php`) e do feed de itens publicados (`isPageForPosts`) — em
+   * qualquer profundidade de URL, não só no fallback de `/`.
+   */
+  private async matchesPostsPage(content: {
+    type: string;
+    record?: Record<string, unknown>;
+  }): Promise<boolean> {
+    if (content.type !== 'page') return false;
+    const rawId = content.record?.['id'];
+    if (typeof rawId !== 'string' && typeof rawId !== 'number') return false;
+    const postsPageId = await this.postsPageId();
+    return postsPageId !== null && postsPageId === String(rawId);
+  }
+
+  /**
    * Resolve um caminho arbitrário (catch-all [...slug]) para um template.
    * Ordem: Static Front Page → content-type archive → conteúdo por slug.
    */
@@ -101,13 +128,14 @@ export class RuntimeRouter {
       }
 
       // Fallback: página de posts (postsPage do admin, depois a legada page_for_posts)
-      const pageForPostsId = (await this.setting('postsPage')) ?? (await this.setting('page_for_posts'));
+      const pageForPostsId = await this.postsPageId();
       if (pageForPostsId) {
         const page = await this.lookup.findById(pageForPostsId);
         if (page && page.type === 'page') {
           const resolved = await this.resolver.resolve({
             type: page.type,
             slug: page.slug,
+            isPostsPage: true,
             layoutOverride: page.layout ?? undefined
           });
           return {
@@ -143,8 +171,24 @@ export class RuntimeRouter {
       // Tenta conteúdo primeiro (slug único), depois arquivo do tipo.
       const content = await this.lookup.findByPath(firstSegment);
       if (content) {
-        const resolved = await this.resolver.resolve({ type: content.type, slug: content.slug, layoutOverride: content.layout ?? undefined });
-        return { matched: true, template: resolved.file, contentType: content.type, slug: content.slug, data: content.data, record: content.record };
+        // A página de posts acessada direto (/blog): mesmo tratamento do
+        // fallback de `/` — template de listagem (posts.astro) + itens.
+        const isPostsPage = await this.matchesPostsPage(content);
+        const resolved = await this.resolver.resolve({
+          type: content.type,
+          slug: content.slug,
+          isPostsPage,
+          layoutOverride: content.layout ?? undefined
+        });
+        return {
+          matched: true,
+          template: resolved.file,
+          contentType: content.type,
+          slug: content.slug,
+          data: content.data,
+          record: content.record,
+          ...(isPostsPage ? { isPageForPosts: true } : {})
+        };
       }
 
       const types = await this.lookup.listTypes();
@@ -159,8 +203,23 @@ export class RuntimeRouter {
       const slug = segments[segments.length - 1] ?? '';
       const content = await this.lookup.findByPath(slug);
       if (content && content.type === typeSegment) {
-        const resolved = await this.resolver.resolve({ type: content.type, slug: content.slug, layoutOverride: content.layout ?? undefined });
-        return { matched: true, template: resolved.file, contentType: content.type, slug: content.slug, data: content.data, record: content.record };
+        // /page/blog também resolve a listagem quando o slug é a página de posts.
+        const isPostsPage = await this.matchesPostsPage(content);
+        const resolved = await this.resolver.resolve({
+          type: content.type,
+          slug: content.slug,
+          isPostsPage,
+          layoutOverride: content.layout ?? undefined
+        });
+        return {
+          matched: true,
+          template: resolved.file,
+          contentType: content.type,
+          slug: content.slug,
+          data: content.data,
+          record: content.record,
+          ...(isPostsPage ? { isPageForPosts: true } : {})
+        };
       }
     }
 

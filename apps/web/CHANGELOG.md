@@ -1,5 +1,12 @@
 # @oktis-works/web
 
+## 0.11.1
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/theme-runtime@0.10.0
+
 ## 0.11.0
 
 ### Minor Changes

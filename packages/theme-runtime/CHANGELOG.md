@@ -1,5 +1,23 @@
 # @oktis-works/theme-runtime
 
+## 0.10.0
+
+### Minor Changes
+
+- Posts page resolves as a real blog listing (WP `home.php` semantics)
+  
+  The configured posts page (canonical `postsPage`, legacy `page_for_posts`)
+  was only detected on the `/` fallback — visiting `/blog` directly rendered
+  the page as a plain static template with no posts feed.
+  
+  - The router now detects the posts page by id in every branch (single
+    segment `/blog`, nested `/page/blog` and the `/` fallback), setting
+    `isPageForPosts` so the web app fetches the published posts feed.
+  - The template chain gains `isPostsPage`: `posts.astro` is tried before the
+    regular page chain, so themes can ship a dedicated listing template
+    (WordPress `home.php` equivalent). Themes without `posts.astro` keep the
+    previous page chain — fully backward compatible.
+
 ## 0.9.0
 
 ### Minor Changes
