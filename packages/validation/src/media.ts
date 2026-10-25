@@ -13,6 +13,10 @@ export interface MediaValue {
 }
 
 function validateMediaItem(item: unknown, config: Record<string, unknown>, field: string, errors: FieldError[]): void {
+  // IDs are the canonical persisted reference; full media objects are used by
+  // the admin and web layers only when they need display metadata.
+  if (typeof item === 'string' && item.trim() !== '') return;
+
   if (typeof item !== 'object' || item === null || Array.isArray(item)) {
     errors.push({
       field,

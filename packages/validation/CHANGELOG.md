@@ -1,5 +1,11 @@
 # @oktis-works/validation
 
+## 0.8.0
+
+### Minor Changes
+
+- Unify standard and custom content fields across definitions, persistence, editing, validation, and theme delivery.
+
 ## 0.7.0
 
 ### Minor Changes

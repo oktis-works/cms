@@ -1,11 +1,13 @@
 // @oktis-works/admin - FieldRenderer (renderização de campos customizados por tipo)
 
-import { For, Show, createMemo, createSignal } from 'solid-js';
+import { For, Show, createMemo, createSignal, onMount } from 'solid-js';
 import { validateFieldClient } from '../../lib/validation';
 import { sanitizeHtml } from '../../lib/sanitize';
+import { apiClient, type Media } from '../../lib/api';
 import type { ResolvedFieldDefinition } from './types';
 import { RelationshipPicker } from './RelationshipPicker';
 import { PluginFieldRenderer } from '../../content/PluginFieldRenderer';
+import { MediaPickerModal, type MediaPickerMode } from '../media/MediaPickerModal';
 
 export interface FieldRendererProps {
   field: ResolvedFieldDefinition;
@@ -416,9 +418,9 @@ function FieldControl(props: FieldControlProps) {
       );
     case 'image':
     case 'file':
-      return <MediaPickerInput multiple={false} onChange={props.onChange} accept={props.field.type === 'image' ? 'image/*' : undefined} />;
+      return <MediaFieldInput mode={props.field.type} value={props.value} onChange={props.onChange} />;
     case 'gallery':
-      return <MediaPickerInput multiple onChange={props.onChange} accept="image/*" />;
+      return <MediaFieldInput mode="gallery" value={props.value} onChange={props.onChange} />;
     case 'google_map':
       return (
         <div class="field-renderer__map">
@@ -497,7 +499,18 @@ function FieldControl(props: FieldControlProps) {
         />
       );
     case 'taxonomy':
+      return (
+        <RelationshipSelector
+          field={props.field}
+          value={props.value}
+          onChange={props.onChange}
+          multiple={config()['multiple'] !== false}
+        />
+      );
     case 'user':
+      if (props.field.isCoreField && props.field.coreFieldKey === 'author') {
+        return <input type="text" class="input" value={(props.value ?? '') as string} readOnly aria-readonly="true" />;
+      }
       return (
         <RelationshipSelector
           field={props.field}
@@ -720,18 +733,79 @@ function RepeaterRow(props: RepeaterRowProps) {
   );
 }
 
-function MediaPickerInput(props: { multiple: boolean; accept?: string; onChange: (value: unknown) => void }) {
+function MediaFieldInput(props: { mode: MediaPickerMode; value: unknown; onChange: (value: unknown) => void }) {
+  const [open, setOpen] = createSignal(false);
+  const [resolved, setResolved] = createSignal<Media | Media[] | null>(null);
+  const [stale, setStale] = createSignal(false);
+
+  onMount(() => {
+    const value = props.value;
+    const ids = (Array.isArray(value) ? value : value ? [value] : [])
+      .filter((item): item is string => typeof item === 'string');
+    if (ids.length === 0) {
+      setStale(false);
+      setResolved((Array.isArray(value) ? value : value ? [value] : []) as Media[]);
+      return;
+    }
+    void Promise.all(ids.map((id) => apiClient.getMedia(id).catch(() => null))).then((items) => {
+      const media = items.filter((item): item is Media => item !== null);
+      setStale(media.length !== ids.length);
+      setResolved(props.mode === 'gallery' ? media : media[0] ?? null);
+    });
+  });
+
+  const currentItems = (): Media[] => {
+    const value = resolved() ?? props.value;
+    return (Array.isArray(value) ? value : value ? [value] : [])
+      .filter((item): item is Media => typeof item === 'object' && item !== null && typeof (item as Media).id === 'string');
+  };
+
+  const pickerValue = (): Media | Media[] | null => {
+    const items = currentItems();
+    return props.mode === 'gallery' ? items : items[0] ?? null;
+  };
+
   return (
-    <input
-      type="file"
-      class="input"
-      multiple={props.multiple}
-      accept={props.accept}
-      onChange={(e) => {
-        const files = Array.from(e.currentTarget.files ?? []);
-        props.onChange(props.multiple ? files : files[0]);
-      }}
-    />
+    <div class="media-field-input">
+      <Show when={stale()}>
+        <p class="notice notice--warning" role="alert">The selected media is no longer available. Choose a replacement.</p>
+      </Show>
+      <Show when={currentItems().length > 0}>
+        <div class="media-field-input__preview">
+          <For each={currentItems()}>
+            {(media) => (
+              <div class="media-field-input__item">
+                <Show when={media.mime_type.startsWith('image/')} fallback={<span>{media.filename}</span>}>
+                  <img src={apiClient.mediaUrl(media.url)} alt={media.alt ?? media.filename} />
+                </Show>
+                <span title={media.filename}>{media.title || media.filename}</span>
+              </div>
+            )}
+          </For>
+        </div>
+      </Show>
+      <div class="media-field-input__actions">
+        <button type="button" class="btn btn-secondary" onClick={() => setOpen(true)}>
+          {currentItems().length > 0 ? 'Change media' : 'Choose media'}
+        </button>
+        <Show when={currentItems().length > 0}>
+          <button type="button" class="btn btn-ghost" onClick={() => { setResolved(null); props.onChange(props.mode === 'gallery' ? [] : null); }}>Remove</button>
+        </Show>
+      </div>
+      <Show when={open()}>
+        <MediaPickerModal
+          open={open()}
+          mode={props.mode}
+          value={pickerValue()}
+          onClose={() => setOpen(false)}
+          onSelect={(media) => {
+            setResolved(media);
+            props.onChange(Array.isArray(media) ? media.map((item) => item.id) : media.id);
+            setOpen(false);
+          }}
+        />
+      </Show>
+    </div>
   );
 }
 

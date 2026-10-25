@@ -5,41 +5,12 @@ import { expandCloneFields } from '../../lib/validation';
 import { sanitizeHtml } from '../../lib/sanitize';
 import { apiClient, type ThemeInfo, type ContentType, type PluginBlockCatalogEntry, type PluginPatternCatalogEntry } from '../../lib/api';
 import { FieldRenderer } from './FieldRenderer';
-import type { ResolvedFieldDefinition } from './types';
+import type { ResolvedFieldGroup } from './types';
 import { useTranslation } from '../../i18n';
 import type { AdminExtensionsState } from '@oktis-works/plugin-sdk';
+import { logicalValuesToBody, normalizeLogicalValues } from '@oktis-works/validation';
 import { MetaBoxesSlot, PluginComponentHost } from '../../ext/slots';
 import { emptyExtensionsState, loadExtensions } from '../../ext/store';
-
-/**
- * Normalizes content body: parses string (double-encoded) to object.
- * Ensures `content` key exists for classic editor (falls back to `html`).
- */
-function normalizeBody(value: unknown): Record<string, unknown> {
-  if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-    const body = value as Record<string, unknown>;
-    // Ensure `content` key for classic editor — fall back to `html` if missing
-    if (body['content'] === undefined && typeof body['html'] === 'string') {
-      body['content'] = body['html'];
-    }
-    return body;
-  }
-  if (typeof value === 'string') {
-    try {
-      const parsed: unknown = JSON.parse(value);
-      if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        const body = parsed as Record<string, unknown>;
-        if (body['content'] === undefined && typeof body['html'] === 'string') {
-          body['content'] = body['html'];
-        }
-        return body;
-      }
-    } catch {
-      // fall through — a plain-text body simply yields no fields
-    }
-  }
-  return {};
-}
 
 interface Draft {
   id?: string;
@@ -60,7 +31,7 @@ interface Props {
 export function ContentEditor(props: Props) {
   const { t } = useTranslation();
   const [types, setTypes] = createSignal<ContentType[]>([]);
-  const [groups, setGroups] = createSignal<ResolvedFieldDefinition[]>([]);
+  const [groups, setGroups] = createSignal<ResolvedFieldGroup[]>([]);
   const [themes, setThemes] = createSignal<ThemeInfo[]>([]);
   const [data, setData] = createSignal<Record<string, unknown>>({});
   const [errors, setErrors] = createSignal<string[]>([]);
@@ -75,10 +46,6 @@ export function ContentEditor(props: Props) {
     title: '',
     status: 'DRAFT',
   });
-
-  const supports = (): Set<string> =>
-    new Set(types().find((type) => type.slug === draft().type)?.supports ?? ['title', 'editor']);
-  const hasSupport = (support: string): boolean => supports().has(support);
 
   // Active plugin editor for this screen (editor slot — FEAT-098): registrations
   // matching the current content type (or the '*' wildcard) sorted by priority
@@ -117,23 +84,24 @@ export function ContentEditor(props: Props) {
   const loadGroups = async (context: { type?: string; slug?: string; status?: string } | string): Promise<void> => {
     try {
       const query = typeof context === 'string' ? { type: context } : context;
-      const all = await apiClient.getFieldGroups(query.type ? query : undefined);
-      const resolved = await Promise.all(
-        all
-          .filter((group) => group.active)
-          .map(async (group) => {
-            const full = await apiClient.getFieldGroup(group.id);
-            return full.fields ?? [];
-          })
-      );
-      setGroups(expandCloneFields(resolved.flat() as ResolvedFieldDefinition[]));
+      if (!query.type) {
+        setGroups([]);
+        return;
+      }
+      const resolved = await apiClient.getFieldGroups(query);
+      setGroups(resolved
+        .filter((group) => group.active !== false)
+        .map((group) => ({
+          ...group,
+          fields: expandCloneFields((group.fields ?? []) as never) as ResolvedFieldGroup['fields'],
+        })));
     } catch (err) {
       setErrors([err instanceof Error ? err.message : String(err)]);
     }
   };
 
   onMount(async () => {
-    // Slots de plugin (metaboxes) — opcional, estado compartilhado entre telas.
+    // Plugin slots (metaboxes) are optional shared state between screens.
     void loadExtensions().then(setExtensions);
 
     let typeList: ContentType[] = [];
@@ -164,19 +132,22 @@ export function ContentEditor(props: Props) {
           return;
         }
         const rawRow = existing as unknown as Record<string, unknown>;
+        const logical = normalizeLogicalValues({
+          body: existing.body,
+          data: rawRow['data'],
+          native: rawRow,
+        });
         setDraft({
           id: existing.id,
           type: existing.type,
-          title: existing.title,
-          slug: existing.slug,
-          excerpt: existing.excerpt,
-          featuredImageId:
-            (rawRow['featuredImageId'] as string | undefined) ??
-            (rawRow['featured_image_id'] as string | undefined),
-          status: existing.status,
+          title: String(logical['title'] ?? existing.title),
+          slug: String(logical['slug'] ?? existing.slug),
+          excerpt: typeof logical['excerpt'] === 'string' ? logical['excerpt'] : undefined,
+          featuredImageId: typeof logical['featured_image'] === 'string' ? logical['featured_image'] : undefined,
+          status: String(logical['status'] ?? existing.status),
           layout: existing.layout,
         });
-        setData(normalizeBody(existing.body));
+        setData(logical);
       } catch (err) {
         setErrors([err instanceof Error ? err.message : String(err)]);
       }
@@ -190,16 +161,6 @@ export function ContentEditor(props: Props) {
   const editorContent = (): string => {
     const value = data()['content'];
     return typeof value === 'string' ? value : '';
-  };
-
-  const syncEditorContent = (element: HTMLElement): void => {
-    setData({ ...data(), content: element.innerHTML });
-  };
-
-  const formatEditor = (command: string, value?: string): void => {
-    document.execCommand(command, false, value);
-    const editor = document.querySelector<HTMLElement>('[data-classic-editor]');
-    if (editor) syncEditorContent(editor);
   };
 
   const insertPattern = (pattern: PluginPatternCatalogEntry): void => {
@@ -220,18 +181,19 @@ export function ContentEditor(props: Props) {
     try {
       const html = sanitizeHtml(editorContent());
       const currentData = data();
-      const body: Record<string, unknown> = { ...currentData, content: html };
-      // Sync `html` key if it existed in original body (legacy/demo content)
-      // so theme continues to render updated content (theme prefers content.html)
-      if ('html' in currentData) {
-        body['html'] = html;
-      }
+      const logical: Record<string, unknown> = { ...currentData, content: html };
+      const body = logicalValuesToBody(logical);
       const payload = {
         ...draft(),
+        title: String(logical['title'] ?? draft().title),
+        slug: String(logical['slug'] ?? draft().slug ?? ''),
+        excerpt: typeof logical['excerpt'] === 'string' ? logical['excerpt'] : undefined,
+        featuredImageId: typeof logical['featured_image'] === 'string' ? logical['featured_image'] : undefined,
+        seoTitle: typeof logical['seo_title'] === 'string' ? logical['seo_title'] : undefined,
+        seoDescription: typeof logical['seo_description'] === 'string' ? logical['seo_description'] : undefined,
+        status: String(logical['status'] ?? draft().status),
         layout: draft().layout || null,
         body,
-        ...(hasSupport('excerpt') ? {} : { excerpt: undefined }),
-        ...(hasSupport('thumbnail') ? {} : { featuredImageId: undefined }),
       };
 
       const saved = draft().id
@@ -270,122 +232,53 @@ export function ContentEditor(props: Props) {
       <div class="classic-editor__columns">
         <main class="classic-editor__main">
           <section class="card classic-editor__canvas-card">
-            <Show when={hasSupport('title')}>
-              <input
-                class="classic-editor__title"
-                required
-                aria-label={t('content.editor.title')}
-                placeholder={t('content.editor.titlePlaceholder')}
-                value={draft().title}
-                onInput={(event) => setDraft({ ...draft(), title: event.currentTarget.value })}
-              />
+            <p class="field-renderer__instructions">All standard and custom values use the same resolved field schema.</p>
+            {/* Editor slot, replace-body mode — the plugin owns the body editor. */}
+            <Show when={activeEditor()?.mode === 'replace-body'}>
+              <div class="plugin-editor plugin-editor--replace-body" data-plugin-editor={activeEditor()!.id}>
+                <PluginComponentHost componentId={activeEditor()!.componentId} extraProps={editorSlotProps()} />
+              </div>
             </Show>
-
-            <div class="classic-editor__permalink">
-              <span>{t('content.editor.slug')}:</span>
-              <input class="input" value={draft().slug ?? ''} placeholder={t('content.editor.slugPlaceholder')} onInput={(event) => setDraft({ ...draft(), slug: event.currentTarget.value })} />
-            </div>
-
-            <Show when={hasSupport('editor')}>
-              <Show
-                when={activeEditor()?.mode !== 'replace-body'}
-                fallback={
-                  <div class="plugin-editor" data-plugin-editor={activeEditor()!.id}>
-                    <PluginComponentHost componentId={activeEditor()!.componentId} extraProps={editorSlotProps()} />
-                  </div>
-                }
-              >
-                <div class="classic-editor__toolbar" role="toolbar" aria-label={t('content.editor.toolbar')}>
-                  <select class="input" aria-label={t('content.editor.format')} onChange={(e) => formatEditor('formatBlock', e.currentTarget.value)} value="">
-                    <option value="">{t('content.editor.formatParagraph')}</option>
-                    <option value="<h1>">{t('content.editor.formatH1')}</option>
-                    <option value="<h2>">{t('content.editor.formatH2')}</option>
-                    <option value="<h3>">{t('content.editor.formatH3')}</option>
-                    <option value="<h4>">{t('content.editor.formatH4')}</option>
-                    <option value="<blockquote>">{t('content.editor.formatBlockquote')}</option>
-                    <option value="<pre>">{t('content.editor.formatCode')}</option>
-                  </select>
-                  <span class="classic-editor__toolbar-divider" />
-                  <button type="button" onClick={() => formatEditor('bold')}>
-                    <strong>{t('content.editor.bold')}</strong>
-                  </button>
-                  <button type="button" onClick={() => formatEditor('italic')}>
-                    <em>{t('content.editor.italic')}</em>
-                  </button>
-                  <button type="button" onClick={() => formatEditor('underline')}>
-                    <u>{t('content.editor.underline')}</u>
-                  </button>
-                  <span class="classic-editor__toolbar-divider" />
-                  <button type="button" onClick={() => formatEditor('insertUnorderedList')}>
-                    {t('content.editor.bulletList')}
-                  </button>
-                  <button type="button" onClick={() => formatEditor('insertOrderedList')}>
-                    {t('content.editor.numberedList')}
-                  </button>
-                  <button type="button" onClick={() => formatEditor('createLink', window.prompt(t('content.editor.linkPrompt')) || '')}>
-                    {t('content.editor.link')}
-                  </button>
-                </div>
-                <div
-                  class="classic-editor__body"
-                  contentEditable={true}
-                  data-classic-editor
-                  role="textbox"
-                  aria-multiline="true"
-                  data-placeholder={t('content.editor.bodyPlaceholder')}
-                  innerHTML={sanitizeHtml(editorContent())}
-                  onInput={(event) => syncEditorContent(event.currentTarget)}
-                />
-              </Show>
-            </Show>
-
-            {/* Editor slot, below mode — plugin UI under the classic body area */}
+            {/* Editor slot, below mode — plugin UI under the unified field tree */}
             <Show when={activeEditor()?.mode === 'below'}>
               <div class="plugin-editor plugin-editor--below" data-plugin-editor={activeEditor()!.id}>
                 <PluginComponentHost componentId={activeEditor()!.componentId} extraProps={editorSlotProps()} />
               </div>
             </Show>
 
-            <Show when={hasSupport('excerpt')}>
-              <label class="classic-editor__excerpt">
-                <span>{t('content.editor.excerpt')}</span>
-                <textarea class="input" rows={4} value={draft().excerpt ?? ''} onInput={(event) => setDraft({ ...draft(), excerpt: event.currentTarget.value })} />
-              </label>
-            </Show>
           </section>
 
-          <Show when={groups().length > 0}>
-            <section class="card custom-fields">
-              <h3>{t('content.editor.customFields')}</h3>
-              <For each={groups()}>{(field) => <FieldRenderer field={field} values={data()} onChange={(name, value) => setData({ ...data(), [name]: value })} t={t} />}</For>
-            </section>
-          </Show>
+          <For each={groups()}>
+            {(group) => (
+              <section
+                class="card custom-fields"
+                data-field-group={group.key}
+                data-position={group.position ?? 'normal'}
+                data-display-style={group.displayStyle ?? 'standard'}
+              >
+                <h3>{group.title}</h3>
+                <For each={group.fields}>{(field) => (
+                  <FieldRenderer
+                    field={field}
+                    values={data()}
+                    onChange={(name, value) => setData({ ...data(), [name]: value })}
+                    t={t}
+                  />
+                )}</For>
+              </section>
+            )}
+          </For>
 
-          {/* Metaboxes de plugin (context normal) — FEAT-098 / DECI-027 */}
+          {/* Plugin metaboxes (normal context) — FEAT-098 / DECI-027 */}
           <MetaBoxesSlot extensions={extensions()} screen={draft().type} context="normal" />
         </main>
 
         <aside class="classic-editor__sidebar">
           <section class="card classic-editor__panel">
             <h3>{t('content.editor.publishPanel')}</h3>
-            <label>
-              {t('content.editor.status')}
-              <select class="input" value={draft().status} onChange={(event) => setDraft({ ...draft(), status: event.currentTarget.value })}>
-                <option value="DRAFT">{t('content.editor.statusOptions.draft')}</option>
-                <option value="PUBLISHED">{t('content.editor.statusOptions.published')}</option>
-                <option value="ARCHIVED">{t('content.editor.statusOptions.archived')}</option>
-              </select>
-            </label>
+            <p class="muted">Status and all other values are edited in the resolved field groups.</p>
             <button type="submit" class="btn btn-primary classic-editor__full-button" disabled={saving()}>{saving() ? t('content.editor.saving') : t('content.editor.save')}</button>
           </section>
-
-          <Show when={hasSupport('thumbnail')}>
-            <section class="card classic-editor__panel">
-              <h3>{t('content.editor.featuredImage')}</h3>
-              <input class="input" value={draft().featuredImageId ?? ''} placeholder={t('content.editor.mediaIdPlaceholder')} onInput={(event) => setDraft({ ...draft(), featuredImageId: event.currentTarget.value })} />
-              <p class="muted">{t('content.editor.featuredImageHint')}</p>
-            </section>
-          </Show>
 
           <Show when={availableLayouts().length > 0}>
             <section class="card classic-editor__panel">
@@ -415,6 +308,7 @@ export function ContentEditor(props: Props) {
 
       {/* Metaboxes de plugin (context advanced) — FEAT-098 / DECI-027 */}
       <MetaBoxesSlot extensions={extensions()} screen={draft().type} context="advanced" />
+
     </form>
   );
 }

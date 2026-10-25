@@ -23,6 +23,21 @@ export type {
 export { expandCloneFields } from './clone.js';
 export type { CloneDisplay } from './clone.js';
 export {
+  CANONICAL_CORE_FIELDS,
+  CANONICAL_FIELD_ALIASES,
+  canonicalFieldName,
+  logicalValuesToBody,
+  logicalValuesToNative,
+  normalizeLogicalValues,
+} from './field-values.js';
+export { findFieldPathIssues } from './field-paths.js';
+export type { FieldPathDefinition } from './field-paths.js';
+export type {
+  CanonicalCoreField,
+  LogicalValueRecord,
+  LogicalValueSources,
+} from './field-values.js';
+export {
   PLUGIN_PERMISSIONS,
   PLUGIN_PERMISSION_DEFAULT,
   isKnownPluginPermission,

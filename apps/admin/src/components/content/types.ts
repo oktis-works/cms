@@ -28,4 +28,18 @@ export interface ResolvedFieldDefinition {
   configSchema?: Record<string, unknown>;
   isPluginType?: boolean;
   pluginName?: string;
+  isCoreField?: boolean;
+  isLocked?: boolean;
+  coreFieldKey?: string;
+}
+
+export interface ResolvedFieldGroup {
+  id: string;
+  title: string;
+  key: string;
+  position?: 'normal' | 'side' | 'after_title';
+  displayStyle?: 'standard' | 'seamless' | 'grouped';
+  active?: boolean;
+  metadata?: Record<string, unknown>;
+  fields: ResolvedFieldDefinition[];
 }

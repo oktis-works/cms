@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { isAbsolute, resolve, sep } from 'node:path';
 import type { ThemeComponent, RenderContext, PageProps } from '@oktis-works/theme-sdk';
-import { runWithCurrentContent } from '@oktis-works/theme-sdk';
+import { getField, runWithCurrentContent } from '@oktis-works/theme-sdk';
 
 type TemplateNode =
   | { type: 'text'; value: string }
@@ -292,6 +292,8 @@ export class ThemeRenderer {
   }
 
   private resolveExpression(expression: string, context: Record<string, unknown>): unknown {
+    const field = expression.match(/^\(?field\s+(['"])(.*?)\1\)?$/);
+    if (field) return getField(field[2]!);
     const eq = expression.match(/^\(eq\s+(.+?)\s+(['"])(.*?)\2\)$/);
     if (eq) return String(this.resolveVariable(eq[1]!, context)) === eq[3];
     const formatDate = expression.match(/^formatDate\s+(.+)$/);

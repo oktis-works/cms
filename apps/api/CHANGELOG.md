@@ -1,5 +1,17 @@
 # @oktis-works/api
 
+## 0.16.3
+
+### Patch Changes
+
+- Unify standard and custom content fields across definitions, persistence, editing, validation, and theme delivery.
+- Updated dependencies
+  - @oktis-works/core@0.15.0
+  - @oktis-works/database@0.14.2
+  - @oktis-works/validation@0.8.0
+  - @oktis-works/auth@0.8.2
+  - @oktis-works/types@0.9.3
+
 ## 0.16.2
 
 ### Patch Changes

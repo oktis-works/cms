@@ -4,6 +4,7 @@ import {
   postTypeRegistry,
 } from '@oktis-works/core';
 import { getConnection } from '@oktis-works/database';
+import { normalizeLogicalValues } from '@oktis-works/validation';
 import type {
   ThemeContentQuery,
   ThemeContentRecord,
@@ -25,13 +26,13 @@ function text(row: DatabaseRow, camel: string, snake = camel.replace(/[A-Z]/g, (
 }
 
 function contentRow(row: DatabaseRow): ThemeContentRecord {
-  const rawBody = row['body'] ?? row['data'] ?? {};
-  const body = typeof rawBody === 'string'
-    ? parseJsonObject(rawBody)
-    : rawBody && typeof rawBody === 'object' && !Array.isArray(rawBody)
-      ? rawBody as Record<string, unknown>
-      : {};
+  const body = normalizeLogicalValues({
+    body: row['body'],
+    data: row['data'],
+    native: row,
+  });
   return {
+    ...body,
     id: text(row, 'id'),
     type: text(row, 'type'),
     title: text(row, 'title') ?? '',
@@ -40,26 +41,15 @@ function contentRow(row: DatabaseRow): ThemeContentRecord {
     status: text(row, 'status'),
     body,
     data: body,
-    featuredImageId: text(row, 'featuredImageId'),
-    seoTitle: text(row, 'seoTitle'),
-    seoDescription: text(row, 'seoDescription'),
+    featuredImageId: typeof body['featured_image'] === 'string' ? body['featured_image'] : text(row, 'featuredImageId'),
+    seoTitle: typeof body['seo_title'] === 'string' ? body['seo_title'] : text(row, 'seoTitle'),
+    seoDescription: typeof body['seo_description'] === 'string' ? body['seo_description'] : text(row, 'seoDescription'),
     metadata: row['metadata'] ?? undefined,
     layout: row['layout'] ?? undefined,
     createdAt: row['createdAt'] ?? row['created_at'],
     updatedAt: row['updatedAt'] ?? row['updated_at'],
     publishedAt: row['publishedAt'] ?? row['published_at'],
   };
-}
-
-function parseJsonObject(value: string): Record<string, unknown> {
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-      ? parsed as Record<string, unknown>
-      : {};
-  } catch {
-    return {};
-  }
 }
 
 function menuRow(menu: DatabaseRow | null): ThemeMenu | null {

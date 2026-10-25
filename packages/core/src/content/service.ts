@@ -10,6 +10,11 @@ import { HOOK_POINTS } from '../hooks/points.js';
 import { getTaggedCacheIndex } from '../cache/tags.js';
 import { postTypeRegistry } from './post-types.js';
 import { fieldGroupService } from '../fields/service.js';
+import {
+  logicalValuesToBody,
+  logicalValuesToNative,
+  normalizeLogicalValues,
+} from '@oktis-works/validation';
 
 export interface CreateContentInput {
   type: string;
@@ -69,15 +74,22 @@ async function typeSupports(type: string | undefined | null, support: string): P
   return definition?.supports?.includes(support as never) ?? false;
 }
 
-/** Valida os campos customizados do body contra os field groups ativos. */
+/** Validates the logical content values against the active field groups. */
 async function validateCustomFields(
   context: { contentType: string; contentSlug?: string; postStatus?: string },
   body: Record<string, unknown>
 ): Promise<void> {
   const issues = await fieldGroupService.validateValues(context, body);
   if (issues.length > 0) {
-    throw new Error(`Validação de campos falhou: ${issues.join('; ')}`);
+    throw new Error(`Field validation failed: ${issues.join('; ')}`);
   }
+}
+
+function readString(record: Record<string, unknown>, ...keys: string[]): string | undefined {
+  for (const key of keys) {
+    if (typeof record[key] === 'string') return record[key] as string;
+  }
+  return undefined;
 }
 
 function generateSlug(title: string): string {
@@ -241,22 +253,24 @@ export class ContentService {
       { operation: 'create', title: input.title, slug: input.slug }
     )) as Record<string, unknown>;
 
-    // Validação server-side dos campos customizados (bugs: nunca rodava).
-    // Só quando o caller envia body (o editor sempre envia): criações parciais
-    // via API/seeds não são bloqueadas. Roda depois dos hooks, antes do insert.
-    if (input.body !== undefined) {
-      await validateCustomFields(
-        {
-          contentType: input.type,
-          contentSlug: input.slug,
-          postStatus: input.status ?? 'DRAFT',
-        },
-        filteredInput
-      );
-    }
+    const slug = input.slug ?? generateSlug(input.title);
+
+    const logical = normalizeLogicalValues({
+      body: filteredInput,
+      native: { ...input, slug, status: input.status ?? 'DRAFT', author: input.authorId },
+    });
+    await validateCustomFields(
+      {
+        contentType: input.type,
+        contentSlug: slug,
+        postStatus: input.status ?? 'DRAFT',
+      },
+      logical
+    );
+    const canonicalBody = logicalValuesToBody(logical);
+    const native = logicalValuesToNative(logical);
 
     const id = randomUUID();
-    const slug = input.slug ?? generateSlug(input.title);
     const status = input.status ?? 'DRAFT';
     const metadata = input.metadata ?? {};
 
@@ -264,7 +278,7 @@ export class ContentService {
       `INSERT INTO content (id, tenant_id, type, title, slug, body, excerpt, status, author_id, featured_image_id, seo_title, seo_description, metadata, layout)
        VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11, $12, $13::jsonb, $14)
        RETURNING *`,
-      [id, input.tenantId, input.type, input.title, slug, filteredInput, input.excerpt ?? null, status, input.authorId, input.featuredImageId ?? null, input.seoTitle ?? null, input.seoDescription ?? null, metadata, input.layout ?? null]
+      [id, input.tenantId, input.type, String(logical['title'] ?? input.title), String(logical['slug'] ?? slug), canonicalBody, native['excerpt'] ?? null, String(logical['status'] ?? status), String(native['authorId'] ?? input.authorId), native['featuredImageId'] ?? null, native['seoTitle'] ?? null, native['seoDescription'] ?? null, metadata, input.layout ?? null]
     );
 
     const content = result[0] as unknown as Content;
@@ -302,24 +316,56 @@ export class ContentService {
 
     input = (await stripUnsupportedFields(existing.type, input)) as UpdateContentInput;
 
+    let logical = normalizeLogicalValues({
+      body: existing.body,
+      data: (existing as unknown as Record<string, unknown>)['data'],
+      native: existing as unknown as Record<string, unknown>,
+    });
+
     if (input.body !== undefined) {
       input.body = (await registry.applyFiltersAsync(
         HOOK_POINTS.BEFORE_SAVE_CONTENT(existing.type),
         input.body,
         { operation: 'update', title: input.title, slug: input.slug, id }
       )) as Record<string, unknown>;
-
-      // Validação server-side antes do snapshot e do UPDATE: uma falha não
-      // deve nem mesmo criar revisão. Contexto espelha o do editor.
-      await validateCustomFields(
-        {
-          contentType: existing.type,
-          contentSlug: input.slug ?? existing.slug,
-          postStatus: input.status ?? existing.status,
-        },
-        input.body
-      );
     }
+
+    const providedLogical = input.body !== undefined
+      ? normalizeLogicalValues({ body: input.body })
+      : {};
+
+    const updateBody = {
+      ...logical,
+      ...providedLogical,
+      ...(input.title !== undefined ? { title: input.title } : {}),
+      ...(input.slug !== undefined ? { slug: input.slug } : {}),
+      ...(input.excerpt !== undefined ? { excerpt: input.excerpt } : {}),
+      ...(input.status !== undefined ? { status: input.status } : {}),
+      ...(input.featuredImageId !== undefined ? { featured_image: input.featuredImageId } : {}),
+      ...(input.seoTitle !== undefined ? { seo_title: input.seoTitle } : {}),
+      ...(input.seoDescription !== undefined ? { seo_description: input.seoDescription } : {}),
+    };
+    logical = normalizeLogicalValues({
+      body: updateBody,
+      native: {
+        ...(existing as unknown as Record<string, unknown>),
+        ...input,
+        title: input.title ?? existing.title,
+        slug: input.slug ?? existing.slug,
+        status: input.status ?? existing.status,
+        author: readString(existing as unknown as Record<string, unknown>, 'authorId', 'author_id'),
+      },
+    });
+    await validateCustomFields(
+      {
+        contentType: existing.type,
+        contentSlug: String(logical['slug'] ?? existing.slug),
+        postStatus: String(logical['status'] ?? existing.status),
+      },
+      logical
+    );
+    const canonicalBody = logicalValuesToBody(logical);
+    const native = logicalValuesToNative(logical);
 
     if (await typeSupports(existing.type, 'revisions')) {
       await this.recordSnapshot(existing);
@@ -329,37 +375,38 @@ export class ContentService {
     const setClauses: string[] = [];
     const setParams: unknown[] = [];
 
-    if (input.title !== undefined) {
+    if (input.title !== undefined || Object.prototype.hasOwnProperty.call(providedLogical, 'title')) {
       setClauses.push(`title = $${setParams.length + 1}`);
-      setParams.push(input.title);
+      setParams.push(native['title']);
     }
-    if (input.slug !== undefined) {
+    if (input.slug !== undefined || Object.prototype.hasOwnProperty.call(providedLogical, 'slug')) {
       setClauses.push(`slug = $${setParams.length + 1}`);
-      setParams.push(input.slug);
+      setParams.push(native['slug']);
     }
-    if (input.body !== undefined) {
+    {
       setClauses.push(`body = $${setParams.length + 1}::jsonb`);
-      setParams.push(input.body);
+      setParams.push(canonicalBody);
+      setClauses.push(`data = '{}'::jsonb`);
     }
-    if (input.excerpt !== undefined) {
+    if (input.excerpt !== undefined || Object.prototype.hasOwnProperty.call(providedLogical, 'excerpt')) {
       setClauses.push(`excerpt = $${setParams.length + 1}`);
-      setParams.push(input.excerpt);
+      setParams.push(native['excerpt'] ?? null);
     }
-    if (input.status !== undefined) {
+    if (input.status !== undefined || Object.prototype.hasOwnProperty.call(providedLogical, 'status')) {
       setClauses.push(`status = $${setParams.length + 1}`);
-      setParams.push(input.status);
+      setParams.push(native['status']);
     }
-    if (input.featuredImageId !== undefined) {
+    if (input.featuredImageId !== undefined || Object.prototype.hasOwnProperty.call(providedLogical, 'featured_image')) {
       setClauses.push(`featured_image_id = $${setParams.length + 1}`);
-      setParams.push(input.featuredImageId);
+      setParams.push(native['featuredImageId'] ?? null);
     }
-    if (input.seoTitle !== undefined) {
+    if (input.seoTitle !== undefined || Object.prototype.hasOwnProperty.call(providedLogical, 'seo_title')) {
       setClauses.push(`seo_title = $${setParams.length + 1}`);
-      setParams.push(input.seoTitle);
+      setParams.push(native['seoTitle'] ?? null);
     }
-    if (input.seoDescription !== undefined) {
+    if (input.seoDescription !== undefined || Object.prototype.hasOwnProperty.call(providedLogical, 'seo_description')) {
       setClauses.push(`seo_description = $${setParams.length + 1}`);
-      setParams.push(input.seoDescription);
+      setParams.push(native['seoDescription'] ?? null);
     }
     if (input.metadata !== undefined) {
       setClauses.push(`metadata = $${setParams.length + 1}::jsonb`);
@@ -473,11 +520,18 @@ export class ContentService {
 
     await this.recordSnapshot(current);
 
+    const restoredLogical = normalizeLogicalValues({
+      body: revision['body'],
+      native: revision,
+    });
+    const restoredNative = logicalValuesToNative(restoredLogical);
+
     const result = await sql.unsafe(
       `UPDATE content SET
          title = $1,
          slug = $2,
          body = $3::jsonb,
+         data = '{}'::jsonb,
          excerpt = $4,
          featured_image_id = $5,
          seo_title = $6,
@@ -486,13 +540,13 @@ export class ContentService {
          updated_at = NOW()
        WHERE id = $9 RETURNING *`,
       [
-        String(revision['title']),
-        revision['slug'] != null ? String(revision['slug']) : current.slug,
-        revision['body'] ?? null,
-        revision['excerpt'] != null ? String(revision['excerpt']) : null,
-        revision['featured_image_id'] != null ? String(revision['featured_image_id']) : null,
-        revision['seo_title'] != null ? String(revision['seo_title']) : null,
-        revision['seo_description'] != null ? String(revision['seo_description']) : null,
+        String(restoredLogical['title'] ?? current.title),
+        restoredLogical['slug'] != null ? String(restoredLogical['slug']) : current.slug,
+        logicalValuesToBody(restoredLogical),
+        restoredNative['excerpt'] != null ? String(restoredNative['excerpt']) : null,
+        restoredNative['featuredImageId'] != null ? String(restoredNative['featuredImageId']) : null,
+        restoredNative['seoTitle'] != null ? String(restoredNative['seoTitle']) : null,
+        restoredNative['seoDescription'] != null ? String(restoredNative['seoDescription']) : null,
         revision['metadata'] ?? {},
         contentId,
       ] as unknown[]
@@ -520,19 +574,25 @@ export class ContentService {
     const sql = getConnection();
 
     const raw = content as unknown as Record<string, unknown>;
+    const logical = normalizeLogicalValues({
+      body: content.body,
+      data: raw['data'],
+      native: raw,
+    });
+    const native = logicalValuesToNative(logical);
     const values: unknown[] = [
       randomUUID(),
       content.id,
       Number(content.version),
-      content.title,
-      typeof raw['slug'] === 'string' ? raw['slug'] : null,
-      content.body ?? null,
-      typeof raw['excerpt'] === 'string' ? raw['excerpt'] : null,
-      typeof raw['featured_image_id'] === 'string' ? raw['featured_image_id'] : null,
-      typeof raw['seo_title'] === 'string' ? raw['seo_title'] : null,
-      typeof raw['seo_description'] === 'string' ? raw['seo_description'] : null,
+      String(logical['title'] ?? content.title),
+      logical['slug'] != null ? String(logical['slug']) : null,
+      logicalValuesToBody(logical),
+      native['excerpt'] ?? null,
+      native['featuredImageId'] ?? null,
+      native['seoTitle'] ?? null,
+      native['seoDescription'] ?? null,
       content.metadata ?? {},
-      content.authorId ?? null,
+      native['authorId'] ?? content.authorId ?? null,
     ];
 
     await sql.unsafe(

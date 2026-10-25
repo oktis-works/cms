@@ -1,5 +1,14 @@
 # @oktis-works/plugin-runtime
 
+## 0.7.2
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/validation@0.8.0
+  - @oktis-works/plugin-sdk@0.7.2
+  - @oktis-works/types@0.9.3
+
 ## 0.7.1
 
 ### Patch Changes

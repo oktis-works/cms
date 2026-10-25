@@ -12,11 +12,7 @@ WITH pg AS (
     '{"content_type": ["post"]}'::jsonb,
     'normal', 'standard', true, '{}'::jsonb
   )
-  ON CONFLICT (key) DO UPDATE SET
-    title = EXCLUDED.title,
-    location_rules = EXCLUDED.location_rules,
-    active = EXCLUDED.active,
-    updated_at = NOW()
+  ON CONFLICT DO NOTHING
   RETURNING id AS group_id
 ),
 pa AS (
@@ -28,11 +24,7 @@ pa AS (
     '{"content_type": ["page"]}'::jsonb,
     'normal', 'standard', true, '{}'::jsonb
   )
-  ON CONFLICT (key) DO UPDATE SET
-    title = EXCLUDED.title,
-    location_rules = EXCLUDED.location_rules,
-    active = EXCLUDED.active,
-    updated_at = NOW()
+  ON CONFLICT DO NOTHING
   RETURNING id AS group_id
 ),
 -- Inserir core fields para Post
@@ -49,15 +41,15 @@ pf AS (
     true, v.is_locked, v.core_field_key
   FROM pg
   CROSS JOIN (VALUES
-    ('text', 'title', 'title', 'Título', 'Título do post', true, '{}'::jsonb, 1, true, 'title'),
-    ('slug', 'slug', 'slug', 'Slug', 'URL amigável (único)', true, '{}'::jsonb, 2, true, 'slug'),
-    ('wysiwyg', 'content', 'content', 'Conteúdo', 'Corpo principal do post', true, '{}'::jsonb, 3, false, 'content'),
-    ('textarea', 'excerpt', 'excerpt', 'Resumo', 'Resumo curto para listagens', false, '{}'::jsonb, 4, false, 'excerpt'),
-    ('image', 'featured_image', 'featured_image', 'Imagem Destacada', 'Imagem principal do post', false, '{}'::jsonb, 5, false, 'featured_image'),
-    ('text', 'seo_title', 'seo_title', 'SEO Title', 'Título para SEO (meta title)', false, '{}'::jsonb, 6, false, 'seo_title'),
-    ('textarea', 'seo_description', 'seo_description', 'SEO Description', 'Descrição para SEO (meta description)', false, '{}'::jsonb, 7, false, 'seo_description'),
-    ('select', 'status', 'status', 'Status', 'Status de publicação', true, '{"options":[{"value":"DRAFT","label":"Rascunho"},{"value":"PUBLISHED","label":"Publicado"},{"value":"ARCHIVED","label":"Arquivado"},{"value":"TRASHED","label":"Lixeira"}]}'::jsonb, 8, false, 'status'),
-    ('user', 'author', 'author', 'Autor', 'Autor do post', true, '{}'::jsonb, 9, false, 'author')
+    ('text', 'title', 'title', 'Title', 'Post title', true, '{}'::jsonb, 1, true, 'title'),
+    ('slug', 'slug', 'slug', 'Slug', 'Unique public URL slug', true, '{}'::jsonb, 2, true, 'slug'),
+    ('wysiwyg', 'content', 'content', 'Content', 'Main post content', true, '{}'::jsonb, 3, false, 'content'),
+    ('textarea', 'excerpt', 'excerpt', 'Excerpt', 'Short summary for listings', false, '{}'::jsonb, 4, false, 'excerpt'),
+    ('image', 'featured_image', 'featured_image', 'Featured Image', 'Primary post image', false, '{}'::jsonb, 5, false, 'featured_image'),
+    ('text', 'seo_title', 'seo_title', 'SEO Title', 'SEO meta title', false, '{}'::jsonb, 6, false, 'seo_title'),
+    ('textarea', 'seo_description', 'seo_description', 'SEO Description', 'SEO meta description', false, '{}'::jsonb, 7, false, 'seo_description'),
+    ('select', 'status', 'status', 'Status', 'Publication status', true, '{"options":[{"value":"DRAFT","label":"Draft"},{"value":"PUBLISHED","label":"Published"},{"value":"ARCHIVED","label":"Archived"},{"value":"TRASHED","label":"Trash"}]}'::jsonb, 8, false, 'status'),
+    ('user', 'author', 'author', 'Author', 'Post author', true, '{}'::jsonb, 9, false, 'author')
   ) AS v(type, name, key, label, instructions, required, config, sort_order, is_locked, core_field_key)
   ON CONFLICT (key) DO NOTHING
   RETURNING id
@@ -76,15 +68,15 @@ pa_f AS (
     true, v.is_locked, v.core_field_key
   FROM pa
   CROSS JOIN (VALUES
-    ('text', 'title', 'title', 'Título', 'Título da página', true, '{}'::jsonb, 1, true, 'title'),
-    ('slug', 'slug', 'slug', 'Slug', 'URL amigável (único)', true, '{}'::jsonb, 2, true, 'slug'),
-    ('wysiwyg', 'content', 'content', 'Conteúdo', 'Corpo principal da página', true, '{}'::jsonb, 3, false, 'content'),
-    ('textarea', 'excerpt', 'excerpt', 'Resumo', 'Resumo curto para listagens', false, '{}'::jsonb, 4, false, 'excerpt'),
-    ('image', 'featured_image', 'featured_image', 'Imagem Destacada', 'Imagem principal da página', false, '{}'::jsonb, 5, false, 'featured_image'),
-    ('text', 'seo_title', 'seo_title', 'SEO Title', 'Título para SEO (meta title)', false, '{}'::jsonb, 6, false, 'seo_title'),
-    ('textarea', 'seo_description', 'seo_description', 'SEO Description', 'Descrição para SEO (meta description)', false, '{}'::jsonb, 7, false, 'seo_description'),
-    ('select', 'status', 'status', 'Status', 'Status de publicação', true, '{"options":[{"value":"DRAFT","label":"Rascunho"},{"value":"PUBLISHED","label":"Publicado"},{"value":"ARCHIVED","label":"Arquivado"},{"value":"TRASHED","label":"Lixeira"}]}'::jsonb, 8, false, 'status'),
-    ('user', 'author', 'author', 'Autor', 'Autor da página', true, '{}'::jsonb, 9, false, 'author')
+    ('text', 'title', 'page_title', 'Title', 'Page title', true, '{}'::jsonb, 1, true, 'title'),
+    ('slug', 'slug', 'page_slug', 'Slug', 'Unique public URL slug', true, '{}'::jsonb, 2, true, 'slug'),
+    ('wysiwyg', 'content', 'page_content', 'Content', 'Main page content', true, '{}'::jsonb, 3, false, 'content'),
+    ('textarea', 'excerpt', 'page_excerpt', 'Excerpt', 'Short summary for listings', false, '{}'::jsonb, 4, false, 'excerpt'),
+    ('image', 'featured_image', 'page_featured_image', 'Featured Image', 'Primary page image', false, '{}'::jsonb, 5, false, 'featured_image'),
+    ('text', 'seo_title', 'page_seo_title', 'SEO Title', 'SEO meta title', false, '{}'::jsonb, 6, false, 'seo_title'),
+    ('textarea', 'seo_description', 'page_seo_description', 'SEO Description', 'SEO meta description', false, '{}'::jsonb, 7, false, 'seo_description'),
+    ('select', 'status', 'page_status', 'Status', 'Publication status', true, '{"options":[{"value":"DRAFT","label":"Draft"},{"value":"PUBLISHED","label":"Published"},{"value":"ARCHIVED","label":"Archived"},{"value":"TRASHED","label":"Trash"}]}'::jsonb, 8, false, 'status'),
+    ('user', 'author', 'page_author', 'Author', 'Page author', true, '{}'::jsonb, 9, false, 'author')
   ) AS v(type, name, key, label, instructions, required, config, sort_order, is_locked, core_field_key)
   ON CONFLICT (key) DO NOTHING
   RETURNING id
@@ -94,7 +86,9 @@ SELECT 1;
 -- +migrate Down
 DELETE FROM field_definitions WHERE key IN (
   'title', 'slug', 'content', 'excerpt', 'featured_image',
-  'seo_title', 'seo_description', 'status', 'author'
+  'seo_title', 'seo_description', 'status', 'author',
+  'page_title', 'page_slug', 'page_content', 'page_excerpt', 'page_featured_image',
+  'page_seo_title', 'page_seo_description', 'page_status', 'page_author'
 ) AND is_core_field = true;
 
 DELETE FROM field_groups WHERE key IN ('core-fields-post', 'core-fields-page');

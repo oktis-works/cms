@@ -1,7 +1,7 @@
 <article data-template="post-primeiro-post" data-type="post" class="post post-single">
   <header class="post-header">
     <div class="container">
-      <h1 class="post-title">{{content.title}}</h1>
+      <h1 class="post-title">{{field "title"}}</h1>
       <div class="post-meta">
         <time datetime="{{content.published_at}}" class="post-date">
           {{#if content.published_at}}
@@ -13,13 +13,11 @@
   </header>
 
   <div class="post-body container">
-    {{#if content.html}}
-    <div class="entry-content" set:html={content.html}></div>
-    {{else if content.content}}
-    <div class="entry-content" set:html={content.content}></div>
-    {{else if content.blocks}}
+    {{#if (field "content")}}
+    <div class="entry-content">{{{field "content"}}}</div>
+    {{else if (field "blocks")}}
     <div class="entry-content">
-      {{#each content.blocks}}
+      {{#each fields.blocks}}
         {{#if (eq type 'heading')}}
         <h{{level}}>{{content}}</h{{level}}>
         {{else if (eq type 'paragraph')}}

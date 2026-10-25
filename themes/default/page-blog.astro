@@ -1,9 +1,9 @@
 <main data-template="page-blog" data-type="page" class="page-blog">
   <header class="page-header">
     <div class="container">
-      <h1>{{content.title}}</h1>
-      {{#if content.description}}
-      <p class="page-description">{{content.description}}</p>
+      <h1>{{field "title"}}</h1>
+      {{#if (field "description")}}
+      <p class="page-description">{{field "description"}}</p>
       {{/if}}
     </div>
   </header>

@@ -121,6 +121,8 @@ function validateTrueFalse(value: unknown, field: string, errors: FieldError[]):
 
 interface MediaValue { id?: string; url?: string; mimeType?: string; size?: number; width?: number; height?: number; }
 function validateMediaItem(item: unknown, config: Record<string, unknown>, field: string, errors: FieldError[]): void {
+  if (typeof item === 'string' && item.trim() !== '') return;
+
   if (typeof item !== 'object' || item === null || Array.isArray(item)) {
     errors.push({ field, code: 'INVALID_MEDIA', message: `${field} deve referenciar uma mídia válida` }); return;
   }

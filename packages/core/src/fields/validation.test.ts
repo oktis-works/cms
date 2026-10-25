@@ -79,6 +79,7 @@ describe('validateContentData', () => {
   it('image/file/gallery validam estrutura e limites', () => {
     const imageFields = [base({ type: 'image', name: 'foto', required: true })];
     expect(validateContentData(imageFields, { foto: 123 }).errors.some((e) => e.code === 'INVALID_MEDIA')).toBe(true);
+    expect(validateContentData(imageFields, { foto: 'media-uuid' }).valid).toBe(true);
     expect(validateContentData(imageFields, { foto: { id: 'm1', url: 'https://x/y.png' } }).valid).toBe(true);
 
     const galleryFields = [

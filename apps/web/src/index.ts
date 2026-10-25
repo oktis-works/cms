@@ -10,7 +10,7 @@ import { bootstrap, ensureTenantPluginsLoaded, getPluginBlocks, getPluginPattern
 import { resolveExtensionDirectory } from '@oktis-works/core';
 import { runWithTenantContext } from '@oktis-works/core';
 import { getPluginAssets } from '@oktis-works/core';
-import { CMS_VERSION } from '@oktis-works/validation';
+import { CMS_VERSION, normalizeLogicalValues } from '@oktis-works/validation';
 import { getConnection, runWithTenantTransaction } from '@oktis-works/database';
 import {
   createRouter,
@@ -37,7 +37,7 @@ type ContentRow = Record<string, unknown>;
 const SAFE_THEME_NAME_RE = /^[A-Za-z0-9_-]+$/;
 
 function bodyOf(row: ContentRow): Record<string, unknown> {
-  return ((row['body'] as Record<string, unknown>) ?? {}) as Record<string, unknown>;
+  return normalizeLogicalValues({ body: row['body'], data: row['data'], native: row });
 }
 
 /**

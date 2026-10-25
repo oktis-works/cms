@@ -9,10 +9,8 @@
   </header>
 
   <div class="page-content container">
-    {{#if content.html}}
-    <div class="entry-content" set:html={content.html}></div>
-    {{else if content.content}}
-    <div class="entry-content" set:html={content.content}></div>
+    {{#if (field "content")}}
+    <div class="entry-content">{{{field "content"}}}</div>
     {{else if content.text}}
     <p>{{content.text}}</p>
     {{/if}}

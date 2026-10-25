@@ -1,9 +1,9 @@
 <main data-template="page" data-type="{{page.type}}" class="page">
   <header class="page-header">
     <div class="container">
-      <h1>{{content.title}}</h1>
-      {{#if content.excerpt}}
-      <p class="page-excerpt">{{content.excerpt}}</p>
+      <h1>{{field "title"}}</h1>
+      {{#if (field "excerpt")}}
+      <p class="page-excerpt">{{field "excerpt"}}</p>
       {{/if}}
       {{#if settings.theme.siteDescription}}
       <p class="site-description">{{settings.theme.siteDescription}}</p>
@@ -12,13 +12,11 @@
   </header>
 
   <div class="page-content container">
-    {{#if content.html}}
-    <div class="entry-content" set:html={content.html}></div>
-    {{else if content.content}}
-    <div class="entry-content" set:html={content.content}></div>
-    {{else if content.blocks}}
+    {{#if (field "content")}}
+    <div class="entry-content">{{{field "content"}}}</div>
+    {{else if (field "blocks")}}
     <div class="entry-content">
-      {{#each content.blocks}}
+      {{#each fields.blocks}}
         {{#if (eq type 'heading')}}
         <h{{level}}>{{content}}</h{{level}}>
         {{else if (eq type 'paragraph')}}

@@ -1,5 +1,19 @@
 # @oktis-works/admin
 
+## 0.24.0
+
+### Minor Changes
+
+- Unify standard and custom content fields across definitions, persistence, editing, validation, and theme delivery.
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/validation@0.8.0
+  - @oktis-works/plugin-sdk@0.7.2
+  - @oktis-works/types@0.9.3
+  - @oktis-works/ui@0.5.9
+
 ## 0.23.3
 
 ### Patch Changes

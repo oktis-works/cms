@@ -309,7 +309,7 @@ O array `components` registra **arquivos Astro reutilizáveis** que o tema dispo
 </DefaultLayout>
 
 <!-- Component com props -->
-<Hero title="{{content.title}}" image="{{content.featuredImage}}" />
+<Hero title="{{field \"title\"}}" image="{{field \"featured_image.url\"}}" />
 
 <!-- Partial (include simples) -->
 <PostMeta author="{{content.author.name}}" date="{{content.publishedAt}}" />
@@ -519,56 +519,56 @@ setThemeDataProvider({
 
 ---
 
-## Fields API — Campos Flexíveis no Tema
+## Fields API — Canonical Content Values
 
-O tema pode acessar **campos customizados** (Field Groups / Flexible Layouts) definidos no admin:
+Standard fields and custom fields share one logical value contract. The
+canonical names are `title`, `slug`, `content`, `excerpt`, `featured_image`,
+`seo_title`, `seo_description`, `status`, `author`, and each custom field name.
+The legacy names `featuredImageId`, `seoTitle`, `seoDescription`, and raw
+`body`/`data` paths are compatibility aliases, not the preferred theme API.
 
-### `getFields` / `getFieldsAsync`
+`getField()` returns one value and `getFields()` returns a map of canonical
+values, not an array of descriptors. Use `getFlexibleLayouts()` for flexible
+content rows.
+
+```ts
+import { getField, getFields, getFlexibleLayouts } from '@oktis-works/theme-sdk';
+
+const title = getField('title');
+const values = getFields();
+const sections = getFlexibleLayouts('sections');
+```
+
+String templates use the allow-listed `field` helper. It cannot call arbitrary
+JavaScript functions and preserves the renderer's normal escaping:
 
 ```astro
----
-import { getFields, getFlexibleLayouts } from '@oktis-works/theme-sdk';
----
-
-<!-- Campos do conteúdo atual (usa record do context) -->
-{{#let fields = (await getFieldsAsync())}}
-  {{#each fields as |field|}}
-    <div class="field-{{field.name}}">
-      <label>{{field.label}}</label>
-      <div>{{{field.value}}}</div>
-    </div>
-  {{/each}}
-{{/let}}
-
-<!-- Flexible Layouts (blocos flexíveis) -->
-{{#let layouts = (await getFlexibleLayouts())}}
-  {{#each layouts as |layout|}}
-    <div class="layout-{{layout.name}}">
-      {{#each layout.rows as |row|}}
-        <div class="row">{{{row.content}}}</div>
-      {{/each}}
-    </div>
-  {{/each}}
-{{/let}}
+<h1>{{field "title"}}</h1>
+{{#if (field "featured_image")}}
+  <img src="{{field "featured_image"}}" alt="{{field "title"}}" />
+{{/if}}
+{{#if (field "content")}}
+  <div class="entry-content">{{{field "content"}}}</div>
+{{/if}}
 ```
 
 ---
 
 ## Theme Hooks / Filters
 
-O tema pode registrar **filters** para transformar dados antes de renderizar:
+Themes can register filters to transform canonical values before rendering:
 
 ```js
 // Em theme bootstrap (se tiver runtime customizado)
 import { setThemeHooks } from '@oktis-works/theme-sdk';
 
 setThemeHooks({
-  // Filtro: transforma campos antes de entregar ao template
-  'theme:data:getFields': (fields, context) => {
-    return fields.map(f => ({
-      ...f,
-      value: typeof f.value === 'string' ? f.value.toUpperCase() : f.value
-    }));
+  // Transform canonical values before delivering them to the template.
+  'theme:data:getFields': (fields) => {
+    return Object.fromEntries(Object.entries(fields).map(([name, value]) => [
+      name,
+      typeof value === 'string' ? value.toUpperCase() : value,
+    ]));
   },
 
   // Filtro: modifica layouts flexíveis
@@ -587,9 +587,9 @@ setThemeHooks({
 
 | Hook | Entrada | Saída Esperada |
 |------|---------|----------------|
-| `theme:data:getFields` | `fields[]` | `fields[]` transformados |
-| `theme:data:getFlexibleLayouts` | `layouts[]` | `layouts[]` transformados |
-| `theme:data:getFieldTypes` | `types[]` | `types[]` estendidos |
+| `theme:data:getFields` | `Record<string, unknown>` | Canonical value map |
+| `theme:data:getFlexibleLayouts` | `FlexibleRow[]` | Transformed flexible rows |
+| `theme:data:getFieldTypes` | `FieldTypeCatalogEntry[]` | Extended type catalog |
 
 ---
 

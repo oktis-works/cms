@@ -1,5 +1,17 @@
 # @oktis-works/theme-runtime
 
+## 0.11.0
+
+### Minor Changes
+
+- Unify standard and custom content fields across definitions, persistence, editing, validation, and theme delivery.
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/theme-sdk@0.7.0
+  - @oktis-works/types@0.9.3
+
 ## 0.10.1
 
 ### Patch Changes

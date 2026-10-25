@@ -25,6 +25,13 @@ describe('ThemeRenderer', () => {
     expect(renderer.renderString(template, { content: '<strong>safe</strong><script>alert(1)</script>' })).toBe('<p><strong>safe</strong></p>');
     expect(renderer.renderString(template, {})).toBe('empty');
   });
+
+  it('resolves canonical field helpers without exposing arbitrary function execution', () => {
+    const renderer = new ThemeRenderer();
+    const template = '<h1>{{field "title"}}</h1>{{#if (field "showHero")}}hero{{/if}}';
+    expect(renderer.renderString(template, {}, { title: 'Canonical', body: { showHero: true } })).toBe('<h1>Canonical</h1>hero');
+    expect(renderer.renderString('{{field "body.secret"}}', {}, { body: { secret: 'hidden' } })).toBe('');
+  });
 });
 
 describe('ThemeRenderer — cache de templates', () => {

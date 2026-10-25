@@ -83,12 +83,12 @@ describe('supports enforcement — payload filtrado pelo tipo', () => {
 
     const insert = store.queries.find((q) => q.text.includes('INSERT INTO content'));
     expect(insert?.values[6]).toBeNull();
-    expect(insert?.values[5]).toEqual({ local: 'SP' });
+    expect(insert?.values[5]).toMatchObject({ local: 'SP', title: 'Show', slug: 'show', status: 'DRAFT', author: 'u-1' });
   });
 
   it('create mantém excerpt quando o tipo suporta (post core)', async () => {
-    // Sem body → validação de campos customizados não roda (mesmo gate do update).
-    store.rowsByCall.push([{ ...existingRow() }]);
+    // The complete logical map is validated even when the body is omitted.
+    store.rowsByCall.push([], [{ ...existingRow() }]);
 
     await new ContentService().create({
       type: 'post',
@@ -105,7 +105,7 @@ describe('supports enforcement — payload filtrado pelo tipo', () => {
 
   it('update descarta featuredImageId sem suporte thumbnail e não grava revision', async () => {
     store.contentTypes = [contentTypeRow('evento', ['title'])];
-    store.rowsByCall.push([existingRow({ type: 'evento' })], [{ ...existingRow({ type: 'evento' }), version: 3 }]);
+    store.rowsByCall.push([existingRow({ type: 'evento' })], [], [{ ...existingRow({ type: 'evento' }), version: 3 }]);
 
     await new ContentService().update('c-1', { featuredImageId: 'm-1', title: 'Nova' });
 
@@ -117,9 +117,29 @@ describe('supports enforcement — payload filtrado pelo tipo', () => {
 });
 
 describe('revisions — gravação por supports e restore', () => {
+  it('merges partial body updates through the complete logical value map', async () => {
+    store.contentTypes = [contentTypeRow('post', ['title', 'editor'])];
+    store.rowsByCall.push(
+      [existingRow()],
+      [],
+      [],
+      [{ ...existingRow({ body: { campo: 'v1', novo: 'v2' } }) }],
+    );
+
+    await new ContentService().update('c-1', { body: { novo: 'v2' } });
+
+    const updateQuery = store.queries.find((q) => q.text.includes('UPDATE content SET'));
+    expect(updateQuery?.values[0]).toMatchObject({
+      campo: 'v1',
+      novo: 'v2',
+      title: 'Antigo',
+      slug: 'antigo',
+    });
+  });
+
   it('NÃO grava snapshot quando o tipo não suporta revisions', async () => {
     store.contentTypes = [contentTypeRow('evento', ['title', 'editor'])];
-    store.rowsByCall.push([existingRow({ type: 'evento' })], [{ ...existingRow({ type: 'evento' }), version: 3 }]);
+    store.rowsByCall.push([existingRow({ type: 'evento' })], [], [{ ...existingRow({ type: 'evento' }), version: 3 }]);
 
     await new ContentService().update('c-1', { title: 'Novo' });
 
@@ -127,7 +147,7 @@ describe('revisions — gravação por supports e restore', () => {
   });
 
   it('grava snapshot completo do estado anterior quando suporta revisions', async () => {
-    store.rowsByCall.push([existingRow()], [], [{ ...existingRow(), version: 3 }]);
+    store.rowsByCall.push([existingRow()], [], [], [{ ...existingRow(), version: 3 }]);
 
     await new ContentService().update('c-1', { title: 'Novo' });
 
@@ -177,7 +197,15 @@ describe('revisions — gravação por supports e restore', () => {
     expect(updateQuery!.values.slice(0, 7)).toEqual([
       'Original',
       'original',
-      { campo: 'v0' },
+      {
+        campo: 'v0',
+        title: 'Original',
+        slug: 'original',
+        excerpt: 'ex v0',
+        featured_image: 'm-0',
+        seo_title: 'seo v0',
+        seo_description: 'desc v0',
+      },
       'ex v0',
       'm-0',
       'seo v0',

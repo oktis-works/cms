@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/types",
-  "version": "0.9.2",
+  "version": "0.9.3",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -17,7 +17,7 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo"
   },
   "dependencies": {
-    "@oktis-works/validation": "^0.7.0"
+    "@oktis-works/validation": "^0.8.0"
   },
   "devDependencies": {
     "typescript": "5.7.3"

@@ -1,6 +1,7 @@
 // @oktis-works/api - Field Groups Routes (Builder + Location Rules + Import/Export)
 
 import { Hono } from 'hono';
+import type { Context } from 'hono';
 import { fieldGroupService } from '@oktis-works/core';
 import { authMiddleware, requirePermission } from '../../middleware/auth.js';
 
@@ -8,12 +9,16 @@ const router = new Hono();
 
 router.use('*', authMiddleware);
 
+function requestTenantId(c: Context): string {
+  return String(c.get('tenantId' as never) ?? '');
+}
+
 router.get('/', requirePermission('read', 'content'), async (c) => {
   const type = c.req.query('type');
   const taxonomy = c.req.query('taxonomy');
   // Item 10: resolve by ANY location param — term meta editing passes only
   // `taxonomy` (no content type). Plain list when no location context at all.
-  if (type || taxonomy || c.req.query('term') || c.req.query('userRole') || c.req.query('template') || c.req.query('status')) {
+  if (type || taxonomy || c.req.query('term') || c.req.query('userRole') || c.req.query('template') || c.req.query('status') || c.req.query('block')) {
       const resolved = await fieldGroupService.resolveGroupsByLocation({
         contentType: type || undefined,
         contentSlug: c.req.query('slug') || undefined,
@@ -22,6 +27,7 @@ router.get('/', requirePermission('read', 'content'), async (c) => {
       userRole: c.req.query('userRole') || undefined,
       pageTemplate: c.req.query('template') || undefined,
       postStatus: c.req.query('status') || undefined,
+      block: c.req.query('block') || undefined,
     });
     return c.json(resolved);
   }
@@ -136,6 +142,7 @@ router.post('/import', requirePermission('create', 'content'), async (c) => {
       // Check if group with this key exists
       const existing = await fieldGroupService.getByKey(item.key);
       const payload = {
+        tenantId: c.get('tenantId' as never) as string | undefined,
         title: item.title,
         key: item.key,
         locationRules: item.locationRules ?? [],
@@ -165,6 +172,7 @@ router.post('/', requirePermission('create', 'content'), async (c) => {
   try {
     const body = await c.req.json();
     const result = await fieldGroupService.create({
+      tenantId: c.get('tenantId' as never) as string | undefined,
       title: body.title,
       key: body.key,
       locationRules: body.locationRules,
@@ -186,6 +194,7 @@ router.put('/:id', requirePermission('update', 'content'), async (c) => {
     const id = c.req.param('id') as string;
     const body = await c.req.json();
     const result = await fieldGroupService.update(id, {
+      tenantId: requestTenantId(c),
       title: body.title,
       locationRules: body.locationRules,
       position: body.position,
@@ -204,7 +213,7 @@ router.put('/:id', requirePermission('update', 'content'), async (c) => {
 
 router.delete('/:id', requirePermission('delete', 'content'), async (c) => {
   const id = c.req.param('id') as string;
-  const deleted = await fieldGroupService.delete(id);
+  const deleted = await fieldGroupService.delete(id, requestTenantId(c));
   if (!deleted) return c.json({ error: 'Field group not found' }, 404);
   return c.json({ success: true });
 });

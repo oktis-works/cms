@@ -98,3 +98,29 @@ describe('matchLocationRules — block parameter (E7)', () => {
     ).toBe(true);
   });
 });
+
+describe('matchLocationRules — complete location context matrix', () => {
+  it('matches slug, term, role, template, and status together', () => {
+    const context: LocationContext = {
+      contentType: 'page',
+      contentSlug: 'home',
+      taxonomy: 'category',
+      termSlug: 'news',
+      userRole: 'EDITOR',
+      pageTemplate: 'landing',
+      postStatus: 'PUBLISHED',
+    };
+
+    expect(rules([[
+      { param: 'content_type', operator: 'eq', value: 'page' },
+      { param: 'content_slug', operator: 'eq', value: 'home' },
+      { param: 'taxonomy', operator: 'eq', value: 'category' },
+      { param: 'term', operator: 'eq', value: 'news' },
+      { param: 'user_role', operator: 'eq', value: 'EDITOR' },
+      { param: 'page_template', operator: 'eq', value: 'landing' },
+      { param: 'post_status', operator: 'eq', value: 'PUBLISHED' },
+    ]], context)).toBe(true);
+    expect(rules([[{ param: 'content_slug', operator: 'eq', value: 'other' }]], context)).toBe(false);
+    expect(rules([[{ param: 'term', operator: 'neq', value: 'archived' }]], context)).toBe(true);
+  });
+});

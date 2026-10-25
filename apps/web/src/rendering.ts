@@ -6,6 +6,7 @@ import { join, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import { getConnection } from '@oktis-works/database';
+import { normalizeLogicalValues } from '@oktis-works/validation';
 import { getHookRegistry } from '@oktis-works/plugin-runtime';
 import { postTypeRegistry, HOOK_POINTS } from '@oktis-works/core';
 import type { EnqueuedAsset } from '@oktis-works/plugin-sdk';
@@ -226,6 +227,7 @@ export function renderContentPage(input: ContentPageRenderInput): string {
   }
 
   const row = input.contentRow ?? {};
+  const logicalRecord = normalizeLogicalValues({ body: row['body'], data: row['data'], native: row });
   const title = toText(row['title']) || input.settings.siteTitle;
 
   // E5 (FEAT-100): render/save hook surface for plugin-built editors.
@@ -242,13 +244,18 @@ export function renderContentPage(input: ContentPageRenderInput): string {
     slug: input.resolution.slug ?? '',
     activeTheme: input.activeTheme,
     settings: input.settings,
-    contentRow: row,
+    contentRow: { ...row, ...logicalRecord },
   };
   const renderData = (registry.applyFilters(
     HOOK_POINTS.THEME_BEFORE_RENDER,
     { ...input.data },
     hookContext
   ) as Record<string, unknown> | undefined) ?? input.data;
+  const themeRecord = normalizeLogicalValues({
+    body: renderData,
+    data: row['data'],
+    native: row,
+  });
 
   const context: Record<string, unknown> = {
     site: {
@@ -265,6 +272,7 @@ export function renderContentPage(input: ContentPageRenderInput): string {
     },
     content: { ...plainColumns(row), ...renderData },
     fields: renderData,
+    record: themeRecord,
     items: input.items ?? [],
     pagination: input.pagination ?? { page: 1, perPage: 0, total: 0, pages: 0, hasPrevious: false, hasNext: false },
     menus: input.themeData?.menus ?? { all: [], bySlug: {} },
@@ -276,7 +284,7 @@ export function renderContentPage(input: ContentPageRenderInput): string {
   };
 
   const body = themeRenderer.wrapWithThemeScope(
-    themeRenderer.renderString(template, context, row),
+    themeRenderer.renderString(template, context, { ...row, ...themeRecord }),
     input.activeTheme
   );
   const stylesheet = resolveThemeStylesheet(input.themesRoot, input.activeTheme);
@@ -511,11 +519,11 @@ ${body}${assetFooter}
 </html>`;
 }
 
-/** Colunas da row sem `body` (o body já foi mesclado como campos). */
+/** Exposes physical columns only through the normalized logical content map. */
 function plainColumns(row: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(row)) {
-    if (key === 'body') continue;
+    if (key === 'body' || key === 'data') continue;
     out[key] = value;
   }
   return out;
@@ -748,23 +756,6 @@ async function attachTerms(sql: ReturnType<typeof getConnection>, contentId: str
  * object. Parses defensively — invalid JSON degrades to an empty body and
  * never breaks the render.
  */
-function normalizeBody(value: unknown): Record<string, unknown> {
-  if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-    return value as Record<string, unknown>;
-  }
-  if (typeof value === 'string') {
-    try {
-      const parsed: unknown = JSON.parse(value);
-      if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        return parsed as Record<string, unknown>;
-      }
-    } catch {
-      // fall through — a plain-text body simply yields no fields
-    }
-  }
-  return {};
-}
-
 export function createContentLookup(): ContentLookup {
   return {
     async findByPath(path) {
@@ -777,7 +768,7 @@ export function createContentLookup(): ContentLookup {
       const row = result[0] as Record<string, unknown> | undefined;
       if (!row) return null;
 
-      const data = normalizeBody(row['body']);
+      const data = normalizeLogicalValues({ body: row['body'], data: row['data'], native: row });
 
       // Enriquecimento em lote: mídia real e termos agregados
       try {
@@ -806,7 +797,7 @@ export function createContentLookup(): ContentLookup {
       const row = result[0] as Record<string, unknown> | undefined;
       if (!row) return null;
 
-      const data = normalizeBody(row['body']);
+      const data = normalizeLogicalValues({ body: row['body'], data: row['data'], native: row });
 
       try {
         await enrichMedia(sql, data);

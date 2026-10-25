@@ -1,5 +1,16 @@
 # @oktis-works/cms
 
+## 0.13.8
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/core@0.15.0
+  - @oktis-works/database@0.14.2
+  - @oktis-works/theme-runtime@0.11.0
+  - @oktis-works/validation@0.8.0
+  - @oktis-works/auth@0.8.2
+
 ## 0.13.7
 
 ### Patch Changes

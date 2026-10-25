@@ -5,7 +5,7 @@ import { apiClient, type Taxonomy, type TaxonomyTerm } from '../../lib/api';
 import { expandCloneFields } from '../../lib/validation';
 import { useTranslation } from '../../i18n';
 import { FieldRenderer } from './FieldRenderer';
-import type { ResolvedFieldDefinition } from './types';
+import type { ResolvedFieldGroup } from './types';
 
 interface Props {
   taxonomySlug: string;
@@ -25,7 +25,7 @@ export function TaxonomyTermsManager(props: Props) {
   // Item 10: term meta — field groups located on this taxonomy (rule
   // `taxonomy eq <slug>`) reuse the platform FieldRenderer; values persist
   // in taxonomy_terms.meta.
-  const [metaFields, setMetaFields] = createSignal<ResolvedFieldDefinition[]>([]);
+  const [metaFields, setMetaFields] = createSignal<ResolvedFieldGroup[]>([]);
   const [metaValues, setMetaValues] = createSignal<Record<string, unknown>>({});
 
   const load = async (): Promise<void> => {
@@ -46,12 +46,12 @@ export function TaxonomyTermsManager(props: Props) {
     if (!props.taxonomySlug) return;
     try {
       const resolved = await apiClient.getFieldGroups({ taxonomy: props.taxonomySlug });
-      const full = await Promise.all(
-        resolved
-          .filter((group) => group.active)
-          .map(async (group) => apiClient.getFieldGroup(group.id))
-      );
-      setMetaFields(expandCloneFields(full.flatMap((group) => group.fields ?? []) as ResolvedFieldDefinition[]));
+      setMetaFields(resolved
+        .filter((group) => group.active !== false)
+        .map((group) => ({
+          ...group,
+          fields: expandCloneFields((group.fields ?? []) as never) as ResolvedFieldGroup['fields'],
+        })));
     } catch {
       // term meta fields are optional — term management never blocks on them
       setMetaFields([]);
@@ -145,13 +145,18 @@ export function TaxonomyTermsManager(props: Props) {
                 <div class="term-meta-fields">
                   <h4>{t('content.taxonomy.termFields')}</h4>
                   <For each={metaFields()}>
-                    {(field) => (
-                      <FieldRenderer
-                        field={field}
-                        values={metaValues()}
-                        onChange={(fieldName, value) => setMetaValues({ ...metaValues(), [fieldName]: value })}
-                        t={t}
-                      />
+                    {(group) => (
+                      <section data-field-group={group.key}>
+                        <h5>{group.title}</h5>
+                        <For each={group.fields}>{(field) => (
+                          <FieldRenderer
+                            field={field}
+                            values={metaValues()}
+                            onChange={(fieldName, value) => setMetaValues({ ...metaValues(), [fieldName]: value })}
+                            t={t}
+                          />
+                        )}</For>
+                      </section>
                     )}
                   </For>
                 </div>

@@ -17,8 +17,13 @@ export class MediaService {
     const params: string[] = [];
 
     if (mimeType) {
-      whereClause += ` AND mime_type = $${params.length + 1}`;
-      params.push(mimeType);
+      if (mimeType.endsWith('/*')) {
+        whereClause += ` AND mime_type LIKE $${params.length + 1}`;
+        params.push(`${mimeType.slice(0, -1)}%`);
+      } else {
+        whereClause += ` AND mime_type = $${params.length + 1}`;
+        params.push(mimeType);
+      }
     }
     if (search) {
       whereClause += ` AND (filename ILIKE $${params.length + 1} OR alt ILIKE $${params.length + 2})`;

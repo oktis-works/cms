@@ -671,7 +671,7 @@ CREATE TABLE IF NOT EXISTS field_groups (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
   title VARCHAR(255) NOT NULL,
-  key VARCHAR(255) NOT NULL UNIQUE,
+  key VARCHAR(255) NOT NULL,
   location_rules JSONB NOT NULL DEFAULT '[]'::jsonb,
   position VARCHAR(20) NOT NULL DEFAULT 'normal' CHECK (position IN ('normal', 'side', 'after_title')),
   display_style VARCHAR(20) NOT NULL DEFAULT 'standard' CHECK (display_style IN ('standard', 'seamless', 'grouped')),
@@ -683,6 +683,10 @@ CREATE TABLE IF NOT EXISTS field_groups (
 
 CREATE INDEX IF NOT EXISTS idx_field_groups_tenant ON field_groups(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_field_groups_active ON field_groups(active);
+CREATE UNIQUE INDEX IF NOT EXISTS field_groups_global_key_unique
+  ON field_groups (key) WHERE tenant_id IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS field_groups_tenant_key_unique
+  ON field_groups (tenant_id, key) WHERE tenant_id IS NOT NULL;
 ALTER TABLE field_groups ENABLE ROW LEVEL SECURITY;
 DO $$
 BEGIN
@@ -759,6 +763,18 @@ CREATE TABLE IF NOT EXISTS field_values (
 CREATE INDEX IF NOT EXISTS idx_field_values_entity ON field_values(entity_type, entity_id);
 CREATE INDEX IF NOT EXISTS idx_field_values_field ON field_values(field_definition_id);
 CREATE INDEX IF NOT EXISTS idx_field_values_updated ON field_values(updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS content_value_migration_conflicts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  content_id UUID NOT NULL REFERENCES content(id) ON DELETE CASCADE,
+  field_name VARCHAR(255) NOT NULL,
+  sources JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(content_id, field_name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_content_value_migration_conflicts_content
+  ON content_value_migration_conflicts(content_id);
 
 CREATE OR REPLACE FUNCTION update_field_values_timestamp()
 RETURNS TRIGGER AS $$

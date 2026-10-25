@@ -8,6 +8,7 @@ import { findConditionalIssues } from './conditional.js';
 import type { FieldRefLike } from './conditional.js';
 import type { ValidatableField } from './types/validators/structural.js';
 import { validateContentData } from './validation.js';
+import { findFieldPathIssues } from '@oktis-works/validation';
 import type { PluginFieldTypeDefinition } from './types/registry.js';
 
 export interface FlexibleLayoutInput {
@@ -50,6 +51,9 @@ export interface FieldGroup extends Omit<FieldGroupInput, 'fields'> {
   id: string;
   fields: ResolvedFieldDefinition[];
 }
+
+/** A location-resolved group; its field tree has already been filtered. */
+export type ResolvedFieldGroup = FieldGroup;
 
 export interface ResolvedFieldDefinition {
   id: string;
@@ -96,11 +100,15 @@ export class FieldGroupService {
     const sql = getConnection();
     const rows = await sql.unsafe(
       `SELECT fg.*, (SELECT COUNT(*) FROM field_definitions fd WHERE fd.group_id = fg.id) as field_count
-       FROM field_groups fg ORDER BY fg.title ASC`
+       FROM field_groups fg
+       WHERE fg.tenant_id = current_setting('app.current_tenant_id', true)::uuid
+          OR fg.tenant_id IS NULL
+       ORDER BY fg.title ASC`
     );
 
     return (rows as unknown as Array<Record<string, unknown>>).map((row) => ({
       id: String(row['id']),
+      tenantId: (row['tenant_id'] as string | null | undefined) ?? null,
       title: String(row['title']),
       key: String(row['key']),
       locationRules: (row['location_rules'] as LocationRule[][]) ?? [],
@@ -114,7 +122,12 @@ export class FieldGroupService {
 
   async getById(id: string): Promise<FieldGroup | null> {
     const sql = getConnection();
-    const rows = await sql.unsafe('SELECT * FROM field_groups WHERE id = $1', [id]);
+    const rows = await sql.unsafe(
+      `SELECT * FROM field_groups
+       WHERE id = $1
+         AND (tenant_id = current_setting('app.current_tenant_id', true)::uuid OR tenant_id IS NULL)`,
+      [id]
+    );
     const group = rows[0] as Record<string, unknown> | undefined;
     if (!group) return null;
 
@@ -125,7 +138,14 @@ export class FieldGroupService {
 
   async getByKey(key: string): Promise<FieldGroup | null> {
     const sql = getConnection();
-    const rows = await sql.unsafe('SELECT * FROM field_groups WHERE key = $1', [key]);
+    const rows = await sql.unsafe(
+      `SELECT * FROM field_groups
+       WHERE key = $1
+         AND (tenant_id = current_setting('app.current_tenant_id', true)::uuid OR tenant_id IS NULL)
+       ORDER BY tenant_id NULLS LAST
+       LIMIT 1`,
+      [key]
+    );
     const group = rows[0] as Record<string, unknown> | undefined;
     if (!group) return null;
 
@@ -172,6 +192,9 @@ export class FieldGroupService {
     if (!existing) return null;
 
     this.validateFields(patch.fields);
+    if (existing.tenantId === null && patch.tenantId) {
+      throw new Error('Platform-global field groups are read-only for tenant requests');
+    }
 
     await sql.unsafe(
       `UPDATE field_groups SET
@@ -205,9 +228,15 @@ export class FieldGroupService {
     return this.getById(id);
   }
 
-  async delete(id: string): Promise<boolean> {
+  async delete(id: string, tenantId?: string): Promise<boolean> {
     const sql = getConnection();
-    const result = await sql.unsafe('DELETE FROM field_groups WHERE id = $1 RETURNING id', [id]);
+    const result = await sql.unsafe(
+      `DELETE FROM field_groups
+       WHERE id = $1
+         AND tenant_id = COALESCE($2::uuid, current_setting('app.current_tenant_id', true)::uuid)
+       RETURNING id`,
+      [id, tenantId ?? null]
+    );
     return result.length > 0;
   }
 
@@ -229,22 +258,28 @@ export class FieldGroupService {
     return result.length;
   }
 
-  async resolveGroupsByLocation(context: LocationContext): Promise<FieldGroup[]> {
+  async resolveGroupsByLocation(context: LocationContext): Promise<ResolvedFieldGroup[]> {
     const all = await this.list();
-    const matching: FieldGroup[] = [];
+    const positionOrder: Record<string, number> = { after_title: 0, normal: 1, side: 2 };
+    const matchingSummaries = all
+      .filter((summary) => summary.active && matchLocationRules(summary.locationRules ?? [], context))
+      .sort((left, right) =>
+        (positionOrder[left.position ?? 'normal'] ?? 1) - (positionOrder[right.position ?? 'normal'] ?? 1)
+      );
     const enabledCoreFields = context.contentType
       ? await this.getEnabledCoreFields(context.contentType)
       : null;
+    const fieldsByGroupId = await this.getDefinitionTrees(matchingSummaries.map((summary) => summary.id));
 
-    for (const summary of all) {
-      if (!summary.active) continue;
-      if (!matchLocationRules(summary.locationRules ?? [], context)) continue;
-
-      const full = await this.getById(summary.id);
-      if (full) matching.push(enabledCoreFields ? this.filterCoreFields(full, enabledCoreFields) : full);
-    }
-
-    return matching;
+    const resolved = matchingSummaries.map((summary) => {
+      const group = this.rowToGroup(
+        summary as unknown as Record<string, unknown>,
+        fieldsByGroupId.get(summary.id) ?? []
+      );
+      return enabledCoreFields ? this.filterCoreFields(group, enabledCoreFields) : group;
+    });
+    this.validateResolvedValueNamespace(resolved);
+    return resolved;
   }
 
   async toValidatableFields(groups: FieldGroup[]): Promise<ValidatableField[]> {
@@ -258,16 +293,13 @@ export class FieldGroupService {
   }
 
   /**
-   * Valida os valores de campos customizados contra as definições ativas para
-   * o contexto (usado pelo content service no create/update). Retorna as
-   * mensagens de erro (vazio = válido). Delega ao motor `validateContentData`,
-   * que já trata visibilidade condicional, tipos layout-only, required,
-   * repeaters, layouts, grupos e expansão de clone. Campos core (title/slug/…)
-   * são removidos antes: seus valores vivem em colunas próprias, não no body.
+   * Validates the complete logical value map against the active definitions
+   * for a context. Physical storage remains compatible with native columns,
+   * but core and custom fields share the same validation pipeline.
    */
   async validateValues(context: LocationContext, values: Record<string, unknown>): Promise<string[]> {
     const groups = await this.resolveGroupsByLocation(context);
-    const fields = groups.flatMap((group) => this.stripCoreFields(group.fields));
+    const fields = groups.flatMap((group) => group.fields);
 
     const { errors } = validateContentData(
       fields.map((field) => this.toValidatable(field)),
@@ -275,20 +307,6 @@ export class FieldGroupService {
     );
 
     return errors.map((error) => error.message);
-  }
-
-  /** Remove campos core (recursivamente) — não são valores do body. */
-  private stripCoreFields(fields: ResolvedFieldDefinition[]): ResolvedFieldDefinition[] {
-    return fields
-      .filter((field) => !field.isCoreField)
-      .map((field) => ({
-        ...field,
-        subFields: this.stripCoreFields(field.subFields),
-        layouts: field.layouts.map((layout) => ({
-          ...layout,
-          subFields: this.stripCoreFields(layout.subFields),
-        })),
-      }));
   }
 
   private toValidatable(field: ResolvedFieldDefinition): ValidatableField {
@@ -334,7 +352,19 @@ export class FieldGroupService {
     const flat = this.flattenForValidation(fields);
     const issues = findConditionalIssues(flat);
     if (issues.length > 0) {
-      throw new Error(`Conditional logic inválida: ${issues.map((issue) => `${issue.field}: ${issue.issue}`).join('; ')}`);
+      throw new Error(`Invalid conditional logic: ${issues.map((issue) => `${issue.field}: ${issue.issue}`).join('; ')}`);
+    }
+    const namespaceIssues = findFieldPathIssues(fields);
+    if (namespaceIssues.length > 0) throw new Error(namespaceIssues.join('; '));
+  }
+
+  private validateResolvedValueNamespace(groups: FieldGroup[]): void {
+    const names = new Set<string>();
+    for (const group of groups) {
+      for (const field of group.fields) {
+        if (names.has(field.name)) throw new Error(`Duplicate resolved field name "${field.name}"`);
+        names.add(field.name);
+      }
     }
   }
 
@@ -556,10 +586,19 @@ export class FieldGroupService {
   }
 
   private async getDefinitionTree(groupId: string): Promise<ResolvedFieldDefinition[]> {
+    const trees = await this.getDefinitionTrees([groupId]);
+    return trees.get(groupId) ?? [];
+  }
+
+  /** Loads all definitions and flexible layouts for a set of groups in two queries. */
+  private async getDefinitionTrees(groupIds: string[]): Promise<Map<string, ResolvedFieldDefinition[]>> {
+    const trees = new Map<string, ResolvedFieldDefinition[]>();
+    if (groupIds.length === 0) return trees;
+
     const sql = getConnection();
     const rows = await sql.unsafe(
-      'SELECT * FROM field_definitions WHERE group_id = $1 ORDER BY sort_order ASC',
-      [groupId]
+      'SELECT * FROM field_definitions WHERE group_id = ANY($1::uuid[]) ORDER BY group_id, sort_order ASC',
+      [groupIds]
     );
 
     const rawDefinitions = rows as unknown as Array<Record<string, unknown>>;
@@ -578,9 +617,9 @@ export class FieldGroupService {
     const layoutRows = await sql.unsafe(
       `SELECT fl.* FROM flexible_layouts fl
        JOIN field_definitions fd ON fd.id = fl.field_id
-       WHERE fd.group_id = $1
-       ORDER BY fl.sort_order ASC`,
-      [groupId]
+       WHERE fd.group_id = ANY($1::uuid[])
+       ORDER BY fd.group_id, fl.sort_order ASC`,
+      [groupIds]
     ) as unknown as Array<Record<string, unknown>>;
 
     const layoutMetaById = new Map<string, Record<string, unknown>>();
@@ -592,7 +631,7 @@ export class FieldGroupService {
       ownerIdByLayoutId.set(layoutId, String(row['field_id']));
     }
 
-    const roots: ResolvedFieldDefinition[] = [];
+    const rootsByGroupId = new Map<string, ResolvedFieldDefinition[]>();
 
     for (const row of rawDefinitions) {
       const id = String(row['id']);
@@ -630,10 +669,14 @@ export class FieldGroupService {
         }
       }
 
+      const groupId = String(row['group_id']);
+      const roots = rootsByGroupId.get(groupId) ?? [];
       roots.push(definition);
+      rootsByGroupId.set(groupId, roots);
     }
 
-    return roots;
+    for (const groupId of groupIds) trees.set(groupId, rootsByGroupId.get(groupId) ?? []);
+    return trees;
   }
 
   private rowToDefinition(row: Record<string, unknown>): ResolvedFieldDefinition {
@@ -662,6 +705,7 @@ export class FieldGroupService {
   private rowToGroup(row: Record<string, unknown>, fields: ResolvedFieldDefinition[]): FieldGroup {
     return {
       id: String(row['id']),
+      tenantId: (row['tenant_id'] as string | null | undefined) ?? null,
       title: String(row['title']),
       key: String(row['key']),
       locationRules: (row['location_rules'] as LocationRule[][]) ?? [],

@@ -871,15 +871,17 @@ export class ApiClient {
   }
 
   // Field Groups & Types
-  async getFieldGroups(context?: { type?: string; slug?: string; taxonomy?: string; term?: string; userRole?: string; template?: string; status?: string }): Promise<FieldGroupSummary[]> {
-    if (context?.type) {
-      const qs = new URLSearchParams({ type: context.type });
-      for (const [key, value] of Object.entries(context)) {
-        if (key !== 'type' && value) qs.set(key, value);
-      }
-      return this.request('GET', `/api/v1/field-groups?${qs.toString()}`);
+  async getFieldGroups(): Promise<FieldGroupSummary[]>;
+  async getFieldGroups(context: FieldGroupContext): Promise<ResolvedFieldGroup[]>;
+  async getFieldGroups(context?: FieldGroupContext): Promise<FieldGroupSummary[] | ResolvedFieldGroup[]> {
+    if (!context || Object.values(context).every((value) => !value)) {
+      return this.request('GET', '/api/v1/field-groups');
     }
-    return this.request('GET', '/api/v1/field-groups');
+    const qs = new URLSearchParams();
+    for (const [key, value] of Object.entries(context)) {
+      if (value) qs.set(key, value);
+    }
+    return this.request('GET', `/api/v1/field-groups?${qs.toString()}`);
   }
 
   async getFieldGroup(id: string): Promise<FieldGroup> {
@@ -1356,6 +1358,7 @@ export interface ApiKeyCreated extends ApiKey {
 
 export interface FieldGroupSummary {
   id: string;
+  tenantId?: string | null;
   title: string;
   key: string;
   active: boolean;
@@ -1363,6 +1366,17 @@ export interface FieldGroupSummary {
   locationRules?: LocationRule[][];
   metadata?: Record<string, unknown>;
 }
+
+export type FieldGroupContext = {
+  type?: string;
+  slug?: string;
+  taxonomy?: string;
+  term?: string;
+  userRole?: string;
+  template?: string;
+  status?: string;
+  block?: string;
+};
 
 export interface LocationRule {
   param: 'content_type' | 'content_slug' | 'taxonomy' | 'term' | 'user_role' | 'page_template' | 'post_status' | 'block';
@@ -1372,6 +1386,7 @@ export interface LocationRule {
 
 export interface FieldGroup {
   id: string;
+  tenantId?: string | null;
   title: string;
   key: string;
   locationRules?: LocationRule[][];
@@ -1380,6 +1395,21 @@ export interface FieldGroup {
   active?: boolean;
   fields: FieldDefinition[];
   metadata?: Record<string, unknown>;
+}
+
+/** Location-resolved group returned by the editor endpoint. */
+export interface ResolvedFieldGroup extends Omit<FieldGroup, 'fields'> {
+  fields: Array<FieldDefinition & {
+    id: string;
+    key: string;
+    required: boolean;
+    config: Record<string, unknown>;
+    subFields: FieldDefinition[];
+    layouts: NonNullable<FieldDefinition['layouts']>;
+    isCoreField: boolean;
+    isLocked: boolean;
+    coreFieldKey?: string;
+  }>;
 }
 
 export interface FieldDefinition {

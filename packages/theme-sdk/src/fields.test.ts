@@ -78,7 +78,9 @@ describe('campos padrão + customizados', () => {
     expect(merged['excerpt']).toBe('resumo');
     expect(merged['x']).toBe(1);
     expect(merged['featuredImageId']).toBe('m-9');
+    expect(merged['featured_image']).toBe('m-9');
     expect(merged['seoTitle']).toBe('SEO título');
+    expect(merged['seo_title']).toBe('SEO título');
   });
 
   it('resolve snake_case de rows cruas do banco', () => {
@@ -90,6 +92,13 @@ describe('campos padrão + customizados', () => {
   it('custom tem prioridade sobre coluna nativa no getField', () => {
     expect(getField({ title: 'coluna', body: { title: 'custom' } }, 'title')).toBe('custom');
     expect(getField({ title: 'coluna' }, 'title')).toBe('coluna');
+  });
+
+  it('accepts canonical snake_case names and legacy aliases through one resolver', () => {
+    const content: ContentLike = { featuredImageId: 'media-1', body: { seo_title: 'Canonical SEO' } };
+    expect(getField(content, 'featured_image')).toBe('media-1');
+    expect(getField(content, 'featuredImageId')).toBe('media-1');
+    expect(getField(content, 'seo_title')).toBe('Canonical SEO');
   });
 });
 

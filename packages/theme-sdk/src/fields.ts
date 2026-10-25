@@ -1,6 +1,10 @@
 // @oktis-works/theme-sdk - Field Delivery API (FEAT-087/FEAT-100)
 
 import { AsyncLocalStorage } from 'node:async_hooks';
+import {
+  canonicalFieldName,
+  normalizeLogicalValues,
+} from '@oktis-works/validation';
 
 export interface ThemeField {
   name: string;
@@ -30,8 +34,8 @@ export interface ContentLike {
   createdAt?: Date | string;
   updatedAt?: Date | string;
   version?: number;
-  body?: Record<string, unknown> | null;
-  data?: Record<string, unknown> | null;
+  body?: Record<string, unknown> | string | null;
+  data?: Record<string, unknown> | string | null;
 }
 
 /** Contrato mínimo do registry de tipos (implementado por @oktis-works/core). */
@@ -87,40 +91,56 @@ function resolveContent(content?: ContentLike): ContentLike | null {
   return explicit && typeof explicit === 'object' ? explicit : null;
 }
 
-const STANDARD_KEYS = [
-  'id', 'type', 'title', 'slug', 'excerpt', 'status', 'authorId', 'featuredImageId',
-  'seoTitle', 'seoDescription', 'publishedAt', 'createdAt', 'updatedAt', 'version',
+const STANDARD_METADATA_KEYS = [
+  'id', 'type', 'publishedAt', 'createdAt', 'updatedAt', 'version',
 ] as const;
 
-function nativeValue(content: ContentLike, key: string): unknown {
-  const snake = key.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
-  const camel = (content as Record<string, unknown>)[key];
-  return camel !== undefined ? camel : (content as Record<string, unknown>)[snake];
+function logicalContent(content: ContentLike): Record<string, unknown> {
+  return normalizeLogicalValues({
+    body: content.body,
+    data: content.data,
+    native: content as Record<string, unknown>,
+  });
 }
 
-/** Campos padrão do conteúdo (colunas nativas), acessíveis igual aos customizados. */
-export function getStandardFields(content: ContentLike): Record<string, unknown> {
-  const entries: Record<string, unknown> = {};
-  for (const key of STANDARD_KEYS) {
-    const value = nativeValue(content, key);
-    if (value !== undefined && value !== null) entries[key] = value;
+function nestedValue(record: Record<string, unknown>, name: string): unknown {
+  const parts = name.split('.');
+  let current: unknown = record;
+  for (const part of parts) {
+    if (!current || typeof current !== 'object' || Array.isArray(current)) return undefined;
+    current = (current as Record<string, unknown>)[part];
   }
+  return current;
+}
+
+/** Standard and custom fields are exposed through the same logical map. */
+export function getStandardFields(content: ContentLike): Record<string, unknown> {
+  const logical = logicalContent(content);
+  const entries: Record<string, unknown> = { ...logical };
+  for (const key of STANDARD_METADATA_KEYS) {
+    const value = (content as Record<string, unknown>)[key] ??
+      (content as Record<string, unknown>)[key.replace(/[A-Z]/g, (match) => `_${match.toLowerCase()}`)];
+    if (value !== undefined && value !== null) {
+      entries[key] = value;
+      entries[key.replace(/[A-Z]/g, (match) => `_${match.toLowerCase()}`)] = value;
+    }
+  }
+  if (logical['featured_image'] !== undefined) entries['featuredImageId'] = logical['featured_image'];
+  if (logical['seo_title'] !== undefined) entries['seoTitle'] = logical['seo_title'];
+  if (logical['seo_description'] !== undefined) entries['seoDescription'] = logical['seo_description'];
+  if (logical['author'] !== undefined) entries['authorId'] = logical['author'];
   return entries;
 }
 
-function customFieldsOf(content: ContentLike): Record<string, unknown> {
-  return (content.data ?? content.body ?? {}) as Record<string, unknown>;
-}
-
 /**
- * Retorna todos os campos de um conteúdo: padrão + customizados (custom sobrescreve),
- * passando pelo filtro theme:data:getFields.
- * Sem argumento, usa o conteúdo da request (setCurrentContent/runWithCurrentContent).
+ * Returns one canonical value map for standard and custom fields. The map is
+ * filtered once at the public boundary and never exposes physical storage as
+ * the primary contract.
  */
 export function getFields(content?: ContentLike): Record<string, unknown> {
   const resolved = resolveContent(content);
   if (!resolved) return {};
-  const merged = { ...getStandardFields(resolved), ...customFieldsOf(resolved) };
+  const merged = getStandardFields(resolved);
   return (applyDataFilter('getFields', merged, {}) as Record<string, unknown>) ?? {};
 }
 
@@ -135,11 +155,10 @@ export function getField(nameOrContent: string | ContentLike, maybeName?: string
 
   if (!name || !content) return undefined;
 
-  const custom = customFieldsOf(content);
-  const value =
-    name in custom ? custom[name] : nativeValue(content, name);
+  const canonicalName = canonicalFieldName(name);
+  const value = nestedValue(logicalContent(content), canonicalName) ?? nestedValue(getStandardFields(content), canonicalName);
 
-  return applyDataFilter('getField', value, { name });
+  return applyDataFilter('getField', value, { name: canonicalName });
 }
 
 /**
@@ -153,8 +172,7 @@ export function getFlexibleLayouts(nameOrContent: string | ContentLike, maybeNam
 
   if (!name || !content) return [];
 
-  const custom = customFieldsOf(content);
-  const value = name in custom ? custom[name] : nativeValue(content, name);
+  const value = getField(content, name);
 
   if (!Array.isArray(value)) return [];
 
@@ -197,7 +215,7 @@ export function getFlexibleLayouts(nameOrContent: string | ContentLike, maybeNam
 export async function getFieldsAsync(content?: ContentLike): Promise<Record<string, unknown>> {
   const resolved = resolveContent(content);
   if (!resolved) return {};
-  const merged = { ...getStandardFields(resolved), ...customFieldsOf(resolved) };
+  const merged = getStandardFields(resolved);
 
   if (!hooksRef) return merged;
 

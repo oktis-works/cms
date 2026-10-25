@@ -14,9 +14,9 @@
 
   <section class="hero" id="hero" aria-labelledby="hero-title">
     <div class="hero-content">
-      <h1 id="hero-title">{{content.title}}</h1>
-      {{#if content.subtitle}}
-      <p class="hero-subtitle">{{content.subtitle}}</p>
+      <h1 id="hero-title">{{field "title"}}</h1>
+      {{#if (field "subtitle")}}
+      <p class="hero-subtitle">{{field "subtitle"}}</p>
       {{/if}}
       <a href="/blog" class="btn btn-primary" role="button">Ver Blog</a>
     </div>
@@ -25,8 +25,8 @@
   <section class="about-preview" id="sobre" aria-labelledby="about-title">
     <div class="container">
       <h2 id="about-title">Sobre Nós</h2>
-      {{#if content.aboutPreview}}
-      <div class="about-content" set:html={content.aboutPreview.html}></div>
+      {{#if (field "aboutPreview.html")}}
+      <div class="about-content">{{{field "aboutPreview.html"}}}</div>
       {{else}}
       <p>Conteúdo da seção "Sobre" será exibido aqui quando configurado.</p>
       {{/if}}

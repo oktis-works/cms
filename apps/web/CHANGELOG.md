@@ -1,5 +1,22 @@
 # @oktis-works/web
 
+## 0.13.0
+
+### Minor Changes
+
+- Unify standard and custom content fields across definitions, persistence, editing, validation, and theme delivery.
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/core@0.15.0
+  - @oktis-works/database@0.14.2
+  - @oktis-works/theme-runtime@0.11.0
+  - @oktis-works/theme-sdk@0.7.0
+  - @oktis-works/validation@0.8.0
+  - @oktis-works/plugin-runtime@0.7.2
+  - @oktis-works/types@0.9.3
+
 ## 0.12.5
 
 ### Patch Changes
