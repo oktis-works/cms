@@ -1,5 +1,11 @@
 # @oktis-works/admin
 
+## 0.23.1
+
+### Patch Changes
+
+- Fix Admin Theme Customizer field rendering and type safety.
+
 ## 0.23.0
 
 ### Minor Changes

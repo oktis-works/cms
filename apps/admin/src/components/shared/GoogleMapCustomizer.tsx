@@ -2,8 +2,7 @@
 //
 // Seletor de localização para o Theme Customizer (endereço + lat/lng).
 
-import { createSignal, onMount, Show, For } from 'solid-js';
-import { useTranslation } from '../../i18n';
+import { createSignal, Show, For } from 'solid-js';
 
 export interface GoogleMapCustomizerProps {
   value: { address?: string; lat?: number; lng?: number } | null | undefined;
@@ -14,7 +13,6 @@ export interface GoogleMapCustomizerProps {
 }
 
 export function GoogleMapCustomizer(props: GoogleMapCustomizerProps) {
-  const { t } = useTranslation();
   const {
     value,
     onChange,

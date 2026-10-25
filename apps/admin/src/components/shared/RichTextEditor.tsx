@@ -3,8 +3,7 @@
 // Componente reutilizável para editor de texto rico (WYSIWYG).
 // Usado pelo ContentEditor (editor clássico) e pelo campo wysiwyg do ThemeCustomizer.
 
-import { createSignal, onMount, onCleanup } from 'solid-js';
-import { sanitizeHtml } from '../../lib/sanitize';
+import { createSignal, onMount } from 'solid-js';
 
 export interface RichTextEditorProps {
   value: string;
@@ -128,6 +127,10 @@ export function RichTextEditor(props: RichTextEditorProps) {
     triggerChange();
   };
 
+  const handleBlur = () => {
+    triggerChange();
+  };
+
   const handleKeyDown = (e: KeyboardEvent) => {
     // Ctrl/Cmd + shortcuts
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
@@ -174,7 +177,7 @@ export function RichTextEditor(props: RichTextEditorProps) {
             disabled={disabled}
           >
             {FORMAT_BLOCK_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
+              <option value={opt.value}>{opt.label}</option>
             ))}
           </select>
         )}

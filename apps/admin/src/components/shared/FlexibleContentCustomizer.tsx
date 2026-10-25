@@ -4,31 +4,7 @@
 // Allows adding/removing/reordering layouts, each with their own subfields.
 
 import { For, Show, createSignal } from 'solid-js';
-import { useTranslation } from '../../i18n';
-import { FieldRendererFactory } from './FieldRendererFactory';
-
-export interface FlexibleLayout {
-  name: string;
-  label?: string;
-  subFields: FieldRendererComponentProps[];
-}
-
-export interface FlexibleSubField {
-  name: string;
-  type: string;
-  label?: string;
-  default?: unknown;
-  options?: Array<{ value: string; label: string }>;
-  required?: boolean;
-  min?: number;
-  max?: number;
-  step?: number;
-  minLength?: number;
-  maxLength?: number;
-  pattern?: string;
-  subFields?: FlexibleSubField[];
-  layouts?: FlexibleLayout[];
-}
+import { FieldRendererFactory, type FlexibleLayout } from './FieldRendererFactory';
 
 export interface FlexibleContentCustomizerProps {
   value: Array<{ fc_layout: string; [key: string]: unknown }> | null | undefined;
@@ -40,7 +16,6 @@ export interface FlexibleContentCustomizerProps {
 }
 
 export function FlexibleContentCustomizer(props: FlexibleContentCustomizerProps) {
-  const { t } = useTranslation();
   const {
     value,
     onChange,
@@ -59,6 +34,7 @@ export function FlexibleContentCustomizer(props: FlexibleContentCustomizerProps)
     layouts.find((layout) => layout.name === layoutName);
 
   const addRow = (layoutName: string) => {
+    if (maxRows !== undefined && rows().length >= maxRows) return;
     const layout = getLayout(layoutName);
     if (!layout) return;
 
@@ -124,10 +100,8 @@ export function FlexibleContentCustomizer(props: FlexibleContentCustomizerProps)
     const exp = new Set(expanded());
     if (exp.has(index)) exp.delete(index);
     else exp.add(index);
-    setExpanded(newExp);
+    setExpanded(exp);
   };
-
-  const isExpanded = (index: number) => expanded().has(index);
 
   return (
     <div class="flexible-content-customizer">
@@ -137,7 +111,9 @@ export function FlexibleContentCustomizer(props: FlexibleContentCustomizerProps)
 
       <div class="flexible-content-customizer__rows">
         <For each={rows()}>
-          {(row, index) => (
+          {(row, index) => {
+            const layout = getLayout(row.fc_layout);
+            return (
             <div
               class="flexible-content-customizer__row"
               classList={{ expanded: expanded().has(index()) }}
@@ -190,7 +166,7 @@ export function FlexibleContentCustomizer(props: FlexibleContentCustomizerProps)
 
               <Show when={expanded().has(index())}>
                 <div class="flexible-content-customizer__fields">
-                  <For each={layout.subFields}>
+                  <For each={layout?.subFields ?? []}>
                     {(field) => (
                       <div class="flexible-content-customizer__field">
                         <FieldRendererFactory
@@ -207,7 +183,8 @@ export function FlexibleContentCustomizer(props: FlexibleContentCustomizerProps)
                 </div>
               </Show>
             </div>
-          )}
+            );
+          }}
         </For>
         {rows().length === 0 && (
           <div class="flexible-content-customizer__empty">
@@ -227,6 +204,7 @@ export function FlexibleContentCustomizer(props: FlexibleContentCustomizerProps)
                 type="button"
                 class="btn btn-secondary flexible-content-customizer__layout-btn"
                 onClick={() => addRow(layout.name)}
+                disabled={maxRows !== undefined && rows().length >= maxRows}
               >
                 {layout.label || layout.name}
               </button>

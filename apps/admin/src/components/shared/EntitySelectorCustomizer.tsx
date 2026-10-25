@@ -4,7 +4,6 @@
 
 import { For, Show, createSignal, onMount } from 'solid-js';
 import { apiClient, type AdminUser } from '../../lib/api';
-import { useTranslation } from '../../i18n';
 
 export type EntityType = 'taxonomy' | 'user';
 
@@ -19,7 +18,6 @@ export interface EntitySelectorCustomizerProps {
 }
 
 export function EntitySelectorCustomizer(props: EntitySelectorCustomizerProps) {
-  const { t } = useTranslation();
   const {
     value,
     onChange,
@@ -101,16 +99,6 @@ export function EntitySelectorCustomizer(props: EntitySelectorCustomizerProps) {
       : [id];
     onChange(multiple ? newIds : newIds[0] ?? '');
   };
-
-  const isSelected = (id: string): boolean => selectedIds().includes(id);
-
-  const clearSelection = (): void => {
-    setSelectedIds([]);
-    onChange(multiple ? [] : '');
-    setShowDropdown(false);
-  };
-
-  const formatName = (item: { id: string; name?: string; slug?: string }) => item.name || item.slug || item.id;
 
   return (
     <div class="entity-selector-customizer">

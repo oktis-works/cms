@@ -1,7 +1,7 @@
 // @oktis-works/admin - Media Picker for Theme Customizer
 //
-// Seletor de mídia simplificado para o Theme Customizer.
-// Permite selecionar mídia existente ou fazer upload de nova.
+// Media selector for the Theme Customizer.
+// Supports selecting existing media and uploading new files.
 
 import { For, Show, createSignal, onMount } from 'solid-js';
 import { apiClient, type Media } from '../../lib/api';
@@ -11,7 +11,7 @@ export interface MediaPickerCustomizerProps {
   value: string | string[] | null | undefined;
   onChange: (value: string | string[]) => void;
   multiple?: boolean;
-  accept?: string; // 'image/*', 'video/*', etc.
+  accept?: string;
   label?: string;
   placeholder?: string;
 }
@@ -132,7 +132,7 @@ export function MediaPickerCustomizer(props: MediaPickerCustomizerProps) {
         }
         onChange(multiple ? [...current, uploaded.id] : uploaded.id);
       }
-      setInfo(`${files.length} arquivo(s) enviado(s) com sucesso`);
+      setError(`${files.length} file(s) uploaded successfully`);
       await load(); // Refresh list
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro no upload');
@@ -173,7 +173,7 @@ export function MediaPickerCustomizer(props: MediaPickerCustomizerProps) {
         ? current.filter((id) => id !== mediaId)
         : [...current, mediaId]
       : [mediaId];
-    onChange(multiple ? newIds : newIds[0]);
+    onChange(multiple ? newIds : newIds[0] ?? '');
   }
 
   const isSelected = (mediaId: string): boolean => selectedIds().includes(mediaId);
@@ -187,82 +187,6 @@ export function MediaPickerCustomizer(props: MediaPickerCustomizerProps) {
   const confirmSelection = (): void => {
     setShowModal(false);
   }
-
-  const openModal = (): void => {
-    setShowModal(true);
-    setPage(1);
-    load();
-  };
-
-  const handleFileSelect = (files: FileList | File[]): void => {
-    const fileArray = Array.from(files);
-    if (fileArray.length === 0) return;
-
-    // Filter by accept type if specified
-    const filtered = accept
-      ? fileArray.filter((f) => {
-          if (accept === 'image/*') return f.type.startsWith('image/');
-          if (accept === 'video/*') return f.type.startsWith('video/');
-          if (accept === 'audio/*') return f.type.startsWith('audio/');
-          return true;
-        })
-      : fileArray;
-
-    if (filtered.length !== fileArray.length) {
-      setError(`Alguns arquivos foram ignorados (tipo não permitido: ${accept})`);
-    }
-
-    if (filtered.length > 0) {
-      doUpload(filtered);
-    }
-  };
-
-  const handleDragOver = (e: DragEvent): void => {
-    e.preventDefault();
-    setDragOver(true);
-  };
-
-  const handleDragLeave = (e: DragEvent): void => {
-    e.preventDefault();
-    setDragOver(false);
-  };
-
-  const handleDrop = (e: DragEvent): void => {
-    e.preventDefault();
-    setDragOver(false);
-    if (e.dataTransfer?.files) {
-      handleFileSelect(e.dataTransfer.files);
-    }
-  };
-
-  const toggleSelect = (mediaId: string): void => {
-    const current = selectedIds();
-    if (current.includes(mediaId)) {
-      setSelectedIds(current.filter((id) => id !== mediaId));
-    } else if (multiple) {
-      setSelectedIds([...current, mediaId]);
-    } else {
-      setSelectedIds([mediaId]);
-    }
-    const newIds = multiple
-      ? current.includes(mediaId)
-        ? current.filter((id) => id !== mediaId)
-        : [...current, mediaId]
-      : [mediaId];
-    onChange(multiple ? newIds : newIds[0]);
-  };
-
-  const isSelected = (mediaId: string): boolean => selectedIds().includes(mediaId);
-
-  const clearSelection = (): void => {
-    setSelectedIds([]);
-    onChange(multiple ? [] : '');
-    setShowModal(false);
-  };
-
-  const confirmSelection = (): void => {
-    setShowModal(false);
-  };
 
   const openModal = (): void => {
     setShowModal(true);
@@ -295,7 +219,7 @@ export function MediaPickerCustomizer(props: MediaPickerCustomizerProps) {
                     type="file"
                     multiple={multiple}
                     accept={accept}
-                    onChange={(e) => handleFileSelect(e.currentTarget.files)}
+                    onChange={(e) => e.currentTarget.files && handleFileSelect(e.currentTarget.files)}
                     style={{ display: 'none' }}
                   />
                   <span class="btn btn-primary">{uploading() ? 'Enviando...' : t('media.picker.upload')}</span>
@@ -347,7 +271,7 @@ export function MediaPickerCustomizer(props: MediaPickerCustomizerProps) {
                 type="file"
                 multiple={multiple}
                 accept={accept}
-                onChange={(e) => handleFileSelect(e.currentTarget.files)}
+                onChange={(e) => e.currentTarget.files && handleFileSelect(e.currentTarget.files)}
                 style={{ display: 'none' }}
                 ref={(el) => { if (el) el.id = 'media-picker-file-input'; }}
               />
