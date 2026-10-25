@@ -125,30 +125,64 @@ function toText(value: unknown): string {
 export const themeRenderer = new ThemeRenderer();
 
 /**
- * Configurações do tema para os templates: defaults declarados em
- * `manifest.settings` sobrescritos pelo `config` salvo na tela Temas do
- * admin (exposto como `settings.theme` no contexto do template).
+ * Deep merge two objects, with source overriding target.
+ * Arrays are replaced, not merged.
  */
-export function buildThemeSettings(
-  manifest: Record<string, unknown> | null | undefined,
-  config: Record<string, unknown> | null | undefined
-): Record<string, unknown> {
-  const settings: Record<string, unknown> = {};
+function deepMerge(target: Record<string, unknown>, source: Record<string, unknown>): Record<string, unknown> {
+  const result = { ...target };
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object' && !Array.isArray(value) &&
+        target[key] && typeof target[key] === 'object' && !Array.isArray(target[key])) {
+      result[key] = deepMerge(target[key] as Record<string, unknown>, value as Record<string, unknown>);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
 
-  const declared = Array.isArray(manifest?.['settings']) ? (manifest['settings'] as unknown[]) : [];
+/**
+ * Extracts default values from manifest settings.
+ */
+function extractDefaults(settings: unknown[]): Record<string, unknown> {
+  const defaults: Record<string, unknown> = {};
+  const declared = Array.isArray(settings) ? settings : [];
   for (const field of declared) {
     if (!field || typeof field !== 'object') continue;
     const record = field as Record<string, unknown>;
     const name = record['name'];
-    if (typeof name === 'string' && name) {
-      settings[name] = record['default'];
+    if (typeof name === 'string' && name && record['default'] !== undefined) {
+      defaults[name] = record['default'];
     }
   }
+  return defaults;
+}
 
+/**
+ * Configurações do tema para os templates: defaults declarados em
+ * `manifest.settings` sobrescritos pelo `config` salvo na tela Temas do
+ * admin (exposto como `settings.theme` no contexto do template).
+ * Suporta herança parent/child: parent defaults → child defaults → child config
+ */
+export function buildThemeSettings(
+  manifest: Record<string, unknown> | null | undefined,
+  config: Record<string, unknown> | null | undefined,
+  parentManifest?: Record<string, unknown> | null | undefined
+): Record<string, unknown> {
+  let settings: Record<string, unknown> = {};
+
+  // 1. Parent defaults (if parent theme exists)
+  if (parentManifest) {
+    settings = deepMerge(settings, extractDefaults(parentManifest['settings'] as unknown[]));
+  }
+
+  // 2. Child theme defaults
+  const declared = Array.isArray(manifest?.['settings']) ? (manifest['settings'] as unknown[]) : [];
+  settings = deepMerge(settings, extractDefaults(declared));
+
+  // 3. Child config (saved config overrides defaults)
   if (config && typeof config === 'object' && !Array.isArray(config)) {
-    for (const [key, value] of Object.entries(config)) {
-      settings[key] = value;
-    }
+    settings = deepMerge(settings, config);
   }
 
   return settings;

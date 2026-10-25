@@ -9,6 +9,7 @@ import { For, Show, createMemo, createSignal, onMount } from 'solid-js';
 import { useTranslation } from '../../../i18n';
 import { apiClient, type ThemeInfo, type ThemeSettingField } from '../../../lib/api';
 import { FieldRendererFactory, type CustomFieldConfig } from '../../shared/FieldRendererFactory';
+import { isFieldVisible } from '../content/FieldRenderer';
 
 const PREVIEW_DEBOUNCE_MS = 800;
 
@@ -74,6 +75,7 @@ export function ThemeCustomizer() {
   const [previewPath, setPreviewPath] = createSignal('/');
   const [previewNonce, setPreviewNonce] = createSignal(0);
   const [selectedThemeId, setSelectedThemeId] = createSignal<string | null>(null);
+  const [activeTab, setActiveTab] = createSignal<string | null>(null);
 
   let debounceHandle: ReturnType<typeof setTimeout> | null = null;
 
@@ -83,13 +85,133 @@ export function ThemeCustomizer() {
     if (id) return themes().find((t) => t.id === id) ?? null;
     return themes().find((theme) => theme.status === 'ACTIVE') ?? null;
   });
-  
+
   const fields = createMemo(() =>
     (selectedTheme()?.manifest?.settings ?? []).filter(
       (field): field is ThemeSettingField => Boolean(field) && typeof field.name === 'string'
-    )
+    ).filter((field) => isFieldVisible(field as any, draft()))
   );
+
+  // Group fields by 'group' property for tabs/accordion
+  const fieldGroups = createMemo(() => {
+    const groups = new Map<string, ThemeSettingField[]>();
+    const ungrouped: ThemeSettingField[] = [];
+
+    for (const field of fields()) {
+      const group = (field as any).group as string | undefined;
+      if (group) {
+        if (!groups.has(group)) groups.set(group, []);
+        groups.get(group)!.push(field);
+      } else {
+        ungrouped.push(field);
+      }
+    }
+
+    // Sort groups by groupOrder (first field's groupOrder)
+    const sortedGroups = Array.from(groups.entries()).sort((a, b) => {
+      const orderA = (a[1][0] as any).groupOrder ?? 0;
+      const orderB = (b[1][0] as any).groupOrder ?? 0;
+      return orderA - orderB;
+    });
+
+    return { groups: sortedGroups, ungrouped };
+  });
+
   const dirty = createMemo(() => JSON.stringify(draft()) !== JSON.stringify(savedConfig()));
+
+  // Render settings panel content based on field groups
+  const settingsPanel = createMemo(() => {
+    const groups = fieldGroups();
+    if (groups.groups.length > 0) {
+      // Tabs for multiple groups
+      return (
+        <div>
+          <div class="customizer__tabs" role="tablist">
+            {groups.groups.map(([groupName]) => (
+              <button
+                key={groupName}
+                class="customizer__tab"
+                classList={activeTab() === groupName ? 'active' : ''}
+                onClick={() => setActiveTab(groupName)}
+                role="tab"
+                aria-selected={activeTab() === groupName}
+              >
+                {groupName}
+              </button>
+            ))}
+          </div>
+          <div class="customizer__tab-panels">
+            {groups.groups.map(([groupName]) => (
+              <div
+                key={groupName}
+                class="customizer__tab-panel"
+                role="tabpanel"
+                hidden={activeTab() !== groupName}
+              >
+                <For each={groupFields}>
+                  {(field) => {
+                    const config = toCustomFieldConfig(field);
+                    return (
+                      <div class="customizer__field" key={field.name}>
+                        <label for={`customizer-${field.name}`}>{field.label || field.name}</label>
+                        <FieldRendererFactory
+                          field={config}
+                          value={draft()[field.name]}
+                          onChange={(val) => setDraftValue(field.name, val)}
+                        />
+                      </div>
+                    );
+                  }}
+                </For>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    
+    // Accordion for single group or ungrouped fields
+    return (
+      <div>
+        {groups.groups.length === 1 && groups.groups[0] && (
+          <div class="customizer__accordion">
+            <For each={groups.groups[0][1]}>
+              {(field) => {
+                const config = toCustomFieldConfig(field);
+                return (
+                  <div class="customizer__field" key={field.name}>
+                    <label for={`customizer-${field.name}`}>{field.label || field.name}</label>
+                    <FieldRendererFactory
+                      field={config}
+                      value={draft()[field.name]}
+                      onChange={(val) => setDraftValue(field.name, val)}
+                    />
+                  </div>
+                );
+              }}
+            </For>
+          </div>
+        )}
+        {groups.ungrouped.length > 0 && (
+          <For each={groups.ungrouped}>
+            {(field) => {
+              const config = toCustomFieldConfig(field);
+              return (
+                <div class="customizer__field" key={field.name}>
+                  <label for={`customizer-${field.name}`}>{field.label || field.name}</label>
+                  <FieldRendererFactory
+                    field={config}
+                    value={draft()[field.name]}
+                    onChange={(val) => setDraftValue(field.name, val)}
+                  />
+                </div>
+              );
+            }}
+          </For>
+        )}
+      </div>
+    );
+  });
 
   onMount(async () => {
     // Check for theme ID in query params
@@ -104,20 +226,26 @@ export function ThemeCustomizer() {
       setLoading(true);
       const data = await apiClient.getThemes();
       setThemes(data);
-      
+
       // Determine which theme to customize
       let targetTheme = data.find((t) => t.id === selectedThemeId()) ?? null;
       if (!targetTheme) {
         targetTheme = data.find((theme) => theme.status === 'ACTIVE') ?? null;
       }
-      
+
       if (!targetTheme) {
         setError(t('customizer.noTheme'));
         return;
       }
-      
+
       setSelectedThemeId(targetTheme.id);
-      
+
+      // Initialize active tab to first group if groups exist
+      const firstGroup = targetTheme.manifest?.settings?.find((f) => (f as any).group) as ThemeSettingField | undefined;
+      if (firstGroup && (firstGroup as any).group) {
+        setActiveTab((firstGroup as any).group);
+      }
+
       const config = (targetTheme.config ?? {}) as Record<string, unknown>;
       setSavedConfig(config);
       const initial: Record<string, unknown> = {};
@@ -192,67 +320,53 @@ export function ThemeCustomizer() {
             </div>
           }
         >
-          <div class="customizer__layout">
-            <aside class="customizer__panel">
-              <h3>{selectedTheme()!.name} · {t('customizer.title')}</h3>
+        <div class="customizer__layout">
+          <aside class="customizer__panel">
+            <h3>{selectedTheme()!.name} · {t('customizer.title')}</h3>
 
-              <Show when={fields().length === 0}>
-                <p class="muted">{t('customizer.noSettings')}</p>
-              </Show>
+            <Show when={fields().length === 0}>
+              <p class="muted">{t('customizer.noSettings')}</p>
+            </Show>
 
-              <For each={fields()}>
-                {(field) => {
-                  const config = toCustomFieldConfig(field);
-                  return (
-                    <div class="customizer__field" key={field.name}>
-                      <label for={`customizer-${field.name}`}>{field.label || field.name}</label>
-                      <FieldRendererFactory
-                        field={config}
-                        value={draft()[field.name]}
-                        onChange={(val) => setDraftValue(field.name, val)}
-                      />
-                    </div>
-                  );
+            {settingsPanel()}
+
+            <div class="customizer__actions">
+              <button class="btn btn-primary" onClick={save} disabled={saving() || !dirty()}>
+                {saving() ? t('customizer.saving') : t('customizer.save')}
+              </button>
+              <button class="btn btn-secondary" onClick={resetDraft} disabled={!dirty()}>
+                {t('customizer.reset')}
+              </button>
+              <button class="btn btn-secondary" onClick={refreshPreviewNow}>
+                {t('customizer.refreshPreview')}
+              </button>
+            </div>
+            <Show when={saved()}>
+              <span class="customizer__saved">{t('customizer.saved')}</span>
+            </Show>
+            <Show when={error()}>
+              <div class="alert alert-error">{error()}</div>
+            </Show>
+            <p class="muted customizer__hint">{t('customizer.previewHint')}</p>
+          </aside>
+
+          <section class="customizer__preview">
+            <div class="customizer__preview-bar">
+              <input
+                class="input"
+                value={previewPath()}
+                placeholder="/"
+                aria-label={t('customizer.previewPath')}
+                onChange={(event) => {
+                  setPreviewPath(event.currentTarget.value || '/');
+                  refreshPreviewNow();
                 }}
-              </For>
-
-              <div class="customizer__actions">
-                <button class="btn btn-primary" onClick={save} disabled={saving() || !dirty()}>
-                  {saving() ? t('customizer.saving') : t('customizer.save')}
-                </button>
-                <button class="btn btn-secondary" onClick={resetDraft} disabled={!dirty()}>
-                  {t('customizer.reset')}
-                </button>
-                <button class="btn btn-secondary" onClick={refreshPreviewNow}>
-                  {t('customizer.refreshPreview')}
-                </button>
-              </div>
-              <Show when={saved()}>
-                <span class="customizer__saved">{t('customizer.saved')}</span>
-              </Show>
-              <Show when={error()}>
-                <div class="alert alert-error">{error()}</div>
-              </Show>
-              <p class="muted customizer__hint">{t('customizer.previewHint')}</p>
-            </aside>
-
-            <section class="customizer__preview">
-              <div class="customizer__preview-bar">
-                <input
-                  class="input"
-                  value={previewPath()}
-                  placeholder="/"
-                  aria-label={t('customizer.previewPath')}
-                  onChange={(event) => {
-                    setPreviewPath(event.currentTarget.value || '/');
-                    refreshPreviewNow();
-                  }}
-                />
-              </div>
-              <iframe class="customizer__frame" title={t('customizer.previewTitle')} src={previewUrl()} />
-            </section>
-          </div>
-        </Show>
+              />
+            </div>
+            <iframe class="customizer__frame" title={t('customizer.previewTitle')} src={previewUrl()} />
+          </section>
+        </div>
+      </Show>
       </Show>
 
       <style>{`

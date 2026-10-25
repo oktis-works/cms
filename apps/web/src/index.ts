@@ -48,7 +48,7 @@ function bodyOf(row: ContentRow): Record<string, unknown> {
 async function resolveActiveTheme(
   themesRoot: string,
   envFallback: string
-): Promise<{ name: string; row: Record<string, unknown> | null }> {
+): Promise<{ name: string; row: Record<string, unknown> | null; parentManifest: Record<string, unknown> | null }> {
   try {
     const rows = await getConnection().unsafe(
       `SELECT * FROM themes WHERE status = 'ACTIVE'
@@ -58,12 +58,25 @@ async function resolveActiveTheme(
     const row = (rows as unknown as Array<Record<string, unknown>>)[0];
     const name = row?.['name'];
     if (typeof name === 'string' && name && existsSync(join(themesRoot, name))) {
-      return { name, row: row ?? null };
+      // Fetch parent theme manifest if this theme has a parent
+      let parentManifest: Record<string, unknown> | null = null;
+      const manifest = row?.['manifest'] as Record<string, unknown> | null;
+      const parentName = manifest?.['parent'] as string | undefined;
+      if (parentName) {
+        const parentRows = await getConnection().unsafe(
+          `SELECT manifest FROM themes WHERE name = $1`,
+          [parentName]
+        );
+        if (parentRows[0]) {
+          parentManifest = parentRows[0]['manifest'] as Record<string, unknown> | null;
+        }
+      }
+      return { name, row: row ?? null, parentManifest };
     }
   } catch {
     // tabela ausente/falha de leitura nunca derruba o render — usa o env
   }
-  return { name: envFallback, row: null };
+  return { name: envFallback, row: null, parentManifest: null };
 }
 
 async function main() {
@@ -152,6 +165,7 @@ async function main() {
       // Tema ativo por request (banco → env): ativação reflete sem restart.
       const active = await resolveActiveTheme(themesRoot, envActiveTheme);
       const activeTheme = active.name;
+      const parentManifest = active.parentManifest;
       const router = createRouter(themesRoot, activeTheme);
       const resolution = await router.resolve(path);
 
@@ -251,7 +265,8 @@ async function main() {
               active.row?.['config'] as Record<string, unknown> | null,
               c.req.query('preview_settings'),
               allowedKeys
-            )
+            ),
+            parentManifest
           ),
         };
 
