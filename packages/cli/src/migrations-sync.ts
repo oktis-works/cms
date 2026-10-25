@@ -31,7 +31,13 @@ export interface MigrationsSyncResult {
  * Na árvore de desenvolvimento também existe (gerado pelo build do CLI).
  */
 export function bundledMigrationsDir(): string {
-  return join(dirname(fileURLToPath(import.meta.url)), '..', 'migrations');
+  const packageMigrations = join(dirname(fileURLToPath(import.meta.url)), '..', 'migrations');
+  if (existsSync(packageMigrations)) return packageMigrations;
+
+  // In a source checkout, the package migration bundle does not exist until
+  // the CLI build runs. Keep update tests and local development useful by
+  // falling back to the repository's canonical migration directory.
+  return join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'migrations');
 }
 
 /**

@@ -1,5 +1,11 @@
 # @oktis-works/cms
 
+## 0.13.10
+
+### Patch Changes
+
+- Use the repository migration directory as the development fallback when the CLI package has not been built yet.
+
 ## 0.13.9
 
 ### Patch Changes
