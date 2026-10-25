@@ -1,3 +1,4 @@
+-- @okcms domain=core_schema provider=postgres conflict_policy=block max_affected_rows=100000
 -- +migrate Up
 -- Scope tenant field-group keys and repair page core definitions on upgrades.
 

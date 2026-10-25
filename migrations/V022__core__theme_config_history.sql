@@ -1,3 +1,4 @@
+-- @okcms domain=core_schema provider=postgres
 -- +migrate Up
 -- Theme config version history (audit trail + restore capability)
 CREATE TABLE IF NOT EXISTS theme_config_versions (

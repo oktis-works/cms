@@ -1,3 +1,4 @@
+-- @okcms domain=core_schema provider=postgres
 -- +migrate Up
 -- Tabela de valores de campos (isolados por entidade)
 

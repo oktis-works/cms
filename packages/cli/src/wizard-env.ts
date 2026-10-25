@@ -197,10 +197,10 @@ export async function runEnvInterview(
           [
             { value: 'postgres', label: catalog.envDbEnginePostgres, hint: catalog.envDbEnginePostgresHint },
             { value: 'mysql', label: catalog.envDbEngineMysql, hint: catalog.envDbEngineMysqlHint },
-            { value: 'mariadb', label: catalog.envDbEngineMariadb, hint: catalog.envDbEngineMariadbHint },
+            { value: 'mariadb', label: catalog.envDbEngineMariaDb, hint: catalog.envDbEngineMariaDbHint },
             { value: '__back__' as const, label: `← ${catalog.flowBack}`, hint: catalog.flowBackHint },
           ],
-          { defaultValue: 'postgres', fullClear: true }
+          { defaultValue: (env.get('DB_ENGINE') as 'postgres' | 'mysql' | 'mariadb' | undefined) ?? 'postgres', fullClear: true, cancelValue: '__back__' }
         );
         if (pick === '__back__') {
           result = { type: 'back' };
@@ -212,6 +212,7 @@ export async function runEnvInterview(
           result = { type: 'value' };
         }
       } else if (step.kind === 'mode') {
+        const defaultMode = env.get('DATABASE_URL') ? 'connectionString' : 'individual';
         const pick = await prompt.select<'connectionString' | 'individual' | '__back__'>(
           catalog.envDbModeChoose,
           [
@@ -219,7 +220,7 @@ export async function runEnvInterview(
             { value: 'individual', label: catalog.envDbModeIndividual, hint: catalog.envDbModeIndividualHint },
             { value: '__back__' as const, label: `← ${catalog.flowBack}`, hint: catalog.flowBackHint },
           ],
-          { defaultValue: 'individual', fullClear: true }
+          { defaultValue: defaultMode, fullClear: true }
         );
         if (pick === '__back__') {
           result = { type: 'back' };

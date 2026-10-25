@@ -18,7 +18,7 @@
 // History e rollback: toda operação grava em `.deploy/update-history.json`
 // — `okcms rollback` lista e pode voltar.
 
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { deployBlueGreen, type DeployChoices } from './bluegreen.js';
@@ -27,13 +27,14 @@ import { deployPm2 } from './pm2.js';
 import { resolveTarget, saveTarget, type DeployTarget } from './deploy-target.js';
 import { defaultRunner, type Runner } from './docker.js';
 import { assertHostOnly, type ContainerProbe } from './guards.js';
-import { getLatestVersion } from './npm-registry.js';
+import { getLatestVersion, getLatestVersionStatus } from './npm-registry.js';
 import { Prompt, style, symbol } from './prompt.js';
 import { addHistoryEntry } from './history.js';
 import { updateProjectDocs } from './docs-updater.js';
 import { syncMigrations } from './migrations-sync.js';
 import { loadProjectConfig } from './project-config.js';
 import { migrateThemeManifests } from './theme-migrate.js';
+import { beginUpdateProgress, recordUpdateStep } from './update-progress.js';
 
 export type UpdateMode = 'download' | 'deploy';
 
@@ -50,6 +51,13 @@ export interface ScanResult {
   /** false = no `node_modules/@oktis-works` (project never installed). */
   installed: boolean;
   outdated: OutdatedEntry[];
+  /** Direct packages whose registry state could not be determined. */
+  registryUnavailable?: string[];
+  registryIssues?: Array<{
+    pkg: string;
+    status: 'offline' | 'registry-error' | 'not-found';
+    error: string;
+  }>;
 }
 
 export interface UpdateOptions {
@@ -67,6 +75,8 @@ export interface UpdateOptions {
   keepOrphans?: boolean;
   /** `--yes`: no prompts, everything at its default. */
   yes?: boolean;
+  /** `--dry-run`: print the resolved plan without writing or deploying. */
+  dryRun?: boolean;
   /** `--force`: allows running inside a container (not recommended). */
   force?: boolean;
   /** `assertHostOnly` probe (tests); production uses the real detection. */
@@ -74,6 +84,49 @@ export interface UpdateOptions {
   runner?: Runner;
   prompt?: Prompt;
   log?: (message: string) => void;
+}
+
+export interface UpdatePlan {
+  mode: UpdateMode;
+  target?: string;
+  packages: OutdatedEntry[];
+  migrations: 'would-sync' | 'not-applicable';
+  registryUnavailable: string[];
+  registryIssues: NonNullable<ScanResult['registryIssues']>;
+}
+
+/** Builds the operator-facing update plan without touching the project. */
+export function createUpdatePlan(scan: ScanResult, opts: UpdateOptions): UpdatePlan {
+  const mode = parseMode(opts.mode ?? 'deploy') ?? 'deploy';
+  return {
+    mode,
+    target: opts.target,
+    packages: [...scan.outdated],
+    migrations: mode === 'deploy' || mode === 'download' ? 'would-sync' : 'not-applicable',
+    registryUnavailable: [...(scan.registryUnavailable ?? [])],
+    registryIssues: [...(scan.registryIssues ?? [])],
+  };
+}
+
+export function formatUpdatePlan(plan: UpdatePlan): string {
+  const lines = [
+    'Update plan (dry-run)',
+    `  mode: ${plan.mode}`,
+    `  target: ${plan.target ?? 'auto-select at execution time'}`,
+    `  packages: ${plan.packages.length}`,
+    `  migrations: ${plan.migrations}`,
+  ];
+  for (const packageUpdate of plan.packages) {
+    lines.push(`    ${packageUpdate.pkg}: ${packageUpdate.current} -> ${packageUpdate.latest}`);
+  }
+  if (plan.registryUnavailable.length > 0) {
+    lines.push(`  registry unresolved: ${plan.registryUnavailable.join(', ')}`);
+    for (const issue of plan.registryIssues) {
+      lines.push(`    ${issue.pkg}: ${issue.status} (${issue.error})`);
+    }
+  }
+  lines.push('  no files, packages, containers, or migrations were changed.');
+  return lines.join('\n');
 }
 
 const MODE_ALIASES: Record<string, UpdateMode> = {
@@ -94,9 +147,8 @@ export function parseMode(value: string): UpdateMode | null {
 }
 
 /**
- * Scans `node_modules/@oktis-works/*` and compares each installed version with
- * the registry. A network failure on one package never breaks the scan — it is
- * skipped and the operator sees `?` on the next run.
+ * Scans only direct `@oktis-works/*` dependencies declared by the project and
+ * compares each installed version with the registry.
  */
 export async function scanOutdated(
   cwd: string,
@@ -105,11 +157,27 @@ export async function scanOutdated(
   const nmDir = join(cwd, 'node_modules', '@oktis-works');
   if (!existsSync(nmDir)) return { installed: false, outdated: [] };
 
-  const installed = readdirSync(nmDir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name);
+  let directPackages: string[];
+  try {
+    const manifest = JSON.parse(readFileSync(join(cwd, 'package.json'), 'utf-8')) as {
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    };
+    directPackages = [...new Set([
+      ...Object.keys(manifest.dependencies ?? {}),
+      ...Object.keys(manifest.devDependencies ?? {}),
+    ])].filter((pkg) => pkg.startsWith('@oktis-works/'));
+  } catch {
+    return { installed: false, outdated: [] };
+  }
+
+  const installed = directPackages
+    .map((pkg) => pkg.slice('@oktis-works/'.length))
+    .filter((name) => existsSync(join(nmDir, name)));
 
   const outdated: OutdatedEntry[] = [];
+  const registryUnavailable: string[] = [];
+  const registryIssues: NonNullable<ScanResult['registryIssues']> = [];
 
   for (const name of installed) {
     let current = '?';
@@ -122,7 +190,21 @@ export async function scanOutdated(
       // no readable package.json — treated as unknown below
     }
 
-    const latest = await getLatestVersion(`@oktis-works/${name}`);
+    // Keep the fallback for embedders that mock the legacy helper. Production
+    // uses the detailed result so an outage cannot be reported as up to date.
+    const detailed = typeof getLatestVersionStatus === 'function'
+      ? await getLatestVersionStatus(`@oktis-works/${name}`)
+      : null;
+    const latest = detailed
+      ? detailed.status === 'ok' ? detailed.version : null
+      : await getLatestVersion(`@oktis-works/${name}`);
+
+    if (detailed && detailed.status !== 'ok') {
+      registryUnavailable.push(`@oktis-works/${name}`);
+      registryIssues.push({ pkg: `@oktis-works/${name}`, status: detailed.status, error: detailed.error });
+      log(`  ? @oktis-works/${name} ${current} (registry ${detailed.status}: ${detailed.error})`);
+      continue;
+    }
 
     if (!latest || latest === current) {
       log(`  ✓ @oktis-works/${name} ${current} (up to date)`);
@@ -133,7 +215,7 @@ export async function scanOutdated(
     outdated.push({ name, pkg: `@oktis-works/${name}`, current, latest });
   }
 
-  return { installed: true, outdated };
+  return { installed: true, outdated, registryUnavailable, registryIssues };
 }
 
 /**
@@ -248,7 +330,7 @@ async function installOutdatedPackages(
 ): Promise<boolean> {
   const cwd = opts.cwd ?? process.cwd();
   const runner = opts.runner ?? defaultRunner;
-  const specs = scan.outdated.map((entry) => `${entry.pkg}@latest`);
+  const specs = scan.outdated.map((entry) => `${entry.pkg}@${entry.latest}`);
 
   prompt.write('\nUpdating packages...\n');
   const result = runner('bun', ['add', ...specs], {
@@ -276,6 +358,13 @@ export async function runDownload(
   const interactive = prompt.interactive && opts.yes !== true;
 
   if (!scan.installed) {
+    const migrationResult = syncMigrations(cwd, { log: (message) => prompt.write(`${message}\n`) });
+    if (migrationResult.conflicts.length > 0) {
+      prompt.error(
+        `${migrationResult.conflicts.length} migration file(s) differ from the bundled ones — local files kept.`
+      );
+      return 1;
+    }
     console.error('No @oktis-works/* package installed in node_modules.');
     console.error('Run `bun install` (or `okcms init`) before updating.');
     return 1;
@@ -305,12 +394,11 @@ export async function runDownload(
     prompt.success('All packages are up to date.');
   } else if (opts.yes !== true && opts.install !== true) {
     prompt.success('All packages are up to date.');
-    return 0;
   }
 
   // Migrations: o db:migrate do deploy lê ./migrations do projeto — manter em
   // dia é parte da atualização. --yes/--install respondem "sim" implicitamente.
-  let wantMigrations = opts.yes === true || opts.install === true;
+  let wantMigrations = !interactive || opts.yes === true || opts.install === true;
   if (interactive) {
     wantMigrations = await prompt.confirm('Download pending migrations to ./migrations?', {
       defaultValue: true,
@@ -319,9 +407,10 @@ export async function runDownload(
   if (wantMigrations) {
     const result = syncMigrations(cwd, { log: (message) => prompt.write(`${message}\n`) });
     if (result.conflicts.length > 0) {
-      prompt.warn(
+      prompt.error(
         `${result.conflicts.length} migration file(s) differ from the bundled ones — local files kept.`
       );
+      return 1;
     }
   }
 
@@ -369,14 +458,6 @@ export async function runUpdate(opts: UpdateOptions = {}): Promise<number> {
     // ---- 2. deploy target (explícito: validado antes do scan) -------------
     prompt.heading(`OkCMS update — mode ${mode}`);
 
-    // ---- unificação theme.json ---------------------------------------------
-    // Projetos antigos gravam o manifesto do tema default como `manifest.json`;
-    // migra para o nome canônico antes de qualquer leitura do runtime/service.
-    const migratedThemes = migrateThemeManifests(join(cwd, loadProjectConfig(cwd).themesDir));
-    if (migratedThemes.length > 0) {
-      prompt.success(`theme manifest(s) migrated to theme.json: ${migratedThemes.join(', ')}`);
-    }
-
     const implicit = opts.mode === undefined;
     let resolved: DeployTarget | undefined;
     if (mode === 'deploy' && !implicit) {
@@ -390,8 +471,35 @@ export async function runUpdate(opts: UpdateOptions = {}): Promise<number> {
 
     // ---- 3. scan ----------------------------------------------------------
     const scan = await scanOutdated(cwd, (message) => prompt.write(`${message}\n`));
+    if (opts.dryRun === true) {
+      const plan = createUpdatePlan(scan, opts);
+      prompt.write(`${formatUpdatePlan(plan)}\n`);
+      return 0;
+    }
 
-    if (mode === 'download') return await runDownload(scan, opts, prompt);
+    if (scan.registryUnavailable && scan.registryUnavailable.length > 0) {
+      prompt.error(
+        `Registry state is unresolved for ${scan.registryUnavailable.join(', ')}; update was not classified as up to date.`
+      );
+      return 1;
+    }
+
+    beginUpdateProgress(cwd);
+    recordUpdateStep(cwd, 'scan', 'completed');
+
+    // Legacy theme manifests are normalized only when the update will really
+    // execute. Dry-run must remain observational and filesystem-safe.
+    const migratedThemes = migrateThemeManifests(join(cwd, loadProjectConfig(cwd).themesDir));
+    if (migratedThemes.length > 0) {
+      prompt.success(`theme manifest(s) migrated to theme.json: ${migratedThemes.join(', ')}`);
+    }
+
+    if (mode === 'download') {
+      recordUpdateStep(cwd, 'migrations', 'running');
+      const code = await runDownload(scan, opts, prompt);
+      recordUpdateStep(cwd, 'migrations', code === 0 ? 'completed' : 'failed', code === 0 ? undefined : 'download flow failed');
+      return code;
+    }
 
     // A piped command cannot answer the safety question. Explicit deploy mode
     // and --yes are intended for automation; an implicit deploy must stay
@@ -416,7 +524,9 @@ export async function runUpdate(opts: UpdateOptions = {}): Promise<number> {
         });
       }
       if (wantPackages && hasUpdates) {
+        recordUpdateStep(cwd, 'packages', 'running');
         if (!(await installOutdatedPackages(scan, opts, prompt))) return 1;
+        recordUpdateStep(cwd, 'packages', 'completed');
         const updatedDocs = await recordUpdateAndDocs(cwd, scan);
         if (updatedDocs.length > 0) {
           prompt.success(`Project docs updated: ${updatedDocs.join(', ')}`);
@@ -430,12 +540,15 @@ export async function runUpdate(opts: UpdateOptions = {}): Promise<number> {
         });
       }
       if (wantMigrations) {
+        recordUpdateStep(cwd, 'migrations', 'running');
         const result = syncMigrations(cwd, { log: (message) => prompt.write(`${message}\n`) });
         if (result.conflicts.length > 0) {
-          prompt.warn(
+          prompt.error(
             `${result.conflicts.length} migration file(s) differ from the bundled ones — local files kept.`
           );
+          return 1;
         }
+        recordUpdateStep(cwd, 'migrations', 'completed');
       }
 
       if (wizard) {
@@ -460,10 +573,17 @@ export async function runUpdate(opts: UpdateOptions = {}): Promise<number> {
     // Deploy explícito: sincroniza migrations em silêncio antes — o db:migrate
     // do pipeline lê ./migrations e precisa das SQL novas.
     if (!implicit) {
-      syncMigrations(cwd, { log: (message) => prompt.write(`${message}\n`) });
+      recordUpdateStep(cwd, 'migrations', 'running');
+      const result = syncMigrations(cwd, { log: (message) => prompt.write(`${message}\n`) });
+      if (result.conflicts.length > 0) {
+        prompt.error(`${result.conflicts.length} migration file(s) differ from the bundled ones — local files kept.`);
+        return 1;
+      }
+      recordUpdateStep(cwd, 'migrations', 'completed');
     }
 
     const target = resolved as DeployTarget;
+    recordUpdateStep(cwd, 'deploy', 'running');
 
     // ---- 4. choices + summary --------------------------------------------
     const choices = await resolveDeployChoices(opts, prompt, target);
@@ -502,7 +622,9 @@ export async function runUpdate(opts: UpdateOptions = {}): Promise<number> {
         install: true,
         yes: opts.yes === true,
       });
+      if (code !== 0) recordUpdateStep(cwd, 'deploy', 'failed', `pm2 exited with ${code}`);
       if (code === 0) {
+        recordUpdateStep(cwd, 'deploy', 'completed');
         saveTarget(cwd, 'pm2');
         const updatedDocs = await recordDeployAndDocs(cwd, scan, {
           mode: 'pm2',
@@ -520,12 +642,16 @@ export async function runUpdate(opts: UpdateOptions = {}): Promise<number> {
         cwd,
         runner: opts.runner,
         noCache: choices.noCache,
-        packages: scan.outdated.map((entry) => `${entry.pkg}@latest`),
+        packages: scan.outdated.map((entry) => `${entry.pkg}@${entry.latest}`),
         installAll: !scan.installed,
         log: (message) => prompt.write(`${message}\n`),
         warn: (message) => prompt.write(`${message}\n`),
       });
-      if (!result.ok) return 1;
+      if (!result.ok) {
+        recordUpdateStep(cwd, 'deploy', 'failed', 'simple deployment failed');
+        return 1;
+      }
+      recordUpdateStep(cwd, 'deploy', 'completed');
       saveTarget(cwd, 'simple');
       const updatedDocs = await recordDeployAndDocs(cwd, scan, {
         mode: 'deploy',
@@ -541,13 +667,14 @@ export async function runUpdate(opts: UpdateOptions = {}): Promise<number> {
       cwd,
       runner: opts.runner,
       choices,
-      packages: scan.outdated.map((entry) => `${entry.pkg}@latest`),
+      packages: scan.outdated.map((entry) => `${entry.pkg}@${entry.latest}`),
       installAll: !scan.installed,
       log: (message) => prompt.write(`${message}\n`),
       warn: (message) => prompt.write(`${message}\n`),
     });
 
     if (result.ok) {
+      recordUpdateStep(cwd, 'deploy', 'completed');
       saveTarget(cwd, 'blue-green');
       const updatedDocs = await recordDeployAndDocs(cwd, scan, {
         mode: 'deploy',
@@ -560,6 +687,7 @@ export async function runUpdate(opts: UpdateOptions = {}): Promise<number> {
       }
     }
 
+    if (!result.ok) recordUpdateStep(cwd, 'deploy', 'failed', 'blue-green deployment failed');
     return result.ok ? 0 : 1;
   } finally {
     process.removeListener('SIGINT', onInterrupt);

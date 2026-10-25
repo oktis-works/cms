@@ -1,3 +1,4 @@
+-- @okcms domain=core_schema provider=postgres
 -- +migrate Up
 -- Isolamento adicional para renderização pública de temas.
 -- As tabelas já tinham RLS em instalações novas, mas bases antigas também

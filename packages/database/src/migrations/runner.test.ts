@@ -17,7 +17,7 @@ let client: ReturnType<typeof makeClient>;
 
 function makeClient() {
   const respond = (text: string): unknown[] => {
-    for (const [needle, rows] of Object.entries(selectResults)) {
+    for (const [needle, rows] of Object.entries(selectResults).sort(([a], [b]) => b.length - a.length)) {
       if (text.includes(needle)) return rows;
     }
     return [];
@@ -43,6 +43,7 @@ function makeClient() {
 
 vi.mock('../connection.js', () => ({
   getConnection: vi.fn(),
+  sqlId: (name: string) => name,
 }));
 
 import { getConnection } from '../connection.js';
@@ -51,8 +52,11 @@ import {
   applyMigration,
   rollbackMigration,
   rollbackPluginMigrations,
+  runPluginMigrations,
   runMigrations,
   extractUpSection,
+  buildMigrationManifest,
+  parseMigrationMetadata,
   type MigrationFile,
 } from './runner.js';
 
@@ -103,6 +107,23 @@ describe('loadMigrationsFromDir', () => {
     const missing = join(tmpdir(), `bl-migrations-missing-${Date.now()}`);
     expect(loadMigrationsFromDir(missing)).toEqual([]);
   });
+
+  it('derives safe metadata and validates dependency references', () => {
+    const sql = '-- @okcms domain=tenant_data depends_on=core:999\n-- +migrate Up\nCREATE TABLE t (id uuid);\n-- +migrate Down\nDROP TABLE t;';
+    const metadata = parseMigrationMetadata(sql, 'CORE');
+    expect(metadata).toMatchObject({
+      domain: 'tenant_data',
+      provider: 'postgres',
+      reversible: true,
+      forwardOnly: false,
+      destructive: true,
+      requiresBackup: true,
+      dependencies: ['core:999'],
+    });
+    expect(() => buildMigrationManifest([{
+      name: 'x', version: '001', owner: 'core', ownerType: 'CORE', sql, checksum: sha256(sql), metadata,
+    }])).toThrow(/depends on missing migration/);
+  });
 });
 
 describe('applyMigration', () => {
@@ -116,7 +137,7 @@ describe('applyMigration', () => {
   };
 
   it('pula migration já aplicada (idempotência)', async () => {
-    selectResults['SELECT id FROM migrations'] = [{ id: 'existing' }];
+    selectResults['SELECT id, checksum FROM migrations'] = [{ id: 'existing', checksum: migration.checksum }];
 
     await applyMigration('tenant-1', migration);
 
@@ -128,12 +149,12 @@ describe('applyMigration', () => {
     await applyMigration('tenant-1', migration);
 
     const texts = calls.filter((c): c is TaggedCall => c.kind === 'tagged').map((c) => c.text);
-    expect(texts[0]).toContain('SELECT id FROM migrations');
+    expect(texts[0]).toContain('SELECT id, checksum FROM migrations');
     expect(texts).toContain('__BEGIN__');
     expect(texts.some((t) => t.includes("set_config('app.current_tenant_id'"))).toBe(true);
 
     const insert = calls.find(
-      (c): c is TaggedCall => c.kind === 'tagged' && c.text.includes('INSERT INTO migrations')
+      (c): c is TaggedCall => c.kind === 'tagged' && c.text.includes('INSERT INTO core_schema_migrations')
     );
     expect(insert!.values).toContain(migration.owner);
     expect(insert!.values).toContain(migration.checksum);
@@ -181,19 +202,54 @@ describe('extractUpSection', () => {
 });
 
 describe('runMigrations', () => {
+  it('rejects unsupported providers before loading or mutating migrations', async () => {
+    const dir = withMigrations({ 'V001__core__a.sql': 'CREATE TABLE a();' });
+
+    await expect(runMigrations('tenant-1', dir, { provider: 'sqlite' })).rejects.toThrow(/not supported/);
+    expect(calls).toEqual([]);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('rejects a migration whose declared provider differs before ledger access', async () => {
+    const dir = withMigrations({
+      'V001__core__mysql_only.sql': '-- @okcms provider=mysql\nCREATE TABLE a();',
+    });
+    await expect(runMigrations('tenant-1', dir, { provider: 'postgres' })).rejects.toThrow(/requires provider "mysql"/);
+    expect(calls).toEqual([]);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
   it('aplica pendentes e pula já aplicadas', async () => {
     const dir = withMigrations({
       'V001__core__a.sql': 'CREATE TABLE a();',
       'V002__core__b.sql': 'CREATE TABLE b();',
     });
     selectResults['FROM migrations'] = [
-      { id: '1', owner: 'core', version: '001', name: 'a', tenant_id: 'tenant-1', owner_type: 'CORE', applied_at: new Date(), checksum: 'x' },
+      { id: '1', owner: 'core', version: '001', name: 'a', tenant_id: 'tenant-1', owner_type: 'CORE', applied_at: new Date(), checksum: sha256('CREATE TABLE a();') },
     ];
+    selectResults['SELECT id, checksum FROM migrations'] = [];
 
     const result = await runMigrations('tenant-1', dir);
 
     expect(result.skipped).toEqual(['a']);
     expect(result.applied).toEqual(['b']);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('does not replay core migrations already covered by the canonical baseline', async () => {
+    const dir = withMigrations({ 'V001__core__baseline_change.sql': 'CREATE TABLE baseline_change (id int);' });
+    selectResults['schema_bootstrap'] = [{ schema_version: 'V025' }];
+    const result = await runMigrations('tenant-1', dir);
+    expect(result).toEqual({ applied: [], skipped: ['baseline_change'] });
+    expect(calls.some((call) => call.kind === 'unsafe' && call.query.includes('CREATE TABLE baseline_change'))).toBe(false);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('fails closed until a legacy schema is explicitly adopted', async () => {
+    const dir = withMigrations({ 'V001__core__legacy_upgrade.sql': 'CREATE TABLE legacy_upgrade (id int);' });
+    selectResults['schema_bootstrap'] = [{ schema_version: 'legacy-pending' }];
+    await expect(runMigrations('tenant-1', dir)).rejects.toThrow(/--adopt-legacy/);
+    expect(calls.some((call) => call.kind === 'unsafe' && call.query.includes('CREATE TABLE legacy_upgrade'))).toBe(false);
     rmSync(dir, { recursive: true, force: true });
   });
 
@@ -259,23 +315,16 @@ describe('rollbackMigration', () => {
 });
 
 describe('rollbackPluginMigrations', () => {
-  it('reverte todas as migrations de um plugin em ordem inversa (DESC)', async () => {
+  it('preserves migration records when no rollback SQL is supplied', async () => {
     selectResults['FROM migrations'] = [
       { id: '1', tenant_id: 'tenant-1', owner: 'plugin_seo', version: '001', name: 'create_tables', owner_type: 'PLUGIN', applied_at: new Date(), checksum: 'c1' },
       { id: '2', tenant_id: 'tenant-1', owner: 'plugin_seo', version: '002', name: 'add_index', owner_type: 'PLUGIN', applied_at: new Date(), checksum: 'c2' },
       { id: '3', tenant_id: 'tenant-1', owner: 'plugin_seo', version: '003', name: 'add_column', owner_type: 'PLUGIN', applied_at: new Date(), checksum: 'c3' },
     ];
 
-    const count = await rollbackPluginMigrations('tenant-1', 'plugin_seo');
-
-    expect(count).toBe(3);
-    // Verify delete was called for the plugin's migrations
-    const deleteCalls = calls.filter((c): c is TaggedCall => c.kind === 'tagged' && c.text.includes('DELETE FROM migrations'));
-    expect(deleteCalls.length).toBe(1);
-    // The query uses parameterized placeholders, verify the structure
-    expect(deleteCalls[0]!.text).toContain('DELETE FROM migrations');
-    expect(deleteCalls[0]!.text).toContain('tenant_id = ?');
-    expect(deleteCalls[0]!.text).toContain('owner = ?');
+    await expect(rollbackPluginMigrations('tenant-1', 'plugin_seo')).rejects.toThrow(/no Down SQL/);
+    expect(calls.some((c) => c.kind === 'unsafe')).toBe(false);
+    expect(calls.some((c): c is TaggedCall => c.kind === 'tagged' && c.text.includes('DELETE FROM migrations'))).toBe(false);
   });
 
   it('retorna 0 quando plugin não tem migrations aplicadas', async () => {
@@ -316,7 +365,7 @@ describe('rollbackPluginMigrations', () => {
       { id: '2', tenant_id: 'tenant-1', owner: 'plugin_b', version: '001', name: 'b', owner_type: 'PLUGIN', applied_at: new Date(), checksum: 'c2' },
     ];
 
-    const count = await rollbackPluginMigrations('tenant-1', 'plugin_a');
+    const count = await rollbackPluginMigrations('tenant-1', 'plugin_a', 'DROP TABLE plugin_a_data;');
 
     expect(count).toBe(2); // Returns all matching rows from mock
     // The mock doesn't filter by owner, so both are returned
@@ -326,5 +375,29 @@ describe('rollbackPluginMigrations', () => {
     expect(deleteCalls[0]!.text).toContain('DELETE FROM migrations');
     expect(deleteCalls[0]!.text).toContain('tenant_id = ?');
     expect(deleteCalls[0]!.text).toContain('owner = ?');
+  });
+});
+
+describe('runPluginMigrations', () => {
+  it('executes each plugin Up section exactly once in the plugin search path', async () => {
+    const files = [
+      {
+        version: '001',
+        name: 'create_table',
+        sql: '-- +migrate Up\nCREATE TABLE only_once (id integer);\n-- +migrate Down\nDROP TABLE only_once;',
+      },
+    ];
+
+    const applied = await runPluginMigrations('tenant-1', 'plugin_seo', files);
+
+    expect(applied).toBe(1);
+    const unsafe = calls.filter((call): call is UnsafeCall => call.kind === 'unsafe');
+    expect(unsafe).toHaveLength(1);
+    expect(unsafe[0]!.query).toContain('CREATE TABLE only_once');
+    expect(unsafe[0]!.query).not.toContain('DROP TABLE only_once');
+    const searchPath = calls.find(
+      (call): call is TaggedCall => call.kind === 'tagged' && call.text.includes('SET LOCAL search_path')
+    );
+    expect(searchPath).toBeTruthy();
   });
 });

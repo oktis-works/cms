@@ -82,7 +82,7 @@ CMS API-first, multi-tenant e extensível. Quatro apps + uma CLI:
 | **Worker** | \`@oktis-works/worker\` | Filas/jobs em background (bullmq): publicação, mídia, webhooks, cache |
 | **CLI** | \`@oktis-works/cms\` | \`okcms\` — init, start, banco, extensões, update |
 
-- **Banco:** PostgreSQL (Row-Level Security, multi-tenant)
+- **Banco:** PostgreSQL, MySQL, or MariaDB (provider-specific schema and tenant isolation). See \`docs/provider-matrix.md\` for supported versions.
 - **Cache e filas:** Redis
 - **Extensões:** [plugins](./PLUGIN.md) (hooks/filters no runtime) e [temas](./THEME.md) (templates + estilos isolados)
 
@@ -95,7 +95,7 @@ CMS API-first, multi-tenant e extensível. Quatro apps + uma CLI:
 | \`package.json\` | Apps do CMS (\`api\`, \`admin\`, \`web\`, \`worker\`) + CLI em devDependencies + scripts de atalho (start, migrate, doctor…) |
 | \`plugins/\`, \`themes/\` | Extensões do projeto |
 | \`migrations/\` | SQL de migrations (\`okcms db:migrate\`) |
-| \`docker-compose.yml\` | Infra local: PostgreSQL + Redis (com healthcheck e volume) |
+| \`docker-compose.yml\` | Infra local: selected database provider + Redis (with healthcheck and volume) |
 | \`docker/Dockerfile\`, \`.dockerignore\` | Imagem única \`okcms/app\` — 4 entrypoints: api, admin, web, worker |
 | \`docker-compose.infra.yml\` | Projeto \`okcms\`: rede, postgres (só 127.0.0.1), redis (só interna) e proxy |
 | \`docker-compose.deploy.yml\` | As 8 services blue/green: api, web, admin, worker × blue, green |
@@ -104,7 +104,7 @@ CMS API-first, multi-tenant e extensível. Quatro apps + uma CLI:
 
 ## Começando (desenvolvimento local)
 
-Pré-requisitos: **Node 20+** ou **Bun 1.3+** · **PostgreSQL 16+** (obrigatório) ·
+Pré-requisitos: **Node 22.17+** ou **Bun 1.4.4+** · **PostgreSQL 16+, MySQL 8.0.36+/8.4 LTS ou MariaDB 11.4+** ·
 **Redis** (opcional — só para filas do worker).
 
 > **CLI do projeto:** depois do install, os comandos rodam diretamente com
@@ -136,7 +136,7 @@ DB_USER=postgres
 # DATABASE_URL=postgresql://postgres:senha@localhost:5432/okcms
 
 # 2. Suba a infra (Postgres + Redis) — com Docker:
-docker compose up -d
+okcms dev
 # Sem Docker: aponte DB_* para um Postgres seu. Sem Redis, use:
 #   REDIS_HOST=disabled   (cache em memória; filas do worker exigem Redis)
 
@@ -164,7 +164,7 @@ Ports padrão (ajustáveis no \`.env\`): **API 3000** (\`PORT\`) · **Web 3001**
 ## Começando (Docker)
 
 \`\`\`bash
-docker compose up -d   # só a infra: postgres:16 + redis:7 (healthcheck + volumes)
+okcms dev              # completes .env, infrastructure, migrations and apps
 okcms db:migrate
 okcms start            # apps rodam como processos normais, fora do compose
 \`\`\`
@@ -389,7 +389,7 @@ An API-first, multi-tenant, extensible CMS. Four apps + one CLI:
 | **Worker** | \`@oktis-works/worker\` | Background queues/jobs (bullmq): publishing, media, webhooks, cache |
 | **CLI** | \`@oktis-works/cms\` | \`okcms\` — init, start, database, extensions, update |
 
-- **Database:** PostgreSQL (Row-Level Security, multi-tenant)
+- **Database:** PostgreSQL, MySQL, or MariaDB (provider-specific schema and tenant isolation). See \`docs/provider-matrix.md\` for supported versions.
 - **Cache and queues:** Redis
 - **Extensions:** [plugins](./PLUGIN.md) (hooks/filters at runtime) and [themes](./THEME.md) (templates + isolated styles)
 
@@ -402,7 +402,7 @@ An API-first, multi-tenant, extensible CMS. Four apps + one CLI:
 | \`package.json\` | CMS apps (\`api\`, \`admin\`, \`web\`, \`worker\`) + CLI in devDependencies + shortcut scripts (start, migrate, doctor…) |
 | \`plugins/\`, \`themes/\` | Project extensions |
 | \`migrations/\` | SQL migrations (\`okcms db:migrate\`) |
-| \`docker-compose.yml\` | Local infrastructure: PostgreSQL + Redis (healthcheck + volume) |
+| \`docker-compose.yml\` | Local infrastructure: selected database provider + Redis (healthcheck + volume) |
 | \`docker/Dockerfile\`, \`.dockerignore\` | Single \`okcms/app\` image — 4 entrypoints: api, admin, web, worker |
 | \`docker-compose.infra.yml\` | \`okcms\` project: network, postgres (127.0.0.1 only), redis (internal only) and proxy |
 | \`docker-compose.deploy.yml\` | The 8 blue/green services: api, web, admin, worker × blue, green |
@@ -411,7 +411,7 @@ An API-first, multi-tenant, extensible CMS. Four apps + one CLI:
 
 ## Getting started (local development)
 
-Prerequisites: **Node 20+** or **Bun 1.3+** · **PostgreSQL 16+** (required) ·
+Prerequisites: **Node 22.17+** or **Bun 1.4.4+** · **PostgreSQL 16+, MySQL 8.0.36+/8.4 LTS, or MariaDB 11.4+** ·
 **Redis** (optional — only for the worker queues).
 
 > **Project CLI:** after installation, commands run directly with \`okcms\`.
@@ -443,7 +443,7 @@ DB_USER=postgres
 # DATABASE_URL=postgresql://postgres:password@localhost:5432/okcms
 
 # 2. Start the infrastructure (Postgres + Redis) — with Docker:
-docker compose up -d
+okcms dev
 # Without Docker: point DB_* to your own Postgres. Without Redis, use:
 #   REDIS_HOST=disabled   (in-memory cache; the worker queues require Redis)
 
@@ -471,7 +471,7 @@ Default ports (adjustable in \`.env\`): **API 3000** (\`PORT\`) · **Web 3001**
 ## Getting started (Docker)
 
 \`\`\`bash
-docker compose up -d   # infrastructure only: postgres:16 + redis:7 (healthcheck + volumes)
+okcms dev              # completes .env, infrastructure, migrations and apps
 okcms db:migrate
 okcms start            # apps run as normal processes, outside the compose
 \`\`\`
@@ -1272,4 +1272,10 @@ export function pluginDoc(lang: DocsLang = DEFAULT_DOCS_LANG): string {
 /** THEME.md na língua pedida. */
 export function themeDoc(lang: DocsLang = DEFAULT_DOCS_LANG): string {
   return lang === 'pt' ? THEME_DOC_PT : THEME_DOC_EN;
+}
+
+export function providerMatrixDoc(lang: DocsLang = DEFAULT_DOCS_LANG): string {
+  return lang === 'pt'
+    ? `# Matriz de banco\n\n- PostgreSQL 16+ (driver postgres)\n- MySQL 8.0.36+ ou 8.4 LTS (driver mysql2)\n- MariaDB 11.4+ (driver mariadb)\n\nMySQL e MariaDB têm schemas e migrations próprios. Consulte a documentação do operador para a matriz completa e os testes de release.\n`
+    : `# Database provider matrix\n\n- PostgreSQL 16+ (postgres driver)\n- MySQL 8.0.36+ or 8.4 LTS (mysql2 driver)\n- MariaDB 11.4+ (mariadb driver)\n\nMySQL and MariaDB have separate schemas and migration sets. See the operator documentation for the complete matrix and release tests.\n`;
 }

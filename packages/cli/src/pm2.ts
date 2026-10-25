@@ -40,7 +40,7 @@ module.exports = {
       name: 'okcms-api',
       script: 'bunx',
       args: '@oktis-works/api',
-      env: { NODE_ENV: 'production', PORT: 3000, UPLOAD_DIR: uploadDir },
+      env: { NODE_ENV: 'production', PORT: Number(process.env.PORT || 3000), UPLOAD_DIR: uploadDir },
       instances: 1,
       autorestart: true,
       watch: false,
@@ -50,7 +50,7 @@ module.exports = {
       name: 'okcms-admin',
       script: 'bunx',
       args: '@oktis-works/admin',
-      env: { NODE_ENV: 'production', PORT: 3011, PUBLIC_API_URL: process.env.PUBLIC_API_URL || 'http://localhost:3000' },
+      env: { NODE_ENV: 'production', PORT: Number(process.env.ADMIN_PORT || 3011), PUBLIC_API_URL: process.env.PUBLIC_API_URL || 'http://localhost:' + (process.env.PORT || 3000) },
       instances: 1,
       autorestart: true,
       watch: false,
@@ -60,7 +60,7 @@ module.exports = {
       name: 'okcms-web',
       script: 'bunx',
       args: '@oktis-works/web',
-      env: { NODE_ENV: 'production', WEB_PORT: 3001 },
+      env: { NODE_ENV: 'production', WEB_PORT: Number(process.env.WEB_PORT || 3001) },
       instances: 1,
       autorestart: true,
       watch: false,
@@ -155,7 +155,7 @@ export async function deployPm2(opts: Pm2DeployOptions): Promise<number> {
       prompt.success('Packages are up to date.');
     } else {
       prompt.write('\nUpdating packages...\n');
-      const specs = outdated.map((entry) => `${entry.pkg}@latest`);
+      const specs = outdated.map((entry) => `${entry.pkg}@${entry.latest}`);
       let ok = runner('bun', ['add', ...specs], { cwd, inherit: true, timeoutMs: 600_000 }).ok;
       if (!ok) {
         ok = runner('npm', ['install', ...specs], { cwd, inherit: true, timeoutMs: 600_000 }).ok;

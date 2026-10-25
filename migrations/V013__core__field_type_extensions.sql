@@ -1,3 +1,4 @@
+-- @okcms domain=core_schema provider=postgres
 -- V013__core__field_type_extensions.sql
 -- Tabela para armazenar tipos de campo customizados registrados por plugins
 

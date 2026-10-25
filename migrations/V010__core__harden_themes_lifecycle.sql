@@ -1,3 +1,4 @@
+-- @okcms domain=core_schema provider=postgres
 -- +migrate Up
 -- Ciclo de vida de temas (correção do schema):
 --  1. updated_at existia no service (install/activate/deactivate) mas não na

@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PassThrough, Writable } from 'node:stream';
 
-import { runWizard } from './wizard.js';
+import { filterCommandNames, runWizard } from './wizard.js';
 import type { WizardState } from './wizard-state.js';
 import type { SpawnFn } from './wizard-run.js';
 import type { PromptIO } from './prompt.js';
@@ -133,6 +133,11 @@ describe('main menu', () => {
 });
 
 describe('command catalog', () => {
+  it('filters commands by name or description', () => {
+    expect(filterCommandNames('System', 'status')).toContain('system:status');
+    expect(filterCommandNames('System', 'does-not-exist')).toEqual([]);
+  });
+
   it('runs a command through a subprocess and prints the automation mirror', async () => {
     // comando → grupo System → system:status (2º, desde a remoção do prerender) → confirmar → sair
     const io = fakeIO(['2', '5', '2', 'y', '7']);

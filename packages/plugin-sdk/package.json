@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/plugin-sdk",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -16,12 +16,12 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo"
   },
   "dependencies": {
-    "@oktis-works/types": "^0.9.3",
-    "@oktis-works/validation": "^0.8.0"
+    "@oktis-works/types": "^0.9.4",
+    "@oktis-works/validation": "^0.8.1"
   },
   "devDependencies": {
     "typescript": "5.7.3",
-    "@oktis-works/plugin-runtime": "^0.7.2"
+    "@oktis-works/plugin-runtime": "^0.7.3"
   },
   "files": [
     "dist"
@@ -30,7 +30,7 @@
     "access": "public",
     "registry": "https://registry.npmjs.org/"
   },
-  "license": "MIT",
+  "license": "GPL-2.0-or-later",
   "repository": {
     "type": "git",
     "url": "https://github.com/oktis-works/cms",

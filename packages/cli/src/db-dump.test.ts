@@ -14,6 +14,7 @@ vi.mock('node:child_process', () => ({
 vi.mock('node:fs', async (importOriginal) => ({
   ...(await importOriginal<typeof import('node:fs')>()),
   existsSync: vi.fn((p: string) => p === '/exists.dump'),
+  statSync: vi.fn(() => ({ mtimeMs: Date.now() })),
 }));
 
 import { backupDatabase, restoreDatabase, maskConnectionString, resolveTimestampedName } from './db-dump.js';
@@ -65,6 +66,13 @@ describe('restoreDatabase — CLI db:restore', () => {
     expect(result.ok).toBe(true);
     expect(spawn.calls[0]!.cmd).toBe('pg_restore');
     expect(spawn.calls[0]!.args).toEqual(['-Fc', '--no-owner', '-d', url, '--clean', '/exists.dump']);
+  });
+
+  it('validates the restore target before invoking pg_restore', () => {
+    const result = restoreDatabase({ file: '/exists.dump', databaseUrl: url, expectedDatabase: 'other' });
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain('target mismatch');
+    expect(spawn.calls).toHaveLength(0);
   });
 });
 

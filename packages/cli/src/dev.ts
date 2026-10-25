@@ -155,10 +155,8 @@ export interface InfraWaitOptions {
 }
 
 /**
- * Espera o banco (Postgres/MySQL/MariaDB) do compose aceitar conexões.
- * - Postgres: usa `pg_isready` no container
- * - MySQL/MariaDB: usa `mysqladmin ping` no container
- * Se o container não existe (banco externo), cai no probe TCP do host.
+ * Waits for the selected database service from the compose project to accept
+ * connections. The TCP fallback covers externally managed databases.
  */
 export async function waitForDatabaseReady(
   runner: Runner,
@@ -170,27 +168,23 @@ export async function waitForDatabaseReady(
   const timeoutMs = opts.postgresWaitMs ?? 60_000;
   const deadline = Date.now() + timeoutMs;
   const engine = record['DB_ENGINE'] ?? 'postgres';
+  if (!['postgres', 'mysql', 'mariadb'].includes(engine)) return false;
   const user = record['DB_USER'] || (engine === 'postgres' ? 'postgres' : 'okcms');
   const db = record['DB_NAME'] || 'okcms';
   const hostPort = Number(record['DB_HOST_PORT'] || record['DB_PORT'] || (engine === 'postgres' ? 5432 : 3306));
-  const containerName = engine === 'postgres' ? 'okcms-postgres' : engine === 'mysql' ? 'okcms-mysql' : 'okcms-mariadb';
+  const containerName = `okcms-${engine}`;
+  const check = engine === 'postgres'
+    ? ['pg_isready', '-U', user, '-d', db]
+    : engine === 'mysql'
+      ? ['mysqladmin', 'ping', '-h', 'localhost', '-u', user]
+      : ['healthcheck.sh', '--connect'];
 
   for (;;) {
-    let result;
-    if (engine === 'postgres') {
-      result = runner(
-        'docker',
-        ['exec', containerName, 'pg_isready', '-U', user, '-d', db],
-        { timeoutMs: 5_000 }
-      );
-    } else {
-      // MySQL/MariaDB
-      result = runner(
-        'docker',
-        ['exec', containerName, 'mysqladmin', 'ping', '-h', 'localhost', '-u', user, `-p${record['DB_PASSWORD'] || ''}`],
-        { timeoutMs: 5_000 }
-      );
-    }
+    const result = runner(
+      'docker',
+      ['exec', containerName, ...check],
+      { timeoutMs: 5_000 }
+    );
     if (result.ok) return true;
     if (/No such container/i.test(result.stderr)) {
       return probe('127.0.0.1', hostPort);
@@ -288,7 +282,7 @@ async function defaultHooks(log: (message: string) => void): Promise<DevHooks> {
     prepareDatabase: async () => {
       const { getMigrationsDir, prepareDb } = await import('./db-prepare.js');
       const { runMigrations } = await import('@oktis-works/database');
-      const tenantId = await prepareDb({});
+      const tenantId = await prepareDb({}, { seed: true });
       const result = await runMigrations(tenantId, getMigrationsDir({}));
       if (result.applied.length > 0 || result.skipped.length > 0) {
         log(`✓ migrations: ${result.applied.length} applied, ${result.skipped.length} skipped`);
@@ -383,6 +377,10 @@ export async function runDev(opts: DevOptions = {}): Promise<number> {
   // ---- 2. infra (compose do projeto — o mesmo que o deploy reutiliza) ------
   const record = env.toRecord();
   const engine = record['DB_ENGINE'] ?? 'postgres';
+  if (!['postgres', 'mysql', 'mariadb'].includes(engine)) {
+    prompt.error(`DB_ENGINE=${engine} is not a supported database provider.`);
+    return 1;
+  }
   let startedDb = false;
   let startedRedis = false;
 
@@ -399,7 +397,7 @@ export async function runDev(opts: DevOptions = {}): Promise<number> {
       if (goDb || goRedis) {
         prompt.write('\nStarting infrastructure...\n');
         const services = [];
-        if (goDb) services.push(engine === 'postgres' ? 'postgres' : engine);
+        if (goDb) services.push(engine);
         if (goRedis) services.push('redis');
         const result = infraCompose(cwd, ['up', '-d', ...services], runner, true);
         if (!result.ok) {
@@ -440,8 +438,7 @@ export async function runDev(opts: DevOptions = {}): Promise<number> {
       });
     } else {
       prompt.warn('docker/compose not available — infrastructure step skipped');
-      const dbLabel = engine === 'postgres' ? 'Postgres' : engine === 'mysql' ? 'MySQL' : 'MariaDB';
-      prompt.info(`point DB_* in .env at your own ${dbLabel}; REDIS_HOST=disabled runs without Redis (dev only, not written to .env)`);
+      prompt.info('point DB_* in .env at your own PostgreSQL instance; REDIS_HOST=disabled runs without Redis (dev only, not written to .env)');
     }
   }
 
@@ -453,8 +450,7 @@ export async function runDev(opts: DevOptions = {}): Promise<number> {
     prompt.error(`database setup failed: ${message}`);
     if (/ECONNREFUSED|ENOTFOUND|ETIMEDOUT|starting up|Connection terminated/i.test(message)) {
       prompt.info('the database is not reachable — rerun `okcms dev` and answer Yes to the infrastructure step,');
-      const dbLabel = engine === 'postgres' ? 'Postgres' : engine === 'mysql' ? 'MySQL' : 'MariaDB';
-      prompt.info(`or point DB_HOST/DB_PORT/DATABASE_URL in .env at a running ${dbLabel}.`);
+      prompt.info('or point DB_HOST/DB_PORT/DATABASE_URL in .env at a running PostgreSQL instance.');
     }
     return 1;
   }

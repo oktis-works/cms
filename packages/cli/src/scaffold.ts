@@ -1,13 +1,13 @@
 // @oktis-works/cms - Project Scaffolding
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { existsSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { defaultProjectConfig, DEFAULT_CONFIG_FILENAME } from './project-config.js';
 import { DEPLOY_GITIGNORE } from './assets.js';
 import { DEFAULT_THEME_FILES, DEFAULT_THEME_BINARY_FILES } from './theme-assets.js';
 import { writeDeployAssets } from './bluegreen.js';
-import { DEFAULT_DOCS_LANG, docsLangLabel, pluginDoc, projectReadme, themeDoc } from './scaffold-docs.js';
+import { DEFAULT_DOCS_LANG, docsLangLabel, pluginDoc, projectReadme, providerMatrixDoc, themeDoc } from './scaffold-docs.js';
 import type { DocsLang } from './scaffold-docs.js';
 import { getLatestVersion } from './npm-registry.js';
 import { APP_VERSIONS } from './generated/app-versions.js';
@@ -117,9 +117,13 @@ export async function scaffoldProject(
   name: string,
   lang: DocsLang = DEFAULT_DOCS_LANG,
   /** Runs after the files are written and BEFORE the "Next steps" summary. */
-  beforeSummary?: () => Promise<void>
+  beforeSummary?: () => Promise<void>,
+  options: { provider?: 'postgres' | 'mysql' | 'mariadb' } = {}
 ): Promise<string> {
   const root = resolve(process.cwd(), targetDir);
+  const provider = options.provider ?? (process.env['DB_ENGINE'] as 'postgres' | 'mysql' | 'mariadb' | undefined) ?? 'postgres';
+  const dbPort = provider === 'postgres' ? '5432' : '3306';
+  const dbUser = provider === 'postgres' ? 'postgres' : 'okcms';
 
   console.log(`${style.cyan('◈')} ${style.bold('OKCMS')} ${style.dim('· project setup')}`);
   console.log(style.dim(`  Creating ${name} at ${root}`));
@@ -171,12 +175,22 @@ export async function scaffoldProject(
       // node_modules/.bin no PATH de scripts — `bun run migrate` /
       // `npm run start` funcionam logo após o init.
       scripts: {
+        menu: 'okcms menu',
+        dev: 'okcms dev',
         start: 'okcms start',
         stop: 'okcms stop',
         status: 'okcms status',
         doctor: 'okcms doctor',
         migrate: 'okcms db:migrate',
+        'db-status': 'okcms db:status',
+        'db-inventory': 'okcms db:inventory --json',
+        'db-rollback': 'okcms db:rollback',
         backup: 'okcms db:backup',
+        restore: 'okcms db:restore',
+        seed: 'okcms seed',
+        update: 'okcms update',
+        'update-plan': 'okcms update --dry-run',
+        deploy: 'okcms deploy',
       },
       dependencies: {
         '@oktis-works/api': appRanges['@oktis-works/api'],
@@ -198,13 +212,14 @@ export async function scaffoldProject(
   const envExample = `# OkCMS
 # Database connection — pick ONE format:
 # (a) separate variables (default, used below):
+DB_ENGINE=${provider}
 DB_HOST=${process.env['DB_HOST'] ?? 'localhost'}
-DB_PORT=${process.env['DB_PORT'] ?? '5432'}
+DB_PORT=${process.env['DB_PORT'] ?? dbPort}
 DB_NAME=${process.env['DB_NAME'] ?? 'okcms'}
-DB_USER=${process.env['DB_USER'] ?? 'postgres'}
+DB_USER=${process.env['DB_USER'] ?? dbUser}
 DB_PASSWORD=
 # (b) single URL — takes precedence over the DB_* above:
-# DATABASE_URL=postgresql://postgres:password@localhost:5432/okcms
+# DATABASE_URL=${provider === 'postgres' ? 'postgresql://postgres:password@localhost:5432/okcms' : `${provider}://okcms:password@localhost:3306/okcms`}
 
 # Redis (cache + worker queues)
 REDIS_HOST=localhost
@@ -276,7 +291,7 @@ ACTIVE_THEME=default
     await writeFile(envPath, envExample, 'utf-8');
   }
 
-  const compose = `services:
+  const compose = provider === 'postgres' ? `services:
   db:
     image: postgres:16-alpine
     environment:
@@ -308,6 +323,39 @@ ACTIVE_THEME=default
 volumes:
   pgdata:
   redisdata:
+` : `services:
+  db:
+    image: ${provider === 'mysql' ? 'mysql:8.0.36' : 'mariadb:11.4'}
+    environment:
+      ${provider === 'mysql' ? 'MYSQL' : 'MARIADB'}_DATABASE: \${DB_NAME:-okcms}
+      ${provider === 'mysql' ? 'MYSQL' : 'MARIADB'}_USER: \${DB_USER:-okcms}
+      ${provider === 'mysql' ? 'MYSQL' : 'MARIADB'}_PASSWORD: \${DB_PASSWORD:-okcms}
+      ${provider === 'mysql' ? 'MYSQL_ROOT_PASSWORD' : 'MARIADB_ROOT_PASSWORD'}: \${DB_ROOT_PASSWORD:-root}
+    ports:
+      "\${DB_PORT:-3306}:3306"
+    volumes:
+      - ${provider}-data:/var/lib/${provider === 'mysql' ? 'mysql' : 'mysql'}
+    healthcheck:
+      test: ["CMD", "${provider === 'mysql' ? 'mysqladmin' : 'healthcheck.sh'}", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "\${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  ${provider}-data:
+  redisdata:
 `;
 
   await writeFile(join(root, 'docker-compose.yml'), compose, 'utf-8');
@@ -318,10 +366,11 @@ volumes:
   // tudo no git desde o primeiro commit. `writeDeployAssets` não sobrescreve
   // nada — um re-init de projeto já configurado é no-op aqui.
   const deployCreated = writeDeployAssets(root, 'blue', {
+    DB_ENGINE: provider,
     PORT: String(config.ports.api),
     WEB_PORT: String(config.ports.web),
     ADMIN_PORT: String(config.ports.admin),
-  });
+  }, provider);
 
   await mergeGitignore(root, ['.env', 'node_modules/', 'dist/', ...DEPLOY_GITIGNORE]);
 
@@ -333,12 +382,18 @@ volumes:
     ['README.md', projectReadme(name, lang)],
     ['PLUGIN.md', pluginDoc(lang)],
     ['THEME.md', themeDoc(lang)],
+    ['docs/provider-matrix.md', providerMatrixDoc(lang)],
   ] as const) {
     const docPath = join(root, filename);
     if (!existsSync(docPath)) {
+      await mkdir(dirname(docPath), { recursive: true });
       await writeFile(docPath, content, 'utf-8');
       docsWritten += 1;
     }
+  }
+  const scaffoldValidation = validateScaffold(root, { allowExistingPackage: true, provider });
+  if (!scaffoldValidation.ok) {
+    throw new Error(`Generated project validation failed: ${scaffoldValidation.errors.join('; ')}`);
   }
   const relTarget = targetDir === '.' ? null : targetDir;
   const cfgName = DEFAULT_CONFIG_FILENAME;
@@ -380,9 +435,10 @@ volumes:
 
   console.log('');
   console.log(`  ${style.bold('DEV')}    ${'edit .env'.padEnd(26)}${style.dim('(DB_PASSWORD · JWT_SECRET)')}`);
-  console.log(command('docker compose up -d', '(Postgres + Redis)'));
-  console.log(command('okcms db:migrate', '(or: bun run migrate)'));
-  console.log(command('okcms start', '(api · admin · web · worker)'));
+  console.log(command('okcms dev', `(env · ${provider} · Redis · migrations · apps)`));
+  console.log(command('okcms db:migrate', '(or: bun run migrate; manual migration only)'));
+  console.log(command('okcms start', '(apps only, after okcms dev --skip-start)'));
+  console.log(command('okcms menu', '(interactive command center)'));
 
   console.log('');
   console.log(`  ${style.bold('PROD')}   ${'okcms deploy'.padEnd(26)}${style.dim('(docker · blue/green, simple or pm2)')}`);
@@ -392,4 +448,46 @@ volumes:
   console.log(`  ${style.bold('docs')}    README.md · PLUGIN.md · THEME.md`);
   console.log(`  ${style.bold('help')}    okcms --help`);
   return root;
+}
+
+export interface ScaffoldValidation {
+  ok: boolean;
+  errors: string[];
+}
+
+/** Validates the generated contract before dependency installation or handoff. */
+export function validateScaffold(
+  root: string,
+  options: { allowExistingPackage?: boolean; provider?: 'postgres' | 'mysql' | 'mariadb' } = {}
+): ScaffoldValidation {
+  const required = [DEFAULT_CONFIG_FILENAME, '.env', '.env.example', 'package.json', 'migrations'];
+  const errors = required.filter((entry) => !existsSync(join(root, entry))).map((entry) => `missing ${entry}`);
+  try {
+    const config = JSON.parse(readFileSync(join(root, DEFAULT_CONFIG_FILENAME), 'utf-8')) as { name?: unknown };
+    if (typeof config.name !== 'string' || config.name.length === 0) errors.push('config.name is required');
+  } catch {
+    errors.push('okcms.config.json is not valid JSON');
+  }
+  try {
+    const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf-8')) as {
+      scripts?: Record<string, unknown>;
+      dependencies?: Record<string, unknown>;
+      devDependencies?: Record<string, unknown>;
+    };
+    if (options.allowExistingPackage !== true) {
+      for (const script of ['menu', 'dev', 'migrate', 'doctor', 'deploy']) {
+        if (typeof packageJson.scripts?.[script] !== 'string') errors.push(`missing package script ${script}`);
+      }
+      if (typeof packageJson.dependencies?.['@oktis-works/core'] !== 'string') errors.push('missing core dependency');
+      if (typeof packageJson.devDependencies?.['@oktis-works/cms'] !== 'string') errors.push('missing CLI devDependency');
+    }
+  } catch {
+    errors.push('package.json is not valid JSON');
+  }
+  if (existsSync(join(root, '.env'))) {
+    const env = readFileSync(join(root, '.env'), 'utf-8');
+    const provider = options.provider ?? env.match(/^DB_ENGINE=(postgres|mysql|mariadb)$/m)?.[1];
+    if (!provider || !new RegExp(`^DB_ENGINE=${provider}$`, 'm').test(env)) errors.push('generated environment must select a supported database provider');
+  }
+  return { ok: errors.length === 0, errors };
 }

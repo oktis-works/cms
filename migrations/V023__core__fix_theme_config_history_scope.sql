@@ -1,3 +1,4 @@
+-- @okcms domain=core_schema provider=postgres
 -- +migrate Up
 -- Allow configuration history for both global and tenant-scoped themes.
 DROP POLICY IF EXISTS tenant_isolation_theme_config_versions ON theme_config_versions;

@@ -9,6 +9,10 @@ export interface NpmSearchResult {
   links?: { npm?: string };
 }
 
+export type VersionLookupResult =
+  | { status: 'ok'; version: string }
+  | { status: 'offline' | 'registry-error' | 'not-found'; error: string };
+
 async function fetchJson<T>(url: string, timeoutMs = 10_000): Promise<T> {
   const response = await fetch(url, {
     headers: { accept: 'application/json' },
@@ -50,5 +54,27 @@ export async function getLatestVersion(packageName: string): Promise<string | nu
     return payload['dist-tags']?.latest ?? null;
   } catch {
     return null;
+  }
+}
+
+/** Distinguishes an unavailable registry from a package with no latest tag. */
+export async function getLatestVersionStatus(packageName: string): Promise<VersionLookupResult> {
+  try {
+    const payload = await fetchJson<{ 'dist-tags'?: { latest?: string } }>(
+      `${REGISTRY}/${encodeURIComponent(packageName).replace('%40', '@')}`
+    );
+    const version = payload['dist-tags']?.latest;
+    return version
+      ? { status: 'ok', version }
+      : { status: 'not-found', error: 'registry response has no latest tag' };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const offline = error instanceof DOMException && error.name === 'TimeoutError'
+      || error instanceof Error && (error.name === 'AbortError' || error.name === 'TypeError')
+      || /fetch failed|network|enotfound|eai_again|etimedout|timed out|connection refused/i.test(message);
+    return {
+      status: offline ? 'offline' : /responded with 404/.test(message) ? 'not-found' : 'registry-error',
+      error: message,
+    };
   }
 }

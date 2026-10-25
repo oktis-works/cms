@@ -1,3 +1,4 @@
+-- @okcms domain=core_schema provider=postgres
 -- V015__core__mails.sql
 -- WordPress-parity item 12: durable mail outbox for api.mail.send.
 

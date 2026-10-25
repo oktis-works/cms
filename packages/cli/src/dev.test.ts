@@ -492,7 +492,7 @@ describe('waitForDatabaseReady', () => {
     expect(calls[0]).toContain('pg_isready');
   });
 
-  it('mysqladmin ping ok na primeira (MySQL): sem espera', async () => {
+  it('probes MySQL-compatible database engines with the provider health command', async () => {
     const calls: string[] = [];
     const runner = ((_c: string, args: string[]) => {
       calls.push(args.join(' '));
@@ -507,7 +507,7 @@ describe('waitForDatabaseReady', () => {
 
     expect(ready).toBe(true);
     expect(sleeps).toEqual([]);
-    expect(calls[0]).toContain('mysqladmin');
+    expect(calls[0]).toContain('mysqladmin ping');
   });
 });
 

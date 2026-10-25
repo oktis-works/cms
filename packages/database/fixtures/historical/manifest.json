@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "boundaries": [
+    {
+      "id": "release-v0.36.0",
+      "baseline": "V018",
+      "fixture": "release-v0.36.0.sql",
+      "purpose": "Current canonical snapshot with V019-V025 pending."
+    },
+    {
+      "id": "release-v0.36.5",
+      "baseline": "V024",
+      "fixture": "release-v0.36.5.sql",
+      "purpose": "Current dual-source installation immediately before V025."
+    },
+    {
+      "id": "dual-source-legacy",
+      "baseline": "legacy-pending",
+      "fixture": "dual-source-legacy.sql",
+      "purpose": "Database with the historical snapshot path and no domain ledger adoption."
+    }
+  ]
+}

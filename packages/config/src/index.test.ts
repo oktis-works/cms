@@ -73,19 +73,18 @@ describe('Config', () => {
     }
   });
 
-  it('mysql:// detecta driver mysql e porta 3306 default', () => {
+  it('accepts MySQL and MariaDB URLs with their provider identity', () => {
     process.env['DATABASE_URL'] = 'mysql://root:pw@mysql.local/mydb';
-    const config = loadConfig();
-    expect(config.database.driver).toBe('mysql');
-    expect(config.database.port).toBe(3306);
-    expect(config.database.database).toBe('mydb');
+    expect(loadConfig().database).toMatchObject({ driver: 'mysql', host: 'mysql.local', port: 3306, database: 'mydb' });
+    process.env['DATABASE_URL'] = 'mariadb://root:pw@maria.local/mydb';
+    expect(loadConfig().database.driver).toBe('mariadb');
   });
 
   it('DATABASE_URL inválida lança erro claro (falha barulhenta)', () => {
     process.env['DATABASE_URL'] = 'não-é-url';
     expect(() => loadConfig()).toThrow(/DATABASE_URL inválida/);
     process.env['DATABASE_URL'] = 'ftp://h/db';
-    expect(() => loadConfig()).toThrow(/não suportado/);
+    expect(() => loadConfig()).toThrow(/not supported/);
     process.env['DATABASE_URL'] = 'postgresql://user:pass@host:5432/';
     expect(() => loadConfig()).toThrow(/falta o nome do banco/);
   });

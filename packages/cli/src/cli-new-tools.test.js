@@ -10,6 +10,7 @@ import { CMS_VERSION } from '@oktis-works/validation';
 let dir;
 beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'bl-cli-'));
+        delete process.env['DATABASE_URL'];
 });
 afterEach(() => {
     rmSync(dir, { recursive: true, force: true });
@@ -23,7 +24,7 @@ describe('parseDatabaseUrl', () => {
             database: 'cms',
         });
         expect(parseDatabaseUrl('postgresql://h/cms')).toEqual({ host: 'h', port: 5432, database: 'cms' });
-        expect(parseDatabaseUrl('mysql://h/db')).toEqual({ host: 'h', port: 3306, database: 'db' });
+        expect(parseDatabaseUrl('mysql://h/db')).toBeNull();
         expect(parseDatabaseUrl('não-é-url')).toBeNull();
         expect(parseDatabaseUrl('http://h/cms')).toBeNull();
     });
@@ -83,7 +84,7 @@ describe('runDoctorChecks', () => {
         const results = await runDoctorChecks({
             tcpProbe: async () => false,
             runner: dockerRunner(),
-            env: { nodeVersion: 'v22.1.0', cwd: dir },
+            env: { nodeVersion: 'v22.17.0', cwd: dir },
         });
         const byName = Object.fromEntries(results.map((r) => [r.name, r]));
         expect(byName['node'].ok).toBe(true);
@@ -94,12 +95,13 @@ describe('runDoctorChecks', () => {
         expect(results.every((r) => !(r.required && !r.ok))).toBe(true);
     });
     it('aceita DB_* (variáveis separadas) como formato alternativo', async () => {
+        delete process.env['DATABASE_URL'];
         writeFileSync(join(dir, '.env'), 'DB_HOST=db.local\nDB_PORT=5433\nDB_NAME=cms\nDB_USER=u\nDB_PASSWORD=p\n');
         writeFileSync(join(dir, 'okcms.config.json'), '{}');
         const results = await runDoctorChecks({
             tcpProbe: async () => true,
             runner: dockerRunner(),
-            env: { nodeVersion: 'v22.1.0', cwd: dir },
+            env: { nodeVersion: 'v22.17.0', cwd: dir },
         });
         const byName = Object.fromEntries(results.map((r) => [r.name, r]));
         expect(byName['database'].ok).toBe(true);
@@ -114,7 +116,7 @@ describe('runDoctorChecks', () => {
         const results = await runDoctorChecks({
             tcpProbe: async () => false,
             runner: noDocker(),
-            env: { nodeVersion: 'v22.1.0', cwd: dir },
+            env: { nodeVersion: 'v22.17.0', cwd: dir },
         });
         const byName = Object.fromEntries(results.map((r) => [r.name, r]));
         expect(byName['database'].ok).toBe(false);
@@ -131,7 +133,7 @@ describe('runDoctorChecks', () => {
         const results = await runDoctorChecks({
             tcpProbe: async () => false,
             runner: noDocker(),
-            env: { nodeVersion: 'v22.1.0', cwd: dir },
+            env: { nodeVersion: 'v22.17.0', cwd: dir },
         });
         const byName = Object.fromEntries(results.map((r) => [r.name, r]));
         expect(byName['docker'].ok).toBe(false);
@@ -146,7 +148,7 @@ describe('runDoctorChecks', () => {
         const results = await runDoctorChecks({
             tcpProbe: async () => false,
             runner: dockerRunner({ composeOk: false }),
-            env: { nodeVersion: 'v22.1.0', cwd: dir },
+            env: { nodeVersion: 'v22.17.0', cwd: dir },
         });
         const byName = Object.fromEntries(results.map((r) => [r.name, r]));
         expect(byName['docker'].ok).toBe(true);
@@ -158,7 +160,7 @@ describe('runDoctorChecks', () => {
         const results = await runDoctorChecks({
             tcpProbe: async () => false,
             runner: dockerRunner({ proxy: false }),
-            env: { nodeVersion: 'v22.1.0', cwd: dir },
+            env: { nodeVersion: 'v22.17.0', cwd: dir },
         });
         const byName = Object.fromEntries(results.map((r) => [r.name, r]));
         expect(byName['lane'].detail).toContain('no lane');
@@ -172,7 +174,7 @@ describe('runDoctorChecks', () => {
         const results = await runDoctorChecks({
             tcpProbe: async () => false,
             runner: dockerRunner({ proxy: false }),
-            env: { nodeVersion: 'v22.1.0', cwd: dir },
+            env: { nodeVersion: 'v22.17.0', cwd: dir },
         });
         const byName = Object.fromEntries(results.map((r) => [r.name, r]));
         expect(byName['lane'].detail).toContain('lane green active');
@@ -188,7 +190,7 @@ describe('runDoctorChecks', () => {
         const results = await runDoctorChecks({
             tcpProbe: async () => true,
             runner: dockerRunner({ proxy: true }),
-            env: { nodeVersion: 'v22.1.0', cwd: dir },
+            env: { nodeVersion: 'v22.17.0', cwd: dir },
         });
         const byName = Object.fromEntries(results.map((r) => [r.name, r]));
         expect(byName['proxy'].ok).toBe(true);

@@ -1,3 +1,4 @@
+-- @okcms domain=core_schema provider=postgres
 -- +migrate Up
 -- Seed: Content Types padrão (Post, Page) com campos padrão
 

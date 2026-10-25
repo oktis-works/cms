@@ -489,7 +489,85 @@ CREATE TABLE IF NOT EXISTS migrations (
   UNIQUE(tenant_id, owner, version)
 );
 
+-- Migration metadata is additive so old installations can adopt the current
+-- ledger without losing their applied history.
+ALTER TABLE migrations ADD COLUMN IF NOT EXISTS domain VARCHAR(30) NOT NULL DEFAULT 'tenant_data';
+ALTER TABLE migrations ADD COLUMN IF NOT EXISTS provider VARCHAR(20) NOT NULL DEFAULT 'postgres';
+ALTER TABLE migrations ADD COLUMN IF NOT EXISTS reversible BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE migrations ADD COLUMN IF NOT EXISTS forward_only BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE migrations ADD COLUMN IF NOT EXISTS destructive BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE migrations ADD COLUMN IF NOT EXISTS requires_backup BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE migrations ADD COLUMN IF NOT EXISTS dependencies JSONB NOT NULL DEFAULT '[]'::jsonb;
+
 CREATE INDEX IF NOT EXISTS idx_migrations_tenant ON migrations(tenant_id);
+
+-- Domain ledgers. The legacy `migrations` table remains readable during the
+-- one-time adoption window; new executions are recorded in exactly one domain
+-- ledger according to migration metadata.
+CREATE TABLE IF NOT EXISTS core_schema_migrations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner VARCHAR(255) NOT NULL,
+  owner_type VARCHAR(20) NOT NULL CHECK (owner_type IN ('CORE', 'PLUGIN')),
+  version VARCHAR(50) NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  applied_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  checksum VARCHAR(255) NOT NULL,
+  domain VARCHAR(30) NOT NULL DEFAULT 'core_schema',
+  provider VARCHAR(20) NOT NULL DEFAULT 'postgres',
+  reversible BOOLEAN NOT NULL DEFAULT FALSE,
+  forward_only BOOLEAN NOT NULL DEFAULT TRUE,
+  destructive BOOLEAN NOT NULL DEFAULT FALSE,
+  requires_backup BOOLEAN NOT NULL DEFAULT FALSE,
+  dependencies JSONB NOT NULL DEFAULT '[]'::jsonb,
+  UNIQUE(owner, version)
+);
+
+CREATE TABLE IF NOT EXISTS tenant_data_migrations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  owner VARCHAR(255) NOT NULL,
+  owner_type VARCHAR(20) NOT NULL CHECK (owner_type IN ('CORE', 'PLUGIN')),
+  version VARCHAR(50) NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  applied_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  checksum VARCHAR(255) NOT NULL,
+  domain VARCHAR(30) NOT NULL DEFAULT 'tenant_data',
+  provider VARCHAR(20) NOT NULL DEFAULT 'postgres',
+  reversible BOOLEAN NOT NULL DEFAULT FALSE,
+  forward_only BOOLEAN NOT NULL DEFAULT TRUE,
+  destructive BOOLEAN NOT NULL DEFAULT FALSE,
+  requires_backup BOOLEAN NOT NULL DEFAULT FALSE,
+  dependencies JSONB NOT NULL DEFAULT '[]'::jsonb,
+  UNIQUE(tenant_id, owner, version)
+);
+
+CREATE TABLE IF NOT EXISTS plugin_schema_migrations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  owner VARCHAR(255) NOT NULL,
+  owner_type VARCHAR(20) NOT NULL CHECK (owner_type IN ('CORE', 'PLUGIN')),
+  version VARCHAR(50) NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  applied_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  checksum VARCHAR(255) NOT NULL,
+  domain VARCHAR(30) NOT NULL DEFAULT 'plugin_schema',
+  provider VARCHAR(20) NOT NULL DEFAULT 'postgres',
+  reversible BOOLEAN NOT NULL DEFAULT FALSE,
+  forward_only BOOLEAN NOT NULL DEFAULT TRUE,
+  destructive BOOLEAN NOT NULL DEFAULT FALSE,
+  requires_backup BOOLEAN NOT NULL DEFAULT FALSE,
+  dependencies JSONB NOT NULL DEFAULT '[]'::jsonb,
+  UNIQUE(tenant_id, owner, version)
+);
+
+-- Records which schema snapshot has bootstrapped this database. This is an
+-- audit anchor for fresh installs and one-time adoption of legacy databases.
+CREATE TABLE IF NOT EXISTS schema_bootstrap (
+  id SMALLINT PRIMARY KEY CHECK (id = 1),
+  schema_version VARCHAR(50) NOT NULL,
+  schema_checksum VARCHAR(64) NOT NULL,
+  applied_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
 
 -- ============================================================
 -- Components

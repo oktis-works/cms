@@ -10,8 +10,9 @@
 //   3. entrevista de .env campo a campo.
 // Mais: status do projeto (sondagem adaptativa), troca de idioma e sair.
 
-import { getCommand, commands, type Command } from './commands.js';
+import { getCommand, commands, optionTakesValue, type Command } from './commands.js';
 import { commandGroupNames } from './parser.js';
+import { commandMetadata } from './command-registry.js';
 import { Prompt, style, symbol, type PromptIO } from './prompt.js';
 import { catalogFor, initialLang, type Catalog, type WizardLang } from './wizard-i18n.js';
 import { probeState, suggestNext, type WizardState, type Suggestion } from './wizard-state.js';
@@ -49,17 +50,6 @@ export interface WizardOptions {
  * de rodar. A lista é por NOME de comando — o wizard marca no catálogo e
  * confirma duas vezes antes do spawn.
  */
-const DANGEROUS = new Set(['db:restore', 'db:rollback', 'rollback', 'update']);
-
-/** Comandos que só rodam com projeto OkCMS no cwd — avisamos antes. */
-const NEEDS_PROJECT = new Set([
-  'start', 'stop', 'status', 'dev', 'config', 'update', 'redeploy', 'deploy',
-  'rollback', 'db:migrate', 'db:rollback', 'db:status', 'db:backup', 'db:restore',
-  'seed', 'user:create', 'plugin:install', 'plugin:list', 'plugin:manage',
-  'theme:install', 'theme:list', 'theme:manage', 'theme:build', 'build',
-  'media:migrate', 'system:status',
-]);
-
 /** Comandos que bloqueiam por longo tempo (Ctrl+C volta ao wizard). */
 const LONG_RUNNING = new Set(['dev', 'start', 'init', 'update', 'redeploy', 'deploy']);
 
@@ -81,7 +71,16 @@ export async function runWizard(opts: WizardOptions = {}): Promise<number> {
     return 0;
   }
 
-  const stateFn = opts.stateFn ?? (() => probeState({ cwd }));
+  const probe = opts.stateFn ?? (() => probeState({ cwd }));
+  let cachedState: WizardState | undefined;
+  let cachedAt = 0;
+  const stateFn = (): WizardState => {
+    const now = Date.now();
+    if (cachedState && now - cachedAt < 2_000) return cachedState;
+    cachedState = probe();
+    cachedAt = now;
+    return cachedState;
+  };
   const ctx: WizardRunCtx = {
     prompt,
     cwd,
@@ -98,7 +97,9 @@ export async function runWizard(opts: WizardOptions = {}): Promise<number> {
       clearScreen(prompt);
       printBanner(prompt, catalog, ctx.lang, suggestNext(state), state);
 
-      const choice = await prompt.select<MenuChoice>(catalog.title, mainMenu(catalog, stateFn()));
+      const choice = await prompt.select<MenuChoice>(catalog.title, mainMenu(catalog, stateFn()), {
+        cancelValue: 'exit',
+      });
 
       switch (choice) {
         case 'flows': {
@@ -118,6 +119,8 @@ export async function runWizard(opts: WizardOptions = {}): Promise<number> {
           break;
         }
         case 'refresh': {
+          cachedState = undefined;
+          cachedAt = 0;
           prompt.success(catalog.statusRefreshed);
           break;
         }
@@ -155,6 +158,7 @@ function printBanner(
   state: WizardState
 ): void {
   prompt.write(`\n${style.bold(`  ◈ ${catalog.title}`)}  ${style.dim(`· ${catalog.langLabel(lang)}`)}\n`);
+  prompt.write(`  ${style.dim('Home / Menu')}  ${style.dim('·')}  ${style.dim(`project: ${state.isProject ? 'detected' : 'not detected'}`)}\n`);
   const tip = suggestionTip(catalog, suggestion);
   if (tip) prompt.write(`    ${style.cyan(symbol.arrow)} ${style.dim(tip)}\n`);
   if (!state.isProject) prompt.warn(catalog.statusNoProject);
@@ -206,7 +210,7 @@ function printStatus(catalog: Catalog, state: WizardState, prompt: Prompt): void
     );
   }
   console.log();
-  prompt.write(`  ${style.dim('Pressione Enter para voltar...')}`);
+  prompt.write(`  ${style.dim(catalog.pressToReturn)}`);
   // espera Enter (usa askLine que funciona em raw mode também)
   prompt.askLine('');
 }
@@ -231,7 +235,7 @@ async function flowsMenu(ctx: WizardRunCtx): Promise<void> {
   };
 
   type FlowKey = 'init' | 'dev' | 'bg' | 'simple' | 'pm2' | 'update' | 'back';
-  const pick = await ctx.prompt.select<FlowKey>(catalog.flowsHeading, [
+  const pick = await ctx.prompt.select<FlowKey>(`${catalog.title} / ${catalog.flowsHeading}`, [
     { value: 'dev', label: catalog.flowDev, hint: catalog.flowDevHint },
     { value: 'bg', label: catalog.flowDeployBg, hint: catalog.flowDeployBgHint },
     { value: 'simple', label: catalog.flowDeploySimple, hint: catalog.flowDeploySimpleHint },
@@ -239,7 +243,7 @@ async function flowsMenu(ctx: WizardRunCtx): Promise<void> {
     { value: 'update', label: catalog.flowUpdate, hint: catalog.flowUpdateHint },
     { value: 'init', label: catalog.flowInit, hint: catalog.flowInitHint },
     { value: 'back', label: catalog.flowBack, hint: catalog.flowBackHint },
-  ]);
+  ], { cancelValue: 'back' });
 
   const runners: Record<Exclude<FlowKey, 'back'>, (deps: FlowDeps) => Promise<FlowOutcome>> = {
     init: flowInit,
@@ -275,22 +279,56 @@ async function catalogMenu(ctx: WizardRunCtx): Promise<void> {
   }));
   groupChoices.push({ value: 'back', label: catalog.flowBack, hint: catalog.flowBackHint });
 
-  const groupPick = await prompt.select<string>(catalog.catalogPickCommand, groupChoices);
+  const groupPick = await prompt.select<string>(`${catalog.title} / ${catalog.catalogHeading}`, groupChoices, {
+    cancelValue: 'back',
+  });
   if (groupPick === 'back') return;
 
   const group = groupPick.slice('group:'.length);
   const names = groupCommands(group);
   const commandChoices: Entry[] = names.map((name) => {
     const cmd = getCommand(name)!;
-    const danger = DANGEROUS.has(name) ? ` ${symbol.warn}` : '';
+    const danger = commandMetadata(name).risk === 'destructive' ? ` ${symbol.warn}` : '';
     return { value: name, label: `${name}${danger}`, hint: cmd.description };
   });
+  commandChoices.push({ value: '__search', label: 'Search commands', hint: 'filter this group by name or description' });
   commandChoices.push({ value: 'back', label: catalog.flowBack, hint: catalog.flowBackHint });
 
-  const namePick = await prompt.select<string>(`${group}`, commandChoices);
+  const namePick = await prompt.select<string>(`${catalog.catalogHeading} / ${group}`, commandChoices, {
+    cancelValue: 'back',
+  });
   if (namePick === 'back') return;
+  if (namePick === '__search') {
+    const query = await prompt.ask('Search commands', { default: '' });
+    const filtered = filterCommandNames(group, query);
+    if (filtered.length === 0) {
+      prompt.warn(`No commands match "${query}".`);
+      return;
+    }
+    const filteredPick = await prompt.select<string>(`${catalog.catalogHeading} / ${group} / ${query}`, [
+      ...filtered.map((name) => {
+        const cmd = getCommand(name)!;
+        const danger = commandMetadata(name).risk === 'destructive' ? ` ${symbol.warn}` : '';
+        return { value: name, label: `${name}${danger}`, hint: cmd.description };
+      }),
+      { value: 'back', label: catalog.flowBack, hint: catalog.flowBackHint },
+    ], { cancelValue: 'back' });
+    if (filteredPick === 'back') return;
+    await runCommandInteractive(ctx, getCommand(filteredPick)!);
+    return;
+  }
 
   await runCommandInteractive(ctx, getCommand(namePick)!);
+}
+
+export function filterCommandNames(group: string, query: string): string[] {
+  const normalized = query.trim().toLocaleLowerCase();
+  const names = groupCommands(group);
+  if (!normalized) return names;
+  return names.filter((name) => {
+    const command = getCommand(name);
+    return `${name} ${command?.description ?? ''}`.toLocaleLowerCase().includes(normalized);
+  });
 }
 
 function groupCommands(group: string): string[] {
@@ -302,14 +340,20 @@ function groupCommands(group: string): string[] {
 async function runCommandInteractive(ctx: WizardRunCtx, cmd: Command): Promise<void> {
   const prompt = ctx.prompt;
   const catalog = catalogFor(ctx.lang);
-  const dangerous = DANGEROUS.has(cmd.name);
+  const metadata = commandMetadata(cmd.name);
+  const dangerous = metadata.risk === 'destructive';
 
   prompt.heading(dangerous ? catalog.catalogDanger(cmd.name) : `okcms ${cmd.name}`);
+  prompt.info(`context: ${metadata.requiresProject ? 'project' : 'standalone'} / ${metadata.requiresDatabase ? 'database' : 'no database'} / risk: ${metadata.risk}`);
   prompt.info(cmd.description);
 
-  if (NEEDS_PROJECT.has(cmd.name)) {
+  if (metadata.requiresProject) {
     const state = ctx.stateFn();
-    if (!state.isProject) prompt.warn(catalog.warnNoProject);
+    if (!state.isProject) {
+      prompt.warn(catalog.warnNoProject);
+      prompt.info('Run `okcms init` first, then return to this command.');
+      return;
+    }
   }
 
   const flags: Array<[string, string]> = [];
@@ -342,18 +386,30 @@ async function runCommandInteractive(ctx: WizardRunCtx, cmd: Command): Promise<v
             hint: option.description,
           })),
           { value: '__run', label: '▶ ' + symbol.arrow + ' run', hint: catalog.catalogDone },
-        ]);
-        if (pick === '__run') break;
+          { value: '__back', label: '← ' + catalog.flowBack, hint: catalog.flowBackHint },
+        ], { cancelValue: '__back' });
+        if (pick === '__run' || pick === '__back') break;
         const option = optionals.find((candidate) => candidate.name === pick)!;
+        if (!optionTakesValue(option)) {
+          const enabled = await prompt.confirm(`Enable --${option.name}?`, { defaultValue: true });
+          if (enabled) flags.push([option.name, 'true']);
+          continue;
+        }
         const value = await prompt.ask(catalog.catalogValueFor(`--${option.name}`, option.description), {
-          default: option.default ?? 'true',
+          default: option.default,
         });
-        flags.push([option.name, value || 'true']);
+        if (value) flags.push([option.name, value]);
       }
     }
   }
 
-  const line = formatCommand(cmd.name, flags);
+  const sensitive = new Set([
+    ...(commandMetadata(cmd.name).sensitiveOptions ?? []),
+    cmd.options
+      .filter((option) => /password|secret|token|private|key/i.test(option.name))
+      .map((option) => option.name)
+  ].flat());
+  const line = formatCommand(cmd.name, flags, [], sensitive);
 
   if (dangerous) {
     const ok = await prompt.confirm(catalog.catalogConfirmDanger(line), { defaultValue: false });
@@ -371,6 +427,7 @@ async function runCommandInteractive(ctx: WizardRunCtx, cmd: Command): Promise<v
     spawn: ctx.spawn,
     cwd: ctx.cwd,
     longRunning: LONG_RUNNING.has(cmd.name),
+    sensitive,
   });
 }
 

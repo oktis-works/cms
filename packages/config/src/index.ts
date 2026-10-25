@@ -3,14 +3,23 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+export type DatabaseDriver = 'postgres' | 'mysql' | 'mariadb';
+
+export interface DatabaseTlsConfig {
+  enabled: boolean;
+  ca?: string;
+  rejectUnauthorized?: boolean;
+}
+
 export interface DatabaseConfig {
-  driver: 'postgres' | 'mysql';
+  driver: DatabaseDriver;
   host: string;
   port: number;
   database: string;
   user: string;
   password: string;
   ssl?: boolean;
+  tls?: DatabaseTlsConfig;
   maxConnections?: number;
   /** Tentativas de reconexão no bootstrap (core-bootstrap-002). */
   retries?: number;
@@ -236,19 +245,19 @@ function getEnvSameSite(key: string, defaultValue: 'strict' | 'lax' | 'none'): '
 }
 
 export interface ParsedDatabaseUrl {
-  driver: 'postgres' | 'mysql';
+  driver: DatabaseDriver;
   host: string;
   port: number;
   database: string;
   user: string;
   password: string;
   ssl?: boolean;
+  tls?: DatabaseTlsConfig;
 }
 
 /**
- * Parseia DATABASE_URL (postgres:// | postgresql:// | mysql://).
- * Lança erro com mensagem clara em caso de formato inválido — falha barulhenta
- * no boot é melhor que conexão silenciosa com valores errados.
+ * Parses DATABASE_URL for all supported providers. Credentials are decoded
+ * exactly once and TLS query parameters are preserved for the driver adapter.
  */
 export function parseDatabaseUrl(url: string): ParsedDatabaseUrl {
   let parsed: URL;
@@ -258,12 +267,16 @@ export function parseDatabaseUrl(url: string): ParsedDatabaseUrl {
     throw new Error(`DATABASE_URL inválida: não é uma URL válida — ${url}`);
   }
   const protocol = parsed.protocol.replace(/:$/, '');
-  let driver: 'postgres' | 'mysql';
-  if (protocol === 'postgres' || protocol === 'postgresql') driver = 'postgres';
-  else if (protocol === 'mysql') driver = 'mysql';
-  else {
+  const protocolDrivers: Record<string, DatabaseDriver> = {
+    postgres: 'postgres',
+    postgresql: 'postgres',
+    mysql: 'mysql',
+    mariadb: 'mariadb',
+  };
+  const driver = protocolDrivers[protocol];
+  if (!driver) {
     throw new Error(
-      `DATABASE_URL inválida: protocolo "${protocol}" não suportado (use postgres:// ou mysql://)`
+      `DATABASE_URL protocol "${protocol}" is not supported (use postgres://, mysql://, or mariadb://)`
     );
   }
   const database = decodeURIComponent(parsed.pathname.replace(/^\//, ''));
@@ -274,11 +287,22 @@ export function parseDatabaseUrl(url: string): ParsedDatabaseUrl {
   return {
     driver,
     host: parsed.hostname || 'localhost',
-    port: parsed.port ? Number(parsed.port) : driver === 'mysql' ? 3306 : 5432,
+    port: parsed.port ? Number(parsed.port) : driver === 'postgres' ? 5432 : 3306,
     database,
-    user: decodeURIComponent(parsed.username) || 'postgres',
+    user: decodeURIComponent(parsed.username) || (driver === 'postgres' ? 'postgres' : 'root'),
     password: decodeURIComponent(parsed.password),
-    ssl: sslmode === 'require' || sslmode === 'verify-ca' || sslmode === 'verify-full' ? true : undefined,
+    ssl: driver === 'postgres'
+      ? sslmode === 'require' || sslmode === 'verify-ca' || sslmode === 'verify-full' ? true : undefined
+      : ['true', '1', 'require', 'verify-ca', 'verify-full'].includes(parsed.searchParams.get('ssl') ?? '')
+        ? true
+        : undefined,
+    tls: parsed.searchParams.has('ssl-ca')
+      ? {
+          enabled: true,
+          ca: decodeURIComponent(parsed.searchParams.get('ssl-ca') ?? ''),
+          rejectUnauthorized: parsed.searchParams.get('ssl-verify') !== 'false',
+        }
+      : undefined,
   };
 }
 
@@ -290,19 +314,37 @@ export function parseDatabaseUrl(url: string): ParsedDatabaseUrl {
 function loadDatabaseConfig(): DatabaseConfig {
   const rawUrl = process.env['DATABASE_URL']?.trim();
   const fromUrl = rawUrl ? parseDatabaseUrl(rawUrl) : undefined;
-  const driver =
-    fromUrl?.driver ?? ((process.env['DB_DRIVER'] as DatabaseConfig['driver']) ?? 'postgres');
+  const explicitEngine = process.env['DB_ENGINE']?.trim().toLowerCase();
+  const explicitDriver = process.env['DB_DRIVER']?.trim().toLowerCase();
+  const configuredDriver = explicitEngine ?? explicitDriver;
+  if (configuredDriver && !['postgres', 'mysql', 'mariadb'].includes(configuredDriver)) {
+    throw new Error(`Unsupported database provider "${configuredDriver}". Use postgres, mysql, or mariadb.`);
+  }
+  if (explicitEngine && explicitDriver && explicitEngine !== explicitDriver) {
+    throw new Error('DB_ENGINE and DB_DRIVER must name the same database provider.');
+  }
+  if (fromUrl && configuredDriver && fromUrl.driver !== configuredDriver) {
+    throw new Error('DATABASE_URL protocol conflicts with DB_ENGINE/DB_DRIVER.');
+  }
+  const driver: DatabaseConfig['driver'] = fromUrl?.driver ?? (configuredDriver as DatabaseConfig['driver'] | undefined) ?? 'postgres';
+  const defaultPort = driver === 'postgres' ? 5432 : 3306;
+  const defaultUser = driver === 'postgres' ? 'postgres' : 'root';
   return {
     driver,
     host: fromUrl?.host ?? getEnv('DB_HOST', 'localhost'),
-    port: fromUrl?.port ?? getEnvInt('DB_PORT', driver === 'mysql' ? 3306 : 5432),
+    port: fromUrl?.port ?? getEnvInt('DB_PORT', defaultPort),
     database: fromUrl?.database ?? getEnv('DB_NAME', 'okcms'),
-    user: fromUrl?.user ?? getEnv('DB_USER', 'postgres'),
-    password: fromUrl?.password ?? getEnv('DB_PASSWORD', 'postgres'),
+    user: fromUrl?.user ?? getEnv('DB_USER', defaultUser),
+    password: fromUrl?.password ?? getEnv('DB_PASSWORD', driver === 'postgres' ? 'postgres' : ''),
     ssl: fromUrl?.ssl ?? getEnvBool('DB_SSL', false),
+    tls: fromUrl?.tls ?? {
+      enabled: getEnvBool('DB_SSL', false),
+      ca: process.env['DB_SSL_CA'],
+      rejectUnauthorized: getEnvBool('DB_SSL_REJECT_UNAUTHORIZED', true),
+    },
     maxConnections: getEnvInt('DB_MAX_CONNECTIONS', 20),
     replica: process.env['DB_REPLICA_HOST']
-      ? { host: getEnv('DB_REPLICA_HOST', ''), port: getEnvInt('DB_REPLICA_PORT', 5433), enabled: true }
+      ? { host: getEnv('DB_REPLICA_HOST', ''), port: getEnvInt('DB_REPLICA_PORT', driver === 'postgres' ? 5433 : 3306), enabled: true }
       : undefined,
   };
 }

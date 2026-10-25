@@ -1,5 +1,13 @@
 # @oktis-works/config
 
+## 0.6.5
+
+### Patch Changes
+
+- Complete the provider-aware migration lifecycle, CLI database workflows, generated MySQL and MariaDB assets, audit safeguards, and GPL-2.0-or-later licensing metadata.
+- Updated dependencies
+  - @oktis-works/types@0.9.4
+
 ## 0.6.4
 
 ### Patch Changes

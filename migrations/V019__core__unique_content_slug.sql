@@ -1,3 +1,4 @@
+-- @okcms domain=core_schema provider=postgres conflict_policy=block max_affected_rows=100000
 -- +migrate Up
 -- Add unique constraint for content (tenant_id, type, slug) to support ON CONFLICT in seed
 -- This is required for the demo content seed to work with ON CONFLICT specification

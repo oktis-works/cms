@@ -69,12 +69,9 @@ describe('Config', () => {
             process.env['DATABASE_URL'] = 'postgresql://test:test@localhost:5432/test';
         }
     });
-    it('mysql:// detecta driver mysql e porta 3306 default', () => {
+    it('rejects unsupported mysql URLs before creating a runtime config', () => {
         process.env['DATABASE_URL'] = 'mysql://root:pw@mysql.local/mydb';
-        const config = loadConfig();
-        expect(config.database.driver).toBe('mysql');
-        expect(config.database.port).toBe(3306);
-        expect(config.database.database).toBe('mydb');
+        expect(() => loadConfig()).toThrow(/use postgres/);
     });
     it('DATABASE_URL inválida lança erro claro (falha barulhenta)', () => {
         process.env['DATABASE_URL'] = 'não-é-url';

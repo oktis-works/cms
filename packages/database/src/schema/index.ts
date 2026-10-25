@@ -7,15 +7,17 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = join(__filename, '..');
 
-let _schema: string | null = null;
+const schemas = new Map<string, string>();
 
-export function getSchema(): string {
-  if (_schema) return _schema;
+export function getSchema(provider: 'postgres' | 'mysql' | 'mariadb' = 'postgres'): string {
+  const cached = schemas.get(provider);
+  if (cached) return cached;
 
-  // __dirname já é o diretório schema/; o arquivo fica ao lado deste módulo.
-  const schemaPath = join(__dirname, 'schema.sql');
-  _schema = readFileSync(schemaPath, 'utf-8');
-  return _schema;
+  const filename = provider === 'postgres' ? 'schema.sql' : `schema.${provider}.sql`;
+  const schemaPath = join(__dirname, filename);
+  const loaded = readFileSync(schemaPath, 'utf-8');
+  schemas.set(provider, loaded);
+  return loaded;
 }
 
 // For backward compatibility

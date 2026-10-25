@@ -1,3 +1,4 @@
+-- @okcms domain=core_schema provider=postgres
 -- V014__core__comments.sql
 -- WordPress-parity item 11: comments system (threaded, moderated, tenant RLS).
 

@@ -1,3 +1,4 @@
+-- @okcms domain=core_schema provider=postgres
 -- +migrate Up
 -- Core Fields Support: is_locked, is_core_field, core_field_key
 

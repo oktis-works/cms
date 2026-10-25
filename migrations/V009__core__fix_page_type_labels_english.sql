@@ -1,3 +1,4 @@
+-- @okcms domain=core_schema provider=postgres
 -- +migrate Up
 -- CORE type "page": labels devem ser em inglês (alinhado ao seed V003 e ao
 -- CORE_TYPES do core). Só corrige quando ainda estão nos defaults em português,

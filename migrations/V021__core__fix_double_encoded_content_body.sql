@@ -1,3 +1,4 @@
+-- @okcms domain=core_schema provider=postgres conflict_policy=report max_affected_rows=100000
 -- +migrate Up
 -- Repairs content bodies stored as double-encoded jsonb strings.
 --

@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/worker",
-  "version": "0.8.12",
+  "version": "0.8.13",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -18,10 +18,10 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo"
   },
   "dependencies": {
-    "@oktis-works/core": "^0.15.0",
-    "@oktis-works/config": "^0.6.4",
-    "@oktis-works/database": "^0.14.2",
-    "@oktis-works/types": "^0.9.3",
+    "@oktis-works/core": "^0.15.1",
+    "@oktis-works/config": "^0.6.5",
+    "@oktis-works/database": "^0.14.3",
+    "@oktis-works/types": "^0.9.4",
     "bullmq": "5.0.0",
     "ioredis": "5.3.0",
     "sharp": "^0.33.5"
@@ -31,7 +31,7 @@
     "tsx": "4.7.0",
     "@types/node": "20.11.0"
   },
-  "license": "MIT",
+  "license": "GPL-2.0-or-later",
   "repository": {
     "type": "git",
     "url": "https://github.com/oktis-works/cms",

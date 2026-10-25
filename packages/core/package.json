@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/core",
-  "version": "0.15.0",
+  "version": "0.15.1",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -41,7 +41,7 @@
     "access": "public",
     "registry": "https://registry.npmjs.org/"
   },
-  "license": "MIT",
+  "license": "GPL-2.0-or-later",
   "repository": {
     "type": "git",
     "url": "https://github.com/oktis-works/cms",

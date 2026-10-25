@@ -126,6 +126,12 @@ export const EDGE_SERVICE = (lane: Lane): string[] => [
 ];
 export const WORKER_SERVICE = (lane: Lane): string => `worker-${lane}`;
 
+export function databaseContainerName(record: Record<string, string>): string {
+  const engine = record['DB_ENGINE'] ?? 'postgres';
+  if (!['postgres', 'mysql', 'mariadb'].includes(engine)) throw new Error(`Unsupported database provider: ${engine}`);
+  return `okcms-${engine}`;
+}
+
 /** URL final da checagem através do proxy. */
 export const FINAL_HEALTH_URL = 'http://127.0.0.1/health';
 
@@ -160,10 +166,11 @@ export function loadDeployEnv(cwd: string): Record<string, string> {
 export function writeDeployAssets(
   cwd: string,
   lane: Lane,
-  record: Record<string, string>
+  record: Record<string, string>,
+  provider: 'postgres' | 'mysql' | 'mariadb' = (record['DB_ENGINE'] as 'postgres' | 'mysql' | 'mariadb' | undefined) ?? 'postgres'
 ): string[] {
   const created: string[] = [];
-  for (const asset of deployAssets(lane, portsFromEnv(record))) {
+  for (const asset of deployAssets(lane, portsFromEnv(record), provider)) {
     const path = join(cwd, asset.path);
     if (existsSync(path)) continue;
     mkdirSync(dirname(path), { recursive: true });
@@ -339,7 +346,7 @@ export async function deployBlueGreen(opts: DeployOptions): Promise<DeployResult
   const simpleStack = simpleStackRunning(runner);
   const plan: string[] = [
     'Preflight: docker + compose v2',
-    'Network okcms-net and infra (postgres, redis, proxy)',
+    `Network okcms-net and infra (${record['DB_ENGINE'] ?? 'postgres'}, redis, proxy)`,
     'Fetch packages on the host',
     `Build image (lane ${target}, no traffic yet)`,
     'Migrations on the host',
@@ -400,7 +407,7 @@ export async function deployBlueGreen(opts: DeployOptions): Promise<DeployResult
     );
   }
 
-  for (const dataContainer of ['okcms-postgres', 'okcms-redis']) {
+  for (const dataContainer of [databaseContainerName(record), 'okcms-redis']) {
     const healthy = await waitForContainer(runner, dataContainer, isHealthy, {
       timeoutMs: timeout.dataMs,
       intervalMs: timeout.intervalMs,
@@ -409,7 +416,7 @@ export async function deployBlueGreen(opts: DeployOptions): Promise<DeployResult
       return fail(`${dataContainer} never became healthy in 3min — see \`docker logs ${dataContainer}\`.`);
     }
   }
-  log(`  ✓ infra ready (postgres, redis, proxy)`);
+  log(`  ✓ infra ready (${record['DB_ENGINE'] ?? 'postgres'}, redis, proxy)`);
 
   // ---- 3. pacotes no host -------------------------------------------------
   next(3);

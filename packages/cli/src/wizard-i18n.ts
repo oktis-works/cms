@@ -55,6 +55,7 @@ export interface Catalog {
   statusAppsUp: (labels: string) => string;
   statusAppsDown: string;
   statusRefreshed: string;
+  pressToReturn: string;
   // espelho de automação + execução
   mirrorLine: (command: string) => string;
   running: (command: string) => string;
@@ -88,8 +89,8 @@ export interface Catalog {
   envDbEnginePostgresHint: string;
   envDbEngineMysql: string;
   envDbEngineMysqlHint: string;
-  envDbEngineMariadb: string;
-  envDbEngineMariadbHint: string;
+  envDbEngineMariaDb: string;
+  envDbEngineMariaDbHint: string;
   // entrevista de env — modo de conexão do banco
   envDbModeChoose: string;
   envDbModeConnectionString: string;
@@ -157,7 +158,7 @@ const en: Catalog = {
   menuCommand: 'Run a command',
   menuCommandHint: 'all {n} CLI commands, grouped — dangerous ones marked',
   menuEnv: 'Configure .env',
-  menuEnvHint: 'field-by-field interview for all 47 variables',
+  menuEnvHint: 'field-by-field interview for essential variables',
   menuStatus: 'Project status',
   menuStatusHint: 'docker, infrastructure, apps, environment',
   menuRefresh: 'Refresh status',
@@ -182,6 +183,7 @@ const en: Catalog = {
   statusAppsUp: (labels) => `apps: running (${labels})`,
   statusAppsDown: 'apps: not running',
   statusRefreshed: 'status refreshed',
+  pressToReturn: 'Press Enter to return...',
 
   mirrorLine: (command) => `$ ${command}`,
   running: (command) => `running: ${command}`,
@@ -213,9 +215,9 @@ const en: Catalog = {
   envDbEnginePostgres: 'PostgreSQL',
   envDbEnginePostgresHint: 'PostgreSQL 16 (default port 5432)',
   envDbEngineMysql: 'MySQL',
-  envDbEngineMysqlHint: 'MySQL 8 (default port 3306)',
-  envDbEngineMariadb: 'MariaDB',
-  envDbEngineMariadbHint: 'MariaDB 11 (default port 3306, MySQL-compatible)',
+  envDbEngineMysqlHint: 'MySQL 8.0.36+ (default port 3306)',
+  envDbEngineMariaDb: 'MariaDB',
+  envDbEngineMariaDbHint: 'MariaDB 11.4+ (default port 3306)',
   envDbModeChoose: 'How do you want to configure the database connection?',
   envDbModeConnectionString: 'Connection string (DATABASE_URL)',
   envDbModeConnectionStringHint: 'single URL like postgres://user:pass@host:5432/db',
@@ -285,7 +287,7 @@ const pt: Catalog = {
   menuCommand: 'Rodar um comando',
   menuCommandHint: 'todos os {n} comandos do CLI, agrupados — destrutivos marcados',
   menuEnv: 'Configurar .env',
-  menuEnvHint: 'entrevista campo a campo das 47 variáveis',
+  menuEnvHint: 'entrevista campo a campo das variáveis essenciais',
   menuStatus: 'Status do projeto',
   menuStatusHint: 'docker, infraestrutura, apps, ambiente',
   menuRefresh: 'Atualizar status',
@@ -310,6 +312,7 @@ const pt: Catalog = {
   statusAppsUp: (labels) => `apps: rodando (${labels})`,
   statusAppsDown: 'apps: não estão rodando',
   statusRefreshed: 'status atualizado',
+  pressToReturn: 'Pressione Enter para voltar...',
 
   mirrorLine: (command) => `$ ${command}`,
   running: (command) => `executando: ${command}`,
@@ -341,9 +344,9 @@ const pt: Catalog = {
   envDbEnginePostgres: 'PostgreSQL',
   envDbEnginePostgresHint: 'PostgreSQL 16 (porta padrão 5432)',
   envDbEngineMysql: 'MySQL',
-  envDbEngineMysqlHint: 'MySQL 8 (porta padrão 3306)',
-  envDbEngineMariadb: 'MariaDB',
-  envDbEngineMariadbHint: 'MariaDB 11 (porta padrão 3306, compatível com MySQL)',
+  envDbEngineMysqlHint: 'MySQL 8.0.36+ (porta padrão 3306)',
+  envDbEngineMariaDb: 'MariaDB',
+  envDbEngineMariaDbHint: 'MariaDB 11.4+ (porta padrão 3306)',
   envDbModeChoose: 'Como você quer configurar a conexão com o banco de dados?',
   envDbModeConnectionString: 'String de conexão (DATABASE_URL)',
   envDbModeConnectionStringHint: 'URL única como postgres://user:pass@host:5432/db',

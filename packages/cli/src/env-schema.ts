@@ -53,7 +53,7 @@ export interface EnvSection {
 
 export const ENV_SECTIONS: EnvSection[] = [
   { id: 'app', title: 'Application', hint: 'NODE_ENV, ports and rate limit' },
-  { id: 'database', title: 'Database', hint: 'Postgres/MySQL/MariaDB via DB_* or DATABASE_URL' },
+  { id: 'database', title: 'Database', hint: 'PostgreSQL, MySQL, or MariaDB via DB_* or DATABASE_URL' },
   { id: 'redis', title: 'Redis', hint: 'cache and worker queues' },
   { id: 'auth', title: 'Authentication', hint: 'JWT, cookies and CSRF' },
   { id: 'storage', title: 'Storage', hint: 'local, s3, r2 or minio' },
@@ -174,11 +174,11 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'DB_ENGINE',
     section: 'database',
     label: 'DB_ENGINE',
-    description: 'Database engine — chooses defaults and compose service',
+    description: 'Supported database engine',
     type: 'enum',
     options: ['postgres', 'mysql', 'mariadb'],
     default: 'postgres',
-    example: 'postgres | mysql | mariadb',
+    example: 'postgres',
   },
   {
     key: 'DB_HOST',
@@ -194,7 +194,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'DB_PORT',
     section: 'database',
     label: 'DB_PORT',
-    description: 'Database port (default varies by engine: postgres=5432, mysql/mariadb=3306)',
+    description: 'Database port (default 5432 for PostgreSQL, 3306 for MySQL/MariaDB)',
     type: 'port',
     default: '5432',
     essential: true,
@@ -234,7 +234,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'DB_SSL',
     section: 'database',
     label: 'DB_SSL',
-    description: 'TLS for Postgres (true on managed providers)',
+    description: 'TLS for managed database providers',
     type: 'boolean',
     default: 'false',
     when: (r) => !r['DATABASE_URL'],
@@ -252,7 +252,7 @@ export const ENV_FIELDS: EnvField[] = [
     key: 'DATABASE_URL',
     section: 'database',
     label: 'DATABASE_URL',
-    description: 'Single URL — overrides DB_* (postgres://user:pass@host:5432/db)',
+    description: 'Single URL — overrides DB_* (postgres://, mysql://, or mariadb://)',
     type: 'database-url',
     essential: true,
     example: 'postgresql://postgres:pass@localhost:5432/okcms',
@@ -593,7 +593,7 @@ export function validateField(field: EnvField, value: string): string | null {
     }
     case 'database-url': {
       if (!parseDatabaseUrl(trimmed)) {
-        return 'use postgres:// or mysql:// with host and database (e.g. postgres://user:pass@host:5432/okcms)';
+        return 'use postgres:// or postgresql:// with host and database (e.g. postgres://user:pass@host:5432/okcms)';
       }
       return null;
     }

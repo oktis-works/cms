@@ -1,3 +1,4 @@
+-- @okcms domain=core_schema provider=postgres
 -- V016__core__webhook_hardening.sql
 -- WordPress-parity item 19: webhook secret rotation with 24h grace + a
 -- dead-letter table for undeliverable deliveries.

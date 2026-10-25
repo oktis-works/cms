@@ -2,7 +2,7 @@
 
 import { describe, it, expect, afterEach } from 'vitest';
 import { PassThrough, Writable } from 'node:stream';
-import { Prompt, select, confirm, style, symbol, type PromptIO } from './prompt.js';
+import { Prompt, select, confirm, style, symbol, asciiSymbol, terminalWidth, truncateText, wrapText, type PromptIO } from './prompt.js';
 
 /** Writable que acumula tudo para as asserções. */
 function collector(): { output: Writable; out: () => string } {
@@ -174,6 +174,14 @@ describe('Prompt.select (arrow keys em TTY)', () => {
     prompt.close();
     expect(io.stream.raw).toBe(false);
   });
+
+  it('returns the explicit cancel value instead of the highlighted item', async () => {
+    const escape = String.fromCharCode(27);
+    const prompt = new Prompt(ttyIO([escape]));
+    const value = await prompt.select('Nested screen', MODES, { cancelValue: 'exit' });
+    prompt.close();
+    expect(value).toBe('exit');
+  });
 });
 
 describe('Prompt.confirm', () => {
@@ -295,5 +303,16 @@ describe('estilo', () => {
     expect(symbol.ok).toBe('✓');
     expect(symbol.fail).toBe('✗');
     expect(symbol.ask).toBe('?');
+  });
+
+  it('layout helpers keep menu text bounded and provide an ASCII fallback', () => {
+    expect(terminalWidth(72)).toBeGreaterThanOrEqual(40);
+    expect(truncateText('a very long command description', 12)).toHaveLength(12);
+    expect(wrapText('one two three four', 8)).toEqual(['one two', 'three', 'four']);
+    const previous = process.env['OKCMS_ASCII'];
+    process.env['OKCMS_ASCII'] = '1';
+    expect(asciiSymbol('ok')).toBe('[ok]');
+    if (previous === undefined) delete process.env['OKCMS_ASCII'];
+    else process.env['OKCMS_ASCII'] = previous;
   });
 });

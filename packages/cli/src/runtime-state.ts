@@ -90,6 +90,7 @@ export function findRunningApps(): Array<{ label: string; pid: number }> {
     { label: 'api', match: '@oktis-works/api' },
     { label: 'admin', match: '@oktis-works/admin' },
     { label: 'web', match: '@oktis-works/web' },
+    { label: 'worker', match: '@oktis-works/worker' },
   ];
 
   try {

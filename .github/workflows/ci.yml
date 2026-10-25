@@ -17,6 +17,41 @@ jobs:
   test:
     name: Tests
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+      mysql:
+        image: mysql:8.0.36
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=20
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3307:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=20
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-project
@@ -24,6 +59,23 @@ jobs:
         run: bun run test:run
       - name: Check API plugin source drift
         run: bun run check:api-drift
+      - name: Check migration and CLI audit contracts
+        run: bun run audit:contracts
+      - name: Check provider compatibility matrix
+        run: bun run check:provider-matrix
+      - name: PostgreSQL acceptance matrix
+        run: bun run test:postgres
+        env:
+          OKCMS_ACCEPTANCE_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      - name: PostgreSQL historical upgrade matrix
+        run: bun run build && bun --cwd packages/database scripts/postgres-upgrade-acceptance.mjs
+        env:
+          OKCMS_ACCEPTANCE_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      - name: MySQL and MariaDB acceptance matrix
+        run: bun run build && bun run test:providers
+        env:
+          OKCMS_MYSQL_ACCEPTANCE_URL: mysql://root:root@127.0.0.1:3306/mysql
+          OKCMS_MARIADB_ACCEPTANCE_URL: mariadb://root:root@127.0.0.1:3307/mysql
 
   # ============================================================
   # Step 2: Typecheck

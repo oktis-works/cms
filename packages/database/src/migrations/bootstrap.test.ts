@@ -64,9 +64,7 @@ describe('ensureCoreSchema', () => {
     expect(calls.some((c) => c.kind === 'tagged' && c.text === '__BEGIN__')).toBe(true);
   });
 
-  it('schema já existe → reexecuta o schema.sql (idempotente) e retorna false', async () => {
-    // Upgrade de consumidor: migrations/ de projeto é vazio, então o ÚNICO
-    // canal de delta (ex.: users.locale no 0.4.0) é reexecutar o schema.sql.
+  it('schema já existe → applies infrastructure only and returns false', async () => {
     selectResults['to_regclass'] = [{ exists: 'tenants' }];
 
     const applied = await ensureCoreSchema();
@@ -74,7 +72,9 @@ describe('ensureCoreSchema', () => {
     expect(applied).toBe(false);
     const unsafeCalls = calls.filter((c): c is UnsafeCall => c.kind === 'unsafe');
     expect(unsafeCalls).toHaveLength(1);
-    expect(unsafeCalls[0]!.query).toContain('CREATE TABLE IF NOT EXISTS');
+    expect(unsafeCalls[0]!.query).toContain('CREATE TABLE IF NOT EXISTS core_schema_migrations');
+    expect(unsafeCalls[0]!.query).toContain('CREATE TABLE IF NOT EXISTS schema_bootstrap');
+    expect(unsafeCalls[0]!.query).not.toContain('CREATE TABLE IF NOT EXISTS tenants');
     // advisory lock antes do DDL (concorrência api/worker/cli no boot)
     const lock = calls.find(
       (c): c is TaggedCall => c.kind === 'tagged' && c.text.includes('pg_advisory_xact_lock')

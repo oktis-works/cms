@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
 
-import { parseArgs, generateHelp } from './parser.js';
+import { parseArgs, generateHelp, validateParsedArgs } from './parser.js';
 import { getCommand } from './commands.js';
 import { style } from './prompt.js';
 
 export type { Command, Option } from './commands.js';
 export type { ParsedArgs } from './parser.js';
-export { parseArgs, generateHelp } from './parser.js';
+export { parseArgs, generateHelp, validateParsedArgs } from './parser.js';
 export { commands, getCommand } from './commands.js';
 
 async function main(): Promise<void> {
@@ -37,6 +37,13 @@ async function main(): Promise<void> {
   if (!cmd) {
     console.error(`\n${style.red('✗')} Unknown command: ${parsed.command}`);
     console.error(`${style.dim('  Run')} ${style.cyan('okcms --help')} ${style.dim('for the command map.')}`);
+    process.exit(1);
+  }
+
+  const validation = validateParsedArgs(parsed);
+  if (!validation.ok) {
+    console.error(`\n${style.red('✗')} ${validation.message}`);
+    console.error(`${style.dim('  Run')} ${style.cyan(`okcms ${cmd.name} --help`)} ${style.dim('for valid options.')}`);
     process.exit(1);
   }
 

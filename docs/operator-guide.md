@@ -14,8 +14,8 @@ extensions, update, back up and diagnose.
 
 | Needed for | Requirement |
 |---|---|
-| always | **Node 20+** or **Bun 1.3+** |
-| always | **PostgreSQL 16+** |
+| always | **Node 22.17+** or **Bun 1.4.4+** |
+| always | **PostgreSQL 16+, MySQL 8.0.36+/8.4 LTS, or MariaDB 11.4+** |
 | worker queues | **Redis** (without it: `REDIS_HOST=disabled` — in-memory cache, queues don't work) |
 | Docker deploy | **Docker** + **Docker Compose v2** (`docker compose version`) |
 
@@ -311,3 +311,8 @@ deploy, but an off-server backup is the only one that survives losing the machin
 | 502 after deploy | `cat deploy/nginx/conf.d/00-upstreams.conf` + `docker ps --filter label=okcms.role=edge` |
 | Theme with no CSS in production | `npx okcms redeploy` — `dist/theme.css` must be built on the host |
 | CLI refuses inside a container | Expected; run on the host or use `--force` |
+# Database compatibility
+
+See [the provider/version matrix](provider-matrix.md) before selecting a
+database. PostgreSQL, MySQL, and MariaDB use separate drivers, schemas, and
+migration sets.

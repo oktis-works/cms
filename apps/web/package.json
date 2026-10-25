@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/web",
-  "version": "0.13.0",
+  "version": "0.13.1",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -18,23 +18,23 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo"
   },
   "dependencies": {
-    "@oktis-works/core": "^0.15.0",
-    "@oktis-works/config": "^0.6.4",
-    "@oktis-works/database": "^0.14.2",
-    "@oktis-works/types": "^0.9.3",
-    "@oktis-works/theme-sdk": "^0.7.0",
-    "@oktis-works/theme-runtime": "^0.11.0",
+    "@oktis-works/core": "^0.15.1",
+    "@oktis-works/config": "^0.6.5",
+    "@oktis-works/database": "^0.14.3",
+    "@oktis-works/types": "^0.9.4",
+    "@oktis-works/theme-sdk": "^0.7.1",
+    "@oktis-works/theme-runtime": "^0.11.1",
     "@oktis-works/validation": "workspace:*",
     "hono": "4.13.12",
     "@hono/node-server": "1.8.0",
-    "@oktis-works/plugin-runtime": "^0.7.2"
+    "@oktis-works/plugin-runtime": "^0.7.3"
   },
   "devDependencies": {
     "typescript": "5.7.3",
     "tsx": "4.7.0",
     "@types/node": "20.11.0"
   },
-  "license": "MIT",
+  "license": "GPL-2.0-or-later",
   "repository": {
     "type": "git",
     "url": "https://github.com/oktis-works/cms",

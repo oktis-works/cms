@@ -43,8 +43,8 @@ describe('NPM Publication Readiness (REQU-020)', () => {
         expect(manifest['private']).not.toBe(true);
       });
 
-      it('declara licença MIT', () => {
-        expect(manifest['license']).toBe('MIT');
+      it('declara licença GPLv2 ou posterior', () => {
+        expect(manifest['license']).toBe('GPL-2.0-or-later');
       });
 
       it('declara repositório com directory', () => {

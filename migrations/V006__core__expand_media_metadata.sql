@@ -1,3 +1,4 @@
+-- @okcms domain=core_schema provider=postgres
 -- +migrate Up
 -- WordPress-style attachment metadata: display title and long description.
 ALTER TABLE media ADD COLUMN IF NOT EXISTS title VARCHAR(500);

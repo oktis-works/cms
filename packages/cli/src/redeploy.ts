@@ -484,8 +484,12 @@ export async function runRedeploy(opts: RedeployOptions = {}): Promise<number> {
       if (staged.copied.length > 0) {
         prompt.success(`${staged.copied.length} plugin migration(s) staged in migrations/`);
       }
-      for (const item of staged.conflicts) prompt.warn(`conflict (project copy kept): ${item}`);
-      for (const item of staged.invalid) prompt.warn(`off-pattern, not copied: ${item}`);
+      for (const item of staged.conflicts) prompt.error(`conflict (project copy kept): ${item}`);
+      for (const item of staged.invalid) prompt.error(`off-pattern, not copied: ${item}`);
+      if (staged.conflicts.length > 0 || staged.invalid.length > 0) {
+        prompt.error('Redeploy stopped before deployment because migration staging is not deterministic.');
+        return 1;
+      }
     }
 
     // ---- theme style build -------------------------------------------------

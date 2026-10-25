@@ -17,12 +17,40 @@ export interface Option {
    * ocorrência sobrescreveria a primeira silenciosamente.
    */
   repeatable?: boolean;
+  /** Value contract shared by the parser and the interactive wizard. */
+  type?: 'value' | 'boolean';
+  /** Optional value validation shared by parser and generated command forms. */
+  valueKind?: 'enum' | 'path' | 'url' | 'tenant' | 'version' | 'integer';
+  choices?: readonly string[];
+}
+
+export interface PositionalArgs {
+  /** Maximum number of positional values accepted by the command. */
+  max: number;
+  /** Human-readable label used in validation errors. */
+  label?: string;
+}
+
+const BOOLEAN_OPTION_NAMES = new Set([
+  'no-install', 'api', 'admin', 'web', 'worker', 'all',
+  'yes', 'skip-start', 'no-infra', 'force', 'list', 'show-secrets', 'non-interactive',
+  'install', 'no-cache', 'remove-orphans', 'keep-orphans',
+  'skip-migrations', 'skip-theme-build', 'dry-run', 'adopt-legacy',
+  'json',
+  'clean', 'info', 'enable', 'disable', 'uninstall', 'set-active',
+]);
+
+export function optionTakesValue(option: Option | undefined): boolean {
+  if (!option) return true;
+  if (option.type) return option.type === 'value';
+  return !BOOLEAN_OPTION_NAMES.has(option.name);
 }
 
 export interface Command {
   name: string;
   description: string;
   options: Option[];
+  positionals?: PositionalArgs;
   handler: (args: string[], options: Record<string, string>) => Promise<void>;
 }
 
@@ -30,6 +58,7 @@ export const commands: Command[] = [
   {
     name: 'init',
     description: 'Scaffold a new OkCMS project in a directory',
+    positionals: { max: 2, label: 'project directory and optional project name' },
     options: [
       { name: 'dir', alias: 'd', description: 'Target directory (same as positional arg)', required: false },
       {
@@ -37,12 +66,22 @@ export const commands: Command[] = [
         alias: 'l',
         description: 'Docs language for README/PLUGIN/THEME: en or pt (asks when interactive, default en)',
         required: false,
+        valueKind: 'enum',
+        choices: ['en', 'pt'],
       },
       {
         name: 'no-install',
         alias: 'n',
         description: 'Skip dependency install (and the install prompt)',
         required: false,
+      },
+      {
+        name: 'db-engine',
+        alias: 'e',
+        description: 'Database provider: postgres, mysql, or mariadb',
+        required: false,
+        valueKind: 'enum',
+        choices: ['postgres', 'mysql', 'mariadb'],
       },
     ],
     handler: async (args, options) => {
@@ -76,6 +115,11 @@ export const commands: Command[] = [
         );
       } else {
         lang = DEFAULT_DOCS_LANG;
+      }
+
+      const dbEngine = options['db-engine'] ?? 'postgres';
+      if (!['postgres', 'mysql', 'mariadb'].includes(dbEngine)) {
+        throw new Error(`invalid --db-engine "${dbEngine}" — use postgres, mysql, or mariadb`);
       }
 
       // Install the dependencies now? Same arrow-key menu as the language
@@ -119,8 +163,14 @@ export const commands: Command[] = [
           return;
         }
         const { installProjectDepsLive } = await import('./install-loader.js');
-        await installProjectDepsLive(root, { interactive: prompt.interactive });
-      });
+        const result = await installProjectDepsLive(root, { interactive: prompt.interactive });
+        if (!result.ok) {
+          throw new Error(
+            `Dependency installation failed with ${result.tool}. ` +
+            'The scaffold was preserved; run bun install or npm install and retry.'
+          );
+        }
+      }, { provider: dbEngine as 'postgres' | 'mysql' | 'mariadb' });
       prompt.close();
     },
   },
@@ -300,7 +350,7 @@ export const commands: Command[] = [
     options: [
       { name: 'name', alias: 'n', description: 'Theme name', required: true },
       { name: 'dir', alias: 'd', description: 'Base directory (default: ./themes)', required: false },
-      { name: 'style', alias: 's', description: 'Style engine: css|scss|tailwind', required: false },
+      { name: 'style', alias: 's', description: 'Style engine: css|scss|tailwind', required: false, valueKind: 'enum', choices: ['css', 'scss', 'tailwind'] },
     ],
     handler: async (_args, options) => {
       const { scaffoldTheme } = await import('./extension-scaffold.js');
@@ -437,12 +487,16 @@ export const commands: Command[] = [
         alias: 'm',
         description: 'Optional: download (packages only) or deploy (default)',
         required: false,
+        valueKind: 'enum',
+        choices: ['download', 'deploy'],
       },
       {
         name: 'target',
         alias: 't',
         description: 'Skip the target menu: blue-green | simple | pm2',
         required: false,
+        valueKind: 'enum',
+        choices: ['blue-green', 'simple', 'pm2'],
       },
       {
         name: 'no-cache',
@@ -462,6 +516,7 @@ export const commands: Command[] = [
         description: 'Deploy (blue/green): keep the orphan containers of the old lane',
         required: false,
       },
+      { name: 'dry-run', alias: 'n', description: 'Print the update plan and exit without changing anything', required: false, type: 'boolean' },
       { name: 'yes', alias: 'y', description: 'No prompts: take every default', required: false },
       {
         name: 'force',
@@ -479,6 +534,7 @@ export const commands: Command[] = [
         noCache: options['no-cache'] !== undefined,
         removeOrphans: options['remove-orphans'] !== undefined,
         keepOrphans: options['keep-orphans'] !== undefined,
+        dryRun: options['dry-run'] !== undefined,
         yes: options['yes'] !== undefined,
         force: options['force'] !== undefined,
       });
@@ -559,13 +615,20 @@ export const commands: Command[] = [
     description: 'Run pending database migrations',
     options: [
       { name: 'dir', alias: 'd', description: 'Migrations directory', required: false },
-      { name: 'tenant', alias: 't', description: 'Tenant ID', required: false, default: 'default' },
+      { name: 'tenant', alias: 't', description: 'Tenant ID', required: false, default: 'default', valueKind: 'tenant' },
+      { name: 'adopt-legacy', alias: 'a', description: 'Adopt a legacy database after backup and inventory review', required: false, type: 'boolean' },
     ],
     handler: async (args, options) => {
       const dir = getMigrationsDir(options);
-      const tenantId = await prepareDb(options);
-      const { runMigrations } = await import('@oktis-works/database');
-      const result = await runMigrations(tenantId, dir);
+      const { loadMigrationsFromDir, runMigrations } = await import('@oktis-works/database');
+      const migrations = loadMigrationsFromDir(dir);
+      const needsTenant = migrations.some((migration) => migration.metadata?.domain !== 'core_schema');
+      const tenantId = await prepareDb(options, {
+        adoptLegacy: options['adopt-legacy'] !== undefined,
+        createDefaultTenant: needsTenant,
+        resolveTenant: needsTenant,
+      });
+      const result = await runMigrations(tenantId, dir, { adoptLegacy: options['adopt-legacy'] !== undefined });
       if (result.applied.length === 0 && result.skipped.length === 0) {
         // migrations/ de projeto scaffoldado é VAZIO por design: o schema core
         // (inclusive deltas de versão nova, ex.: users.locale) é aplicado acima
@@ -586,10 +649,11 @@ export const commands: Command[] = [
     description: 'Rollback the last migration',
     options: [
       { name: 'dir', alias: 'd', description: 'Migrations directory', required: false },
-      { name: 'tenant', alias: 't', description: 'Tenant ID', required: false, default: 'default' },
+      { name: 'tenant', alias: 't', description: 'Tenant ID', required: false, default: 'default', valueKind: 'tenant' },
+      { name: 'domain', alias: 'D', description: 'Rollback domain: core_schema | tenant_data | plugin_schema', required: false, valueKind: 'enum', choices: ['core_schema', 'tenant_data', 'plugin_schema'] },
     ],
     handler: async (args, options) => {
-      const tenantId = await prepareDb(options);
+      const tenantId = await prepareDb(options, { ensureSchema: false, createDefaultTenant: false });
       const { getAppliedMigrations, rollbackMigration, loadMigrationsFromDir } = await import('@oktis-works/database');
       const dir = getMigrationsDir(options);
       const applied = await getAppliedMigrations(tenantId);
@@ -597,7 +661,16 @@ export const commands: Command[] = [
         console.log('No migrations to rollback');
         return;
       }
-      const last = applied[applied.length - 1]!;
+      const scoped = options['domain']
+        ? applied.filter((migration) => migration.domain === options['domain'])
+        : applied;
+      if (scoped.length === 0) {
+        console.log(`No applied migrations in domain ${options['domain']}`);
+        return;
+      }
+      const last = [...scoped].sort(
+        (a, b) => new Date(b.applied_at).getTime() - new Date(a.applied_at).getTime()
+      )[0]!;
       const allMigrations = loadMigrationsFromDir(dir);
       const migration = allMigrations.find(
         (m) => m.owner === last.owner && m.version === last.version
@@ -614,19 +687,79 @@ export const commands: Command[] = [
     name: 'db:status',
     description: 'Show migration status',
     options: [
-      { name: 'tenant', alias: 't', description: 'Tenant ID', required: false, default: 'default' },
+      { name: 'dir', alias: 'd', description: 'Migrations directory', required: false },
+      { name: 'tenant', alias: 't', description: 'Tenant ID', required: false, default: 'default', valueKind: 'tenant' },
     ],
     handler: async (args, options) => {
-      const tenantId = await prepareDb(options);
-      const { getAppliedMigrations } = await import('@oktis-works/database');
-      const applied = await getAppliedMigrations(tenantId);
-      if (applied.length === 0) {
-        console.log('No migrations applied');
+      const { getAppliedMigrations, loadMigrationsFromDir } = await import('@oktis-works/database');
+      let tenantId: string;
+      let applied: Awaited<ReturnType<typeof getAppliedMigrations>>;
+      try {
+        tenantId = await prepareDb(options, { ensureSchema: false, createDefaultTenant: false });
+        applied = await getAppliedMigrations(tenantId);
+      } catch (error) {
+        console.error(`Database migration ledger is unavailable: ${error instanceof Error ? error.message : String(error)}`);
+        process.exitCode = 1;
         return;
       }
-      console.log('Applied migrations:');
-      for (const m of applied) {
-        console.log(`  ${m.version} - ${m.name} (${m.applied_at.toISOString()})`);
+      const migrations = loadMigrationsFromDir(getMigrationsDir(options));
+      const appliedByKey = new Map(applied.map((migration) => [`${migration.owner}:${migration.version}`, migration]));
+      const filesByKey = new Map(migrations.map((migration) => [`${migration.owner}:${migration.version}`, migration]));
+      const drifted = migrations.filter((migration) => {
+        const record = appliedByKey.get(`${migration.owner}:${migration.version}`);
+        return record !== undefined && record.checksum !== migration.checksum;
+      });
+      const pending = migrations.filter(
+        (migration) => !appliedByKey.has(`${migration.owner}:${migration.version}`)
+      );
+      const missing = applied.filter(
+        (migration) => !filesByKey.has(`${migration.owner}:${migration.version}`)
+      );
+      const blocked = drifted.length > 0 || missing.length > 0;
+
+      console.log(`Applied: ${applied.length}`);
+      console.log(`Pending: ${pending.length}`);
+      console.log(`Drifted: ${drifted.length}`);
+      console.log(`Missing: ${missing.length}`);
+      console.log(`Orphaned: ${missing.length}`);
+      console.log(`Blocked: ${blocked ? 'yes' : 'no'}`);
+      for (const migration of drifted) {
+        const record = appliedByKey.get(`${migration.owner}:${migration.version}`)!;
+        console.log(`  ! ${migration.version} - ${migration.name} (checksum ${record.checksum} -> ${migration.checksum})`);
+      }
+      for (const migration of pending) {
+        console.log(`  + ${migration.version} - ${migration.name} (pending)`);
+      }
+      for (const migration of missing) {
+        console.log(`  ! ${migration.version} - ${migration.name} (orphaned ledger record has no local file)`);
+      }
+      if (blocked) process.exitCode = 1;
+      if (applied.length > 0 && pending.length === 0 && !blocked) {
+        console.log('Migration state is consistent.');
+      }
+    },
+  },
+  {
+    name: 'db:inventory',
+    description: 'Print the validated migration manifest (read-only)',
+    options: [
+      { name: 'dir', alias: 'd', description: 'Migrations directory', required: false },
+      { name: 'json', alias: 'j', description: 'Print machine-readable JSON only', required: false, type: 'boolean' },
+    ],
+    handler: async (_args, options) => {
+      const { buildMigrationManifest, loadMigrationsFromDir } = await import('@oktis-works/database');
+      const manifest = buildMigrationManifest(loadMigrationsFromDir(getMigrationsDir(options)));
+      if (options['json'] !== undefined) {
+        console.log(JSON.stringify(manifest, null, 2));
+        return;
+      }
+      console.log(`Migration manifest: ${manifest.entries.length} file(s), provider=${manifest.provider}`);
+      for (const entry of manifest.entries) {
+        const metadata = entry.metadata;
+        console.log(
+          `  ${entry.id} ${metadata.domain} ${metadata.reversible ? 'reversible' : 'forward-only'}` +
+          `${metadata.requiresBackup ? ' backup-required' : ''}`
+        );
       }
     },
   },
@@ -636,9 +769,9 @@ export const commands: Command[] = [
     options: [
       { name: 'out', alias: 'o', description: 'Output file (.dump). Defaults to timestamped name', required: false },
     ],
-    handler: async () => {
+    handler: async (_args, options) => {
       const { backupDatabase } = await import('./db-dump.js');
-      const result = backupDatabase();
+      const result = backupDatabase({ out: options['out'] });
       if (!result.ok) {
         console.error(result.message);
         process.exitCode = 1;
@@ -650,14 +783,28 @@ export const commands: Command[] = [
   {
     name: 'db:restore',
     description: 'Restore the database from a pg_dump custom-format file',
+    positionals: { max: 1, label: 'dump file' },
     options: [
-      { name: 'file', alias: 'f', description: 'Dump file to restore from', required: true },
+      { name: 'file', alias: 'f', description: 'Dump file to restore from (or the first positional argument)', required: false },
       { name: 'clean', alias: 'c', description: 'Drop objects before restore (--clean)', required: false },
+      { name: 'target-database', alias: 'T', description: 'Require this PostgreSQL database name before restore', required: false },
+      { name: 'max-age-hours', alias: 'H', description: 'Reject backups older than this many hours', required: false, valueKind: 'integer' },
     ],
-    handler: async (_args, options) => {
+    handler: async (args, options) => {
       const { restoreDatabase } = await import('./db-dump.js');
-      const file = typeof options['file'] === 'string' ? options['file'] : '';
-      const result = restoreDatabase({ file, clean: Boolean(options['clean']) });
+      const file = typeof options['file'] === 'string' ? options['file'] : args[0] ?? '';
+      if (!file) {
+        console.error('Dump file is required: use --file <path> or provide a positional path.');
+        process.exitCode = 1;
+        return;
+      }
+      const maxAgeHours = options['max-age-hours'] ? Number(options['max-age-hours']) : undefined;
+      const result = restoreDatabase({
+        file,
+        clean: options['clean'] === 'true',
+        expectedDatabase: options['target-database'],
+        maxAgeMs: maxAgeHours === undefined ? undefined : maxAgeHours * 60 * 60 * 1000,
+      });
       if (!result.ok) {
         console.error(result.message);
         process.exitCode = 1;
@@ -727,7 +874,7 @@ export const commands: Command[] = [
       { name: 'info', alias: 'i', description: 'Show manifest info', required: false },
       { name: 'enable', alias: 'e', description: 'Enable the plugin for a tenant', required: false },
       { name: 'disable', alias: 'd', description: 'Disable the plugin for a tenant', required: false },
-      { name: 'tenant', alias: 't', description: 'Tenant ID (required for --enable/--disable)', required: false },
+      { name: 'tenant', alias: 't', description: 'Tenant ID (required for --enable/--disable)', required: false, valueKind: 'tenant' },
       { name: 'uninstall', alias: 'u', description: 'Uninstall (remove files + registry)', required: false },
     ],
     handler: async (_args, options) => {
@@ -1015,7 +1162,7 @@ export const commands: Command[] = [
       { name: 'name', alias: 'n', description: 'User name', required: true },
       { name: 'password', alias: 'p', description: 'User password', required: true },
       { name: 'role', alias: 'r', description: `User role (${VALID_ROLES.join(', ')})`, required: false, default: 'EDITOR' },
-      { name: 'tenant', alias: 't', description: 'Tenant slug', required: false, default: 'default' },
+      { name: 'tenant', alias: 't', description: 'Tenant slug', required: false, default: 'default', valueKind: 'tenant' },
     ],
     handler: async (_args, options) => {
       // A política RBAC usa slugs em maiúsculas: `--role editor` → EDITOR.
@@ -1037,9 +1184,12 @@ export const commands: Command[] = [
   },
   {
     name: 'seed',
-    description: 'Seed the database with initial data (roles + settings + demo content + theme activation)',
-    options: [],
-    handler: async () => {
+    description: 'Seed system data; use --demo for explicit demo content creation',
+    options: [
+      { name: 'demo', alias: 'd', description: 'Also create demo content (may replace existing demo records)', required: false },
+      { name: 'yes', alias: 'y', description: 'Confirm demo seeding without an interactive prompt', required: false },
+    ],
+    handler: async (_args, options) => {
       await initDb();
       const { ensureCoreSchema, seedCoreData, seedDemoContent, seedActivateDefaultTheme } = await import('@oktis-works/database');
       const applied = await ensureCoreSchema();
@@ -1048,10 +1198,25 @@ export const commands: Command[] = [
       }
       const { roles, settings } = await seedCoreData();
       console.log(`✓ seed completed: ${roles} roles, ${settings} settings created`);
-      const demo = await seedDemoContent();
-      const total = demo.pages + demo.posts + demo.menus + demo.readingSettings;
-      if (total > 0) {
-        console.log(`✓ demo content: ${demo.pages} pages, ${demo.posts} posts, ${demo.menus} menus, ${demo.readingSettings} reading settings`);
+      if (options['demo'] !== undefined) {
+        if (options['yes'] === undefined) {
+          const { Prompt } = await import('./prompt.js');
+          const prompt = new Prompt();
+          const confirmed = await prompt.confirm(
+            'Demo seeding may remove and recreate demo records. Continue?',
+            { defaultValue: false }
+          );
+          prompt.close();
+          if (!confirmed) {
+            console.log('Demo seed cancelled; system seed was completed.');
+            return;
+          }
+        }
+        const demo = await seedDemoContent();
+        const total = demo.pages + demo.posts + demo.menus + demo.readingSettings;
+        if (total > 0) {
+          console.log(`✓ demo content: ${demo.pages} pages, ${demo.posts} posts, ${demo.menus} menus, ${demo.readingSettings} reading settings`);
+        }
       }
       try {
         await seedActivateDefaultTheme();

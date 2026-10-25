@@ -1,3 +1,4 @@
+-- @okcms domain=core_schema provider=postgres
 -- +migrate Up
 -- Locale preferido do usuário (i18n do admin: /api/v1/users/me/locale)
 ALTER TABLE users ADD COLUMN IF NOT EXISTS locale VARCHAR(10);

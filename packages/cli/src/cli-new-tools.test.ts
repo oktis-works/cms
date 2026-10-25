@@ -15,6 +15,7 @@ let dir: string;
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'bl-cli-'));
+  delete process.env['DATABASE_URL'];
 });
 
 afterEach(() => {
@@ -25,12 +26,17 @@ afterEach(() => {
 describe('parseDatabaseUrl', () => {
   it('extrai host/port/database de URLs postgres', () => {
     expect(parseDatabaseUrl('postgres://user:pw@db.local:5433/cms')).toEqual({
+      engine: 'postgres',
       host: 'db.local',
       port: 5433,
       database: 'cms',
+      user: 'user',
+      password: 'pw',
+      ssl: false,
     });
-    expect(parseDatabaseUrl('postgresql://h/cms')).toEqual({ host: 'h', port: 5432, database: 'cms' });
-    expect(parseDatabaseUrl('mysql://h/db')).toEqual({ host: 'h', port: 3306, database: 'db' });
+    expect(parseDatabaseUrl('postgresql://h/cms')).toMatchObject({ engine: 'postgres', host: 'h', port: 5432, database: 'cms' });
+    expect(parseDatabaseUrl('mysql://h/db')).toMatchObject({ engine: 'mysql', port: 3306, database: 'db' });
+    expect(parseDatabaseUrl('mariadb://h/db')).toMatchObject({ engine: 'mariadb', port: 3306, database: 'db' });
     expect(parseDatabaseUrl('não-é-url')).toBeNull();
     expect(parseDatabaseUrl('http://h/cms')).toBeNull();
   });
@@ -95,7 +101,7 @@ describe('runDoctorChecks', () => {
     const results = await runDoctorChecks({
       tcpProbe: async () => false,
       runner: dockerRunner(),
-      env: { nodeVersion: 'v22.1.0', cwd: dir },
+      env: { nodeVersion: 'v22.17.0', cwd: dir },
     });
 
     const byName = Object.fromEntries(results.map((r) => [r.name, r])) as Record<string, CheckResult>;
@@ -108,6 +114,7 @@ describe('runDoctorChecks', () => {
   });
 
   it('aceita DB_* (variáveis separadas) como formato alternativo', async () => {
+    delete process.env['DATABASE_URL'];
     writeFileSync(
       join(dir, '.env'),
       'DB_HOST=db.local\nDB_PORT=5433\nDB_NAME=cms\nDB_USER=u\nDB_PASSWORD=p\n'
@@ -117,7 +124,7 @@ describe('runDoctorChecks', () => {
     const results = await runDoctorChecks({
       tcpProbe: async () => true,
       runner: dockerRunner(),
-      env: { nodeVersion: 'v22.1.0', cwd: dir },
+      env: { nodeVersion: 'v22.17.0', cwd: dir },
     });
 
     const byName = Object.fromEntries(results.map((r) => [r.name, r])) as Record<string, CheckResult>;
@@ -135,7 +142,7 @@ describe('runDoctorChecks', () => {
     const results = await runDoctorChecks({
       tcpProbe: async () => false,
       runner: noDocker(),
-      env: { nodeVersion: 'v22.1.0', cwd: dir },
+      env: { nodeVersion: 'v22.17.0', cwd: dir },
     });
 
     const byName = Object.fromEntries(results.map((r) => [r.name, r])) as Record<string, CheckResult>;
@@ -156,7 +163,7 @@ describe('runDoctorChecks', () => {
     const results = await runDoctorChecks({
       tcpProbe: async () => false,
       runner: noDocker(),
-      env: { nodeVersion: 'v22.1.0', cwd: dir },
+      env: { nodeVersion: 'v22.17.0', cwd: dir },
     });
 
     const byName = Object.fromEntries(results.map((r) => [r.name, r])) as Record<string, CheckResult>;
@@ -173,7 +180,7 @@ describe('runDoctorChecks', () => {
     const results = await runDoctorChecks({
       tcpProbe: async () => false,
       runner: dockerRunner({ composeOk: false }),
-      env: { nodeVersion: 'v22.1.0', cwd: dir },
+      env: { nodeVersion: 'v22.17.0', cwd: dir },
     });
 
     const byName = Object.fromEntries(results.map((r) => [r.name, r])) as Record<string, CheckResult>;
@@ -187,7 +194,7 @@ describe('runDoctorChecks', () => {
     const results = await runDoctorChecks({
       tcpProbe: async () => false,
       runner: dockerRunner({ proxy: false }),
-      env: { nodeVersion: 'v22.1.0', cwd: dir },
+      env: { nodeVersion: 'v22.17.0', cwd: dir },
     });
 
     const byName = Object.fromEntries(results.map((r) => [r.name, r])) as Record<string, CheckResult>;
@@ -207,7 +214,7 @@ describe('runDoctorChecks', () => {
     const results = await runDoctorChecks({
       tcpProbe: async () => false,
       runner: dockerRunner({ proxy: false }),
-      env: { nodeVersion: 'v22.1.0', cwd: dir },
+      env: { nodeVersion: 'v22.17.0', cwd: dir },
     });
 
     const byName = Object.fromEntries(results.map((r) => [r.name, r])) as Record<string, CheckResult>;
@@ -229,7 +236,7 @@ describe('runDoctorChecks', () => {
     const results = await runDoctorChecks({
       tcpProbe: async () => true,
       runner: dockerRunner({ proxy: true }),
-      env: { nodeVersion: 'v22.1.0', cwd: dir },
+      env: { nodeVersion: 'v22.17.0', cwd: dir },
     });
 
     const byName = Object.fromEntries(results.map((r) => [r.name, r])) as Record<string, CheckResult>;

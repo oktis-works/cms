@@ -38,6 +38,7 @@ import {
   migrateInvocation,
   preflight,
   DEFAULT_TIMEOUTS,
+  databaseContainerName,
   type DeployTimeouts,
 } from './bluegreen.js';
 import type { Prompt } from './prompt.js';
@@ -121,7 +122,7 @@ export async function deploySimple(opts: SimpleDeployOptions = {}): Promise<Simp
 
   const plan: string[] = [
     'Preflight: docker + compose v2',
-    'Network okcms-net and infra (postgres, redis, proxy)',
+    `Network okcms-net and infra (${record['DB_ENGINE'] ?? 'postgres'}, redis, proxy)`,
     'Packages on the host',
     'Build image',
     'Migrations on the host',
@@ -151,7 +152,7 @@ export async function deploySimple(opts: SimpleDeployOptions = {}): Promise<Simp
   const infra = infraCompose(cwd, ['up', '-d'], runner, true);
   if (!infra.ok) return fail(`Infra did not start:\n${infra.stderr.trim()}`);
 
-  for (const dataContainer of ['okcms-postgres', 'okcms-redis']) {
+  for (const dataContainer of [databaseContainerName(record), 'okcms-redis']) {
     const healthy = await waitForContainer(runner, dataContainer, isHealthy, {
       timeoutMs: timeout.dataMs,
       intervalMs: timeout.intervalMs,
@@ -160,7 +161,7 @@ export async function deploySimple(opts: SimpleDeployOptions = {}): Promise<Simp
       return fail(`${dataContainer} never became healthy — see \`docker logs ${dataContainer}\`.`);
     }
   }
-  log('  ✓ infra ready (postgres, redis, proxy)');
+  log(`  ✓ infra ready (${record['DB_ENGINE'] ?? 'postgres'}, redis, proxy)`);
 
   // ---- 3. packages on the host -------------------------------------------
   next(3);

@@ -74,9 +74,10 @@ describe('ENV_FIELDS catalog', () => {
             }
         }
     });
-    it('enum has options; required secret is enforced', () => {
+    it('enum fields expose valid options; required secrets are enforced', () => {
         for (const field of ENV_FIELDS.filter((f) => f.type === 'enum')) {
-            expect(field.options?.length).toBeGreaterThan(1);
+            expect(field.options?.length).toBeGreaterThan(0);
+            expect(field.options).toContain(field.default);
         }
         const required = ENV_FIELDS.filter((f) => f.required);
         expect(required.map((f) => f.key)).toContain('JWT_SECRET');

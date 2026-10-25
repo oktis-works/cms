@@ -14,8 +14,8 @@ extensão, atualizar, fazer backup e diagnosticar.
 
 | Necessário para | Requisito |
 |---|---|
-| sempre | **Node 20+** ou **Bun 1.3+** |
-| sempre | **PostgreSQL 16+** |
+| sempre | **Node 22.23+** ou **Bun 1.4.4+** |
+| sempre | **PostgreSQL 16+, MySQL 8.0.36+/8.4 LTS ou MariaDB 11.4+** |
 | filas do worker | **Redis** (sem ele: `REDIS_HOST=disabled` — cache em memória, filas não funcionam) |
 | deploy em Docker | **Docker** + **Docker Compose v2** (`docker compose version`) |
 
@@ -311,3 +311,8 @@ deploy, mas backup fora do servidor é o único que aguenta perda da máquina.
 | 502 após deploy | `cat deploy/nginx/conf.d/00-upstreams.conf` + `docker ps --filter label=okcms.role=edge` |
 | Tema sem CSS em produção | `npx okcms redeploy` — `dist/theme.css` precisa ser buildado no host |
 | CLI recusa dentro de container | Esperado; rode no host ou use `--force` |
+# Compatibilidade de banco
+
+Consulte a [matriz de provedores e versões](provider-matrix.pt-BR.md) antes de
+selecionar o banco. PostgreSQL, MySQL e MariaDB usam drivers, schemas e
+conjuntos de migrations separados.

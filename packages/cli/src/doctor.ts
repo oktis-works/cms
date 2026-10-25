@@ -1,10 +1,11 @@
 // @oktis-works/cms - cms doctor: diagnóstico do ambiente (cli-devexp-003)
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { connect } from 'node:net';
 
 import type { Runner } from './docker.js';
+import { parseDatabaseUrl as parseSharedDatabaseUrl, resolveDatabaseConfig } from './database-config.js';
 
 export interface CheckResult {
   name: string;
@@ -14,32 +15,7 @@ export interface CheckResult {
 }
 
 export function parseDatabaseUrl(url: string): { host: string; port: number; database: string } | null {
-  try {
-    const parsed = new URL(url);
-    const isPg = parsed.protocol === 'postgres:' || parsed.protocol === 'postgresql:';
-    const isMysql = parsed.protocol === 'mysql:';
-    if (!isPg && !isMysql) return null;
-    return {
-      host: parsed.hostname,
-      port: Number(parsed.port || (isMysql ? 3306 : 5432)),
-      database: parsed.pathname.replace(/^\//, ''),
-    };
-  } catch {
-    return null;
-  }
-}
-
-/** Chaves KEY=VALUE de um .env (sem sobrescrever process.env). */
-function parseEnvFile(path: string): Record<string, string> {
-  if (!existsSync(path)) return {};
-  const out: Record<string, string> = {};
-  for (const line of readFileSync(path, 'utf-8').split(/\r?\n/)) {
-    const match = /^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/.exec(line.trim());
-    if (match?.[1] && match[2] !== undefined) {
-      out[match[1]] = match[2].trim().replace(/^["']|["']$/g, '');
-    }
-  }
-  return out;
+  return parseSharedDatabaseUrl(url);
 }
 
 /** TCP probe puro (injetável para testes). */
@@ -59,7 +35,21 @@ export function checkTcp(host: string, port: number, timeoutMs = 1500): Promise<
 
 export interface DoctorEnv {
   nodeVersion?: string;
+  bunVersion?: string;
   cwd?: string;
+}
+
+const MIN_NODE = [22, 17];
+const MIN_BUN = [1, 4, 4];
+
+function atLeastVersion(raw: string, minimum: number[]): boolean {
+  const parts = raw.replace(/^v/, '').split('.').map((part) => Number.parseInt(part, 10) || 0);
+  for (let index = 0; index < minimum.length; index += 1) {
+    const actual = parts[index] ?? 0;
+    if (actual > minimum[index]!) return true;
+    if (actual < minimum[index]!) return false;
+  }
+  return true;
 }
 
 export async function runDoctorChecks(
@@ -67,15 +57,19 @@ export async function runDoctorChecks(
 ): Promise<CheckResult[]> {
   const results: CheckResult[] = [];
   const nodeVersion = opts.env?.nodeVersion ?? process.version;
+  const bunVersion = opts.env ? opts.env.bunVersion : process.versions['bun'];
   const cwd = opts.env?.cwd ?? process.cwd();
   const probe = opts.tcpProbe ?? checkTcp;
 
-  // Node >= 20
-  const major = Number(nodeVersion.replace(/^v/, '').split('.')[0]);
+  // Keep this in sync with the root package engines. Bun is accepted when the
+  // CLI is running under Bun; Node must satisfy the exact minimum minor.
+  const runtimeOk = bunVersion
+    ? atLeastVersion(bunVersion, MIN_BUN)
+    : atLeastVersion(nodeVersion, MIN_NODE);
   results.push({
     name: 'node',
-    ok: major >= 20,
-    detail: nodeVersion,
+    ok: runtimeOk,
+    detail: bunVersion ? `Bun ${bunVersion} (Node ${nodeVersion})` : nodeVersion,
     required: true,
   });
 
@@ -84,29 +78,28 @@ export async function runDoctorChecks(
   const hasEnv = existsSync(envPath);
   results.push({ name: '.env', ok: hasEnv, detail: envPath, required: true });
 
-  let dbUrl = process.env['DATABASE_URL'] ?? '';
-  const fileEnv = hasEnv ? parseEnvFile(envPath) : {};
-  const resolveEnv = (key: string): string => process.env[key] ?? fileEnv[key] ?? '';
-  if (!dbUrl) dbUrl = resolveEnv('DATABASE_URL');
-
-  // Banco: DATABASE_URL OU variáveis separadas DB_* — o usuário escolhe o formato.
-  const parsedUrl = dbUrl ? parseDatabaseUrl(dbUrl) : null;
-  const dbVarHost = resolveEnv('DB_HOST') || 'localhost';
-  const dbVarPort = resolveEnv('DB_PORT') || '5432';
-  const dbName = resolveEnv('DB_NAME') || 'okcms';
-  const hasDbVars = Boolean(
-    resolveEnv('DB_HOST') || resolveEnv('DB_PORT') || resolveEnv('DB_NAME') || resolveEnv('DB_USER')
-  );
+  const database = resolveDatabaseConfig(cwd);
+  const parsedUrl = database.parsed;
+  const dbVarHost = parsedUrl?.host ?? 'localhost';
+  const dbVarPort = String(parsedUrl?.port ?? (database.engine === 'postgres' ? 5432 : 3306));
+  const dbName = parsedUrl?.database ?? 'okcms';
+  results.push({
+    name: 'database-provider',
+    ok: ['postgres', 'mysql', 'mariadb'].includes(database.engine),
+    detail: `provider ${database.engine}; see docs/provider-matrix.md for supported server versions`,
+    required: true,
+  });
 
   let dbOk: boolean;
   let dbDetail: string;
-  if (dbUrl && !parsedUrl) {
+  const unsupportedEngine = !['postgres', 'mysql', 'mariadb'].includes(database.engine);
+  if (unsupportedEngine || database.error && !database.error.startsWith('Database connection is incomplete')) {
     dbOk = false;
-    dbDetail = 'Invalid DATABASE_URL (expected postgres://user:pass@host:5432/db)';
-  } else if (parsedUrl) {
+    dbDetail = database.error ?? 'Database provider configuration is invalid.';
+  } else if (parsedUrl && database.source === 'url') {
     dbOk = true;
     dbDetail = `via DATABASE_URL — ${parsedUrl.host}:${parsedUrl.port}/${parsedUrl.database}`;
-  } else if (hasDbVars) {
+  } else if (database.configured) {
     dbOk = true;
     dbDetail = `via DB_* — ${dbVarHost}:${dbVarPort}/${dbName}`;
   } else {
@@ -116,7 +109,7 @@ export async function runDoctorChecks(
   results.push({ name: 'database', ok: dbOk, detail: dbDetail, required: true });
 
   // TCP do banco (opcional — ambiente pode estar fora)
-  if (parsedUrl || dbOk) {
+  if ((parsedUrl || dbOk) && !unsupportedEngine) {
     const host = parsedUrl?.host ?? dbVarHost;
     const port = parsedUrl?.port ?? Number(dbVarPort);
     const reachable = await probe(host, port);

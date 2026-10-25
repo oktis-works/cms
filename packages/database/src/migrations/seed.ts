@@ -12,9 +12,9 @@
 
 import { getConnection } from '../connection.js';
 import { resolveTenantId } from './bootstrap.js';
-import type postgres from 'postgres';
+import type { RepoSql } from '../connection.js';
 
-type Sql = postgres.Sql;
+type Sql = RepoSql;
 
 /** Canonical roles — MUST match the slugs of auth's DEFAULT_POLICY. */
 export const DEFAULT_ROLES = [

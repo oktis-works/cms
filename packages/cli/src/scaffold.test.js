@@ -95,7 +95,7 @@ describe('scaffoldProject', () => {
         const readme = readFileSync(join(root, 'README.md'), 'utf-8');
         expect(readme).toContain('# docs-test');
         expect(readme).toContain('What is OkCMS');
-        expect(readme).toContain('docker compose up -d');
+        expect(readme).toContain('okcms dev');
         expect(readme).toContain('okcms doctor');
         expect(readme).toContain('./PLUGIN.md');
         expect(readme).toContain('./THEME.md');

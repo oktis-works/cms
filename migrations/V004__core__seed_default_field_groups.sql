@@ -1,3 +1,4 @@
+-- @okcms domain=core_schema provider=postgres
 -- +migrate Up
 -- Seed: Field Groups + Core Fields para Post e Page
 -- Cria field_groups com location_rules e field_definitions (core fields)

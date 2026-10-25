@@ -1,3 +1,4 @@
+-- @okcms domain=core_schema provider=postgres
 -- +migrate Up
 -- Vínculo plugin <-> tenant (decisão: plugins são por-tenant de verdade).
 --

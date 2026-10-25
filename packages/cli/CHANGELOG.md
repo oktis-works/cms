@@ -1,5 +1,18 @@
 # @oktis-works/cms
 
+## 0.13.9
+
+### Patch Changes
+
+- Complete the provider-aware migration lifecycle, CLI database workflows, generated MySQL and MariaDB assets, audit safeguards, and GPL-2.0-or-later licensing metadata.
+- Updated dependencies
+  - @oktis-works/auth@0.8.3
+  - @oktis-works/config@0.6.5
+  - @oktis-works/core@0.15.1
+  - @oktis-works/database@0.14.3
+  - @oktis-works/theme-runtime@0.11.1
+  - @oktis-works/validation@0.8.1
+
 ## 0.13.8
 
 ### Patch Changes

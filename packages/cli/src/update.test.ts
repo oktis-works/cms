@@ -6,18 +6,19 @@
 // `--mode deploy` segue sem assistente (automação).
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PassThrough, Writable } from 'node:stream';
 
 vi.mock('./npm-registry.js', () => ({
   getLatestVersion: vi.fn(async () => '0.9.9'),
+  getLatestVersionStatus: vi.fn(async () => ({ status: 'ok', version: '0.9.9' })),
   searchExtensions: vi.fn(async () => []),
 }));
 
-import { getLatestVersion } from './npm-registry.js';
-import { parseMode, runUpdate, scanOutdated, type UpdateOptions } from './update.js';
+import { getLatestVersion, getLatestVersionStatus } from './npm-registry.js';
+import { createUpdatePlan, formatUpdatePlan, parseMode, runUpdate, scanOutdated, type UpdateOptions } from './update.js';
 import { Prompt, type PromptIO } from './prompt.js';
 import type { ContainerProbe } from './guards.js';
 import type { Runner } from './docker.js';
@@ -100,6 +101,13 @@ function installPackage(name: string, version: string): void {
     join(path, 'package.json'),
     JSON.stringify({ name: `@oktis-works/${name}`, version })
   );
+  const manifestPath = join(dir, 'package.json');
+  const manifest = existsSync(manifestPath)
+    ? JSON.parse(readFileSync(manifestPath, 'utf-8')) as { dependencies?: Record<string, string> }
+    : { dependencies: {} };
+  manifest.dependencies ??= {};
+  manifest.dependencies[`@oktis-works/${name}`] = `^${version}`;
+  writeFileSync(manifestPath, JSON.stringify(manifest));
 }
 
 interface RunResult {
@@ -155,6 +163,17 @@ describe('parseMode', () => {
   });
 });
 
+describe('update plan', () => {
+  it('formats a dry-run without implying that anything was changed', () => {
+    const plan = createUpdatePlan({
+      installed: true,
+      outdated: [{ name: 'api', pkg: '@oktis-works/api', current: '1.0.0', latest: '1.1.0' }],
+    }, { mode: 'deploy', target: 'pm2' });
+    expect(formatUpdatePlan(plan)).toContain('@oktis-works/api: 1.0.0 -> 1.1.0');
+    expect(formatUpdatePlan(plan)).toContain('no files, packages, containers, or migrations were changed');
+  });
+});
+
 describe('scanOutdated', () => {
   it('projeto nunca instalado devolve installed:false sem registry', async () => {
     const result = await scanOutdated(dir);
@@ -174,11 +193,31 @@ describe('scanOutdated', () => {
     ]);
     expect(out.join('\n')).toContain('@oktis-works/core 0.9.9 (up to date)');
   });
+
+  it('does not classify a registry outage as up to date', async () => {
+    installPackage('api', '0.1.0');
+    vi.mocked(getLatestVersionStatus).mockResolvedValueOnce({
+      status: 'offline',
+      error: 'network unavailable',
+    });
+
+    const result = await run({ mode: 'download' });
+
+    expect(result.code).toBe(1);
+    expect(result.printed).toContain('Registry state is unresolved');
+  });
 });
 
 // ---------------------------------------------------------------------------
 
 describe('modo download (explícito)', () => {
+  it('sincroniza migrations antes de bloquear projeto sem node_modules', async () => {
+    const result = await run({ mode: 'download' });
+
+    expect(result.code).toBe(1);
+    expect(existsSync(join(dir, 'migrations'))).toBe(true);
+  });
+
   it('não-TTY com --mode download não inicia Docker', async () => {
     installPackage('api', '0.1.0');
     const result = await run({ mode: 'download' });
@@ -194,7 +233,7 @@ describe('modo download (explícito)', () => {
     const result = await run({ mode: 'download', install: true });
 
     expect(result.code).toBe(0);
-    expect(result.calls).toContain('bun add @oktis-works/api@latest');
+    expect(result.calls).toContain('bun add @oktis-works/api@0.9.9');
     expect(result.calls.some((call) => call.includes('compose'))).toBe(false);
   });
 
@@ -214,7 +253,7 @@ describe('modo download (explícito)', () => {
     });
 
     expect(code).toBe(0);
-    expect(runner.calls).toContain('bun add @oktis-works/api@latest');
+    expect(runner.calls).toContain('bun add @oktis-works/api@0.9.9');
     expect(runner.calls.some((call) => call.includes('docker-compose.infra.yml'))).toBe(true);
     expect(runner.calls.some((call) => call.includes('db:migrate'))).toBe(true);
     expect(prompt.printed()).toContain('Start the update?');
@@ -265,7 +304,7 @@ describe('modo deploy', () => {
     const result = await run({ install: true, yes: true });
 
     expect(result.code).toBe(0);
-    expect(result.calls).toContain('bun add @oktis-works/api@latest');
+    expect(result.calls).toContain('bun add @oktis-works/api@0.9.9');
     expect(result.calls.some((call) => call.includes('db:migrate'))).toBe(true);
     expect(result.calls.some((call) => call.includes('docker-compose.infra.yml'))).toBe(true);
   });
@@ -394,6 +433,6 @@ describe('guarda de host', () => {
     const result = await run({ probe: CONTAINER_PROBE, force: true, install: true, yes: true });
 
     expect(result.code).toBe(0);
-    expect(result.calls).toContain('bun add @oktis-works/api@latest');
+    expect(result.calls).toContain('bun add @oktis-works/api@0.9.9');
   });
 });

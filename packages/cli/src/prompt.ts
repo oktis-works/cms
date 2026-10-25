@@ -70,6 +70,49 @@ export const symbol = {
   cursor: '❯',
 } as const;
 
+/** Terminal-safe layout helpers shared by menus and status screens. */
+export function terminalWidth(fallback = 80): number {
+  const columns = Number.parseInt(process.env['COLUMNS'] ?? '', 10);
+  return Number.isFinite(columns) && columns >= 40 ? columns : fallback;
+}
+
+export function visibleLength(text: string): number {
+  return text.replace(/\u001b\[[0-?]*[ -\/]*[@-~]/g, '').length;
+}
+
+export function truncateText(text: string, max = terminalWidth() - 4): string {
+  if (max < 4 || visibleLength(text) <= max) return text;
+  return `${text.slice(0, max - 1)}…`;
+}
+
+export function wrapText(text: string, max = terminalWidth() - 4): string[] {
+  if (max < 8) return [truncateText(text, max)];
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let line = '';
+  for (const word of words) {
+    if (!line) {
+      line = word;
+    } else if (visibleLength(`${line} ${word}`) <= max) {
+      line += ` ${word}`;
+    } else {
+      lines.push(truncateText(line, max));
+      line = word;
+    }
+  }
+  if (line) lines.push(truncateText(line, max));
+  return lines.length > 0 ? lines : [''];
+}
+
+export function asciiSymbol(name: keyof typeof symbol): string {
+  const fallback: Record<keyof typeof symbol, string> = {
+    ask: '?', ok: '[ok]', fail: '[x]', arrow: '->', bullet: '*', warn: '!', cursor: '>',
+  };
+  return process.env['OKCMS_ASCII'] === '1' || process.env['TERM'] === 'dumb'
+    ? fallback[name]
+    : symbol[name];
+}
+
 // ---------------------------------------------------------------------------
 // Buffered input: line mode + raw mode (arrow keys / secret mask)
 // ---------------------------------------------------------------------------
@@ -365,6 +408,8 @@ export interface SelectOptions<T> {
   nonInteractiveError?: string;
   /** Limpa a tela INTEIRA a cada repaint (setas) — evita multiplicação de conteúdo em terminais lentos. */
   fullClear?: boolean;
+  /** Explicit result for Escape/Ctrl+C; nested screens should use Back. */
+  cancelValue?: T;
 }
 
 export interface InputOptions {
@@ -449,6 +494,7 @@ export class Prompt {
     if (this.input.canRaw) {
       return await this.navigate<T>(title, choices, defaultIndex < 0 ? 0 : defaultIndex, {
         fullClear: opts.fullClear,
+        cancelValue: opts.cancelValue,
       });
     }
 
@@ -465,6 +511,7 @@ export class Prompt {
       const suffix = defaultIndex >= 0 ? style.dim(`[${defaultIndex + 1}]`) : '';
       const raw = await this.askLine(`${symbol.ask} ${suffix}`);
       if (raw === null) {
+        if (opts.cancelValue !== undefined) return opts.cancelValue;
         if (opts.defaultValue !== undefined) return opts.defaultValue;
         throw new Error(`input closed before "${title}" was answered`);
       }
@@ -535,7 +582,7 @@ export class Prompt {
     title: string,
     choices: Array<SelectChoice<T>>,
     startIndex: number,
-    opts: { inline?: boolean; aliases?: Record<string, number>; fullClear?: boolean }
+    opts: { inline?: boolean; aliases?: Record<string, number>; fullClear?: boolean; cancelValue?: T }
   ): Promise<T> {
     const total = choices.length;
     let index = Math.min(Math.max(startIndex, 0), total - 1);
@@ -601,9 +648,14 @@ export class Prompt {
 
       if (key === 'ctrl-c' || key === 'escape' || key === 'ctrl-d') {
         this.write(`\n  ${style.dim('Cancelled.')}\n`);
-        this.input.releaseKeys();
-        this.close();
-        process.exit(130);
+        if (opts.cancelValue !== undefined) return settle(opts.cancelValue);
+        const cancelIndex = choices.findIndex((choice) => {
+          const value = String(choice.value);
+          return value === 'back' || value === '__back__' || value === 'exit';
+        });
+        if (cancelIndex >= 0) return settle(choices[cancelIndex]!.value);
+        if (choices.every((choice) => typeof choice.value === 'boolean')) return settle(false as T);
+        return settle(choices[index]!.value);
       }
 
       const token = key.length === 1 ? key.toLowerCase() : key;

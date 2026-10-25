@@ -1,3 +1,4 @@
+-- @okcms domain=core_schema provider=postgres conflict_policy=block max_affected_rows=100000
 -- +migrate Up
 -- Make body the single canonical content document while preserving legacy
 -- native columns, data, and relational field_values as read-only inputs.

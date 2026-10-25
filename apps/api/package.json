@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/api",
-  "version": "0.16.3",
+  "version": "0.16.4",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -32,7 +32,7 @@
     "tsx": "4.7.0",
     "@types/node": "20.11.0"
   },
-  "license": "MIT",
+  "license": "GPL-2.0-or-later",
   "repository": {
     "type": "git",
     "url": "https://github.com/oktis-works/cms",

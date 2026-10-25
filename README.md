@@ -20,7 +20,7 @@ Hybrid, modular, API-first, extensible CMS with Astro+SolidJS frontend, Node.js/
 The CLI is the **only** operational surface of the system: it creates the
 project, starts the apps, migrates the database, configures `.env`, installs
 extensions and deploys. It is zero-dependency (no prompt library), runs on
-**Node 20+ or Bun 1.3+** and never runs inside a container — deployment and
+**Node 22.17+ or Bun 1.4.4+** and never runs inside a container — deployment and
 configuration always happen from the host.
 
 ### Installation
@@ -362,8 +362,8 @@ bun scripts/sync-infrastructure.ts
 
 ### Prerequisites
 
-- Node.js 20+
-- Bun 1.3+
+- Node.js 22.17+
+- Bun 1.4.4+
 - Docker & Docker Compose v2 (for the `blue-green` and `simple` targets — `pm2` needs none)
 - PostgreSQL 16+
 
@@ -475,4 +475,6 @@ Keys can be single-use (`oneTime`) and/or expire at a given date. Only the SHA-2
 
 ## License
 
-MIT
+OkCMS is free software licensed under the GNU General Public License, version 2
+or any later version (GPL-2.0-or-later), the same license used by WordPress.
+See [LICENSE](LICENSE) for the complete license text.

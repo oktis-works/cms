@@ -11,7 +11,10 @@
 // Escapamento: dentro dos template literals todo `${...}` do shell/compose
 // precisa virar `\${...}` para não virar interpolação do TypeScript.
 
-/** Espelhos em disco (mantidos em sincronia por teste). */
+/**
+ * Mirrors written to disk by the generator. The provider-specific compose
+ * mirrors are selected from DB_ENGINE during scaffold and deployment setup.
+ */
 export const ASSET_MIRROR = {
   dockerfile: 'infrastructure/docker/Dockerfile',
   entrypoint: 'infrastructure/docker/entrypoint.sh',
@@ -23,22 +26,20 @@ export const ASSET_MIRROR = {
   nginxTemplate: 'infrastructure/nginx/templates/default.conf.template',
 } as const;
 
-/** Seleciona o compose de infra correto baseado no DB_ENGINE. */
+/** Returns the provider-specific infrastructure definition. */
 export function getInfraCompose(engine: string): string {
-  switch (engine) {
-    case 'mysql': return COMPOSE_INFRA_MYSQL;
-    case 'mariadb': return COMPOSE_INFRA_MARIADB;
-    default: return COMPOSE_INFRA; // postgres
-  }
+  if (engine === 'postgres') return COMPOSE_INFRA;
+  if (engine === 'mysql') return COMPOSE_INFRA_MYSQL;
+  if (engine === 'mariadb') return COMPOSE_INFRA_MARIADB;
+  throw new Error(`Database engine "${engine}" is not supported.`);
 }
 
-/** Seleciona o caminho do arquivo de infra correto baseado no DB_ENGINE. */
+/** Returns the provider-specific infrastructure path. */
 export function getInfraComposePath(engine: string): string {
-  switch (engine) {
-    case 'mysql': return ASSET_MIRROR.composeInfraMysql;
-    case 'mariadb': return ASSET_MIRROR.composeInfraMariadb;
-    default: return ASSET_MIRROR.composeInfra; // postgres
-  }
+  if (engine === 'postgres') return ASSET_MIRROR.composeInfra;
+  if (engine === 'mysql') return ASSET_MIRROR.composeInfraMysql;
+  if (engine === 'mariadb') return ASSET_MIRROR.composeInfraMariadb;
+  throw new Error(`Database engine "${engine}" is not supported.`);
 }
 
 // ---------------------------------------------------------------------------
@@ -318,7 +319,7 @@ name: okcms
 
 services:
   mysql:
-    image: mysql:8.0
+    image: mysql:8.0.36
     container_name: okcms-mysql
     restart: unless-stopped
     environment:
@@ -408,7 +409,7 @@ name: okcms
 
 services:
   mariadb:
-    image: mariadb:11
+    image: mariadb:11.4
     container_name: okcms-mariadb
     restart: unless-stopped
     environment:
@@ -1136,13 +1137,14 @@ export function portsFromEnv(record: Record<string, string>): UpstreamPorts {
  */
 export function deployAssets(
   lane: Lane = 'blue',
-  ports: UpstreamPorts = DEFAULT_UPSTREAM_PORTS
+  ports: UpstreamPorts = DEFAULT_UPSTREAM_PORTS,
+  provider: 'postgres' | 'mysql' | 'mariadb' = 'postgres'
 ): ProjectAsset[] {
   return [
     { path: DEPLOY_PATHS.dockerignore, content: DOCKERIGNORE },
     { path: DEPLOY_PATHS.dockerfile, content: DOCKERFILE },
     { path: DEPLOY_PATHS.entrypoint, content: ENTRYPOINT_SH, mode: 0o755 },
-    { path: DEPLOY_PATHS.composeInfra, content: COMPOSE_INFRA },
+    { path: DEPLOY_PATHS.composeInfra, content: getInfraCompose(provider) },
     { path: DEPLOY_PATHS.composeDeploy, content: COMPOSE_DEPLOY },
     { path: DEPLOY_PATHS.composeApp, content: COMPOSE_APP },
     { path: DEPLOY_PATHS.nginxTemplate, content: NGINX_TEMPLATE },

@@ -6,10 +6,13 @@ export {
   getReadConnection,
   closeConnection,
   healthCheck,
+  assertSupportedServerVersion,
+  getDatabaseCapabilities,
   runInTransaction,
   runWithTenantTransaction,
   isTenantTransactionActive,
 } from './connection.js';
+export type { DatabaseAdapter, DatabaseCapabilities, RepoSql } from './connection.js';
 export { setTenantContext, clearTenantContext, getCurrentTenantId, enableRLS } from './rls/index.js';
 export {
   loadMigrationsFromDir,
@@ -19,9 +22,14 @@ export {
   runMigrations,
   runPluginMigrations,
   rollbackPluginMigrations,
+  buildMigrationManifest,
+  parseMigrationMetadata,
   type MigrationFile,
+  type MigrationManifest,
+  type MigrationMetadata,
 } from './migrations/runner.js';
-export { ensureCoreSchema, resolveTenantId } from './migrations/bootstrap.js';
+export { preflightMigration, type MigrationPreflightReport, type MigrationConflict } from './migrations/preflight.js';
+export { ensureCoreSchema, resolveTenantId, type EnsureCoreSchemaOptions } from './migrations/bootstrap.js';
 export {
   seedCoreData,
   seedDemoContent,

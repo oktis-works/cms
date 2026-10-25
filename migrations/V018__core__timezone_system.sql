@@ -1,3 +1,4 @@
+-- @okcms domain=core_schema provider=postgres
 -- +migrate Up
 -- WordPress-style timezone system
 -- 1. Add published_at_gmt to content table for dual date storage (local + GMT)

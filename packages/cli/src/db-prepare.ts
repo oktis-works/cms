@@ -1,7 +1,8 @@
-// @oktis-works/cms - Preparação de banco para os comandos que falam com o DB
+// @oktis-works/cms - Database preparation shared by CLI database workflows
 //
-// Extraído de commands.ts para ser reaproveitado pelo `okcms dev` sem criar
-// um ciclo de import (commands ↔ dev). Mesmo comportamento de sempre.
+// This module intentionally keeps connection/schema preparation separate from
+// seeding. Read-only commands must not recreate demo data or rewrite tenant
+// records as an incidental side effect.
 
 import { join } from 'node:path';
 
@@ -15,55 +16,47 @@ export function getTenantId(options: Record<string, string>): string {
   return options['tenant'] ?? 'default';
 }
 
-/**
- * Prepara o banco para os comandos db:* em QUALQUER estado — inclusive um
- * banco vazio recém-criado pelo docker compose (sem nem a tabela de controle
- * de migrations, que sequer existe sem o schema core): aplica o schema se
- * faltar, resolve o slug do --tenant para o UUID real de tenants.slug e
- * devolve esse UUID.
- */
-export async function prepareDb(options: Record<string, string>): Promise<string> {
+export interface PrepareDbOptions {
+  ensureSchema?: boolean;
+  seed?: boolean;
+  createDefaultTenant?: boolean;
+  resolveTenant?: boolean;
+  adoptLegacy?: boolean;
+}
+
+/** Prepare the database connection and, when requested, the core schema/seed data. */
+export async function prepareDb(
+  options: Record<string, string>,
+  prepareOptions: PrepareDbOptions = {}
+): Promise<string> {
   await initDb();
   const { ensureCoreSchema, resolveTenantId, seedCoreData, seedDemoContent, seedActivateDefaultTheme, seedDefaultFieldGroups } = await import('@oktis-works/database');
-  const applied = await ensureCoreSchema();
-  if (applied) {
-    console.log('✓ core schema applied (database initialized)');
+  if (prepareOptions.ensureSchema !== false) {
+    const applied = await ensureCoreSchema({ adoptLegacy: prepareOptions.adoptLegacy });
+    if (applied) {
+      console.log('✓ core schema applied (database initialized)');
+    }
   }
-  // Seed idempotente (roles da política + settings gerais): roda em qualquer
-  // banco — sem ele, o primeiro usuário registra e cai em 403 em tudo.
-  try {
+
+  if (prepareOptions.seed) {
     const seeded = await seedCoreData();
     if (seeded.roles > 0 || seeded.settings > 0) {
       console.log(`✓ seed: ${seeded.roles} roles, ${seeded.settings} settings created`);
     }
-  } catch (error) {
-    console.warn('⚠ default data seed failed:', error instanceof Error ? error.message : error);
-  }
-  // Seed default field groups (core fields for post/page) — idempotent, runs on every init
-  try {
     const fieldGroups = await seedDefaultFieldGroups();
     if (fieldGroups.fieldGroups > 0 || fieldGroups.fieldDefinitions > 0) {
       console.log(`✓ field groups: ${fieldGroups.fieldGroups} groups, ${fieldGroups.fieldDefinitions} definitions created`);
     }
-  } catch (error) {
-    console.warn('⚠ default field groups seed failed:', error instanceof Error ? error.message : error);
-  }
-  // Seed de conteúdo demonstrativo (páginas, posts, menus, static front page)
-  try {
     const demo = await seedDemoContent();
     const total = demo.pages + demo.posts + demo.menus + demo.readingSettings;
     if (total > 0) {
       console.log(`✓ demo content: ${demo.pages} pages, ${demo.posts} posts, ${demo.menus} menus, ${demo.readingSettings} reading settings`);
     }
-  } catch (error) {
-    console.warn('⚠ demo content seed failed:', error instanceof Error ? error.message : error);
-  }
-  // Ativa tema default se nenhum estiver ativo
-  try {
     await seedActivateDefaultTheme();
     console.log('✓ default theme activated');
-  } catch (error) {
-    console.warn('⚠ default theme activation failed:', error instanceof Error ? error.message : error);
   }
-  return resolveTenantId(getTenantId(options));
+  if (prepareOptions.resolveTenant === false) return '';
+  return resolveTenantId(getTenantId(options), {
+    createDefault: prepareOptions.createDefaultTenant !== false,
+  });
 }

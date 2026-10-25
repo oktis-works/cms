@@ -78,15 +78,26 @@ export const defaultSpawn: SpawnFn = (command, args, cwd) =>
 export function formatCommand(
   command: string,
   flags: Array<[string, string]>,
-  positional: string[] = []
+  positional: string[] = [],
+  sensitive: ReadonlySet<string> = new Set()
 ): string {
-  const parts = [`okcms`, command, ...positional];
+  const parts = ['okcms', command, ...positional.map(shellQuote)];
   for (const [name, value] of flags) {
     for (const item of splitRepeatable(value)) {
-      parts.push(item === 'true' ? `--${name}` : `--${name} ${item}`);
+      if (item === 'true') {
+        parts.push(`--${name}`);
+      } else {
+        const shown = sensitive.has(name) ? '<redacted>' : item;
+        parts.push(`--${name} ${shellQuote(shown)}`);
+      }
     }
   }
   return parts.join(' ');
+}
+
+function shellQuote(value: string): string {
+  if (/^[A-Za-z0-9_./:@%+=,-]+$/.test(value)) return value;
+  return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
 /**
@@ -114,6 +125,7 @@ export interface RunCliOptions {
   prompt: Prompt;
   spawn?: SpawnFn;
   cwd?: string;
+  sensitive?: ReadonlySet<string>;
 }
 
 /**
@@ -129,7 +141,7 @@ export async function runCliCommand(
   const { prompt } = opts;
   const spawnFn = opts.spawn ?? defaultSpawn;
   const positional = opts.positional ?? [];
-  const line = formatCommand(command, flags, positional);
+  const line = formatCommand(command, flags, positional, opts.sensitive);
 
   prompt.write(`  ${style.dim(symbol.arrow)} ${style.cyan(promptMirror(line))}\n`);
   if (opts.longRunning) prompt.info('long-running command — Ctrl+C returns to the wizard');
