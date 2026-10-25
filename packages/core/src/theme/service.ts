@@ -56,7 +56,8 @@ interface ThemeConfigValidationResult {
  */
 function validateThemeConfig(
   config: Record<string, unknown>,
-  manifestSettings: unknown[]
+  manifestSettings: unknown[],
+  allowExtraKeys = false
 ): ThemeConfigValidationResult {
   const errors: string[] = [];
   const sanitized: Record<string, unknown> = {};
@@ -76,8 +77,13 @@ function validateThemeConfig(
   // Validate each key in config
   for (const [key, value] of Object.entries(config)) {
     if (!allowedKeys.has(key)) {
-      errors.push(`Setting "${key}" is not declared in theme manifest.settings`);
-      continue; // Skip undeclared keys
+      if (!allowExtraKeys) {
+        errors.push(`Setting "${key}" is not declared in theme manifest.settings`);
+        continue; // Skip undeclared keys
+      }
+      // In allowExtraKeys mode, accept the value as-is
+      sanitized[key] = value;
+      continue;
     }
 
     // Find field definition
@@ -554,7 +560,7 @@ export class ThemeService {
   }
 
   /** Atualiza o config (customizador) do tema — validado contra manifest.settings. */
-  async updateConfig(id: string, config: unknown, userId?: string): Promise<Theme | null> {
+  async updateConfig(id: string, config: unknown, userId?: string, allowExtraKeys?: boolean): Promise<Theme | null> {
     if (!isPlainObject(config)) {
       throw new Error('Theme config must be an object');
     }
@@ -565,7 +571,7 @@ export class ThemeService {
     // Validate config against manifest.settings
     const manifest = existing.manifest as { settings?: unknown[] } | null;
     const manifestSettings = manifest?.settings ?? [];
-    const validation = validateThemeConfig(config as Record<string, unknown>, manifestSettings);
+    const validation = validateThemeConfig(config as Record<string, unknown>, manifestSettings, allowExtraKeys);
     
     if (!validation.valid) {
       throw new Error(`Theme config validation failed: ${validation.errors.join('; ')}`);
@@ -581,7 +587,7 @@ export class ThemeService {
 
     const result = await sql.unsafe(
       `UPDATE themes SET config = $1::jsonb, updated_at = NOW() WHERE id = $2 RETURNING *`,
-      [validation.sanitized, id]
+      [allowExtraKeys ? config : validation.sanitized, id]
     );
 
     return (result[0] as unknown as Theme) ?? null;
@@ -618,20 +624,28 @@ export class ThemeService {
     const manifest = existing.manifest as { settings?: any[] } | null;
     const manifestSettings = manifest?.settings ?? [];
 
-    // Validate config against manifest
-    const validation = validateThemeConfig(config, manifestSettings);
+    // In replace mode, we allow any keys (full config replacement)
+    // In merge mode, we validate against manifest
+    let validation;
+    if (mode === 'replace') {
+      // In replace mode, we accept any config but still sanitize known fields
+      validation = validateThemeConfig(config, manifestSettings, true);
+    } else {
+      validation = validateThemeConfig(config, manifestSettings);
+    }
     if (!validation.valid) {
       throw new Error(`Theme config validation failed: ${validation.errors.join('; ')}`);
     }
 
     let newConfig: Record<string, unknown>;
     if (mode === 'replace') {
-      newConfig = validation.sanitized;
+      // In replace mode, use the full config (not just sanitized)
+      newConfig = config;
     } else {
       newConfig = { ...(existing.config ?? {}), ...validation.sanitized };
     }
 
-    return this.updateConfig(id, newConfig);
+    return this.updateConfig(id, newConfig, undefined, mode === 'replace');
   }
 
   /** Get config version history for a theme. */

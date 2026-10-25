@@ -1,5 +1,12 @@
 # @oktis-works/web
 
+## 0.12.2
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/core@0.14.0
+
 ## 0.12.1
 
 ### Patch Changes

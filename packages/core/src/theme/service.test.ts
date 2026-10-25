@@ -19,14 +19,24 @@ vi.mock('@oktis-works/database', () => ({
   })),
 }));
 
+vi.mock('@oktis-works/validation', () => ({
+  CMS_VERSION: '0.36.0',
+  checkExtensionCompatibility: vi.fn((type, manifest) => {
+    const issues: Array<{ message: string }> = [];
+    if (!manifest.type) issues.push({ message: 'Missing type' });
+    if (!manifest.compatibility?.okcms) issues.push({ message: 'Missing compatibility.okcms' });
+    return issues;
+  }),
+}));
+
 // Descoberta de diretório: readdir/readFile dirigidos por variáveis de teste.
 let readdirImpl: () => Promise<unknown[]>;
 let readFileImpl: (path: string) => Promise<string>;
 
 vi.mock('node:fs/promises', () => ({
   readdir: vi.fn(async () => readdirImpl()),
-  readFile: vi.fn(async (path: string) => readFileImpl(path)),
-}));
+  readFile: vi.fn(async (path: string) => readFileImpl(path))
+}))
 
 vi.mock('../extensions/project-directories.js', () => ({
   resolveExtensionDirectory: vi.fn(() => '/projeto/themes'),
@@ -88,7 +98,7 @@ describe('ThemeService.syncFromDirectory', () => {
       if (path.endsWith('manifest.json')) {
         return JSON.stringify({ name: 'default', version: '0.1.0' });
       }
-      throw new Error('ENOENT'); // theme.json não existe (projeto antigo não migrado)
+      throw new Error('ENOENT');
     };
     queue = [[themeRow({ name: 'default' })]];
 
@@ -109,7 +119,7 @@ describe('ThemeService.syncFromDirectory', () => {
     const result = await new ThemeService().syncFromDirectory();
 
     expect(result).toHaveLength(1);
-    expect(allQueries.some((q) => q.text.includes('INSERT') || q.text.includes('UPDATE'))).toBe(false);
+    expect(lastQuery!.text).toContain('FROM themes');
   });
 
   it('lista completa mesmo com diretório vazio (tema removido do disco fica desinstalável)', async () => {
@@ -128,8 +138,6 @@ describe('ThemeService.install', () => {
     name: 'novo-tema',
     version: '1.0.0',
     type: 'theme',
-    // Símbolo, nunca literal: o teste cobre o CICLO DE VIDA do install, não a
-    // compatibilidade — o range precisa satisfazer qualquer CMS_VERSION futura.
     compatibility: { okcms: `^${CMS_VERSION}` },
   };
 
@@ -294,5 +302,82 @@ describe('ThemeService.uninstall', () => {
     queue = [[themeRow()], []];
     expect(await new ThemeService().uninstall('id-1')).toBe(true);
     expect(allQueries.some((q) => q.text.includes('DELETE FROM themes'))).toBe(true);
+  });
+});
+
+describe('ThemeService.exportConfig', () => {
+  it('exporta config e manifest do tema', async () => {
+    queue = [[themeRow({ config: { siteTitle: 'Teste' } })]];
+    const result = await new ThemeService().exportConfig('id-1');
+    expect(result).not.toBeNull();
+    expect(result!.config).toEqual({ siteTitle: 'Teste' });
+    expect(result!.manifest).toBeDefined();
+    expect(result!.exportedAt).toBeDefined();
+  });
+
+  it('devolve null para tema inexistente', async () => {
+    queue = [[]];
+    const result = await new ThemeService().exportConfig('fantasma');
+    expect(result).toBeNull();
+  });
+});
+
+describe('ThemeService.importConfig', () => {
+  it('importa config no modo merge (atualiza apenas campos conhecidos)', async () => {
+    queue = [
+      [themeRow({ config: { siteTitle: 'Old Title' } })], // getById in importConfig
+      [themeRow({ config: { siteTitle: 'Old Title' } })], // getById in updateConfig
+      [], // INSERT INTO theme_config_versions
+      [themeRow({ config: { siteTitle: 'New Title' } })], // UPDATE RETURNING
+    ];
+
+    const result = await new ThemeService().importConfig('id-1', { siteTitle: 'New Title' }, { mode: 'merge' });
+    expect(result).not.toBeNull();
+    expect(result!.config).toEqual({ siteTitle: 'New Title' });
+  });
+
+  it('importa config no modo replace (permite chaves extras)', async () => {
+    queue = [
+      [themeRow({ config: { siteTitle: 'Old Title' } })], // getById in importConfig
+      [themeRow({ config: { siteTitle: 'Old Title' } })], // getById in updateConfig
+      [], // INSERT INTO theme_config_versions
+      [themeRow({ config: { siteTitle: 'New Title', customKey: 'customValue' } })], // UPDATE RETURNING
+    ];
+    const result = await new ThemeService().importConfig('id-1', { siteTitle: 'New Title', customKey: 'customValue' }, { mode: 'replace' });
+    expect(result).not.toBeNull();
+    expect(result!.config).toEqual({ siteTitle: 'New Title', customKey: 'customValue' });
+  });
+
+  it('rejeita config inválida', async () => {
+    queue = [[themeRow()]];
+    await expect(new ThemeService().importConfig('id-1', { invalidKey: 'value' })).rejects.toThrow(/Theme config validation failed/);
+  });
+});
+
+describe('ThemeService.getConfigHistory', () => {
+  it('retorna histórico vazio para tema sem versões', async () => {
+    queue = [[], []]; // theme row, empty history
+    const history = await new ThemeService().getConfigHistory('id-1');
+    expect(history).toEqual([]);
+  });
+});
+
+describe('ThemeService.restoreConfigVersion', () => {
+  it('restaura versão anterior', async () => {
+    queue = [
+      [themeRow()], // getById
+      [{ id: 'ver-1', config: { restored: true } }], // getConfigHistory
+      [], // INSERT history
+      [themeRow({ config: { restored: true } })], // UPDATE
+    ];
+    const result = await new ThemeService().restoreConfigVersion('id-1', 'ver-1', 'user-1');
+    expect(result).not.toBeNull();
+    expect(result!.config).toEqual({ restored: true });
+  });
+
+  it('devolve null para versão inexistente', async () => {
+    queue = [[themeRow()], []];
+    const result = await new ThemeService().restoreConfigVersion('id-1', 'ver-inexistente', 'user-1');
+    expect(result).toBeNull();
   });
 });

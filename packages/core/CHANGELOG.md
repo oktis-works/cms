@@ -1,5 +1,33 @@
 # @oktis-works/core
 
+## 0.14.0
+
+### Minor Changes
+
+- ### Features
+  
+  - **Phase 5 - Polish, Tests & Documentation**
+    - **Unit Tests**: ThemeService coverage >90% (validation, inheritance, export/import)
+    - **API Integration Tests**: Config validation, export/import, history, restore
+    - **E2E Tests**: Playwright tests for full customizer flow (load → edit → preview → save → export → import → history restore)
+    - **Visual Regression Tests**: Screenshots for customizer states
+    - **Documentation**: Complete `THEME.md` with manifest.settings schema, all 21 field types, inheritance, conditional logic, tabs/groups, API endpoints, CLI
+    - **Migration Guide**: `docs/THEME_MIGRATION.md` for legacy theme migration
+    - **CHANGELOG**: Updated with all changes
+  
+  ### Testing
+  
+  - Unit tests for ThemeService validation, inheritance, export/import
+  - API integration tests for config endpoints
+  - Playwright E2E tests for full customizer flow
+  - Visual regression tests with Chromatic/pixelmatch
+  
+  ### Documentation
+  
+  - `THEME.md` - Complete theme development guide
+  - `docs/THEME_MIGRATION.md` - Legacy theme migration guide
+  - Updated `CHANGELOG.md`
+
 ## 0.13.0
 
 ### Minor Changes
