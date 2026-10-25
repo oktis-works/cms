@@ -3,7 +3,7 @@
 // Seletor de entidades (taxonomy, user) para o Theme Customizer.
 
 import { For, Show, createSignal, onMount } from 'solid-js';
-import { apiClient } from '../../lib/api';
+import { apiClient, type AdminUser } from '../../lib/api';
 import { useTranslation } from '../../i18n';
 
 export type EntityType = 'taxonomy' | 'user';
@@ -12,14 +12,14 @@ export interface EntitySelectorCustomizerProps {
   value: string | string[] | null | undefined;
   onChange: (value: string | string[]) => void;
   entityType: EntityType;
-  taxonomy?: string; // Para taxonomy: qual taxonomia filtrar
+  taxonomy?: string;
   multiple?: boolean;
   placeholder?: string;
   label?: string;
 }
 
 export function EntitySelectorCustomizer(props: EntitySelectorCustomizerProps) {
-  const { t: _t } = useTranslation();
+  const { t } = useTranslation();
   const {
     value,
     onChange,
@@ -48,31 +48,30 @@ export function EntitySelectorCustomizer(props: EntitySelectorCustomizerProps) {
   const load = async (): Promise<void> => {
     try {
       setLoading(true);
-      let result;
-      
+      let result: Array<{ id: string; name: string; slug?: string }>;
+
       if (entityType === 'taxonomy') {
-        // Buscar termos da taxonomia
-        result = await apiClient.listTaxonomyTerms({
-          taxonomy: taxonomy || '',
-          page: page(),
-          limit,
-          search: search() || undefined,
-        });
+        const terms = await apiClient.getTaxonomyTerms(taxonomy ?? '');
+        result = terms.map((term: any) => ({
+          id: term.id,
+          name: term.name || term.slug || term.id,
+          slug: term.slug,
+        }));
       } else {
-        // Buscar usuários
-        result = await apiClient.listUsers({
+        const response = await apiClient.listUsers({
           page: page(),
           limit,
           search: search() || undefined,
         });
+        result = (response.data ?? []).map((user: AdminUser) => ({
+          id: user.id,
+          name: user.name,
+          slug: user.email,
+        }));
       }
-      
-      setItems((result.data ?? []).map((item: any) => ({
-        id: item.id,
-        name: item.name || item.title || item.slug,
-        slug: item.slug,
-      })));
-      setTotal(result.total ?? 0);
+
+      setItems(result);
+      setTotal(result.length);
     } catch (err) {
       console.error('Entity load error:', err);
     } finally {
@@ -100,34 +99,34 @@ export function EntitySelectorCustomizer(props: EntitySelectorCustomizerProps) {
         ? current.filter((itemId) => itemId !== id)
         : [...current, id]
       : [id];
-    onChange(multiple ? newIds : newIds[0]);
+    onChange(multiple ? newIds : newIds[0] ?? '');
   };
 
-  const _isSelected = (id: string): boolean => selectedIds().includes(id);
+  const isSelected = (id: string): boolean => selectedIds().includes(id);
 
-  const _clearSelection = (): void => {
+  const clearSelection = (): void => {
     setSelectedIds([]);
     onChange(multiple ? [] : '');
     setShowDropdown(false);
   };
 
-  const formatName = (item: { name?: string; slug?: string }) => item.name || item.slug || item.id;
+  const formatName = (item: { id: string; name?: string; slug?: string }) => item.name || item.slug || item.id;
 
   return (
     <div class="entity-selector-customizer">
       <label class="entity-selector__label">
-        {label || (entityType === 'taxonomy' ? 'Taxonomia' : 'Usuário')}
+        {label || (entityType === 'taxonomy' ? 'Taxonomia' : 'Usu\u00e1rio')}
       </label>
-      
-      <div class="entity-selector__trigger" onClick={() => { setShowDropdown(!showDropdown()); if (showDropdown()) load(); }}>
+
+      <div class="entity-selector__trigger" onClick={() => { setShowDropdown(!showDropdown()); if (!showDropdown()) load(); }}>
         <div class="entity-selector__selected">
           {selectedIds().length > 0 ? (
             <For each={selectedIds()}>
               {(id) => {
                 const item = items().find((i) => i.id === id);
                 return (
-                  <span class="entity-selector__chip" key={id}>
-                    {item ? formatName(item) : id}
+                  <span class="entity-selector__chip">
+                    {item ? item.name || item.slug || item.id : id}
                     <button
                       type="button"
                       class="entity-selector__chip-remove"
@@ -156,34 +155,21 @@ export function EntitySelectorCustomizer(props: EntitySelectorCustomizerProps) {
               value={search()}
               onInput={(e) => { setSearch(e.currentTarget.value); setPage(1); load(); }}
               onKeyDown={(e) => e.key === 'Enter' && searchNow()}
-              autoFocus
+              autofocus
             />
-            <button class="btn btn-secondary" onClick={searchNow} disabled={loading}>
-              {loading ? 'Carregando...' : 'Buscar'}
+            <button class="btn btn-secondary" onClick={searchNow} disabled={loading()}>
+              {loading() ? 'Carregando...' : 'Buscar'}
             </button>
           </div>
-          
+
           <div class="entity-selector__list">
             <For each={items()}>
               {(item) => (
                 <div
-                  class="entity-selector__item"
-                  classList={{ selected: selectedIds().includes(item.id) }}
-                  onClick={() => {
-                    const current = selectedIds();
-                    if (current.includes(item.id)) {
-                      setSelectedIds(current.filter((id) => id !== item.id));
-                    } else if (multiple) {
-                      setSelectedIds([...current, item.id]);
-                    } else {
-                      setSelectedIds([item.id]);
-                      setShowDropdown(false);
-                    }
-                    onChange(multiple ? [...current, item.id].filter((v, i, a) => a.indexOf(v) === i) : [item.id]);
-                  }}
-                  classList={{ selected: selectedIds().includes(item.id) }}
+                  class={`entity-selector__item ${selectedIds().includes(item.id) ? 'selected' : ''}`}
+                  onClick={() => toggleSelect(item.id)}
                 >
-                  <span>{formatName(item)}</span>
+                  <span>{item.name || item.slug || item.id}</span>
                   {item.slug && <span class="entity-selector__item-slug">{item.slug}</span>}
                 </div>
               )}
@@ -192,7 +178,7 @@ export function EntitySelectorCustomizer(props: EntitySelectorCustomizerProps) {
               <div class="entity-selector__empty">Nenhum resultado encontrado</div>
             )}
           </div>
-          
+
           <Show when={total() > 10}>
             <div class="entity-selector__pagination">
               <button
@@ -202,13 +188,13 @@ export function EntitySelectorCustomizer(props: EntitySelectorCustomizerProps) {
               >
                 ← Anterior
               </button>
-              <span>Página {page()} de {Math.ceil(total() / 10)}</span>
+              <span>P\u00e1gina {page()} de {Math.ceil(total() / 10)}</span>
               <button
                 class="btn btn-secondary"
                 onClick={() => { setPage(page() + 1); load(); }}
                 disabled={page() >= Math.ceil(total() / 10)}
               >
-                Próxima →
+                Pr\u00f3xima →
               </button>
             </div>
           </Show>

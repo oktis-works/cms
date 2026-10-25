@@ -1,9 +1,8 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 // @oktis-works/admin - Google Map Customizer
 //
 // Seletor de localização para o Theme Customizer (endereço + lat/lng).
 
-import { createSignal, onMount } from 'solid-js';
+import { createSignal, onMount, Show, For } from 'solid-js';
 import { useTranslation } from '../../i18n';
 
 export interface GoogleMapCustomizerProps {
@@ -91,12 +90,12 @@ export function GoogleMapCustomizer(props: GoogleMapCustomizerProps) {
     const newLng = parseFloat((e.currentTarget as HTMLInputElement).value);
     setLng(isNaN(newLng) ? undefined : newLng);
     notifyChange();
-  };
+  }
 
   const handleBlur = () => {
     // Hide suggestions after a delay to allow click
     setTimeout(() => setShowSuggestions(false), 200);
-  };
+  }
 
   const clear = () => {
     setAddress('');
@@ -182,8 +181,8 @@ export function GoogleMapCustomizer(props: GoogleMapCustomizerProps) {
         </Show>
       </div>
       <style>{`
-        .googlemap-customizer { display: flex; flex-direction: column; gap: 0.75rem; }
-        .googlemap-customizer__label { font-size: 0.75rem; font-weight: 600; color: var(--color-text); }
+        .google-map-customizer { display: flex; flex-direction: column; gap: 0.75rem; }
+        .googlemap-customizer__label { font-size: 0.75rem; font-weight: 600; color: var(--color-text); margin-bottom: 0.25rem; }
         .googlemap-customizer__fields { display: flex; flex-direction: column; gap: 0.5rem; }
         .googlemap-customizer__address-wrapper { position: relative; }
         .googlemap-customizer__address { padding-right: 2.5rem; }

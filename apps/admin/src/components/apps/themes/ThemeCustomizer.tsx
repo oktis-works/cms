@@ -10,6 +10,7 @@ import { useTranslation } from '../../../i18n';
 import { apiClient, type ThemeInfo, type ThemeSettingField } from '../../../lib/api';
 import { FieldRendererFactory, type CustomFieldConfig } from '../../shared/FieldRendererFactory';
 import { isFieldVisible } from '../content/FieldRenderer';
+import { For, Show } from 'solid-js';
 
 const PREVIEW_DEBOUNCE_MS = 800;
 
@@ -18,6 +19,14 @@ function defaultForField(field: ThemeSettingField): unknown {
   if (field.type === 'checkbox') return false;
   if (field.type === 'number') return 0;
   return '';
+}
+
+function optionValue(option: string | { value: string; label?: string }): string {
+  return typeof option === 'string' ? option : option.value;
+}
+
+function optionLabel(option: string | { value: string; label?: string }): string {
+  return typeof option === 'string' ? option : (option.label ?? option.value);
 }
 
 /** Converte ThemeSettingField para CustomFieldConfig */
@@ -119,6 +128,101 @@ export function ThemeCustomizer() {
 
   const dirty = createMemo(() => JSON.stringify(draft()) !== JSON.stringify(savedConfig()));
 
+  onMount(async () => {
+    // Check for theme ID in query params
+    const queryThemeId = getThemeIdFromQuery();
+    if (queryThemeId) setSelectedThemeId(queryThemeId);
+    await load();
+  });
+
+  async function load() {
+    setError(null);
+    try {
+      setLoading(true);
+      const data = await apiClient.getThemes();
+      setThemes(data);
+
+      // Determine which theme to customize
+      let targetTheme = data.find((t) => t.id === selectedThemeId()) ?? null;
+      if (!targetTheme) {
+        targetTheme = data.find((theme) => theme.status === 'ACTIVE') ?? null;
+      }
+
+      if (!targetTheme) {
+        setError(t('customizer.noTheme'));
+        return;
+      }
+
+      setSelectedThemeId(targetTheme.id);
+
+      // Initialize active tab to first group if groups exist
+      const firstGroup = targetTheme.manifest?.settings?.find((f) => (f as any).group) as ThemeSettingField | undefined;
+      if (firstGroup && (firstGroup as any).group) {
+        setActiveTab((firstGroup as any).group);
+      }
+
+      const config = (targetTheme.config ?? {}) as Record<string, unknown>;
+      setSavedConfig(config);
+      const initial: Record<string, unknown> = {};
+      for (const field of targetTheme.manifest?.settings ?? []) {
+        initial[field.name] = config[field.name] !== undefined ? config[field.name] : defaultForField(field);
+      }
+      setDraft(initial);
+    } catch {
+      setError(t('customizer.loadError'));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function setDraftValue(name: string, value: unknown): void {
+    setDraft({ ...draft(), [name]: value });
+    setSaved(false);
+    schedulePreview();
+  }
+
+  /** Debounced iframe reload — typing re-renders the preview without spamming. */
+  function schedulePreview(): void {
+    if (debounceHandle) clearTimeout(debounceHandle);
+    debounceHandle = setTimeout(() => setPreviewNonce((nonce) => nonce + 1), PREVIEW_DEBOUNCE_MS);
+  }
+
+  function refreshPreviewNow(): void {
+    if (debounceHandle) clearTimeout(debounceHandle);
+    setPreviewNonce((nonce) => nonce + 1);
+  }
+
+  function resetDraft(): void {
+    setDraft({ ...savedConfig() });
+    setSaved(false);
+    refreshPreviewNow();
+  }
+
+  async function save(): Promise<void> {
+    const theme = selectedTheme();
+    if (!theme) return;
+    setError(null);
+    setSaved(false);
+    setSaving(true);
+    try {
+      const updated = await apiClient.updateThemeConfig(theme.id, draft());
+      setThemes(themes().map((item) => (item.id === theme.id ? updated : item)));
+      setSavedConfig({ ...draft() });
+      setSaved(true);
+    } catch {
+      setError(t('customizer.saveError'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const previewUrl = (): string => {
+    const base = previewPath() || '/';
+    const encoded = encodeURIComponent(JSON.stringify(draft()));
+    const separator = base.includes('?') ? '&' : '?';
+    return `${base}${separator}preview_settings=${encoded}&_=${previewNonce()}`;
+  };
+
   // Render settings panel content based on field groups
   const settingsPanel = createMemo(() => {
     const groups = fieldGroups();
@@ -127,7 +231,7 @@ export function ThemeCustomizer() {
       return (
         <div>
           <div class="customizer__tabs" role="tablist">
-            {groups.groups.map(([groupName]) => (
+            {groups.groups.map(([groupName, groupFields]) => (
               <button
                 key={groupName}
                 class="customizer__tab"
@@ -141,7 +245,7 @@ export function ThemeCustomizer() {
             ))}
           </div>
           <div class="customizer__tab-panels">
-            {groups.groups.map(([groupName]) => (
+            {groups.groups.map(([groupName, groupFields]) => (
               <div
                 key={groupName}
                 class="customizer__tab-panel"
@@ -152,7 +256,7 @@ export function ThemeCustomizer() {
                   {(field) => {
                     const config = toCustomFieldConfig(field);
                     return (
-                      <div class="customizer__field" key={field.name}>
+                      <div class="customizer__field">
                         <label for={`customizer-${field.name}`}>{field.label || field.name}</label>
                         <FieldRendererFactory
                           field={config}
@@ -169,7 +273,7 @@ export function ThemeCustomizer() {
         </div>
       );
     }
-    
+
     // Accordion for single group or ungrouped fields
     return (
       <div>
@@ -179,7 +283,7 @@ export function ThemeCustomizer() {
               {(field) => {
                 const config = toCustomFieldConfig(field);
                 return (
-                  <div class="customizer__field" key={field.name}>
+                  <div class="customizer__field">
                     <label for={`customizer-${field.name}`}>{field.label || field.name}</label>
                     <FieldRendererFactory
                       field={config}
@@ -197,7 +301,7 @@ export function ThemeCustomizer() {
             {(field) => {
               const config = toCustomFieldConfig(field);
               return (
-                <div class="customizer__field" key={field.name}>
+                <div class="customizer__field">
                   <label for={`customizer-${field.name}`}>{field.label || field.name}</label>
                   <FieldRendererFactory
                     field={config}

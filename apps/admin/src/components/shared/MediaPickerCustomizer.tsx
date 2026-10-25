@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 // @oktis-works/admin - Media Picker for Theme Customizer
 //
 // Seletor de mídia simplificado para o Theme Customizer.
@@ -58,7 +57,6 @@ export function MediaPickerCustomizer(props: MediaPickerCustomizerProps) {
   const [search, setSearch] = createSignal('');
   const [mimeTypeFilter, setMimeTypeFilter] = createSignal('');
   const [error, setError] = createSignal('');
-  const [info, setInfo] = createSignal('');
   const [uploading, setUploading] = createSignal(false);
   const [showModal, setShowModal] = createSignal(false);
   const [dragOver, setDragOver] = createSignal(false);
@@ -176,6 +174,82 @@ export function MediaPickerCustomizer(props: MediaPickerCustomizerProps) {
         : [...current, mediaId]
       : [mediaId];
     onChange(multiple ? newIds : newIds[0]);
+  }
+
+  const isSelected = (mediaId: string): boolean => selectedIds().includes(mediaId);
+
+  const clearSelection = (): void => {
+    setSelectedIds([]);
+    onChange(multiple ? [] : '');
+    setShowModal(false);
+  };
+
+  const confirmSelection = (): void => {
+    setShowModal(false);
+  }
+
+  const openModal = (): void => {
+    setShowModal(true);
+    setPage(1);
+    load();
+  };
+
+  const handleFileSelect = (files: FileList | File[]): void => {
+    const fileArray = Array.from(files);
+    if (fileArray.length === 0) return;
+
+    // Filter by accept type if specified
+    const filtered = accept
+      ? fileArray.filter((f) => {
+          if (accept === 'image/*') return f.type.startsWith('image/');
+          if (accept === 'video/*') return f.type.startsWith('video/');
+          if (accept === 'audio/*') return f.type.startsWith('audio/');
+          return true;
+        })
+      : fileArray;
+
+    if (filtered.length !== fileArray.length) {
+      setError(`Alguns arquivos foram ignorados (tipo não permitido: ${accept})`);
+    }
+
+    if (filtered.length > 0) {
+      doUpload(filtered);
+    }
+  };
+
+  const handleDragOver = (e: DragEvent): void => {
+    e.preventDefault();
+    setDragOver(true);
+  };
+
+  const handleDragLeave = (e: DragEvent): void => {
+    e.preventDefault();
+    setDragOver(false);
+  };
+
+  const handleDrop = (e: DragEvent): void => {
+    e.preventDefault();
+    setDragOver(false);
+    if (e.dataTransfer?.files) {
+      handleFileSelect(e.dataTransfer.files);
+    }
+  };
+
+  const toggleSelect = (mediaId: string): void => {
+    const current = selectedIds();
+    if (current.includes(mediaId)) {
+      setSelectedIds(current.filter((id) => id !== mediaId));
+    } else if (multiple) {
+      setSelectedIds([...current, mediaId]);
+    } else {
+      setSelectedIds([mediaId]);
+    }
+    const newIds = multiple
+      ? current.includes(mediaId)
+        ? current.filter((id) => id !== mediaId)
+        : [...current, mediaId]
+      : [mediaId];
+    onChange(multiple ? newIds : newIds[0]);
   };
 
   const isSelected = (mediaId: string): boolean => selectedIds().includes(mediaId);
@@ -193,7 +267,7 @@ export function MediaPickerCustomizer(props: MediaPickerCustomizerProps) {
   const openModal = (): void => {
     setShowModal(true);
     setPage(1);
-    await load();
+    load();
   };
 
   return (
@@ -273,10 +347,7 @@ export function MediaPickerCustomizer(props: MediaPickerCustomizerProps) {
                 type="file"
                 multiple={multiple}
                 accept={accept}
-                onChange={(e) => {
-                  const files = e.currentTarget.files;
-                  if (files) handleFileSelect(files);
-                }}
+                onChange={(e) => handleFileSelect(e.currentTarget.files)}
                 style={{ display: 'none' }}
                 ref={(el) => { if (el) el.id = 'media-picker-file-input'; }}
               />
@@ -473,7 +544,7 @@ export function MediaPickerCustomizer(props: MediaPickerCustomizerProps) {
         }
         .media-picker-customizer__info { padding: 0.5rem; }
         .media-picker-customizer__name { display: block; font-size: 0.75rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .media-picker-customizer__meta { display: block; font-size: 0.625rem; color: var(--color-muted); margin-top: 0.25rem; }
+        .media-picker-customizer__meta { display: block; font-size: 0.625rem; color: var(--color-muted); margin-top: 0.125rem; }
         .media-picker-customizer__empty { grid-column: 1 / -1; padding: 3rem; text-align: center; color: var(--color-muted); }
         .media-picker-customizer__pagination { display: flex; align-items: center; justify-content: center; gap: 1rem; padding: 1rem; border-top: 1px solid var(--color-border); font-size: 0.8125rem; color: var(--color-muted); }
       `}</style>
