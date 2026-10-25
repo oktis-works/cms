@@ -1,5 +1,15 @@
 # @oktis-works/api
 
+## 0.16.1
+
+### Patch Changes
+
+- Fix theme lifecycle, preview, rendering, security, tenant scoping, configuration validation, SDK contracts, pagination, and runtime inheritance behavior.
+- Updated dependencies
+  - @oktis-works/core@0.14.1
+  - @oktis-works/database@0.14.1
+  - @oktis-works/types@0.9.1
+
 ## 0.16.0
 
 ### Minor Changes

@@ -17,6 +17,14 @@ describe('ThemeRenderer', () => {
     const renderer = new ThemeRenderer({ themePath: '/mock/path' });
     expect(typeof renderer.render).toBe('function');
   });
+
+  it('renders helpers, else-if branches, and sanitizes raw HTML', async () => {
+    const renderer = new ThemeRenderer();
+    const template = '{{#if (eq type \'heading\')}}<h{{level}}>{{content}}</h{{level}}>{{else if content}}<p>{{{content}}}</p>{{else}}empty{{/if}}';
+    expect(renderer.renderString(template, { type: 'heading', level: 2, content: 'Title' })).toBe('<h2>Title</h2>');
+    expect(renderer.renderString(template, { content: '<strong>safe</strong><script>alert(1)</script>' })).toBe('<p><strong>safe</strong></p>');
+    expect(renderer.renderString(template, {})).toBe('empty');
+  });
 });
 
 describe('ThemeRenderer — cache de templates', () => {

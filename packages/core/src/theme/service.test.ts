@@ -9,6 +9,7 @@ let lastQuery: { text: string; values: unknown[] } | null;
 const allQueries: Array<{ text: string; values: unknown[] }> = [];
 
 vi.mock('@oktis-works/database', () => ({
+  runInTransaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
   getConnection: vi.fn(() => ({
     unsafe: vi.fn(async (text: string, values?: unknown[]) => {
       lastQuery = { text, values: values ?? [] };
@@ -35,8 +36,14 @@ let readFileImpl: (path: string) => Promise<string>;
 
 vi.mock('node:fs/promises', () => ({
   readdir: vi.fn(async () => readdirImpl()),
-  readFile: vi.fn(async (path: string) => readFileImpl(path))
+  readFile: vi.fn(async (path: string) => readFileImpl(path)),
+  rm: vi.fn(async () => undefined),
 }))
+
+vi.mock('node:fs', () => ({
+  existsSync: vi.fn(() => true),
+  realpathSync: vi.fn((path: string) => path),
+}));
 
 vi.mock('../extensions/project-directories.js', () => ({
   resolveExtensionDirectory: vi.fn(() => '/projeto/themes'),
@@ -76,7 +83,7 @@ describe('ThemeService.syncFromDirectory', () => {
     readdirImpl = async () => [{ isDirectory: () => true, name: 'meu-tema' }];
     readFileImpl = async (path) => {
       if (path.endsWith('theme.json')) {
-        return JSON.stringify({ name: 'meu-tema', version: '2.0.0' });
+        return JSON.stringify({ name: 'meu-tema', version: '2.0.0', type: 'theme', compatibility: { okcms: '^0.36.0' } });
       }
       throw new Error('ENOENT');
     };
@@ -245,7 +252,7 @@ describe('ThemeService.activate / deactivate', () => {
     ];
 
     await expect(new ThemeService().deactivate('id-1')).rejects.toThrow(
-      /at least one active theme is required/i
+      /only active theme/i
     );
     // No UPDATE may run when the guard blocks the deactivation.
     expect(allQueries.some((q) => q.text.includes('UPDATE themes'))).toBe(false);
@@ -258,7 +265,7 @@ describe('ThemeService.getActive', () => {
 
     const result = await new ThemeService().getActive();
 
-    expect(lastQuery!.text).toContain('ORDER BY activated_at DESC');
+    expect(lastQuery!.text).toContain('activated_at DESC');
     expect(lastQuery!.values).toEqual([]);
     expect(result!.status).toBe('ACTIVE');
   });

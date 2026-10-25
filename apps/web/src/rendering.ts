@@ -12,6 +12,7 @@ import {
   RuntimeRouter,
   ThemeRenderer,
   createProjectTemplateResolver,
+  resolveProjectThemeChain,
   type ContentLookup,
   type ProjectTemplateResolver,
   type TemplateFileChecker,
@@ -100,7 +101,7 @@ export function mergePreviewSettings(
   
   // SECURITY: Whitelist validation - only allow keys declared in manifest.settings
   const parsedObj = parsed as Record<string, unknown>;
-  if (allowedKeys && allowedKeys.length > 0) {
+  if (allowedKeys) {
     const filtered: Record<string, unknown> = {};
     for (const key of allowedKeys) {
       if (Object.prototype.hasOwnProperty.call(parsedObj, key)) {
@@ -167,13 +168,16 @@ function extractDefaults(settings: unknown[]): Record<string, unknown> {
 export function buildThemeSettings(
   manifest: Record<string, unknown> | null | undefined,
   config: Record<string, unknown> | null | undefined,
-  parentManifest?: Record<string, unknown> | null | undefined
+  parentManifest?: Record<string, unknown> | Array<Record<string, unknown>> | null | undefined
 ): Record<string, unknown> {
   let settings: Record<string, unknown> = {};
 
   // 1. Parent defaults (if parent theme exists)
   if (parentManifest) {
-    settings = deepMerge(settings, extractDefaults(parentManifest['settings'] as unknown[]));
+    const parents = Array.isArray(parentManifest) ? [...parentManifest].reverse() : [parentManifest];
+    for (const parent of parents) {
+      settings = deepMerge(settings, extractDefaults(parent['settings'] as unknown[]));
+    }
   }
 
   // 2. Child theme defaults
@@ -194,6 +198,7 @@ export interface ContentPageRenderInput {
   data: Record<string, unknown>;
   /** Itens de archive/home (conteúdo publicado recente do tipo). */
   items?: Array<Record<string, unknown>>;
+  pagination?: { page: number; perPage: number; total: number; pages: number; previousPage?: number; nextPage?: number; hasPrevious: boolean; hasNext: boolean };
   settings: SiteSettings;
   themeData?: ThemeRenderData;
   activeTheme: string;
@@ -256,9 +261,10 @@ export function renderContentPage(input: ContentPageRenderInput): string {
       type: input.resolution.contentType ?? '',
       slug: input.resolution.slug ?? '',
     },
-    content: { ...renderData, ...plainColumns(row) },
+    content: { ...plainColumns(row), ...renderData },
     fields: renderData,
     items: input.items ?? [],
+    pagination: input.pagination ?? { page: 1, perPage: 0, total: 0, pages: 0, hasPrevious: false, hasNext: false },
     menus: input.themeData?.menus ?? { all: [], bySlug: {} },
     contentTypes: input.themeData?.contentTypes ?? [],
     taxonomies: input.themeData?.taxonomies ?? [],
@@ -267,7 +273,10 @@ export function renderContentPage(input: ContentPageRenderInput): string {
     themeData: input.themeData ?? { menus: { all: [], bySlug: {} }, contentTypes: [], taxonomies: [], terms: {}, settings: input.settings },
   };
 
-  const body = themeRenderer.renderString(template, context, row);
+  const body = themeRenderer.wrapWithThemeScope(
+    themeRenderer.renderString(template, context, row),
+    input.activeTheme
+  );
   const stylesheet = resolveThemeStylesheet(input.themesRoot, input.activeTheme);
   const html = wrapDocument(body, title, input.settings, input.activeTheme, stylesheet, input.pluginAssets);
   return registry.applyFilters(HOOK_POINTS.THEME_AFTER_RENDER, html, hookContext) as string;
@@ -317,7 +326,7 @@ export function renderAssetTags(assets: ReadonlyArray<EnqueuedAsset>): { head: s
  * sai sem <link> quebrado (nada de 404 silencioso no console).
  */
 export function resolveThemeStylesheet(themesRoot: string, activeTheme: string): string | null {
-  for (const theme of [activeTheme, '_shared', 'default']) {
+  for (const theme of resolveProjectThemeChain(themesRoot, activeTheme)) {
     if (!theme) continue;
     if (existsSync(join(themesRoot, theme, 'dist', 'theme.css'))) return theme;
   }
@@ -443,6 +452,7 @@ export function escapeHtml(value: string): string {
  */
 export function resolveThemeAssetPath(themesRoot: string, themeName: string, assetPath: string): string | null {
   if (!themeName || !/^[A-Za-z0-9_-]+$/.test(themeName)) return null;
+  if (!/^(?:dist|public)(?:\/|$)/.test(assetPath) || assetPath.includes('\\')) return null;
 
   const lexicalThemeRoot = resolve(themesRoot, themeName);
   const target = resolve(lexicalThemeRoot, assetPath);
@@ -542,7 +552,7 @@ async function fetchMediaById(sql: ReturnType<typeof getConnection>, ids: Set<st
  * REQU-028-001: substitui referências de mídia por objetos {id,url,alt} reais.
  * Uma única query batched — sem N+1.
  */
-async function enrichMedia(sql: ReturnType<typeof getConnection>, data: Record<string, unknown>): Promise<void> {
+export async function enrichMedia(sql: ReturnType<typeof getConnection>, data: Record<string, unknown>): Promise<void> {
   const ids = new Set<string>();
   collectMediaIds(data, ids);
   const byId = await fetchMediaById(sql, ids);
@@ -688,7 +698,7 @@ export function createContentLookup(): ContentLookup {
     async getSetting(key) {
       const sql = getConnection();
       const result = await sql.unsafe(
-        `SELECT value FROM settings WHERE key = $1 AND (tenant_id IS NULL OR tenant_id = current_setting('app.current_tenant_id', true)::uuid) ORDER BY tenant_id NULLS FIRST LIMIT 1`,
+        `SELECT value FROM settings WHERE key = $1 AND (tenant_id IS NULL OR tenant_id = current_setting('app.current_tenant_id', true)::uuid) ORDER BY tenant_id NULLS LAST LIMIT 1`,
         [key]
       );
       const row = result[0] as Record<string, unknown> | undefined;

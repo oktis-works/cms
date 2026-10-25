@@ -283,6 +283,10 @@ body:has([data-theme="default"]){ margin: 0; padding: 0; }
   margin: 0; padding: 1.1rem 0; text-align: center; color: #9ca3af; font-size: .85rem;
 }
 
+/* ---------- Pagination ---------- */
+[data-theme="default"] .pagination{ display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 2rem; }
+[data-theme="default"] .pagination a{ color: var(--brand); font-weight: 600; }
+
 /* ---------- Responsive ---------- */
 @media (max-width: 860px){
   [data-theme="default"] .about-preview{ grid-template-columns: 1fr; }
@@ -358,6 +362,15 @@ const POSTS_SECTION = `{{#if items}}
     {{/each}}
   </div>
 </section>
+{{/if}}
+`;
+
+const PAGINATION = `{{#if pagination.pages}}
+<nav class="pagination" aria-label="Pagination">
+  {{#if pagination.hasPrevious}}<a href="?page={{pagination.previousPage}}">Previous</a>{{/if}}
+  <span>Page {{pagination.page}} of {{pagination.pages}}</span>
+  {{#if pagination.hasNext}}<a href="?page={{pagination.nextPage}}">Next</a>{{/if}}
+</nav>
 {{/if}}
 `;
 
@@ -490,6 +503,7 @@ ${HEADER}
         {{/each}}
       </div>
       {{/if}}
+${PAGINATION}
     </section>
   </main>
 ${FOOTER}</div>
@@ -518,6 +532,7 @@ ${HEADER}
         {{/each}}
       </div>
       {{/if}}
+${PAGINATION}
     </section>
   </main>
 ${FOOTER}</div>

@@ -7,6 +7,7 @@ export {
   TemplateHierarchyResolver,
   buildTemplateChain,
   createProjectTemplateResolver,
+  resolveProjectThemeChain,
 } from './template-resolver.js';
 export type {
   TemplateContext,

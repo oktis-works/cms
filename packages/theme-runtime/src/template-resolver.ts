@@ -110,6 +110,41 @@ export interface ProjectTemplateResolver {
 const PROJECT_FALLBACKS = ['_shared', 'default'] as const;
 const SAFE_THEME_NAME_RE = /^[A-Za-z0-9_-]+$/;
 
+export function resolveProjectThemeChain(themesRoot: string, activeTheme: string): string[] {
+  const chain: string[] = [];
+  const visiting = new Set<string>();
+
+  const visit = (theme: string): void => {
+    if (!theme || !SAFE_THEME_NAME_RE.test(theme) || chain.includes(theme)) return;
+    if (visiting.has(theme)) throw new Error(`Theme inheritance cycle detected at "${theme}"`);
+    visiting.add(theme);
+    chain.push(theme);
+    const manifestPath = join(themesRoot, theme, 'theme.json');
+    if (existsSync(manifestPath)) {
+      try {
+        const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8')) as { parent?: unknown };
+        if (typeof manifest.parent === 'string' && manifest.parent) {
+          if (!SAFE_THEME_NAME_RE.test(manifest.parent)) {
+            throw new Error(`Theme "${theme}" declares an unsafe parent name`);
+          }
+          const parentManifestPath = join(themesRoot, manifest.parent, 'theme.json');
+          if (!existsSync(parentManifestPath)) {
+            throw new Error(`Theme "${theme}" declares missing parent "${manifest.parent}"`);
+          }
+          visit(manifest.parent);
+        }
+      } catch {
+        throw new Error(`Invalid theme manifest: ${manifestPath}`);
+      }
+    }
+    visiting.delete(theme);
+  };
+
+  visit(activeTheme);
+  for (const fallback of PROJECT_FALLBACKS) visit(fallback);
+  return chain;
+}
+
 /**
  * Descoberta de templates do PROJETO — fonte única consumida pelo app web
  * (e qualquer outro runtime de projeto), no lugar de reimplementação local.
@@ -124,12 +159,7 @@ export function createProjectTemplateResolver(
   themesRoot: string,
   activeTheme: string
 ): ProjectTemplateResolver {
-  const chain: string[] = [];
-  for (const theme of [activeTheme, ...PROJECT_FALLBACKS]) {
-    // nome vazio/inválido OU já presente: dedupe e saneamento da cadeia
-    if (!theme || !SAFE_THEME_NAME_RE.test(theme) || chain.includes(theme)) continue;
-    chain.push(theme);
-  }
+  const chain = resolveProjectThemeChain(themesRoot, activeTheme);
 
   const all = (file: string): string[] =>
     chain

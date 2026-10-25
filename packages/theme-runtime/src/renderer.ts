@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { isAbsolute, resolve } from 'node:path';
+import { isAbsolute, resolve, sep } from 'node:path';
 import type { ThemeComponent, RenderContext, PageProps } from '@oktis-works/theme-sdk';
 import { runWithCurrentContent } from '@oktis-works/theme-sdk';
 
@@ -7,7 +7,7 @@ type TemplateNode =
   | { type: 'text'; value: string }
   | { type: 'variable'; name: string; raw: boolean }
   | { type: 'each'; key: string; body: TemplateNode[] }
-  | { type: 'if'; condition: string; body: TemplateNode[] };
+  | { type: 'if'; condition: string; body: TemplateNode[]; elseBody?: TemplateNode[] };
 
 interface CompiledTemplate {
   nodes: TemplateNode[];
@@ -65,6 +65,17 @@ export class ThemeRenderer {
   async resolveLayout(name: string): Promise<string> {
     if (this.layoutCache.has(name)) {
       return this.layoutCache.get(name)!;
+    }
+    if (this.templatesDir) {
+      for (const candidate of [`${name}.astro`, `layouts/${name}.astro`]) {
+        try {
+          const template = await this.loadTemplate(candidate);
+          this.layoutCache.set(name, template);
+          return template;
+        } catch {
+          // Try the next conventional layout location.
+        }
+      }
     }
     throw new Error(`Layout not found: ${name}`);
   }
@@ -136,7 +147,8 @@ export class ThemeRenderer {
       if (oldest !== undefined) this.templateCache.delete(oldest);
     }
 
-    const nodes = this.parse(template, 0);
+    const normalized = this.normalizeAstroTemplate(template);
+    const nodes = this.parse(normalized, 0);
     const compiled: CompiledTemplate = { nodes };
     this.templateCache.set(template, compiled);
     return compiled;
@@ -194,8 +206,14 @@ export class ThemeRenderer {
         } else if (expression.startsWith('#if ')) {
           const condition = expression.slice(4).trim();
           const bodyEnd = this.findMatchingEnd(template, closeIndex + 2, '{{#if ', '{{/if}}');
-          const body = this.parse(template.slice(closeIndex + 2, bodyEnd), 0);
-          nodes.push({ type: 'if', condition, body });
+          const branch = this.splitElse(template.slice(closeIndex + 2, bodyEnd));
+          const body = this.parse(branch.main, 0);
+          const elseBody = branch.elseExpression
+            ? this.parse(`{{#if ${branch.elseExpression}}}${branch.elseSource}{{/if}}`, 0)
+            : branch.elseSource
+              ? this.parse(branch.elseSource, 0)
+              : undefined;
+          nodes.push({ type: 'if', condition, body, elseBody });
           i = bodyEnd + '{{/if}}'.length;
         } else {
           nodes.push({ type: 'variable', name: expression, raw: false });
@@ -241,8 +259,8 @@ export class ThemeRenderer {
       case 'text':
         return node.value;
       case 'variable': {
-        const value = String(this.resolveVariable(node.name, context) ?? '');
-        return node.raw ? value : this.escapeHtml(value);
+        const value = String(this.resolveExpression(node.name, context) ?? '');
+        return node.raw ? this.sanitizeRawHtml(value) : this.escapeHtml(value);
       }
       case 'each': {
         const collection = this.resolveVariable(node.key, context) as unknown[];
@@ -253,12 +271,12 @@ export class ThemeRenderer {
         }).join('');
       }
       case 'if': {
-        const val = this.resolveVariable(node.condition, context);
+        const val = this.resolveExpression(node.condition, context);
         const truthy = Array.isArray(val) ? val.length > 0 : Boolean(val);
         if (truthy && val !== 'false' && val !== '0') {
           return node.body.map(n => this.renderNode(n, context)).join('');
         }
-        return '';
+        return node.elseBody?.map(n => this.renderNode(n, context)).join('') ?? '';
       }
     }
   }
@@ -273,8 +291,59 @@ export class ThemeRenderer {
     return current ?? '';
   }
 
+  private resolveExpression(expression: string, context: Record<string, unknown>): unknown {
+    const eq = expression.match(/^\(eq\s+(.+?)\s+(['"])(.*?)\2\)$/);
+    if (eq) return String(this.resolveVariable(eq[1]!, context)) === eq[3];
+    const formatDate = expression.match(/^formatDate\s+(.+)$/);
+    if (formatDate) {
+      const value = this.resolveVariable(formatDate[1]!, context);
+      if (!value) return '';
+      const date = new Date(String(value));
+      return Number.isNaN(date.getTime()) ? String(value) : date.toISOString().slice(0, 10);
+    }
+    return this.resolveVariable(expression, context);
+  }
+
+  private splitElse(source: string): { main: string; elseExpression?: string; elseSource?: string } {
+    let depth = 0;
+    let cursor = 0;
+    while (cursor < source.length) {
+      const start = source.indexOf('{{', cursor);
+      if (start === -1) break;
+      const end = source.indexOf('}}', start + 2);
+      if (end === -1) break;
+      const expression = source.slice(start + 2, end).trim();
+      if (expression.startsWith('#if ') || expression.startsWith('#each ')) depth++;
+      else if (expression === '/if' || expression === '/each') depth = Math.max(0, depth - 1);
+      else if (depth === 0 && (expression === 'else' || expression.startsWith('else if '))) {
+        return {
+          main: source.slice(0, start),
+          elseExpression: expression.startsWith('else if ') ? expression.slice(8).trim() : undefined,
+          elseSource: source.slice(end + 2),
+        };
+      }
+      cursor = end + 2;
+    }
+    return { main: source };
+  }
+
+  private normalizeAstroTemplate(template: string): string {
+    return template.replace(
+      /<([A-Za-z][\w-]*)([^>]*?)\s+set:html=\{([^}]+)\}([^>]*)><\/\1>/g,
+      '<$1$2$4>{{{$3}}}</$1>'
+    );
+  }
+
   private escapeHtml(str: string): string {
     return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  private sanitizeRawHtml(html: string): string {
+    return html
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/<(?:iframe|object|embed|applet)\b[^>]*>[^<]*(?:<\/[^>]+>)?/gi, '')
+      .replace(/on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+      .replace(/(?:javascript|vbscript|data):/gi, '');
   }
 
   private async loadTemplate(file: string): Promise<string> {
@@ -283,7 +352,7 @@ export class ThemeRenderer {
     }
     const base = isAbsolute(this.templatesDir) ? this.templatesDir : resolve(process.cwd(), this.templatesDir);
     const target = resolve(base, file);
-    if (!target.startsWith(base)) {
+    if (target !== base && !target.startsWith(base + sep)) {
       throw new Error(`Template path escapes templates directory: ${file}`);
     }
     return readFileSync(target, 'utf-8');

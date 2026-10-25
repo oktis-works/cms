@@ -75,7 +75,12 @@ themes.patch('/:id/config', requirePermission('customize', 'theme'), async (c) =
     const id = c.req.param('id') as string
     const body = await c.req.json()
     const userId = c.get('userId') as string | undefined
-    const result = await themeService.updateConfig(id, body.config, userId)
+    if (!body.config || typeof body.config !== 'object' || Array.isArray(body.config)) {
+      return c.json({ error: 'Config must be an object' }, 400)
+    }
+    const current = await themeService.getById(id)
+    if (!current) return c.json({ error: 'Theme not found' }, 404)
+    const result = await themeService.updateConfig(id, { ...(current.config ?? {}), ...body.config }, userId)
     if (!result) return c.json({ error: 'Theme not found' }, 404)
     return c.json(result)
   } catch (error) {
@@ -118,6 +123,9 @@ themes.post('/:id/config/import', requirePermission('customize', 'theme'), async
     const body = await c.req.json()
     const config = body.config
     const mode = body.mode ?? 'merge'
+    if (mode !== 'merge' && mode !== 'replace') {
+      return c.json({ error: 'Mode must be merge or replace' }, 400)
+    }
     if (!config || typeof config !== 'object') {
       return c.json({ error: 'Config is required' }, 400)
     }
@@ -134,8 +142,8 @@ themes.post('/:id/config/import', requirePermission('customize', 'theme'), async
 themes.get('/:id/config/history', requirePermission('customize', 'theme'), async (c) => {
   try {
     const id = c.req.param('id') as string
-    const limit = parseInt(c.req.query('limit') || '50', 10)
-    const offset = parseInt(c.req.query('offset') || '0', 10)
+    const limit = Math.min(Math.max(Number.parseInt(c.req.query('limit') || '50', 10) || 50, 1), 100)
+    const offset = Math.max(Number.parseInt(c.req.query('offset') || '0', 10) || 0, 0)
     const history = await themeService.getConfigHistory(id, limit, offset)
     return c.json(history)
   } catch (error) {
@@ -151,9 +159,8 @@ themes.post('/:id/config/restore', requirePermission('customize', 'theme'), asyn
     const body = await c.req.json()
     const versionId = body.versionId
     if (!versionId) return c.json({ error: 'versionId is required' }, 400)
-    // Get user from auth context (simplified - in real impl would use auth context)
-    const userId = (c as any).get('user')?.id || 'system'
-    const result = await themeService.restoreConfigVersion(id, versionId, userId)
+    const userId = c.get('userId') as string | undefined
+    const result = await themeService.restoreConfigVersion(id, versionId, userId ?? null)
     if (!result) return c.json({ error: 'Version not found' }, 404)
     return c.json(result)
   } catch (error) {
@@ -178,7 +185,7 @@ themes.post('/:id/config/restore-defaults', requirePermission('customize', 'them
       }
     }
 
-    const result = await themeService.updateConfig(id, defaults)
+    const result = await themeService.updateConfig(id, defaults, c.get('userId') as string | undefined)
     return c.json(result)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to restore defaults'

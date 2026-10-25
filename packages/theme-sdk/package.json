@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/theme-sdk",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -21,6 +21,9 @@
   "files": [
     "dist"
   ],
+  "dependencies": {
+    "@oktis-works/types": "workspace:*"
+  },
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"

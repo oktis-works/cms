@@ -116,6 +116,23 @@ function ColorInput(props: { value: string; onChange: (value: string) => void })
   return <input type="color" class="input" value={props.value} onChange={(e) => props.onChange(e.currentTarget.value)} />;
 }
 
+function SelectInput(props: { field: ResolvedFieldDefinition; value: unknown; onChange: (value: unknown) => void }) {
+  return (
+    <select class="input" value={String(props.value ?? '')} onChange={(e) => props.onChange(e.currentTarget.value)}>
+      <option value="">Select an option</option>
+      {(props.field.options ?? []).map((option) => {
+        const value = typeof option === 'string' ? option : option.value;
+        const label = typeof option === 'string' ? option : option.label;
+        return <option value={value}>{label}</option>;
+      })}
+    </select>
+  );
+}
+
+function CheckboxInput(props: { value: unknown; onChange: (value: boolean) => void }) {
+  return <label class="checkbox-label"><input type="checkbox" checked={props.value === true} onChange={(e) => props.onChange(e.currentTarget.checked)} /> Enabled</label>;
+}
+
 export function FieldRendererFactory(props: FieldRendererComponentProps) {
   const { field, value, onChange } = props;
   const type = field.type;
@@ -136,6 +153,12 @@ export function FieldRendererFactory(props: FieldRendererComponentProps) {
       return <PasswordInput field={field} value={value as string} onChange={onChange} />;
     case 'slug':
       return <SlugInput field={field} value={value as string} onChange={onChange} placeholder={field.placeholder} />;
+    case 'select':
+      return <SelectInput field={field} value={value} onChange={onChange} />;
+    case 'checkbox':
+    case 'toggle':
+      return <CheckboxInput value={value} onChange={onChange} />;
+    case 'color':
     case 'color_picker':
       return <ColorInput value={value as string} onChange={onChange} />;
     case 'wysiwyg':
@@ -159,6 +182,8 @@ export function FieldRendererFactory(props: FieldRendererComponentProps) {
     case 'file':
     case 'media':
       return <MediaPickerCustomizer value={value as string | string[]} onChange={onChange} multiple={field.multiple} accept={field.accept} label={field.label} placeholder={field.placeholder} />;
+    case 'gallery':
+      return <MediaPickerCustomizer value={value as string | string[]} onChange={onChange} multiple accept={field.accept} label={field.label} placeholder={field.placeholder} />;
     case 'group':
       return <GroupCustomizer value={value as Record<string, unknown>} onChange={onChange} subFields={field.subFields as GroupSubField[]} label={field.label} collapsible={field.collapsible} defaultExpanded={field.defaultExpanded} />;
     case 'taxonomy':

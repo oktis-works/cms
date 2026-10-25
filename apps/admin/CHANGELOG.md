@@ -1,5 +1,13 @@
 # @oktis-works/admin
 
+## 0.23.2
+
+### Patch Changes
+
+- Fix theme lifecycle, preview, rendering, security, tenant scoping, configuration validation, SDK contracts, pagination, and runtime inheritance behavior.
+- Updated dependencies
+  - @oktis-works/types@0.9.1
+
 ## 0.23.1
 
 ### Patch Changes

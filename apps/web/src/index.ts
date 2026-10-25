@@ -26,13 +26,14 @@ import {
 } from './rendering.js';
 import { createDatabaseThemeDataProvider, loadThemeRenderData } from './theme-data.js';
 import { resolveTenantFromHost } from './tenant-resolver.js';
-import { runWithThemeDataProvider, setCurrentContent } from '@oktis-works/theme-sdk';
+import { runWithThemeDataProvider } from '@oktis-works/theme-sdk';
 
 type Variables = {
   tenant: Record<string, unknown>;
 };
 
 type ContentRow = Record<string, unknown>;
+const SAFE_THEME_NAME_RE = /^[A-Za-z0-9_-]+$/;
 
 function bodyOf(row: ContentRow): Record<string, unknown> {
   return ((row['body'] as Record<string, unknown>) ?? {}) as Record<string, unknown>;
@@ -47,36 +48,55 @@ function bodyOf(row: ContentRow): Record<string, unknown> {
  */
 async function resolveActiveTheme(
   themesRoot: string,
-  envFallback: string
-): Promise<{ name: string; row: Record<string, unknown> | null; parentManifest: Record<string, unknown> | null }> {
+  envFallback: string,
+  previewTheme?: string
+): Promise<{ name: string; row: Record<string, unknown> | null; parentManifests: Array<Record<string, unknown>> }> {
   try {
-    const rows = await getConnection().unsafe(
-      `SELECT * FROM themes WHERE status = 'ACTIVE'
-       ORDER BY activated_at DESC NULLS LAST, created_at DESC
-       LIMIT 1`
-    );
+    const rows = previewTheme && SAFE_THEME_NAME_RE.test(previewTheme)
+      ? await getConnection().unsafe('SELECT * FROM themes WHERE name = $1 LIMIT 1', [previewTheme])
+      : await getConnection().unsafe(
+        `SELECT * FROM themes WHERE status = 'ACTIVE'
+         ORDER BY (tenant_id IS NULL), activated_at DESC NULLS LAST, created_at DESC
+         LIMIT 1`
+      );
     const row = (rows as unknown as Array<Record<string, unknown>>)[0];
     const name = row?.['name'];
-    if (typeof name === 'string' && name && existsSync(join(themesRoot, name))) {
-      // Fetch parent theme manifest if this theme has a parent
-      let parentManifest: Record<string, unknown> | null = null;
+    if (typeof name === 'string' && SAFE_THEME_NAME_RE.test(name) && existsSync(join(themesRoot, name))) {
+      const parentManifests: Array<Record<string, unknown>> = [];
       const manifest = row?.['manifest'] as Record<string, unknown> | null;
-      const parentName = manifest?.['parent'] as string | undefined;
-      if (parentName) {
+      let parentName = manifest?.['parent'] as string | undefined;
+      const visited = new Set<string>([name]);
+      while (parentName && SAFE_THEME_NAME_RE.test(parentName) && !visited.has(parentName)) {
+        visited.add(parentName);
         const parentRows = await getConnection().unsafe(
-          `SELECT manifest FROM themes WHERE name = $1`,
+          `SELECT manifest FROM themes
+           WHERE name = $1
+             AND (tenant_id = current_setting('app.current_tenant_id', true)::uuid OR tenant_id IS NULL)
+           ORDER BY tenant_id NULLS LAST
+           LIMIT 1`,
           [parentName]
         );
         if (parentRows[0]) {
-          parentManifest = parentRows[0]['manifest'] as Record<string, unknown> | null;
+          const parentManifest = parentRows[0]['manifest'] as Record<string, unknown> | null;
+          if (parentManifest) {
+            parentManifests.push(parentManifest);
+            parentName = parentManifest['parent'] as string | undefined;
+          } else {
+            parentName = undefined;
+          }
+        } else {
+          throw new Error(`Missing parent theme "${parentName}"`);
         }
       }
-      return { name, row: row ?? null, parentManifest };
+      if (parentName && !SAFE_THEME_NAME_RE.test(parentName)) throw new Error(`Unsafe parent theme name "${parentName}"`);
+      if (parentName && visited.has(parentName)) throw new Error(`Theme inheritance cycle detected at "${parentName}"`);
+      return { name, row: row ?? null, parentManifests };
     }
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && /theme|parent/i.test(error.message)) throw error;
     // tabela ausente/falha de leitura nunca derruba o render — usa o env
   }
-  return { name: envFallback, row: null, parentManifest: null };
+  return { name: envFallback, row: null, parentManifests: [] };
 }
 
 async function main() {
@@ -163,9 +183,9 @@ async function main() {
 
     try {
       // Tema ativo por request (banco → env): ativação reflete sem restart.
-      const active = await resolveActiveTheme(themesRoot, envActiveTheme);
+      const active = await resolveActiveTheme(themesRoot, envActiveTheme, c.req.query('preview_theme'));
       const activeTheme = active.name;
-      const parentManifest = active.parentManifest;
+      const parentManifests = active.parentManifests;
       const router = createRouter(themesRoot, activeTheme);
       const resolution = await router.resolve(path);
 
@@ -180,9 +200,6 @@ async function main() {
       if (resolution.slug && resolution.contentType) {
         contentRow = (resolution.record as ContentRow | undefined) ?? null;
         data = resolution.data ?? {};
-        if (contentRow) {
-          setCurrentContent(contentRow);
-        }
       }
 
       // B1 — archives/home/page_for_posts/front page: itens publicados recentes.
@@ -190,6 +207,7 @@ async function main() {
       // páginas de listagem); archives listam o próprio tipo; a home "pelada"
       // (sem nenhuma configuração) lista tudo que está publicado.
       const items: Record<string, unknown>[] = [];
+      let pagination: { page: number; perPage: number; total: number; pages: number; previousPage?: number; nextPage?: number; hasPrevious: boolean; hasNext: boolean } | undefined;
       const isListingPage = resolution.isPageForPosts === true || resolution.isFrontPage === true;
       const shouldFetchItems = !resolution.slug || isListingPage;
       if (shouldFetchItems) {
@@ -198,9 +216,23 @@ async function main() {
           ? 'WHERE type = $1 AND status = \'PUBLISHED\''
           : "WHERE status = 'PUBLISHED'";
         const params = itemsType ? [itemsType] : [];
+        const requestedPage = Math.max(1, Number.parseInt(c.req.query('page') ?? '1', 10) || 1);
+        const requestedLimit = Math.min(100, Math.max(1, Number.parseInt(c.req.query('per_page') ?? '20', 10) || 20));
+        const countRows = await getConnection().unsafe(`SELECT COUNT(*)::int AS total FROM content ${typeFilter}`, params);
+        const total = Number((countRows[0] as { total?: number | string } | undefined)?.total ?? 0);
+        pagination = {
+          page: requestedPage,
+          perPage: requestedLimit,
+          total,
+          pages: Math.ceil(total / requestedLimit),
+          previousPage: requestedPage > 1 ? requestedPage - 1 : undefined,
+          nextPage: requestedPage * requestedLimit < total ? requestedPage + 1 : undefined,
+          hasPrevious: requestedPage > 1,
+          hasNext: requestedPage * requestedLimit < total,
+        };
         const rows = await getConnection().unsafe(
-          `SELECT * FROM content ${typeFilter} ORDER BY published_at DESC NULLS LAST, updated_at DESC LIMIT 20`,
-          params
+          `SELECT * FROM content ${typeFilter} ORDER BY published_at DESC NULLS LAST, updated_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+          [...params, requestedLimit, (requestedPage - 1) * requestedLimit]
         );
         items.push(
           ...(rows as unknown as ContentRow[]).map((row) => ({
@@ -266,7 +298,7 @@ async function main() {
               c.req.query('preview_settings'),
               allowedKeys
             ),
-            parentManifest
+            parentManifests
           ),
         };
 
@@ -275,6 +307,7 @@ async function main() {
           contentRow,
           data,
           items,
+          pagination,
           settings,
           themeData,
           activeTheme,

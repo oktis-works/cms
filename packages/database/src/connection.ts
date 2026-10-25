@@ -90,6 +90,17 @@ export function getReadConnection(): RepoSql {
   return requestConnection.getStore() ?? _replicaSql ?? getConnection();
 }
 
+/** Run a callback in a transaction while preserving the request connection context. */
+export async function runInTransaction<T>(fn: () => Promise<T>): Promise<T> {
+  if (requestConnection.getStore()) return fn();
+  const sql = getConnection();
+  if (typeof sql.begin !== 'function') return fn();
+  return sql.begin(async (transaction) => {
+    const tx = transaction as unknown as RepoSql;
+    return requestConnection.run(tx, fn);
+  }) as Promise<T>;
+}
+
 /**
  * Executa uma requisição dentro de uma transação e fixa o tenant com SET LOCAL.
  * Todas as camadas que chamam getConnection() passam a usar a mesma conexão

@@ -6,6 +6,7 @@ export {
   getReadConnection,
   closeConnection,
   healthCheck,
+  runInTransaction,
   runWithTenantTransaction,
   isTenantTransactionActive,
 } from './connection.js';

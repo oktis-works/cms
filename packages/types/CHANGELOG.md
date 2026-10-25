@@ -1,5 +1,11 @@
 # @oktis-works/types
 
+## 0.9.1
+
+### Patch Changes
+
+- Fix theme lifecycle, preview, rendering, security, tenant scoping, configuration validation, SDK contracts, pagination, and runtime inheritance behavior.
+
 ## 0.9.0
 
 ### Minor Changes

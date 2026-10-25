@@ -71,4 +71,14 @@ describe('NPM flow integration: ThemeLoader (node_modules layout)', () => {
     expect(names.indexOf('tema-base')).toBeLessThan(names.indexOf('tema-filho'));
     expect(names.indexOf('tema-filho')).toBeLessThan(names.indexOf('neto'));
   });
+
+  it('rejects unsafe theme names and inheritance cycles', async () => {
+    const loader = new ThemeLoader(themesDir);
+    expect(await loader.loadTheme('../outside')).toBeNull();
+
+    writeTheme('cycle-a', { parent: 'cycle-b' });
+    writeTheme('cycle-b', { parent: 'cycle-a' });
+    const discovered = await loader.discoverThemes();
+    expect(() => loader.orderInheritanceChain(discovered)).toThrow(/cycle detected/i);
+  });
 });

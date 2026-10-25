@@ -2,7 +2,7 @@
 
 import { joinApiUrl } from './api-url.js';
 import type { AdminExtensionsState } from '@oktis-works/plugin-sdk';
-import type { ThemeSettingField } from '@oktis-works/types';
+import type { ThemeManifest, ThemeSettingField } from '@oktis-works/types';
 
 export type { ThemeSettingField };
 
@@ -240,24 +240,7 @@ export interface ThemeInfo {
   status: string;
   /** Config (customizador) salvo no banco — mesclado sobre os defaults do manifesto. */
   config?: Record<string, unknown> | null;
-  manifest?: {
-    name: string;
-    version: string;
-    cmsVersion: string;
-    description?: string;
-    author?: string;
-    entrypoints: {
-      astro?: string;
-      config?: string;
-    };
-    provides?: { layouts?: string[]; assets?: string[] };
-    parent?: string;
-    /** Campos do customizador de tema (quando declarados no manifesto). */
-    settings?: ThemeSettingField[];
-    /** Preview exibido no card (caminho servido por /themes/<nome>/ ou URL). */
-    preview?: string;
-    screenshots?: string[];
-  } | null;
+  manifest?: ThemeManifest | null;
 }
 
 export interface PluginInfo {

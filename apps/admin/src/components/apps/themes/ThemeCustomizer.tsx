@@ -211,7 +211,9 @@ export function ThemeCustomizer() {
     const base = previewPath() || '/';
     const encoded = encodeURIComponent(JSON.stringify(draft()));
     const separator = base.includes('?') ? '&' : '?';
-    return `${base}${separator}preview_settings=${encoded}&_=${previewNonce()}`;
+    const themeName = selectedTheme()?.name;
+    const selected = themeName ? `&preview_theme=${encodeURIComponent(themeName)}` : '';
+    return `${base}${separator}preview_settings=${encoded}${selected}&_=${previewNonce()}`;
   };
 
   // Render settings panel content based on field groups
@@ -258,6 +260,25 @@ export function ThemeCustomizer() {
                 </For>
               </div>
             ))}
+            <Show when={groups.ungrouped.length > 0}>
+              <div class="customizer__tab-panel" role="tabpanel">
+                <For each={groups.ungrouped}>
+                  {(field) => {
+                    const config = toCustomFieldConfig(field);
+                    return (
+                      <div class="customizer__field">
+                        <label for={`customizer-${field.name}`}>{field.label || field.name}</label>
+                        <FieldRendererFactory
+                          field={config}
+                          value={draft()[field.name]}
+                          onChange={(val) => setDraftValue(field.name, val)}
+                        />
+                      </div>
+                    );
+                  }}
+                </For>
+              </div>
+            </Show>
           </div>
         </div>
       );

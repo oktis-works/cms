@@ -660,13 +660,17 @@ export interface ThemeSettingField {
 export interface ThemeManifest {
   name: string;
   version: string;
-  cmsVersion: string;
+  type?: 'theme';
+  cmsVersion?: string;
   description?: string;
   author?: string;
-  entrypoints: {
+  entrypoints?: {
     astro?: string;
     config?: string;
   };
+  compatibility?: { okcms: string };
+  screenshots?: string[];
+  preview?: string;
   provides?: {
     layouts?: string[];
     components?: string[];

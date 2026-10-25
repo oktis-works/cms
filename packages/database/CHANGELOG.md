@@ -1,5 +1,13 @@
 # @oktis-works/database
 
+## 0.14.1
+
+### Patch Changes
+
+- Fix theme lifecycle, preview, rendering, security, tenant scoping, configuration validation, SDK contracts, pagination, and runtime inheritance behavior.
+- Updated dependencies
+  - @oktis-works/types@0.9.1
+
 ## 0.14.0
 
 ### Minor Changes

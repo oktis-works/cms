@@ -15,6 +15,7 @@ import type {
   ThemeTaxonomy,
   ThemeTerm,
 } from '@oktis-works/theme-sdk';
+import { enrichMedia } from './rendering.js';
 
 type DatabaseRow = Record<string, unknown>;
 
@@ -24,7 +25,12 @@ function text(row: DatabaseRow, camel: string, snake = camel.replace(/[A-Z]/g, (
 }
 
 function contentRow(row: DatabaseRow): ThemeContentRecord {
-  const body = (row['body'] ?? row['data'] ?? {}) as Record<string, unknown>;
+  const rawBody = row['body'] ?? row['data'] ?? {};
+  const body = typeof rawBody === 'string'
+    ? parseJsonObject(rawBody)
+    : rawBody && typeof rawBody === 'object' && !Array.isArray(rawBody)
+      ? rawBody as Record<string, unknown>
+      : {};
   return {
     id: text(row, 'id'),
     type: text(row, 'type'),
@@ -43,6 +49,17 @@ function contentRow(row: DatabaseRow): ThemeContentRecord {
     updatedAt: row['updatedAt'] ?? row['updated_at'],
     publishedAt: row['publishedAt'] ?? row['published_at'],
   };
+}
+
+function parseJsonObject(value: string): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : {};
+  } catch {
+    return {};
+  }
 }
 
 function menuRow(menu: DatabaseRow | null): ThemeMenu | null {
@@ -125,12 +142,17 @@ export function createDatabaseThemeDataProvider(
       const rows = await sql.unsafe(`SELECT * FROM content WHERE ${where.join(' AND ')} ORDER BY ${orderBy} ${order} NULLS LAST LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, limit, offset]);
       const countRows = await sql.unsafe(`SELECT COUNT(*)::int AS total FROM content WHERE ${where.join(' AND ')}`, params);
       const total = Number((countRows[0] as DatabaseRow | undefined)?.['total'] ?? 0);
-      return { data: (rows as unknown as DatabaseRow[]).map(contentRow), total, page, limit, pages: Math.ceil(total / limit) };
+      const records = (rows as unknown as DatabaseRow[]).map(contentRow);
+      await Promise.all(records.map((record) => enrichMedia(sql, record.data)));
+      return { data: records, total, page, limit, pages: Math.ceil(total / limit) };
     },
 
     async getContentById(id: string): Promise<ThemeContentRecord | null> {
       const rows = await sql.unsafe("SELECT * FROM content WHERE id = $1 AND tenant_id = $2 AND status = 'PUBLISHED' LIMIT 1", [id, tenantId]);
-      return rows[0] ? contentRow(rows[0] as DatabaseRow) : null;
+      if (!rows[0]) return null;
+      const record = contentRow(rows[0] as DatabaseRow);
+      await enrichMedia(sql, record.data);
+      return record;
     },
 
     async getContentBySlug(slug: string, type?: string): Promise<ThemeContentRecord | null> {
@@ -138,7 +160,10 @@ export function createDatabaseThemeDataProvider(
       let where = "slug = $1 AND tenant_id = $2 AND status = 'PUBLISHED'";
       if (type) { params.push(type); where += ` AND type = $${params.length}`; }
       const rows = await sql.unsafe(`SELECT * FROM content WHERE ${where} LIMIT 1`, params);
-      return rows[0] ? contentRow(rows[0] as DatabaseRow) : null;
+      if (!rows[0]) return null;
+      const record = contentRow(rows[0] as DatabaseRow);
+      await enrichMedia(sql, record.data);
+      return record;
     },
 
     async getContentType(slug: string): Promise<ThemeContentType | null> {

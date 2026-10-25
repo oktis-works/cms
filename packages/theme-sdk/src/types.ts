@@ -1,14 +1,12 @@
+import type {
+  ThemeManifest as CanonicalThemeManifest,
+  ThemeSettingField as CanonicalThemeSettingField,
+} from '@oktis-works/types';
+
 export type ComponentType = 'layout' | 'component' | 'page' | 'partial';
 
-export type SettingType = 'text' | 'color' | 'image' | 'select' | 'toggle';
-
-export interface ThemeSetting {
-  name: string;
-  type: SettingType;
-  label: string;
-  default: string | boolean;
-  options?: string[];
-}
+export type SettingType = NonNullable<CanonicalThemeSettingField['type']>;
+export type ThemeSetting = CanonicalThemeSettingField;
 
 export interface ThemeComponent {
   name: string;
@@ -43,19 +41,7 @@ export interface ThemeProvides {
   assets?: string[];
 }
 
-export interface ThemeManifest {
-  name: string;
-  version: string;
-  description?: string;
-  author?: string;
-  screenshot?: string;
-  parent?: string;
-  provides?: ThemeProvides;
-  /** Configuração de portabilidade de estilos (tailwind OU scss) */
-  stylesConfig?: ThemeStyleConfig;
-  settings?: ThemeSetting[];
-  components?: ThemeComponent[];
-}
+export type ThemeManifest = CanonicalThemeManifest;
 
 export interface RenderContext {
   content: string;

@@ -90,10 +90,11 @@ export function resolveStyleEngine(opts: StyleEngineOptions): ThemeStyleReport &
     errors.push('stylesConfig.isolation="manual" é válido apenas com engine css — engines com build sempre escopam');
   }
   const entry = cfg.entry ?? convention?.entry ?? null;
-  if (entry && entry.includes('..')) errors.push('entry com path traversal não permitido');
+  if (entry && (entry.includes('..') || entry.startsWith('/') || entry.includes('\\'))) errors.push('style entry path must stay inside the theme');
   // 'manual': nada é escopado no build — a responsabilidade é do tema
   const isolated = (cfg as any).isolation !== 'manual';
   const output = cfg.output ?? 'dist/theme.css';
+  if (output.includes('..') || output.startsWith('/') || output.includes('\\')) errors.push('Invalid stylesConfig.output: style output path must stay inside the theme');
   if (engine !== 'css' && !entry) {
     warnings.push(`Engine ${engine} declarado mas nenhuma entrada encontrada; fallback para css`);
   }
@@ -240,9 +241,14 @@ export async function compileTailwind(entryAbs: string, themePath: string): Prom
 export async function buildThemeStyles(opts: StyleEngineOptions): Promise<{ css: string; report: ThemeStyleReport & { themePath: string } }> {
   const report = resolveStyleEngine(opts);
   if (report.errors.length) throw new Error(report.errors.join('; '));
+  if (report.engine !== 'css' && !report.entry) {
+    throw new Error(`No style entry found for ${report.engine} theme "${opts.themeName}"`);
+  }
   if (!report.entry) return { css: '', report };
   const entryAbs = join(report.themePath, report.entry);
-  if (!existsSync(entryAbs)) return { css: '', report };
+  if (!existsSync(entryAbs)) {
+    throw new Error(`Style entry does not exist for theme "${opts.themeName}": ${report.entry}`);
+  }
   let css = '';
   if (report.engine === 'scss') {
     css = await compileScss(entryAbs);

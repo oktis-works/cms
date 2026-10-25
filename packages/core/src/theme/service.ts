@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { readdir, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import { getConnection } from '@oktis-works/database';
-import type { Theme } from '@oktis-works/types';
+import { existsSync, realpathSync } from 'node:fs';
+import { readdir, readFile, rm } from 'node:fs/promises';
+import { join, resolve, sep } from 'node:path';
+import { getConnection, runInTransaction } from '@oktis-works/database';
+import type { Theme, ThemeSettingField } from '@oktis-works/types';
 import { checkExtensionCompatibility } from '@oktis-works/validation';
 import { resolveExtensionDirectory } from '../extensions/project-directories.js';
 
@@ -10,34 +11,6 @@ const SAFE_NAME_RE = /^[a-z0-9][a-z0-9_-]*$/i;
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-/** Tipos de campo suportados no manifest.settings do tema. */
-type ThemeSettingType = 
-  | 'text' | 'textarea' | 'select' | 'checkbox' | 'color' | 'number'
-  | 'image' | 'file' | 'gallery' | 'wysiwyg'
-  | 'date_picker' | 'date_time_picker' | 'time_picker'
-  | 'google_map' | 'link'
-  | 'relationship' | 'post_object' | 'taxonomy' | 'user'
-  | 'repeater' | 'flexible_content' | 'group';
-
-interface ThemeSettingField {
-  name: string;
-  type?: ThemeSettingType;
-  label?: string;
-  default?: unknown;
-  options?: Array<string | { value: string; label: string }>;
-  required?: boolean;
-  min?: number;
-  max?: number;
-  step?: number;
-  minLength?: number;
-  maxLength?: number;
-  pattern?: string;
-  conditionalLogic?: unknown;
-  group?: string;
-  subFields?: ThemeSettingField[];
-  layouts?: Array<{ name: string; label?: string; subFields?: ThemeSettingField[] }>;
 }
 
 /** Resultado da validação de config de tema. */
@@ -176,7 +149,11 @@ function validateFieldValue(
     }
 
     case 'checkbox': {
-      sanitized = Boolean(value);
+      if (typeof value !== 'boolean') {
+        errors.push(`Setting "${key}" must be a boolean`);
+      } else {
+        sanitized = value;
+      }
       break;
     }
 
@@ -189,7 +166,7 @@ function validateFieldValue(
 
     case 'number': {
       const num = Number(value);
-      if (Number.isNaN(num)) {
+      if (!Number.isFinite(num)) {
         errors.push(`Setting "${key}" must be a number`);
         break;
       }
@@ -218,6 +195,12 @@ function validateFieldValue(
       };
       if (!patterns[type].test(value)) {
         errors.push(`Setting "${key}" has invalid format`);
+      } else if (type === 'date_picker' || type === 'date_time_picker') {
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) errors.push(`Setting "${key}" has an invalid date`);
+      } else {
+        const [hours = 0, minutes = 0] = value.split(':').map(Number);
+        if (hours > 23 || minutes > 59) errors.push(`Setting "${key}" has an invalid time`);
       }
       break;
     }
@@ -250,6 +233,8 @@ function validateFieldValue(
       const link = value as Record<string, unknown>;
       if (typeof link['url'] !== 'string' || !link['url']) {
         errors.push(`Setting "${key}" must have a url`);
+      } else if (!/^(?:https?:|mailto:|tel:|\/|#)/i.test(link['url'])) {
+        errors.push(`Setting "${key}" has an unsafe url protocol`);
       }
       if (link['target'] !== undefined && !['_self', '_blank'].includes(link['target'] as string)) {
         errors.push(`Setting "${key}" target must be _self or _blank`);
@@ -260,7 +245,7 @@ function validateFieldValue(
     case 'relationship':
     case 'post_object': {
       // Value can be string (single) or string[] (multiple)
-      if (!Array.isArray(value) && typeof value !== 'string') {
+      if ((!Array.isArray(value) && typeof value !== 'string') || (Array.isArray(value) && value.some((item) => typeof item !== 'string'))) {
         errors.push(`Setting "${key}" must be a string or array of strings`);
       }
       break;
@@ -268,7 +253,7 @@ function validateFieldValue(
 
     case 'taxonomy':
     case 'user': {
-      if (!Array.isArray(value) && typeof value !== 'string') {
+      if ((!Array.isArray(value) && typeof value !== 'string') || (Array.isArray(value) && value.some((item) => typeof item !== 'string'))) {
         errors.push(`Setting "${key}" must be a string or array of strings`);
       }
       break;
@@ -281,6 +266,7 @@ function validateFieldValue(
       }
       const subFields = field.subFields ?? [];
       if (subFields.length > 0) {
+        const sanitizedRows: Record<string, unknown>[] = [];
         for (let i = 0; i < value.length; i++) {
           const row = value[i];
           if (!isPlainObject(row)) {
@@ -291,9 +277,12 @@ function validateFieldValue(
           if (!rowResult.valid) {
             errors.push(...rowResult.errors.map((e) => `${key}[${i}]: ${e}`));
           }
+          sanitizedRows.push(rowResult.sanitized);
         }
+        sanitized = sanitizedRows;
+      } else {
+        sanitized = value;
       }
-      sanitized = value;
       break;
     }
 
@@ -303,6 +292,7 @@ function validateFieldValue(
         break;
       }
       const layouts = field.layouts ?? [];
+      const sanitizedRows: Record<string, unknown>[] = [];
       for (let i = 0; i < value.length; i++) {
         const row = value[i];
         if (!isPlainObject(row)) {
@@ -324,9 +314,12 @@ function validateFieldValue(
           if (!rowResult.valid) {
             errors.push(...rowResult.errors.map((e) => `${key}[${i}]: ${e}`));
           }
+          sanitizedRows.push({ fc_layout: layoutName, ...rowResult.sanitized });
+        } else {
+          sanitizedRows.push({ ...rowRecord });
         }
       }
-      sanitized = value;
+      sanitized = sanitizedRows;
       break;
     }
 
@@ -349,8 +342,12 @@ function validateFieldValue(
     case 'image':
     case 'file':
     case 'gallery': {
-      // These are handled by MediaPicker - value can be string (id) or File object
-      // We accept string, number, or File-like object
+      const values = type === 'gallery' || Array.isArray(value) ? (Array.isArray(value) ? value : [value]) : [value];
+      if (values.some((item) => typeof item !== 'string' && typeof item !== 'number')) {
+        errors.push(`Setting "${key}" must contain media identifiers`);
+      } else {
+        sanitized = type === 'gallery' || Array.isArray(value) ? values : values[0];
+      }
       break;
     }
 
@@ -367,9 +364,9 @@ function sanitizeHtml(html: string): string {
   return html
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove script tags
     .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '') // Remove iframe tags
-    .replace(/on\w+="[^"]*"/gi, '') // Remove onclick, onload, etc.
-    .replace(/on\w+='[^']*'/gi, '')
-    .replace(/javascript:/gi, ''); // Remove javascript: URLs
+    .replace(/<(?:object|embed|applet)\b[^>]*>/gi, '')
+    .replace(/on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/(?:javascript|vbscript|data):/gi, '');
 }
 
 export class ThemeService {
@@ -399,7 +396,10 @@ export class ThemeService {
 
       const name = typeof manifest['name'] === 'string' ? manifest['name'].trim() : '';
       const version = typeof manifest['version'] === 'string' ? manifest['version'].trim() : '';
-      if (!name || !version) continue;
+      if (!SAFE_NAME_RE.test(name) || !version) continue;
+
+      const compatibilityIssues = checkExtensionCompatibility('theme', { ...manifest, name, version });
+      if (compatibilityIssues.length > 0) continue;
 
       const existing = await this.getByName(name);
       if (existing) {
@@ -478,6 +478,16 @@ export class ThemeService {
       throw new Error(`Invalid theme manifest: ${issues.map((issue) => issue.message).join('; ')}`);
     }
 
+    const installConfig = input.config ?? {};
+    if (!isPlainObject(installConfig)) throw new Error('Theme config must be an object');
+    const configValidation = validateThemeConfig(
+      installConfig,
+      Array.isArray(input.manifest['settings']) ? input.manifest['settings'] : []
+    );
+    if (!configValidation.valid) {
+      throw new Error(`Theme config validation failed: ${configValidation.errors.join('; ')}`);
+    }
+
     const duplicate = await this.getByName(name);
     if (duplicate) {
       throw new Error(`Theme "${name}" is already installed (id ${duplicate.id})`);
@@ -490,7 +500,7 @@ export class ThemeService {
       `INSERT INTO themes (id, name, version, status, manifest, config, installed_at, created_at, updated_at)
        VALUES ($1, $2, $3, 'INSTALLED', $4::jsonb, $5::jsonb, NOW(), NOW(), NOW())
        RETURNING *`,
-      [id, name, version, { ...input.manifest, name, version }, input.config ?? {}]
+      [id, name, version, { ...input.manifest, name, version }, configValidation.sanitized]
     );
 
     return result[0] as unknown as Theme;
@@ -501,25 +511,32 @@ export class ThemeService {
    * tenant, garantida também pelo índice parcial idx_themes_single_active).
    */
   async activate(id: string): Promise<Theme | null> {
-    const existing = await this.getById(id);
-    if (!existing) return null;
+    return runInTransaction(async () => {
+      const sql = getConnection();
+      const selected = await sql.unsafe('SELECT * FROM themes WHERE id = $1 FOR UPDATE', [id]);
+      const existing = (selected[0] as unknown as Theme & { tenant_id?: string | null }) ?? null;
+      if (!existing) return null;
+      const themeDir = join(resolveExtensionDirectory('theme'), existing.name);
+      if (!existsSync(join(themeDir, 'theme.json'))) {
+        throw new Error(`Theme files are missing for "${existing.name}"`);
+      }
 
-    const sql = getConnection();
-    await sql.unsafe(
-      `UPDATE themes SET status = 'INACTIVE', updated_at = NOW()
-       WHERE status = 'ACTIVE' AND id <> $1`,
-      [id]
-    );
+      await sql.unsafe(
+        `UPDATE themes SET status = 'INACTIVE', updated_at = NOW()
+         WHERE status = 'ACTIVE' AND id <> $1 AND tenant_id IS NOT DISTINCT FROM $2`,
+        [id, existing.tenant_id ?? null]
+      );
 
-    const result = await sql.unsafe(
-      `UPDATE themes
-       SET status = 'ACTIVE', activated_at = NOW(), updated_at = NOW()
-       WHERE id = $1
-       RETURNING *`,
-      [id]
-    );
+      const result = await sql.unsafe(
+        `UPDATE themes
+         SET status = 'ACTIVE', activated_at = NOW(), updated_at = NOW()
+         WHERE id = $1
+         RETURNING *`,
+        [id]
+      );
 
-    return (result[0] as unknown as Theme) ?? null;
+      return (result[0] as unknown as Theme) ?? null;
+    });
   }
 
   /**
@@ -528,24 +545,34 @@ export class ThemeService {
    * with multiple themes the admin re-activates one of the others.
    */
   async deactivate(id: string): Promise<Theme | null> {
-    const existing = await this.getById(id);
-    if (!existing) return null;
+    return runInTransaction(async () => {
+      const sql = getConnection();
+      const selected = await sql.unsafe('SELECT * FROM themes WHERE id = $1 FOR UPDATE', [id]);
+      const existing = (selected[0] as unknown as Theme & { tenant_id?: string | null }) ?? null;
+      if (!existing) return null;
 
-    const sql = getConnection();
-    const countResult = await sql.unsafe('SELECT COUNT(*)::int AS count FROM themes');
-    const total = Number((countResult[0] as { count?: number | string } | undefined)?.count ?? 0);
-    if (total <= 1) {
-      throw new Error('Cannot deactivate the only available theme — at least one active theme is required');
-    }
-    const result = await sql.unsafe(
-      `UPDATE themes
-       SET status = 'INACTIVE', updated_at = NOW()
-       WHERE id = $1
-       RETURNING *`,
-      [id]
-    );
+      if (existing.status === 'ACTIVE') {
+        const countResult = await sql.unsafe(
+          `SELECT COUNT(*)::int AS count FROM themes
+           WHERE status = 'ACTIVE' AND tenant_id IS NOT DISTINCT FROM $1`,
+          [existing.tenant_id ?? null]
+        );
+        const activeCount = Number((countResult[0] as { count?: number | string } | undefined)?.count ?? 0);
+        if (activeCount <= 1) {
+          throw new Error('Cannot deactivate the only active theme in this scope');
+        }
+      }
 
-    return (result[0] as unknown as Theme) ?? null;
+      const result = await sql.unsafe(
+        `UPDATE themes
+         SET status = 'INACTIVE', updated_at = NOW()
+         WHERE id = $1
+         RETURNING *`,
+        [id]
+      );
+
+      return (result[0] as unknown as Theme) ?? null;
+    });
   }
 
   /** Tema ativo atual (fonte única lida pelo app web na renderização). */
@@ -553,7 +580,7 @@ export class ThemeService {
     const sql = getConnection();
     const result = await sql.unsafe(
       `SELECT * FROM themes WHERE status = 'ACTIVE'
-       ORDER BY activated_at DESC NULLS LAST, created_at DESC
+       ORDER BY (tenant_id IS NULL), activated_at DESC NULLS LAST, created_at DESC
        LIMIT 1`
     );
     return (result[0] as unknown as Theme) ?? null;
@@ -565,40 +592,55 @@ export class ThemeService {
       throw new Error('Theme config must be an object');
     }
 
-    const existing = await this.getById(id);
-    if (!existing) return null;
+    return runInTransaction(async () => {
+      const sql = getConnection();
+      const selected = await sql.unsafe('SELECT * FROM themes WHERE id = $1 FOR UPDATE', [id]);
+      const existing = (selected[0] as unknown as Theme) ?? null;
+      if (!existing) return null;
 
-    // Validate config against manifest.settings
-    const manifest = existing.manifest as { settings?: unknown[] } | null;
-    const manifestSettings = manifest?.settings ?? [];
-    const validation = validateThemeConfig(config as Record<string, unknown>, manifestSettings, allowExtraKeys);
-    
-    if (!validation.valid) {
-      throw new Error(`Theme config validation failed: ${validation.errors.join('; ')}`);
-    }
+      const manifest = existing.manifest as { settings?: unknown[] } | null;
+      const manifestSettings = manifest?.settings ?? [];
+      const validation = validateThemeConfig(config as Record<string, unknown>, manifestSettings, allowExtraKeys);
 
-    const sql = getConnection();
-    // Create history entry before updating
-    await sql.unsafe(
-      `INSERT INTO theme_config_versions (theme_id, config, user_id, change_summary)
-       VALUES ($1, $2::jsonb, $3, $4)`,
-      [id, existing.config ?? {}, userId ?? 'system', 'Config updated via API']
-    );
+      if (!validation.valid) {
+        throw new Error(`Theme config validation failed: ${validation.errors.join('; ')}`);
+      }
 
-    const result = await sql.unsafe(
-      `UPDATE themes SET config = $1::jsonb, updated_at = NOW() WHERE id = $2 RETURNING *`,
-      [allowExtraKeys ? config : validation.sanitized, id]
-    );
+      await sql.unsafe(
+        `INSERT INTO theme_config_versions (theme_id, config, user_id, change_summary)
+         VALUES ($1, $2::jsonb, $3, $4)`,
+        [id, existing.config ?? {}, userId ?? null, 'Config updated via API']
+      );
 
-    return (result[0] as unknown as Theme) ?? null;
+      const result = await sql.unsafe(
+        `UPDATE themes SET config = $1::jsonb, updated_at = NOW() WHERE id = $2 RETURNING *`,
+        [allowExtraKeys ? config : validation.sanitized, id]
+      );
+
+      return (result[0] as unknown as Theme) ?? null;
+    });
   }
 
   async uninstall(id: string): Promise<boolean> {
     const existing = await this.getById(id);
     if (!existing) return false;
+    if (existing.status === 'ACTIVE') {
+      throw new Error('Cannot uninstall the active theme; activate another theme first');
+    }
 
     const sql = getConnection();
     await sql.unsafe('DELETE FROM themes WHERE id = $1', [id]);
+
+    const themesRoot = resolveExtensionDirectory('theme');
+    const root = resolve(themesRoot);
+    const themeDir = resolve(root, existing.name);
+    if (themeDir.startsWith(root + sep) && existsSync(themeDir)) {
+      const realRoot = realpathSync(root);
+      const realThemeDir = realpathSync(themeDir);
+      if (realThemeDir.startsWith(realRoot + sep)) {
+        await rm(realThemeDir, { recursive: true, force: true });
+      }
+    }
 
     return true;
   }
@@ -663,7 +705,7 @@ export class ThemeService {
   }
 
   /** Restore a previous config version. */
-  async restoreConfigVersion(themeId: string, versionId: string, _userId: string): Promise<Theme | null> {
+  async restoreConfigVersion(themeId: string, versionId: string, userId: string | null): Promise<Theme | null> {
     const sql = getConnection();
     const version = await sql.unsafe(
       `SELECT config FROM theme_config_versions WHERE id = $1 AND theme_id = $2`,
@@ -672,7 +714,7 @@ export class ThemeService {
     if (!version[0]) return null;
 
     const config = version[0]['config'] as Record<string, unknown>;
-    return this.updateConfig(themeId, config);
+    return this.updateConfig(themeId, config, userId ?? undefined);
   }
 }
 

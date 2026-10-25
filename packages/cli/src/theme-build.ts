@@ -91,7 +91,7 @@ export async function buildThemeStylesOnDisk(
   const { css, report } = await buildThemeStyles({ themesRoot: themesDir, themeName, manifest });
 
   // `output` vem do manifesto: nunca escrever fora do diretório do tema.
-  if (report.output.includes('..') || isAbsolute(report.output)) {
+  if (report.output.includes('..') || report.output.includes('\\') || isAbsolute(report.output)) {
     throw new Error(`Invalid stylesConfig.output in ${manifestPath}: ${report.output}`);
   }
 

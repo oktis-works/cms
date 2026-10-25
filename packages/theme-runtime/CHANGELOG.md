@@ -1,5 +1,14 @@
 # @oktis-works/theme-runtime
 
+## 0.10.1
+
+### Patch Changes
+
+- Fix theme lifecycle, preview, rendering, security, tenant scoping, configuration validation, SDK contracts, pagination, and runtime inheritance behavior.
+- Updated dependencies
+  - @oktis-works/theme-sdk@0.6.1
+  - @oktis-works/types@0.9.1
+
 ## 0.10.0
 
 ### Minor Changes

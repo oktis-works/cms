@@ -952,6 +952,19 @@
 [data-theme="default"] .hidden { display: none !important; }
 [data-theme="default"] .invisible { visibility: hidden; }
 
+[data-theme="default"] .pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+[data-theme="default"] .pagination a {
+  color: var(--color-brand);
+  font-weight: 600;
+}
+
 /* ==========================================================================
    Responsive
    ========================================================================== */

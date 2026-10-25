@@ -1,5 +1,15 @@
 # @oktis-works/cms
 
+## 0.13.5
+
+### Patch Changes
+
+- Fix theme lifecycle, preview, rendering, security, tenant scoping, configuration validation, SDK contracts, pagination, and runtime inheritance behavior.
+- Updated dependencies
+  - @oktis-works/core@0.14.1
+  - @oktis-works/database@0.14.1
+  - @oktis-works/theme-runtime@0.10.1
+
 ## 0.13.4
 
 ### Patch Changes

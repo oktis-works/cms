@@ -1,7 +1,7 @@
 // @oktis-works/theme-runtime - Theme Loader (descoberta via node_modules / diretório)
 
 import { readdir, readFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { join, resolve, sep } from 'node:path';
 import type { ThemeManifest } from '@oktis-works/theme-sdk';
 import { validateStyleManifest } from './style-engine.js';
 
@@ -34,7 +34,9 @@ export class ThemeLoader {
 
   /** Carrega um único tema a partir do caminho contendo theme.json. */
   async loadTheme(themeName: string): Promise<DiscoveredTheme | null> {
-    const themePath = join(this.themesDir, themeName);
+    if (!/^[A-Za-z0-9_-]+$/.test(themeName)) return null;
+    const themePath = resolve(this.themesDir, themeName);
+    if (!themePath.startsWith(this.themesDir + sep)) return null;
     const manifest = await this.loadManifest(themePath);
     return manifest ? { manifest, path: themePath } : null;
   }
@@ -52,11 +54,14 @@ export class ThemeLoader {
     const visit = (theme: DiscoveredTheme): void => {
       const name = theme.manifest.name;
       if (visited.has(name)) return;
-      if (visiting.has(name)) return; // ciclo: ignora
+      if (visiting.has(name)) throw new Error(`Theme inheritance cycle detected at "${name}"`);
 
       visiting.add(name);
 
       const parent = theme.manifest.parent ? byName.get(theme.manifest.parent) : undefined;
+      if (theme.manifest.parent && !parent) {
+        throw new Error(`Theme "${name}" declares missing parent "${theme.manifest.parent}"`);
+      }
       if (parent) visit(parent);
 
       visiting.delete(name);
@@ -75,7 +80,8 @@ export class ThemeLoader {
       const raw = await readFile(join(themePath, 'theme.json'), 'utf-8');
       const manifest = JSON.parse(raw) as Partial<ThemeManifest>;
 
-      if (!manifest.name || !manifest.version) return null;
+      if (!manifest.name || !manifest.version || !/^[A-Za-z0-9_-]+$/.test(manifest.name)) return null;
+      if (manifest.type !== undefined && manifest.type !== 'theme') return null;
 
       // validação de estilo exclusiva (avisa em erro, mas não bloqueia descoberta)
       const errors = validateStyleManifest(manifest as ThemeManifest, themePath);
