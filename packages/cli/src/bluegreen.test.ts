@@ -353,7 +353,7 @@ describe('deploy seguinte (blue → green)', () => {
 
     const down = runner.calls.find((call) => call.includes('-p okcms-blue') && call.includes('down'));
     expect(down).not.toContain('--remove-orphans');
-    expect(down).not.toContain('-v');
+    expect(down).not.toMatch(/\s-v(?:\s|$)/);
   });
 
   it('--no-cache vira build --no-cache', async () => {

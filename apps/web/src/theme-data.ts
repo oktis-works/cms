@@ -143,7 +143,7 @@ export function createDatabaseThemeDataProvider(
       const countRows = await sql.unsafe(`SELECT COUNT(*)::int AS total FROM content WHERE ${where.join(' AND ')}`, params);
       const total = Number((countRows[0] as DatabaseRow | undefined)?.['total'] ?? 0);
       const records = (rows as unknown as DatabaseRow[]).map(contentRow);
-      await Promise.all(records.map((record) => enrichMedia(sql, record.data)));
+      await Promise.all(records.map((record) => enrichMedia(sql, record.data ?? {})));
       return { data: records, total, page, limit, pages: Math.ceil(total / limit) };
     },
 
@@ -151,7 +151,7 @@ export function createDatabaseThemeDataProvider(
       const rows = await sql.unsafe("SELECT * FROM content WHERE id = $1 AND tenant_id = $2 AND status = 'PUBLISHED' LIMIT 1", [id, tenantId]);
       if (!rows[0]) return null;
       const record = contentRow(rows[0] as DatabaseRow);
-      await enrichMedia(sql, record.data);
+      await enrichMedia(sql, record.data ?? {});
       return record;
     },
 
@@ -162,7 +162,7 @@ export function createDatabaseThemeDataProvider(
       const rows = await sql.unsafe(`SELECT * FROM content WHERE ${where} LIMIT 1`, params);
       if (!rows[0]) return null;
       const record = contentRow(rows[0] as DatabaseRow);
-      await enrichMedia(sql, record.data);
+      await enrichMedia(sql, record.data ?? {});
       return record;
     },
 

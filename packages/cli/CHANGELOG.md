@@ -1,5 +1,11 @@
 # @oktis-works/cms
 
+## 0.13.6
+
+### Patch Changes
+
+- Harden theme data typing and make the blue-green volume flag assertion deterministic in CI.
+
 ## 0.13.5
 
 ### Patch Changes
