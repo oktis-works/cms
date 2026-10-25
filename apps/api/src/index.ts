@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // @oktis-works/api - Main Entry Point
 
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { logger } from 'hono/logger';
 import { cors } from 'hono/cors';
 import { prettyJSON } from 'hono/pretty-json';
@@ -14,6 +14,7 @@ import { traceMiddleware } from './middleware/trace.js';
 import { rateLimitMiddleware, loginRateLimitMiddleware } from './middleware/rate-limit.js';
 import { csrfMiddleware } from './middleware/csrf.js';
 import { auditMiddleware } from './middleware/audit.js';
+import { authMiddleware, requirePermission } from './middleware/auth.js';
 import authRouter from './routes/auth/index.js';
 import contentRouter from './routes/content/index.js';
 import postsRouter from './routes/posts/index.js';
@@ -43,34 +44,78 @@ import metricsRouter from './routes/metrics/index.js';
 import auditLogsRouter from './routes/audit-logs/index.js';
 import docsRouter from './routes/docs/index.js';
 import hooksCatalogRouter from './routes/hooks/index.js';
+import { matchPluginRoutePath } from './routes/plugins/matcher.js';
 
-function mountPluginRoutes(app: import('hono').Hono): void {
-  const pluginRoutes = getRegisteredPluginRoutes();
-  for (const { pluginName, routes, rpm } of pluginRoutes) {
-    const pluginRouter = new Hono();
-    // Item 17: orçamento de rpm por plugin (manifest rateLimit.rpm, default
-    // 120) sobre toda a superfície de rotas do plugin — 429 acima do teto.
-    pluginRouter.use('*', pluginRateLimitMiddleware(pluginName, rpm));
-    for (const route of routes) {
-      const method = route.method.toLowerCase() as 'get' | 'post' | 'put' | 'patch' | 'delete' | 'options';
-      if (pluginRouter[method]) {
-        pluginRouter[method](route.path, async (c) => {
-          try {
-            const response = await route.handler(c, {
-              // Provide minimal API for route handler
-              // The plugin's API is already bound during bootstrap
-            } as any);
-            return response;
-          } catch (error) {
-            console.error(`[Plugin Route] Error in ${pluginName} ${route.method} ${route.path}:`, error);
-            return c.json({ error: 'Internal server error' }, 500);
-          }
+export function mountPluginRoutes(app: import('hono').Hono): void {
+  // Resolve the registry on every request. Tenant activation/deactivation and
+  // route replacement therefore take effect without rebuilding the Hono app.
+  const dispatchRequest = async (c: Context): Promise<Response> => {
+    const pluginName = c.req.param('pluginName') ?? '';
+    const prefix = `/api/v1/plugins/${pluginName}`;
+    const relativePath = c.req.path.slice(prefix.length) || '/';
+    const candidates = getRegisteredPluginRoutes()
+      .filter((entry) => entry.pluginName === pluginName)
+      .flatMap((entry) => entry.routes.map((route) => ({ entry, route })))
+      .filter(({ route }) => route.method === c.req.method && matchPluginRoutePath(route.path, relativePath));
+
+    if (candidates.length === 0) return c.notFound();
+
+    const dispatch = async (): Promise<Response> => {
+      const requestTenant = c.get('tenantId') as string | undefined;
+      const selected = candidates.find(({ entry }) => entry.tenantId === requestTenant)
+        ?? candidates.find(({ entry }) => entry.tenantId === null);
+      if (!selected) return c.notFound();
+
+      const limiter = pluginRateLimitMiddleware(pluginName, selected.entry.rpm, selected.entry.tenantId);
+      const limited = await limiter(c, async () => {});
+      if (limited) return limited;
+
+      for (const permission of selected.route.requiredPermissions ?? []) {
+        const separator = permission.indexOf(':');
+        if (separator <= 0 || separator === permission.length - 1) {
+          return c.json({ error: 'Invalid plugin route permission' }, 500);
+        }
+        let authorized = false;
+        await requirePermission(permission.slice(0, separator), permission.slice(separator + 1))(c, async () => {
+          authorized = true;
         });
+        if (!authorized) return c.res;
       }
+
+      let index = 0;
+      const runMiddleware = async (): Promise<Response> => {
+        const middleware = selected.route.middleware?.[index++];
+        if (middleware) {
+          await middleware(c, async () => { await runMiddleware(); });
+          return c.res;
+        }
+        const response = await selected.route.handler(c, selected.entry.api);
+        return response instanceof Response ? response : c.json(response as Record<string, unknown>);
+      };
+
+      try {
+        return await runMiddleware();
+      } catch (error) {
+        console.error(`[Plugin Route] Error in ${pluginName} ${selected.route.method} ${selected.route.path}:`, error);
+        return c.json({ error: 'Internal server error' }, 500);
+      }
+    };
+
+    const requiresAuth = candidates.some(({ entry, route }) =>
+      entry.tenantId !== null || !route.public || (route.requiredPermissions?.length ?? 0) > 0
+    );
+    if (requiresAuth) {
+      const authResult = await authMiddleware(c, async () => {
+        c.res = await dispatch();
+      });
+      return authResult ?? c.res;
     }
-    // Mount under /api/v1/plugins/:pluginName
-    app.route(`/api/v1/plugins/${pluginName}`, pluginRouter);
-  }
+    return dispatch();
+  };
+
+  const handler = (c: Context) => dispatchRequest(c);
+  app.all('/api/v1/plugins/:pluginName', handler);
+  app.all('/api/v1/plugins/:pluginName/*', handler);
 }
 
 async function main() {
@@ -78,9 +123,6 @@ async function main() {
   const lifecycle = await bootstrap();
 
   const app = new Hono();
-
-  // Mount plugin routes after bootstrap (plugins are loaded during bootstrap)
-  mountPluginRoutes(app);
 
   // REQ-event-bus-005: eventos de domínio → AuditLog
   registerEventAuditLog(getEventBus());
@@ -112,6 +154,10 @@ async function main() {
   app.use('/api/*', csrfMiddleware);
 
   app.use('/api/*', auditMiddleware);
+
+  // Plugin routes are mounted after global security middleware is registered.
+  // Each private route also applies authentication and declared permissions.
+  mountPluginRoutes(app);
 
   // Health routes (no auth required)
   app.route('/health', healthRouter);

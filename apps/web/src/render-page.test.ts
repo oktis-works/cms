@@ -44,14 +44,17 @@ import {
   wrapDocument,
   mergePreviewSettings,
   renderAssetTags,
+  renderPluginBlocks,
 } from './rendering.js';
 import { getHookRegistry } from '@oktis-works/plugin-runtime';
 import { CMS_VERSION } from '@oktis-works/validation';
 
 let themesRoot: string;
+let pluginsRoot: string;
 
 beforeAll(() => {
   themesRoot = mkdtempSync(join(tmpdir(), 'okcms-themes-'));
+  pluginsRoot = mkdtempSync(join(tmpdir(), 'okcms-plugins-'));
 
   // Tema "mytheme": template específico + fallback no tema default
   mkdirSync(join(themesRoot, 'mytheme'), { recursive: true });
@@ -73,10 +76,56 @@ beforeAll(() => {
     join(themesRoot, 'default', 'dist', 'theme.css'),
     '[data-theme="default"] main { color: red; }'
   );
+
+  mkdirSync(join(pluginsRoot, 'demo-plugin'), { recursive: true });
+  writeFileSync(
+    join(pluginsRoot, 'demo-plugin', 'render.cjs'),
+    `module.exports = { default: ({ attrs }) => '<article onclick="alert(1)"><strong>' + String(attrs.title) + '</strong><script>alert(1)</script></article>' };`
+  );
 });
 
 afterAll(() => {
   rmSync(themesRoot, { recursive: true, force: true });
+  rmSync(pluginsRoot, { recursive: true, force: true });
+});
+
+describe('renderPluginBlocks — public plugin renderer pipeline', () => {
+  it('loads only plugin-owned renderers and sanitizes their HTML output', async () => {
+    const html = await renderPluginBlocks(
+      [{ type: 'demo-plugin/card', attrs: { title: 'Card' } }],
+      [{ type: 'demo-plugin/card', label: 'Card', pluginName: 'demo-plugin', rendererPath: 'render.cjs' }],
+      pluginsRoot
+    );
+
+    expect(html).toContain('<strong>Card</strong>');
+    expect(html).not.toContain('<script');
+    expect(html).not.toContain('onclick');
+  });
+
+  it('uses deterministic built-in and fallback rendering for unsafe blocks', async () => {
+    const html = await renderPluginBlocks(
+      [{ type: 'heading', level: 2, content: 'Hello' }, { type: 'demo-plugin/missing', attrs: {} }],
+      [{ type: 'demo-plugin/missing', label: 'Missing', pluginName: 'demo-plugin', rendererPath: '../outside.mjs' }],
+      pluginsRoot
+    );
+
+    expect(html).toContain('<h2>Hello</h2>');
+    expect(html).toContain('data-plugin-block="demo-plugin/missing"');
+  });
+
+  it('renders catalogued patterns through the same sanitized public pipeline', async () => {
+    const html = await renderPluginBlocks(
+      [{ type: 'pattern', name: 'demo-plugin/hero' }],
+      [],
+      pluginsRoot,
+      [{ name: 'demo-plugin/hero', label: 'Hero', pluginName: 'demo-plugin', content: '<section onclick="bad()">Hero<script>bad()</script></section>' }]
+    );
+
+    expect(html).toContain('data-plugin-pattern="demo-plugin/hero"');
+    expect(html).toContain('<section>Hero</section>');
+    expect(html).not.toContain('onclick');
+    expect(html).not.toContain('<script');
+  });
 });
 
 const settings = { siteTitle: 'Meu Site', siteDescription: 'Descrição do site', language: 'pt-BR' };

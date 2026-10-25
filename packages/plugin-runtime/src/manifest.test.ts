@@ -10,7 +10,13 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-const base = { name: 'p', version: '1.0.0', main: 'index.js', manifestVersion: 2 };
+const base = {
+  name: 'p',
+  version: '1.0.0',
+  main: 'index.js',
+  manifestVersion: 2,
+  permissions: ['admin:ui', 'patterns:register'],
+};
 
 describe('validateManifestV2 - admin (FEAT-098)', () => {
   it('accepts a valid admin block (menus with capability, widgets, meta boxes, notices, columns)', () => {
@@ -114,6 +120,17 @@ describe('validateManifestV2 - admin (FEAT-098)', () => {
     });
     expect(issues).toContain('pattern missing valid name/label/content');
     expect(issues).toHaveLength(1);
+  });
+
+  it('rejects renderer and preview paths that escape the plugin package', () => {
+    const issues = validateManifestV2({
+      ...base,
+      permissions: ['blocks:register', 'patterns:register'],
+      blocks: [{ type: 'card', label: 'Card', icon: 'card', adminComponentPath: 'admin/Card.tsx', rendererPath: '../render.ts' }],
+      patterns: [{ name: 'hero', label: 'Hero', content: '<section/>', previewPath: '../preview.png' }],
+    });
+    expect(issues).toContain('block.rendererPath must be a safe plugin renderer path');
+    expect(issues).toContain('pattern.previewPath must be a safe plugin path');
   });
 });
 

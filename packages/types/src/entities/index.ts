@@ -335,6 +335,8 @@ export interface PluginManifest {
 export interface AdminMenuPage {
   slug: string;
   label: string;
+  /** Component mounted when the page is opened. */
+  componentId?: string;
   /** Capability obrigatória no manifesto — o slot só renderiza para quem tem. */
   capability?: string;
   icon?: string;
@@ -346,6 +348,8 @@ export interface AdminSubmenuPage {
   parentSlug: string;
   slug: string;
   label: string;
+  /** Component mounted when the submenu page is opened. */
+  componentId?: string;
   capability?: string;
   position?: number;
 }

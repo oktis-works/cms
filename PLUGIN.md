@@ -124,7 +124,8 @@ module.exports.register = function register(api) {
     {
       method: 'GET',
       path: '/meu-plugin/mermaid/preview',
-      handler: async (ctx) => ({ ok: true, html: '<div>preview</div>' })
+      public: true,
+      handler: async (ctx, api) => ({ ok: true, html: '<div>preview</div>' })
     }
   ]);
 

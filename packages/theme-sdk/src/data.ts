@@ -120,6 +120,9 @@ export interface ThemeRenderData {
   taxonomies: ThemeTaxonomy[];
   terms: Record<string, ThemeTerm[]>;
   settings: Record<string, unknown>;
+  /** Active plugin block and pattern catalogs available to the theme. */
+  pluginBlocks?: Array<Record<string, unknown>>;
+  pluginPatterns?: Array<Record<string, unknown>>;
 }
 
 const providerStorage = new AsyncLocalStorage<ThemeDataProvider>();

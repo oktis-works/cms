@@ -3,7 +3,7 @@
 import { For, Show, createMemo, createSignal, onMount } from 'solid-js';
 import { expandCloneFields } from '../../lib/validation';
 import { sanitizeHtml } from '../../lib/sanitize';
-import { apiClient, type ThemeInfo, type ContentType } from '../../lib/api';
+import { apiClient, type ThemeInfo, type ContentType, type PluginBlockCatalogEntry, type PluginPatternCatalogEntry } from '../../lib/api';
 import { FieldRenderer } from './FieldRenderer';
 import type { ResolvedFieldDefinition } from './types';
 import { useTranslation } from '../../i18n';
@@ -67,6 +67,8 @@ export function ContentEditor(props: Props) {
   const [saving, setSaving] = createSignal(false);
   const [message, setMessage] = createSignal('');
   const [extensions, setExtensions] = createSignal<AdminExtensionsState>(emptyExtensionsState());
+  const [blocks, setBlocks] = createSignal<PluginBlockCatalogEntry[]>([]);
+  const [patterns, setPatterns] = createSignal<PluginPatternCatalogEntry[]>([]);
 
   const [draft, setDraft] = createSignal<Draft>({
     type: props.initialType || 'post',
@@ -136,13 +138,17 @@ export function ContentEditor(props: Props) {
 
     let typeList: ContentType[] = [];
     try {
-      const [typeCatalog, themeList] = await Promise.all([
+      const [typeCatalog, themeList, blockCatalog, patternCatalog] = await Promise.all([
         apiClient.getContentTypes(),
         apiClient.getThemes().catch(() => [] as ThemeInfo[]),
+        apiClient.getBlocks().catch(() => [] as PluginBlockCatalogEntry[]),
+        apiClient.getPatterns().catch(() => [] as PluginPatternCatalogEntry[]),
       ]);
       typeList = typeCatalog;
       setTypes(typeCatalog);
       setThemes(themeList);
+      setBlocks(blockCatalog);
+      setPatterns(patternCatalog);
     } catch (err) {
       setErrors([err instanceof Error ? err.message : String(err)]);
     }
@@ -194,6 +200,15 @@ export function ContentEditor(props: Props) {
     document.execCommand(command, false, value);
     const editor = document.querySelector<HTMLElement>('[data-classic-editor]');
     if (editor) syncEditorContent(editor);
+  };
+
+  const insertPattern = (pattern: PluginPatternCatalogEntry): void => {
+    setData({ ...data(), content: `${editorContent()}\n${sanitizeHtml(pattern.content)}`.trim() });
+  };
+
+  const insertBlock = (block: PluginBlockCatalogEntry): void => {
+    const current = Array.isArray(data()['_blocks']) ? data()['_blocks'] as unknown[] : [];
+    setData({ ...data(), _blocks: [...current, { type: block.type, attrs: {} }] });
   };
 
   const save = async (event: Event): Promise<void> => {
@@ -382,6 +397,14 @@ export function ContentEditor(props: Props) {
                   <For each={availableLayouts()}>{(layout) => <option value={layout}>{layout}</option>}</For>
                 </select>
               </label>
+            </section>
+          </Show>
+
+          <Show when={blocks().length > 0 || patterns().length > 0}>
+            <section class="card classic-editor__panel plugin-catalog-panel">
+              <h3>Plugin blocks and patterns</h3>
+              <For each={blocks()}>{(block) => <button type="button" class="btn btn-secondary" onClick={() => insertBlock(block)}>＋ {block.label}</button>}</For>
+              <For each={patterns()}>{(pattern) => <button type="button" class="btn btn-secondary" onClick={() => insertPattern(pattern)}>＋ {pattern.label}</button>}</For>
             </section>
           </Show>
 

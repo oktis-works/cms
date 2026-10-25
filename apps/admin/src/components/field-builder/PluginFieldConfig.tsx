@@ -3,6 +3,7 @@
 
 import { Show, Switch, Match, createSignal, onMount } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
+import { loadPluginComponent } from '../../ext/slots';
 
 interface PluginFieldConfigProps {
   field: {
@@ -24,8 +25,8 @@ export function PluginFieldConfig(props: PluginFieldConfigProps) {
     try {
       // Dynamic import of the plugin's admin config component
       // The path format: @/plugins/{plugin-name}/admin/components/{ComponentName}.tsx
-      const module = await import(props.adminComponentPath);
-      const Comp = module.default || module.PluginFieldConfig || Object.values(module)[0];
+      const module = await loadPluginComponent(props.adminComponentPath);
+      const Comp = module['default'] || module['PluginFieldConfig'];
       if (Comp) {
         setComponent(Comp);
       } else {

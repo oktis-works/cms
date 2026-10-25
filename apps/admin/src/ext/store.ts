@@ -9,7 +9,7 @@
 import { createSignal } from 'solid-js';
 import type { AdminExtensionsState } from '@oktis-works/plugin-sdk';
 import { apiClient } from '../lib/api';
-import { resolvePluginComponentPath } from './slots.js';
+import { loadPluginComponent } from './slots.js';
 
 export function emptyExtensionsState(): AdminExtensionsState {
   return {
@@ -56,7 +56,7 @@ function prefetchPluginChunks(state: AdminExtensionsState): void {
     if (!componentId || prefetchedChunks.has(componentId)) continue;
     prefetchedChunks.add(componentId);
     schedule(() => {
-      void import(/* @vite-ignore */ resolvePluginComponentPath(componentId)).catch(() => {
+      void loadPluginComponent(componentId).catch(() => {
         // prefetch is best-effort — the slot host reports the error on render
       });
     });

@@ -117,12 +117,12 @@ describe('Ciclo de vida avançado — instalação, ativação e desativação',
       })
     ).rejects.toThrow('DEPENDENCY_MISSING');
 
-    expect(lastQuery!.text).toContain("status IN ('INSTALLED','ACTIVATED')");
+    expect(lastQuery!.text).toContain("status IN ('INSTALLED','ACTIVATED','RUNNING')");
     expect(lastQuery!.values).toContain('pai');
   });
 
   it('install registra dependências e aplica migrations do plugin em ordem', async () => {
-    queue = [[{ id: 'dep-1' }], [{ id: 'p1' }], [{ id: 'dep-1' }]];
+    queue = [[{ id: 'dep-1', version: '1.0.0' }], [{ id: 'p1' }], [{ id: 'dep-1' }]];
     const migration = (v: string): { version: string; name: string; owner: string; ownerType: 'PLUGIN'; checksum: string; sql: string } => ({
       version: v,
       name: `V${v}__plugin_x__t.sql`,

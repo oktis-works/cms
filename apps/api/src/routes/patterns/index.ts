@@ -29,7 +29,8 @@ patterns.get('/', requirePermission('read', 'content'), async (c) => {
     const rows = await pluginService.list(tenantId)
     for (const row of rows) {
       if (!isPluginActive(row.status)) continue
-      addPluginPatterns(catalog, (row.manifest as PluginManifest | undefined | null)?.patterns, row.name, 'manifest')
+      const manifest = row.manifest as (PluginManifest & { permissions?: string[] }) | undefined | null
+      if (manifest?.permissions?.includes('patterns:register')) addPluginPatterns(catalog, manifest.patterns, row.name, 'manifest')
     }
 
     // Runtime registrations — best-effort: keep serving the manifest when the

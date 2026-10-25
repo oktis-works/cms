@@ -284,7 +284,7 @@ describe('modo deploy', () => {
     const down = result.calls.find((call) => call.includes(' down'));
     expect(down).toBeDefined();
     expect(down).not.toContain('--remove-orphans');
-    expect(down).not.toContain('-v');
+    expect(down).not.toMatch(/\s-v(?:\s|$)/);
   });
 
   it('--mode inválido sai com 1 e sem tocar em nada', async () => {

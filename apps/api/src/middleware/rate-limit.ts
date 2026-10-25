@@ -379,14 +379,14 @@ export function rateLimitMiddleware(options: RateLimitOptions = {}) {
  * orçamento dos demais nem derrubar a API. Default 120 rpm, override pelo
  * manifesto (`rateLimit.rpm`). Resposta 429 com headers de rate limit.
  */
-export function pluginRateLimitMiddleware(pluginName: string, rpm?: number) {
+export function pluginRateLimitMiddleware(pluginName: string, rpm?: number, tenantId?: string | null) {
   loadConfig();
   const limit = rpm && rpm > 0 ? Math.floor(rpm) : 120;
   const windowMs = 60_000;
 
   return async (c: Context, next: Next): Promise<Response | undefined> => {
     const now = Date.now();
-    const result = consume(`plugin-routes:${pluginName}`, 1, windowMs, now);
+    const result = consume(`plugin-routes:${tenantId ?? 'platform'}:${pluginName}`, 1, windowMs, now);
 
     if (result.count > limit) {
       return rateLimitResponse(c, limit, result.resetAt);

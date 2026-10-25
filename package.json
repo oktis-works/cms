@@ -1,6 +1,6 @@
 {
   "name": "okcms",
-  "version": "0.36.4",
+  "version": "0.36.5",
   "private": true,
   "description": "Hybrid, modular, API-first CMS",
   "engines": {
@@ -23,6 +23,7 @@
     "test:run": "vitest run",
     "lint": "eslint . --ignore-pattern 'packages/cli/src/scaffold.test.js'",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "check:api-drift": "node scripts/check-api-plugin-source-drift.mjs",
     "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules",
     "changeset": "changeset",
     "version-packages": "changeset version; node scripts/sync-version.mjs --write && node packages/cli/scripts/generate-versions.mjs",
@@ -31,7 +32,7 @@
   },
   "devDependencies": {
     "@oktis-works/api-client": "workspace:*",
-    "@oktis-works/cms": "^0.13.6",
+    "@oktis-works/cms": "^0.13.7",
     "@changesets/changelog-github": "^1.0.1",
     "@changesets/cli": "^3.0.3",
     "@types/node": "22.0.0",

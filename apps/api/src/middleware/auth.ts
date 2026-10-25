@@ -50,3 +50,13 @@ export const requirePermission = (action: string, resource: string) => {
     await next();
   };
 };
+
+export function userHasPermission(userRoles: string[] | undefined, capability: string): boolean {
+  if (!userRoles || !capability) return false;
+  const separator = capability.indexOf(':');
+  if (separator <= 0 || separator === capability.length - 1) {
+    const legacyResource = capability === 'manage_options' ? 'plugin' : capability === 'read' ? 'content' : null;
+    return legacyResource ? authService.hasPermission(userRoles, 'read', legacyResource) : false;
+  }
+  return authService.hasPermission(userRoles, capability.slice(0, separator), capability.slice(separator + 1));
+}

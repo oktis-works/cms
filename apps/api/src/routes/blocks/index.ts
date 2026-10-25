@@ -29,7 +29,8 @@ blocks.get('/', requirePermission('read', 'content'), async (c) => {
     const rows = await pluginService.list(tenantId)
     for (const row of rows) {
       if (!isPluginActive(row.status)) continue
-      addPluginBlocks(catalog, (row.manifest as PluginManifest | undefined | null)?.blocks, row.name, 'manifest')
+      const manifest = row.manifest as (PluginManifest & { permissions?: string[] }) | undefined | null
+      if (manifest?.permissions?.includes('blocks:register')) addPluginBlocks(catalog, manifest.blocks, row.name, 'manifest')
     }
 
     // Runtime registrations — best-effort: keep serving the manifest when the

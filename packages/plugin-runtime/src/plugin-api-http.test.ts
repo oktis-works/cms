@@ -266,7 +266,7 @@ describe('createHttpApi (request flow)', () => {
 
     await expect(api.get('http://1.2.3.4/')).rejects.toThrow('not in httpPolicy.allowHosts');
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(api.get('http://1.2.3.4/')).rejects.toBeInstanceOf(HttpError);
+    await expect(api.get('http://1.2.3.4/')).rejects.toBeInstanceOf(HttpError);
   });
 });
 

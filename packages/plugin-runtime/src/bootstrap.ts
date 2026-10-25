@@ -91,12 +91,29 @@ interface LoadedScope {
 
 /** Estado de carga por escopo (`''` = platform, `tenant:<id>` = tenant). */
 const loadedScopes = new Map<string, LoadedScope>();
+const pendingScopeCleanups = new Map<string, Promise<void>>();
 
 /** Platform scope uses the same key as the core ('platform') — external lookups match. */
 const PLATFORM_SCOPE = 'platform';
 
 function scopeKeyOf(tenantId?: string | null): string {
   return tenantId ? `tenant:${tenantId}` : PLATFORM_SCOPE;
+}
+
+async function awaitWithTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  if (timeoutMs <= 0) return promise;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`register() exceeded ${timeoutMs}ms`)), timeoutMs);
+        (timer as unknown as { unref?: () => void }).unref?.();
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 function getScope(scopeKey: string, registry: HookRegistry): LoadedScope {
@@ -121,18 +138,28 @@ export function listLoadedScopes(): Array<{ scope: string; registry: HookRegistr
 export function getLoadedPluginRoutes(scopeKey: string): Array<{
   pluginName: string;
   routes: RouteDefinition[];
+  api: PluginAPI;
+  scope: string;
+  tenantId: string | null;
   /** Route rate-limit rpm (manifest rateLimit.rpm, Item 17). */
   rpm?: number;
 }> {
   const scope = loadedScopes.get(scopeKey);
   if (!scope) return [];
-  const result: Array<{ pluginName: string; routes: RouteDefinition[]; rpm?: number }> = [];
+  const result: Array<{ pluginName: string; routes: RouteDefinition[]; api: PluginAPI; scope: string; tenantId: string | null; rpm?: number }> = [];
   for (const [pluginName, entry] of scope.plugins) {
     if (entry.internal) {
       const routes = entry.internal.getRoutes();
       if (routes.length > 0) {
         const rpm = entry.manifest?.rateLimit?.rpm;
-        result.push({ pluginName, routes, ...(typeof rpm === 'number' && rpm > 0 ? { rpm } : {}) });
+        result.push({
+          pluginName,
+          routes,
+          api: entry.internal.getApi(),
+          scope: scopeKey,
+          tenantId: scopeKey === 'platform' ? null : scopeKey.slice('tenant:'.length),
+          ...(typeof rpm === 'number' && rpm > 0 ? { rpm } : {}),
+        });
       }
     }
   }
@@ -282,6 +309,7 @@ export function resetLoadedPlugins(registry?: HookRegistry): void {
         if (reg.type === 'action') target.removeAction(reg.name, reg.callback, reg.priority);
         else target.removeFilter(reg.name, reg.callback, reg.priority);
       }
+      void entry.internal?.cleanup();
     }
     loadedScopes.delete(scopeKey);
   }
@@ -291,13 +319,18 @@ export function resetLoadedPlugins(registry?: HookRegistry): void {
 export function unloadScope(scopeKey: string): boolean {
   const scope = loadedScopes.get(scopeKey);
   if (!scope) return false;
+  const cleanups: Promise<void>[] = [];
   for (const entry of scope.plugins.values()) {
     for (const reg of entry.registrations) {
       if (reg.type === 'action') scope.registry.removeAction(reg.name, reg.callback, reg.priority);
       else scope.registry.removeFilter(reg.name, reg.callback, reg.priority);
     }
+    if (entry.internal) cleanups.push(entry.internal.cleanup());
   }
   loadedScopes.delete(scopeKey);
+  if (cleanups.length > 0) {
+    pendingScopeCleanups.set(scopeKey, Promise.all(cleanups).then(() => undefined).finally(() => pendingScopeCleanups.delete(scopeKey)));
+  }
   return true;
 }
 
@@ -306,13 +339,14 @@ export function unloadTenant(tenantId: string): boolean {
   return unloadScope(scopeKeyOf(tenantId));
 }
 
-function unloadPlugin(scope: LoadedScope, name: string): boolean {
+async function unloadPlugin(scope: LoadedScope, name: string): Promise<boolean> {
   const entry = scope.plugins.get(name);
   if (!entry) return false;
   for (const reg of entry.registrations) {
     if (reg.type === 'action') scope.registry.removeAction(reg.name, reg.callback, reg.priority);
     else scope.registry.removeFilter(reg.name, reg.callback, reg.priority);
   }
+  await entry.internal?.cleanup();
   scope.plugins.delete(name);
   return true;
 }
@@ -372,6 +406,8 @@ function enabledQuery(tenantId?: string | null): { text: string; params?: unknow
  */
 export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promise<PluginBootstrapResult> {
   const scopeKey = scopeKeyOf(options.tenantId);
+  const pendingCleanup = pendingScopeCleanups.get(scopeKey);
+  if (pendingCleanup) await pendingCleanup;
   const registry =
     options.registry ??
     (options.tenantId ? getHookRegistryStore().tenant(options.tenantId) : getHookRegistry());
@@ -410,7 +446,7 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
 
   // 3) Descarrega quem saiu da lista de habilitados (deste escopo)
   for (const name of [...scope.plugins.keys()]) {
-    if (!enabled.includes(name) && unloadPlugin(scope, name)) {
+    if (!enabled.includes(name) && await unloadPlugin(scope, name)) {
       result.unloaded.push(name);
     }
   }
@@ -420,8 +456,14 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
   let levels: DiscoveredPlugin[][];
   try {
     levels = loader.resolveDependencies(enabledDiscovered);
-  } catch {
-    levels = enabledDiscovered.map((entry) => [entry]); // ordering failed: arbitrary order
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    for (const entry of enabledDiscovered) result.failed.push({ name: entry.manifest.name, error: message });
+    return result;
+  }
+
+  for (const failure of loader.getDependencyFailures()) {
+    result.failed.push(failure);
   }
 
   // Permission policy: configuration allowlist (or the full catalog).
@@ -432,12 +474,20 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
     for (const entry of level) {
       const name = entry.manifest.name;
       if (scope.plugins.has(name)) continue;
+      let registrations: TrackedRegistration[] = [];
+      let internal: PluginApiInternal | undefined;
 
       try {
         const loaded = await loader.loadPlugin(entry.manifest, entry.path);
 
-        // The sandbox validates the manifest against the POLICY (never against itself)
-        const sandbox = new PluginSandbox({ allowedPermissions: [...policy], timeoutMs });
+        // Effective permissions are the intersection of the deployment policy
+        // and the permissions explicitly declared by this plugin.
+        // A missing permissions field is the v1 compatibility form and means
+        // the plugin has not opted into the v2 capability declaration yet.
+        // An explicit empty array remains least-privilege and grants nothing.
+        const declaredPermissions = new Set(entry.manifest.permissions ?? PLUGIN_PERMISSION_DEFAULT);
+        const effectivePermissions = policy.filter((permission) => declaredPermissions.has(permission));
+        const sandbox = new PluginSandbox({ allowedPermissions: effectivePermissions, timeoutMs });
         sandbox.loadPlugin(entry.manifest, loaded.api);
 
         // Contrato do PLUGIN.md: module.exports.register(registry)
@@ -457,12 +507,12 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
           }
         }
 
-        const registrations: TrackedRegistration[] = [];
+        registrations = [];
 
         // Se o core forneceu apiDeps, cria a API completa (hooks + settings + query + routes + ...)
         // Otherwise, only the legacy Hooks API is used (compatibility).
         let apiToPass: unknown;
-        let internal: PluginApiInternal | undefined;
+        internal = undefined;
         if (options.apiDeps) {
           // Merges the core deps with the plugin/runtime-specific ones
           const deps: PluginApiDependencies = {
@@ -485,7 +535,7 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
             cache: options.apiDeps.cache,
             // Backend de jobs do core; ausente → schedule/enqueue retornam false
             jobs: options.apiDeps.jobs,
-            allowedPermissions: [...policy],
+            allowedPermissions: effectivePermissions,
           };
           // Creates the full API using the internal factory
           const { createPluginApi } = await import('./plugin-api.js');
@@ -511,33 +561,29 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
         // so rejections become an isolated failure instead of an unhandled
         // rejection: previously a throwing async register escaped the
         // try/catch and became an unhandled process error.
-        await Promise.race([
+        await awaitWithTimeout(
           Promise.resolve((register as (registry: unknown) => unknown)(apiToPass)),
-          new Promise<never>((_, reject) => {
-            const timer = setTimeout(() => reject(new Error(`register() excedeu ${timeoutMs}ms`)), timeoutMs);
-            (timer as unknown as { unref?: () => void }).unref?.();
-          }),
-        ]);
+          timeoutMs
+        );
 
         if (internal) {
+          const typedApi = apiToPass as PluginAPI;
+
+          // Declarative manifest registrations use the same validation and
+          // permission checks as imperative registrations.
+          for (const fieldType of entry.manifest.fieldTypes ?? []) typedApi.addFieldType(fieldType);
+          for (const block of entry.manifest.blocks ?? []) typedApi.registerBlock(block);
+          for (const pattern of entry.manifest.patterns ?? []) typedApi.registerPattern(pattern);
+          for (const postType of entry.manifest.postTypes ?? []) typedApi.addPostType(postType);
+          for (const taxonomy of entry.manifest.taxonomies ?? []) typedApi.addTaxonomy(taxonomy);
+          if (internal.getFields().length > 0) {
+            await options.apiDeps?.registerContentFields?.(internal.getFields(), name);
+          }
+
           scope.plugins.set(name, { registrations, internal, manifest: entry.manifest });
 
-          // Declarative manifest registration (v2): postTypes/taxonomies go
-          // through the same API validation (permission, slug, conflict) and
-          // the factory persists via the core registerPostTypes/registerTaxonomies.
-          if (entry.manifest.postTypes?.length || entry.manifest.taxonomies?.length) {
-            try {
-              const typedApi = apiToPass as PluginAPI;
-              for (const postType of entry.manifest.postTypes ?? []) {
-                typedApi.addPostType(postType);
-              }
-              for (const taxonomy of entry.manifest.taxonomies ?? []) {
-                typedApi.addTaxonomy(taxonomy);
-              }
-            } catch (e) {
-              console.warn(`[plugins] Failed to register declared post types/taxonomies for ${name}:`, e);
-            }
-          }
+          await options.apiDeps?.registerPostTypes?.(internal.getPostTypes());
+          await options.apiDeps?.registerTaxonomies?.(internal.getTaxonomies());
 
           // Jobs declarados no manifesto (v2): agenda recorrente via api.jobs
           // (same validation/permission/ceiling as the imperative path).
@@ -565,17 +611,20 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
               const core = (await import(coreModuleId)) as {
                 fieldTypeExtensionService: {
                   register: (fieldType: unknown) => Promise<unknown>;
+                  reconcilePlugin?: (pluginName: string, fieldTypes: unknown[]) => Promise<void>;
                   syncToRegistry: () => Promise<void>;
                 };
               };
               const { fieldTypeExtensionService } = core;
-              for (const ft of fieldTypes) {
-                await fieldTypeExtensionService.register(ft as any);
+              if (fieldTypeExtensionService.reconcilePlugin) {
+                await fieldTypeExtensionService.reconcilePlugin(name, fieldTypes as unknown[]);
+              } else {
+                for (const ft of fieldTypes) await fieldTypeExtensionService.register(ft as any);
               }
               // Sync to in-memory registry
               await fieldTypeExtensionService.syncToRegistry();
             } catch (e) {
-              console.warn(`[plugins] Failed to persist field types for ${name}:`, e);
+              throw new Error(`Failed to persist field types for ${name}: ${e instanceof Error ? e.message : String(e)}`);
             }
           }
         } else {
@@ -583,6 +632,12 @@ export async function bootstrapPlugins(options: BootstrapPluginsOptions): Promis
         }
         result.loaded.push(name);
       } catch (error) {
+        if (internal) await internal.cleanup();
+        if (internal) internal.reset();
+        for (const reg of registrations) {
+          if (reg.type === 'action') registry.removeAction(reg.name, reg.callback, reg.priority);
+          else registry.removeFilter(reg.name, reg.callback, reg.priority);
+        }
         // Failure isolation: a broken plugin never blocks the others or the boot
         result.failed.push({ name, error: error instanceof Error ? error.message : String(error) });
       }

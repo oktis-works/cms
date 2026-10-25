@@ -8,7 +8,7 @@
 import { randomUUID } from 'node:crypto';
 import type { HookRegistryLike } from '@oktis-works/plugin-sdk';
 import type { PluginManifest, PluginFieldTypeManifest, PluginPostTypeDeclaration, PluginTaxonomyDeclaration, PluginBlockManifest, PluginPatternManifest, PluginCacheApi, PluginJobsApi, PluginJobHandler, PluginHttpApi, PluginAdminApi, PluginRolesApi, PluginAssetsApi, PluginI18nApi, PluginHealthApi, PluginHealthCheck, PluginMailApi, PluginMailTemplate, PluginContentApi, EnqueuedAsset, EnqueuedStyle, EnqueuedScript, AdminExtensionsState } from '@oktis-works/plugin-sdk';
-import { PERMISSIONS, createPluginAdminApi } from '@oktis-works/plugin-sdk';
+import { ALL_PERMISSIONS, PERMISSIONS, createPluginAdminApi } from '@oktis-works/plugin-sdk';
 import { createHttpApi } from './http.js';
 import { i18nFallbackChain, i18nInterpolate } from './i18n.js';
 import { ContentQueryBuilder } from './content-query.js';
@@ -25,6 +25,8 @@ export interface PluginContext {
 export interface RouteDefinition {
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS';
   path: string;
+  /** Private by default; public routes must opt in explicitly. */
+  public?: boolean;
   handler: (c: any, api: PluginAPI) => Promise<Response> | Response;
   /** Middlewares opcionais (ex.: auth, rate-limit). */
   middleware?: Array<(c: any, next: () => Promise<void>) => Promise<void>>;
@@ -56,6 +58,8 @@ export interface PluginAPI {
 
   /** Registers an HTTP route exposed by the plugin. */
   addRoute(route: RouteDefinition): void;
+  /** Compatibility batch alias for addRoute. */
+  registerRoutes(routes: RouteDefinition[]): void;
 
   /** Registers a custom content field. */
   addContentField(field: {
@@ -171,7 +175,7 @@ export interface PluginApiDependencies {
   /** Registers plugin routes (the core mounts them on the API router). */
   registerRoutes: (routes: RouteDefinition[]) => void;
   /** Registers plugin content fields (the core exposes them via field groups). */
-  registerContentFields: (fields: Array<{ name: string; type: string; label: string; required?: boolean; options?: Record<string, unknown> }>) => void;
+  registerContentFields: (fields: Array<{ name: string; type: string; label: string; required?: boolean; options?: Record<string, unknown> }>, pluginName?: string) => void | Promise<void>;
   /** Registers plugin field types (the core exposes them via the registry). */
   registerFieldTypes: (fieldTypes: PluginFieldTypeManifest[]) => void;
   /** Registers plugin Custom Post Types (the core persists via postTypeRegistry). */
@@ -278,8 +282,24 @@ function createMemoryCacheBackend(): NonNullable<PluginApiDependencies['cache']>
   };
 }
 
+/** Normalizes and validates a plugin route before it enters the registry. */
+export function normalizePluginRoutePath(value: string): string {
+  if (typeof value !== 'string' || !value.startsWith('/') || value.includes('..') || value.includes('://') || value.includes('\\') || value.includes('?') || value.includes('#')) {
+    throw new Error(`Invalid plugin route path: ${value}`);
+  }
+  const segments = value.split('/').filter(Boolean);
+  if (segments.some((segment) => segment === '.' || segment === '..')) {
+    throw new Error(`Invalid plugin route path: ${value}`);
+  }
+  return `/${segments.join('/')}`;
+}
+
 export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; internal: PluginApiInternal } {
-  const { hooks, manifest, settings, eventBus, db, getTenantId, getUserId, getTenantById, getUserById, allowedPermissions, registerFieldTypes, registerPostTypes, registerTaxonomies } = deps;
+  const { hooks, manifest, settings, eventBus, db, getTenantId, getUserId, getTenantById, getUserById, allowedPermissions: configuredPermissions } = deps;
+  // The bootstrap always supplies an explicit effective policy. The fallback
+  // keeps the public factory compatible with older integrations that created
+  // an API directly without a policy object; it is never used by bootstrap.
+  const allowedPermissions = configuredPermissions ?? [...ALL_PERMISSIONS];
 
   // Validates the permission before running a query
   function checkDbPermission(): void {
@@ -299,7 +319,7 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
 
   // ── api.admin (FEAT-098/DECI-027): declarative slots registered at
   // runtime; the /api/v1/plugins/extensions endpoint merges with manifest.admin.
-  const adminApi = createPluginAdminApi(manifest.name);
+  const adminApi = createPluginAdminApi(manifest.name, undefined, () => allowedPermissions.includes(PERMISSIONS.ADMIN_UI));
 
   /** CPT/taxonomy slugs: lowercase, digits, underscore and hyphen (WP style). */
   const SLUG_PATTERN = /^[a-z][a-z0-9_-]*$/;
@@ -336,13 +356,14 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
 
   function auditPlugin(action: string, resourceType: string, changes: Record<string, unknown>): void {
     try {
-      void deps.audit?.record({
+      const result = deps.audit?.record({
         tenantId: getTenantId(),
         action,
         resourceType,
         resourceId: manifest.name,
         changes: { plugin: manifest.name, ...changes },
       });
+      void result?.catch(() => undefined);
     } catch {
       // auditing never blocks the operation
     }
@@ -357,14 +378,17 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
     async set(key: string, value: unknown, options?: { ttlSeconds?: number; tags?: string[] }): Promise<void> {
       requirePermission(PERMISSIONS.CACHE_WRITE);
       const fullKey = cacheKeyFor(key);
+      const tags = options?.tags ?? [];
+      for (const tag of tags) {
+        if (typeof tag !== 'string' || tag.trim().length === 0 || tag.length > 100) {
+          throw new Error('cache tag must be a non-empty string of at most 100 characters');
+        }
+      }
       const ttl = options?.ttlSeconds;
       await cacheBackend.set(fullKey, value, ttl);
       // Tag → keys index (TTL tracking the value; the index expires with it
       // and orphan keys expire through their own value TTL).
-      for (const tag of options?.tags ?? []) {
-        if (typeof tag !== 'string' || tag.trim().length === 0) {
-          throw new Error('cache tag must be a non-empty string');
-        }
+      for (const tag of tags) {
         const indexKey = tagIndexKeyFor(tag);
         const indexed = (await cacheBackend.get<string[]>(indexKey)) ?? [];
         if (!indexed.includes(fullKey)) indexed.push(fullKey);
@@ -429,15 +453,16 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
         throw new Error(`schedule("${jobName}") requires exactly one of: every | cron`);
       }
       // Per-plugin ceiling — only new schedules count (re-scheduling the same name is free)
-      if (!scheduledJobNames.has(jobName)) {
+      const isNewSchedule = !scheduledJobNames.has(jobName);
+      if (isNewSchedule) {
         if (scheduledJobNames.size >= MAX_SCHEDULED_JOBS) {
           throw new Error(`Job schedule limit reached (${MAX_SCHEDULED_JOBS} per plugin)`);
         }
-        scheduledJobNames.add(jobName);
       }
       if (!deps.jobs) return false; // queue unavailable: degradation, never throws
       const scheduled = await deps.jobs.schedule(jobName, hasCron ? { cron: spec.cron } : { every: spec.every }, jobsCtx());
       if (scheduled) {
+        scheduledJobNames.add(jobName);
         auditPlugin('plugin.jobs.schedule', 'job', { jobName, spec: hasCron ? { cron: spec.cron } : { every: spec.every } });
       }
       return scheduled;
@@ -545,17 +570,36 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
     return src;
   }
 
+  function validateIntegrity(integrity: unknown, crossOrigin: unknown): string | undefined {
+    if (crossOrigin !== undefined && crossOrigin !== 'anonymous' && crossOrigin !== 'use-credentials') {
+      throw new Error('Asset crossOrigin must be anonymous or use-credentials');
+    }
+    if (integrity === undefined || integrity === '') return undefined;
+    if (typeof integrity !== 'string' || !/^(?:sha256|sha384|sha512)-[A-Za-z0-9+/]+={0,2}(?:\s+(?:sha256|sha384|sha512)-[A-Za-z0-9+/]+={0,2})*$/.test(integrity)) {
+      throw new Error('Asset integrity must contain valid sha256/sha384/sha512 SRI tokens');
+    }
+    return integrity;
+  }
+
+  function validateAssetSRI(src: string, integrity: string | undefined, crossOrigin: unknown): void {
+    if (integrity && /^https?:\/\//i.test(src) && crossOrigin !== 'anonymous' && crossOrigin !== 'use-credentials') {
+      throw new Error('Cross-origin assets with integrity require crossOrigin');
+    }
+  }
+
   const assetsApi: PluginAssetsApi = {
     enqueueStyle(style) {
       requirePermission(PERMISSIONS.ASSETS_ENQUEUE);
       const src = validateAssetSrc(style?.src);
       if (registeredAssets.some((asset) => asset.src === src)) return;
+      const integrity = validateIntegrity(style?.integrity, style?.crossOrigin);
+      validateAssetSRI(src, integrity, style?.crossOrigin);
       const entry: EnqueuedStyle = {
         kind: 'style',
         src,
         version: typeof style?.version === 'string' && style.version ? style.version : undefined,
         media: typeof style?.media === 'string' && style.media ? style.media : undefined,
-        integrity: typeof style?.integrity === 'string' && style.integrity ? style.integrity : undefined,
+        integrity,
         crossOrigin: typeof style?.crossOrigin === 'string' && style.crossOrigin ? style.crossOrigin : undefined,
         pluginName: manifest.name,
       };
@@ -566,6 +610,8 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
       requirePermission(PERMISSIONS.ASSETS_ENQUEUE);
       const src = validateAssetSrc(script?.src);
       if (registeredAssets.some((asset) => asset.src === src)) return;
+      const integrity = validateIntegrity(script?.integrity, script?.crossOrigin);
+      validateAssetSRI(src, integrity, script?.crossOrigin);
       const strategy =
         script?.strategy === 'defer' || script?.strategy === 'async' ? script.strategy : ('blocking' as const);
       const entry: EnqueuedScript = {
@@ -574,7 +620,7 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
         version: typeof script?.version === 'string' && script.version ? script.version : undefined,
         strategy,
         placement: script?.placement === 'footer' ? 'footer' : ('head' as const),
-        integrity: typeof script?.integrity === 'string' && script.integrity ? script.integrity : undefined,
+        integrity,
         crossOrigin: typeof script?.crossOrigin === 'string' && script.crossOrigin ? script.crossOrigin : undefined,
         pluginName: manifest.name,
       };
@@ -790,6 +836,8 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
     },
 
     addRoute(route: RouteDefinition): void {
+      requirePermission(PERMISSIONS.ROUTES_REGISTER);
+      const normalizedPath = normalizePluginRoutePath(route.path);
       if (route.requiredPermissions) {
         for (const perm of route.requiredPermissions) {
           if (!allowedPermissions.includes(perm)) {
@@ -797,14 +845,35 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
           }
         }
       }
-      registeredRoutes.push(route);
+      if (registeredRoutes.some((registered) => registered.method === route.method && registered.path === normalizedPath)) {
+        throw new Error(`Plugin route already registered: ${route.method} ${normalizedPath}`);
+      }
+      registeredRoutes.push({ ...route, path: normalizedPath });
       auditPlugin('plugin.route.register', 'route', {
         method: route.method,
         path: route.path,
       });
     },
 
+    registerRoutes(routes: RouteDefinition[]): void {
+      if (!Array.isArray(routes)) throw new Error('registerRoutes expects an array');
+      for (const route of routes) api.addRoute(route);
+    },
+
     addContentField(field: { name: string; type: string; label: string; required?: boolean; options?: Record<string, unknown> }): void {
+      requirePermission(PERMISSIONS.FIELD_TYPES_REGISTER);
+      if (!field || typeof field.name !== 'string' || !/^[a-z][a-z0-9_-]*$/i.test(field.name)) {
+        throw new Error('Content field name must contain only letters, numbers, underscores, and hyphens');
+      }
+      if (typeof field.type !== 'string' || field.type.trim().length === 0) {
+        throw new Error('Content field type is required');
+      }
+      if (typeof field.label !== 'string' || field.label.trim().length === 0) {
+        throw new Error('Content field label is required');
+      }
+      if (registeredFields.some((registered) => registered.name === field.name)) {
+        throw new Error(`Content field "${field.name}" already registered`);
+      }
       registeredFields.push(field);
     },
 
@@ -823,7 +892,6 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
         isPluginType: true as const,
       };
       registeredFieldTypes.push(withPluginName);
-      registerFieldTypes(registeredFieldTypes);
     },
 
     addPostType(declaration: PluginPostTypeDeclaration): void {
@@ -845,7 +913,6 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
       }
       const withPluginName = { ...declaration, pluginName: manifest.name };
       registeredPostTypes.push(withPluginName);
-      registerPostTypes?.([...registeredPostTypes]);
     },
 
     addTaxonomy(declaration: PluginTaxonomyDeclaration): void {
@@ -870,7 +937,6 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
       }
       const withPluginName = { ...declaration, pluginName: manifest.name };
       registeredTaxonomies.push(withPluginName);
-      registerTaxonomies?.([...registeredTaxonomies]);
     },
 
     registerBlock(block: PluginBlockManifest): void {
@@ -885,6 +951,9 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
       }
       if (!block.adminComponentPath || typeof block.adminComponentPath !== 'string') {
         throw new Error('Block "adminComponentPath" is required');
+      }
+      if (block.type.includes('/') && block.type.split('/')[0] !== manifest.name) {
+        throw new Error(`Block type "${block.type}" is owned by another plugin`);
       }
       const existing = registeredBlocks.find((registered) => registered.type === block.type);
       if (existing) {
@@ -905,6 +974,9 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
       }
       if (!pattern.content || typeof pattern.content !== 'string') {
         throw new Error('Pattern "content" is required');
+      }
+      if (pattern.name.includes('/') && pattern.name.split('/')[0] !== manifest.name) {
+        throw new Error(`Pattern name "${pattern.name}" is owned by another plugin`);
       }
       const existing = registeredPatterns.find((registered) => registered.name === pattern.name);
       if (existing) {
@@ -1007,6 +1079,7 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
     api,
     internal: {
       getRoutes: () => registeredRoutes,
+      getApi: () => api,
       getFields: () => registeredFields,
       getFieldTypes: () => registeredFieldTypes,
       getPostTypes: () => registeredPostTypes,
@@ -1017,6 +1090,38 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
       getPatterns: () => registeredPatterns,
       getEnqueuedAssets: () => registeredAssets,
       getHealthChecks: () => [...healthChecks.entries()].map(([name, check]) => ({ name, check })),
+      cleanup: async () => {
+        if (deps.jobs) {
+          for (const jobName of scheduledJobNames) {
+            await deps.jobs.cancel(jobName, jobsCtx()).catch(() => undefined);
+          }
+        }
+        scheduledJobNames.clear();
+      },
+      reset: () => {
+        registeredRoutes.length = 0;
+        registeredFields.length = 0;
+        registeredFieldTypes.length = 0;
+        registeredPostTypes.length = 0;
+        registeredTaxonomies.length = 0;
+        registeredBlocks.length = 0;
+        registeredPatterns.length = 0;
+        registeredAssets.length = 0;
+        jobHandlers.clear();
+        scheduledJobNames.clear();
+        healthChecks.clear();
+        i18nBundles.clear();
+        mailTemplates.clear();
+        adminApi.state.menuPages = [];
+        adminApi.state.submenuPages = [];
+        adminApi.state.dashboardWidgets = [];
+        adminApi.state.metaBoxes = [];
+        adminApi.state.notices = [];
+        adminApi.state.columns = {};
+        adminApi.state.columnRenderers = {};
+        adminApi.state.actionLinks = [];
+        adminApi.state.editors = [];
+      },
     },
   };
 }
@@ -1024,6 +1129,7 @@ export function createPluginApi(deps: PluginApiDependencies): { api: PluginAPI; 
 /** Type for the core to access internally registered routes/fields. */
 export interface PluginApiInternal {
   getRoutes: () => RouteDefinition[];
+  getApi: () => PluginAPI;
   getFields: () => Array<{ name: string; type: string; label: string; required?: boolean; options?: Record<string, unknown> }>;
   getFieldTypes: () => Array<PluginFieldTypeManifest & { pluginName: string; isPluginType: true }>;
   getPostTypes: () => Array<PluginPostTypeDeclaration & { pluginName: string }>;
@@ -1040,4 +1146,6 @@ export interface PluginApiInternal {
   getEnqueuedAssets: () => EnqueuedAsset[];
   /** Health checks registrados em runtime via api.health (Item 14). */
   getHealthChecks: () => Array<{ name: string; check: PluginHealthCheck }>;
+  cleanup: () => Promise<void>;
+  reset: () => void;
 }

@@ -52,45 +52,62 @@ export interface PluginAdminApi {
   addEditor(editor: AdminEditorRegistration): void;
 }
 
-export function createPluginAdminApi(pluginId: string, state: AdminExtensionsState = emptyState()): PluginAdminApi & { state: AdminExtensionsState } {
+export function createPluginAdminApi(
+  pluginId: string,
+  state: AdminExtensionsState = emptyState(),
+  canUseAdminUi: () => boolean = () => true,
+): PluginAdminApi & { state: AdminExtensionsState } {
+  const requireAdminPermission = (): void => {
+    if (!canUseAdminUi()) throw new Error(`[${pluginId}] Plugin permission denied: admin:ui`);
+  };
   const api: PluginAdminApi & { state: AdminExtensionsState } = {
     state,
     addMenuPage(page) {
+      requireAdminPermission();
       if (!page.capability || page.capability.length === 0) {
         throw new Error(`[${pluginId}] addMenuPage requires an explicit capability`);
       }
       state.menuPages.push(page);
     },
     addSubmenuPage(page) {
+      requireAdminPermission();
       if (!page.capability || page.capability.length === 0) {
         throw new Error(`[${pluginId}] addSubmenuPage requires an explicit capability`);
       }
       state.submenuPages.push(page);
     },
     addDashboardWidget(widget) {
+      requireAdminPermission();
       state.dashboardWidgets.push(widget);
     },
     addMetaBox(box) {
+      requireAdminPermission();
       state.metaBoxes.push(box);
     },
     addNotice(notice) {
+      requireAdminPermission();
       state.notices.push({ ...notice, id: notice.id ?? `${pluginId}:${Date.now().toString(36)}:${state.notices.length}` });
     },
     removeNotice(noticeId) {
+      requireAdminPermission();
       state.notices = state.notices.filter((notice) => notice.id !== noticeId);
     },
     manageColumns(contentType, column) {
+      requireAdminPermission();
       const list = state.columns[contentType] ?? [];
       list.push(column);
       state.columns[contentType] = list;
     },
     renderColumn(contentType, columnKey, componentId) {
+      requireAdminPermission();
       state.columnRenderers[contentType] = { ...(state.columnRenderers[contentType] ?? {}), [columnKey]: componentId };
     },
     addActionLinks(links) {
+      requireAdminPermission();
       state.actionLinks.push(...links);
     },
     addEditor(editor) {
+      requireAdminPermission();
       if (!editor.id || !editor.componentId) {
         throw new Error(`[${pluginId}] addEditor requires id and componentId`);
       }

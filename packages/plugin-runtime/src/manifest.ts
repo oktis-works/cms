@@ -36,6 +36,12 @@ function isString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
+function isSafeComponentPath(value: unknown): boolean {
+  if (!isString(value)) return false;
+  const path = value.trim();
+  return !path.includes('..') && !path.includes('://') && !path.startsWith('/') && !path.startsWith('data:');
+}
+
 /**
  * Valida os campos do schema v2 (tudo opcional — um manifesto v1 continua
  * valid). Returns the found issues; empty = valid.
@@ -56,22 +62,60 @@ export function validateManifestV2(merged: Record<string, unknown>): string[] {
     }
   }
 
+  const declaredPermissions = new Set(Array.isArray(permissions) ? permissions.filter(isString) : []);
+
   const blocks = merged['blocks'];
   if (Array.isArray(blocks)) {
+    const blockTypes = new Set<string>();
     for (const block of blocks) {
-      if (!isRecord(block) || !isString(block['type']) || !isString(block['label']) || !isString(block['icon']) || !isString(block['adminComponentPath'])) {
+      if (!isRecord(block) || !isString(block['type']) || !isString(block['label']) || !isString(block['icon']) || !isSafeComponentPath(block['adminComponentPath'])) {
         issues.push('block missing valid type/label/icon/adminComponentPath');
+      } else if (blockTypes.has(block['type'] as string)) {
+        issues.push(`duplicate block type "${block['type']}"`);
+      } else {
+        blockTypes.add(block['type'] as string);
+      }
+      if (isRecord(block) && block['rendererPath'] !== undefined && !isSafeComponentPath(block['rendererPath'])) {
+        issues.push('block.rendererPath must be a safe plugin renderer path');
       }
     }
+    if (blocks.length > 0 && !declaredPermissions.has('blocks:register')) issues.push('blocks require blocks:register permission');
   }
 
   const patterns = merged['patterns'];
   if (Array.isArray(patterns)) {
+    const patternNames = new Set<string>();
     for (const pattern of patterns) {
       if (!isRecord(pattern) || !isString(pattern['name']) || !isString(pattern['label']) || !isString(pattern['content']) || (pattern['content'] as string).length === 0) {
         issues.push('pattern missing valid name/label/content');
+      } else if (patternNames.has(pattern['name'] as string)) {
+        issues.push(`duplicate pattern name "${pattern['name']}"`);
+      } else {
+        patternNames.add(pattern['name'] as string);
+      }
+      if (isRecord(pattern) && pattern['previewPath'] !== undefined && !isSafeComponentPath(pattern['previewPath'])) {
+        issues.push('pattern.previewPath must be a safe plugin path');
       }
     }
+    if (patterns.length > 0 && !declaredPermissions.has('patterns:register')) issues.push('patterns require patterns:register permission');
+  }
+
+  const fieldTypes = merged['fieldTypes'];
+  if (Array.isArray(fieldTypes)) {
+    const fieldTypeNames = new Set<string>();
+    for (const fieldType of fieldTypes) {
+      if (!isRecord(fieldType) || !isString(fieldType['type']) || !isString(fieldType['label']) || !isString(fieldType['category']) || !isString(fieldType['icon']) || !isSafeComponentPath(fieldType['adminComponentPath'])) {
+        issues.push('fieldType missing valid type/label/category/icon/adminComponentPath');
+      } else if (fieldTypeNames.has(fieldType['type'] as string)) {
+        issues.push(`duplicate field type "${fieldType['type']}"`);
+      } else {
+        fieldTypeNames.add(fieldType['type'] as string);
+      }
+      if (isRecord(fieldType) && fieldType['adminRendererPath'] !== undefined && !isSafeComponentPath(fieldType['adminRendererPath'])) {
+        issues.push('fieldType.adminRendererPath must be a safe plugin component path');
+      }
+    }
+    if (fieldTypes.length > 0 && !declaredPermissions.has('field-types:register')) issues.push('fieldTypes require field-types:register permission');
   }
 
   const locales = merged['locales'];
@@ -173,6 +217,19 @@ export function validateManifestV2(merged: Record<string, unknown>): string[] {
       checkList('columnRenderers', ['contentType', 'key', 'componentId']);
       checkList('actionLinks', ['label', 'url']);
       checkList('editors', ['id', 'componentId', 'mode']);
+
+      if (Object.values(admin).some((value) => Array.isArray(value) && value.length > 0) && !declaredPermissions.has('admin:ui')) {
+        issues.push('admin extensions require admin:ui permission');
+      }
+
+      for (const key of ['dashboardWidgets', 'metaBoxes', 'columnRenderers', 'editors'] as const) {
+        const list = admin[key];
+        if (Array.isArray(list)) {
+          list.forEach((entry, index) => {
+            if (isRecord(entry) && !isSafeComponentPath(entry['componentId'])) issues.push(`admin.${key}[${index}].componentId must be a safe component path`);
+          });
+        }
+      }
 
       const notices = admin['notices'];
       if (notices !== undefined) {

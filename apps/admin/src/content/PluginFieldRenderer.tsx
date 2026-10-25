@@ -3,6 +3,7 @@
 
 import { Show, Switch, Match, createSignal, onMount } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
+import { loadPluginComponent } from '../ext/slots';
 
 interface PluginFieldRendererProps {
   field: {
@@ -36,8 +37,8 @@ export function PluginFieldRenderer(props: PluginFieldRendererProps) {
 
     for (const path of pathsToTry) {
       try {
-        const module = await import(path);
-        const Comp = module.default || module.PluginFieldRenderer || module.PluginFieldConfig || Object.values(module)[0];
+        const module = await loadPluginComponent(path);
+        const Comp = module['default'] || module['PluginFieldRenderer'] || module['PluginFieldConfig'];
         if (Comp) {
           setComponent(Comp);
           setLoading(false);
@@ -84,7 +85,7 @@ export function PluginFieldRenderer(props: PluginFieldRendererProps) {
             value={props.value}
             onChange={handleValueChange}
             disabled={props.disabled}
-            _t={props._t}
+        t={props._t}
           />
         </div>
       </Match>
@@ -96,7 +97,7 @@ export function PluginFieldRenderer(props: PluginFieldRendererProps) {
             value={props.value}
             onChange={handleValueChange}
             disabled={props.disabled}
-            _t={props._t}
+            t={props._t}
           />
         </div>
       </Match>
@@ -110,7 +111,7 @@ function FallbackRenderer(props: {
   value: unknown;
   onChange: (value: unknown) => void;
   disabled?: boolean;
-  _t: (key: string) => string;
+  t: (key: string) => string;
 }) {
   const { field, value, onChange, disabled } = props;
 
@@ -139,7 +140,14 @@ function FallbackRenderer(props: {
         type="number"
         class="input"
         value={value as string | number}
-        onInput={(e) => onChange(Number(e.currentTarget.value) || 0)}
+        onInput={(e) => {
+          const raw = e.currentTarget.value;
+          if (raw === '') onChange('');
+          else {
+            const parsed = Number(raw);
+            onChange(Number.isFinite(parsed) ? parsed : raw);
+          }
+        }}
         placeholder={placeholder}
         disabled={disabled}
       />

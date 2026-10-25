@@ -8,7 +8,7 @@
 
 import { Hono } from 'hono'
 import { pluginService, syncEnabledPlugins, ensureTenantPluginsLoaded, getPluginsRuntimeState, getPluginAdminExtensions } from '@oktis-works/core'
-import { authMiddleware, requirePermission } from '../../middleware/auth.js'
+import { authMiddleware, requirePermission, userHasPermission } from '../../middleware/auth.js'
 import { runWithTenantTransaction } from '@oktis-works/database'
 import type { PluginManifest } from '@oktis-works/types'
 import { emptyAdminExtensionsState, isPluginActive, manifestAdminAsState, mergePluginAdminState } from './extensions.js'
@@ -48,19 +48,27 @@ plugins.get('/runtime', requirePermission('read', 'plugin'), async (c) => {
 // (FEAT-098 / DECI-027): manifest.admin (ativo para o tenant) + api.admin.*
 // registrado em runtime (escopo platform + tenant). O admin renderiza os slots
 // a partir deste payload; capability gating de menu acontece no cliente.
-plugins.get('/extensions', requirePermission('read', 'plugin'), async (c) => {
+// Extension consumption is safe read-only data for editor/dashboard screens;
+// plugin administration remains protected by the separate plugin permission.
+plugins.get('/extensions', requirePermission('read', 'content'), async (c) => {
   try {
     const userRoles = c.get('userRoles')
     const sessionTenant = c.get('tenantId')
     const tenantId = userRoles.includes('SUPER_ADMIN') ? c.req.query('tenantId') ?? sessionTenant : sessionTenant
 
     const state = emptyAdminExtensionsState()
+    const activePlugins = new Set<string>()
 
     const rows = await pluginService.list(tenantId)
     for (const row of rows) {
       if (!isPluginActive(row.status)) continue
+      activePlugins.add(row.name)
       const adminDecl = (row.manifest as PluginManifest | undefined | null)?.admin
-      if (adminDecl) mergePluginAdminState(state, manifestAdminAsState(adminDecl), row.name)
+      const manifestRecord = row.manifest as unknown as Record<string, unknown> | undefined
+      const permissions = Array.isArray(manifestRecord?.['permissions'])
+        ? manifestRecord['permissions'] as unknown[]
+        : [];
+      if (adminDecl && permissions.includes('admin:ui')) mergePluginAdminState(state, manifestAdminAsState(adminDecl), row.name)
     }
 
     // Runtime (api.admin.*): best-effort — garante o escopo do tenant carregado;
@@ -73,13 +81,19 @@ plugins.get('/extensions', requirePermission('read', 'plugin'), async (c) => {
       }
     }
     for (const entry of await getPluginAdminExtensions(null)) {
-      mergePluginAdminState(state, entry.state, entry.pluginName)
+      if (activePlugins.has(entry.pluginName)) mergePluginAdminState(state, entry.state, entry.pluginName)
     }
     if (tenantId) {
       for (const entry of await getPluginAdminExtensions(tenantId)) {
-        mergePluginAdminState(state, entry.state, entry.pluginName)
+        if (activePlugins.has(entry.pluginName)) mergePluginAdminState(state, entry.state, entry.pluginName)
       }
     }
+
+    state.menuPages = state.menuPages.filter((page) => userHasPermission(userRoles, page.capability ?? ''))
+    const visibleMenus = new Set(state.menuPages.map((page) => page.slug))
+    state.submenuPages = state.submenuPages.filter((page) =>
+      visibleMenus.has(page.parentSlug) && userHasPermission(userRoles, page.capability ?? '')
+    )
 
     return c.json(state)
   } catch (error) {

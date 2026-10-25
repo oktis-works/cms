@@ -23,6 +23,7 @@ import { PERMISSIONS, type PluginHttpApi, type PluginHttpOptions, type PluginHtt
 export const DEFAULT_TIMEOUT_MS = 10_000;
 export const MAX_TIMEOUT_MS = 60_000;
 export const DEFAULT_MAX_BYTES = 5 * 1024 * 1024;
+export const MAX_BODY_BYTES = 50 * 1024 * 1024;
 export const MAX_REDIRECTS = 3;
 
 export interface ResolvedAddress {
@@ -324,8 +325,8 @@ export function createHttpApi(config: HttpApiConfig): PluginHttpApi {
 
     const method = (options.method ?? 'GET').toUpperCase();
     const timeoutMs = Math.min(Math.max(options.timeoutMs ?? DEFAULT_TIMEOUT_MS, 1), MAX_TIMEOUT_MS);
-    const maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES;
-    const retries = options.retries ?? (method === 'GET' || method === 'HEAD' ? 2 : 0);
+    const maxBytes = Math.min(Math.max(options.maxBytes ?? DEFAULT_MAX_BYTES, 1), MAX_BODY_BYTES);
+    const retries = Math.min(Math.max(Math.floor(options.retries ?? (method === 'GET' || method === 'HEAD' ? 2 : 0)), 0), 3);
     const attemptConfig: AttemptConfig = {
       method,
       headers: options.headers,

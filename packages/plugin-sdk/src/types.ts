@@ -111,6 +111,7 @@ export interface PluginContext {
 export interface PluginAPI {
   registerHook(type: HookType, handler: PluginHookHandler): void;
   addRoute(route: RouteDefinition): void;
+  registerRoutes(routes: RouteDefinition[]): void;
   addContentField(field: ContentField): void;
   addFieldType(definition: PluginFieldTypeManifest): void;
   addPostType(declaration: PluginPostTypeDeclaration): void;
@@ -380,9 +381,13 @@ export interface PluginContentApi {
 }
 
 export interface RouteDefinition {
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS';
   path: string;
-  handler: (context: PluginContext, request: unknown) => Promise<unknown>;
+  /** Private by default; public routes must opt in explicitly. */
+  public?: boolean;
+  /** Permission strings use the `action:resource` format. */
+  requiredPermissions?: string[];
+  handler: (context: unknown, api: PluginAPI) => Promise<unknown> | unknown;
 }
 
 export interface TenantInfo {

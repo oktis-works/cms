@@ -1,0 +1,30 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { PageHeader } from '../../components/shared/PageHeader';
+import { PluginPageHost } from '../../ext/PluginPageHost';
+
+const slug = String(Astro.params.slug ?? '');
+const pluginSlug = slug.split('/')[0] ?? '';
+const pageTitle = slug.split('/').at(-1) || 'Plugin';
+---
+
+<DashboardLayout title={pageTitle}>
+  <PageHeader
+    title={pageTitle}
+    description={`Plugin extension page for ${pluginSlug}`}
+  />
+  <div class="plugin-page" data-plugin={pluginSlug} data-plugin-page={slug}>
+    <div class="card plugin-page__container">
+      <div class="plugin-page__mount" data-plugin={pluginSlug}>
+        <PluginPageHost client:load slug={slug} />
+      </div>
+    </div>
+  </div>
+</DashboardLayout>
+
+<style>
+  .plugin-page__mount {
+    margin-top: 1rem;
+    min-height: 8rem;
+  }
+</style>

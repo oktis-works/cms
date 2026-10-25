@@ -5,6 +5,9 @@ import { For, Show, Switch, Match, createSignal, onMount, type JSX } from 'solid
 import { Dynamic } from 'solid-js/web';
 import type { AdminExtensionsState } from '@oktis-works/plugin-sdk';
 
+const PLUGIN_ROOT = '../../../plugins';
+const pluginModules = import.meta.glob('../../../plugins/**/*.{ts,tsx,js,jsx}', { eager: false }) as Record<string, () => Promise<Record<string, unknown>>>;
+
 /**
  * Resolve o componentId declarado num caminho de import dinâmico (alias Vite
  * `@/plugins/` aponta para a raiz dos plugins; o componente vive em
@@ -15,18 +18,30 @@ import type { AdminExtensionsState } from '@oktis-works/plugin-sdk';
  *   - `plugin` explícito tem prioridade sobre o prefixo do componentId.
  */
 export function resolvePluginComponentPath(componentId: string, plugin?: string): string {
-  if (componentId.startsWith('@/')) return componentId;
+  if (!componentId || componentId.includes('..') || componentId.includes('://') || componentId.startsWith('/')) {
+    throw new Error(`Invalid plugin component reference: ${componentId}`);
+  }
+  if (componentId.startsWith('@/plugins/')) return `${PLUGIN_ROOT}/${componentId.slice('@/plugins/'.length)}`;
   const separator = componentId.indexOf(':');
   if (separator === -1) {
     const owner = plugin ?? '';
+    if (!/^[a-z0-9][a-z0-9._-]*$/i.test(owner)) throw new Error(`Invalid plugin name: ${owner}`);
     const relative = componentId.replace(/^\/+/, '');
-    return owner ? `@/plugins/${owner}/${relative}` : componentId;
+    return owner ? `${PLUGIN_ROOT}/${owner}/${relative}` : componentId;
   }
   const owner = plugin ?? componentId.slice(0, separator);
+  if (!/^[a-z0-9][a-z0-9._-]*$/i.test(owner)) throw new Error(`Invalid plugin name: ${owner}`);
   const rest = componentId.slice(separator + 1);
-  if (rest.startsWith('@/')) return rest;
-  if (rest.includes('/')) return `@/plugins/${owner}/${rest.replace(/^\/+/, '')}`;
-  return `@/plugins/${owner}/admin/components/${rest}.tsx`;
+  if (rest.startsWith('@/plugins/')) return `${PLUGIN_ROOT}/${rest.slice('@/plugins/'.length)}`;
+  if (rest.includes('/')) return `${PLUGIN_ROOT}/${owner}/${rest.replace(/^\/+/, '')}`;
+  return `${PLUGIN_ROOT}/${owner}/admin/components/${rest}.tsx`;
+}
+
+export async function loadPluginComponent(componentId: string, plugin?: string): Promise<Record<string, unknown>> {
+  const path = resolvePluginComponentPath(componentId, plugin);
+  const loader = pluginModules[path];
+  if (!loader) throw new Error(`Plugin component is not included in the admin build: ${componentId}`);
+  return loader();
 }
 
 /**
@@ -45,9 +60,8 @@ export function PluginComponentHost(props: {
 
   onMount(async () => {
     try {
-      const path = resolvePluginComponentPath(props.componentId, props.plugin);
-      const module = (await import(/* @vite-ignore */ path)) as Record<string, unknown>;
-      const candidate = (module['default'] ?? Object.values(module).find((value) => typeof value === 'function')) as
+      const module = await loadPluginComponent(props.componentId, props.plugin);
+      const candidate = module['default'] as
         | ((p: Record<string, unknown>) => JSX.Element)
         | undefined;
       if (!candidate) throw new Error('componente default ausente no módulo');

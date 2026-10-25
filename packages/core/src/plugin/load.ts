@@ -33,7 +33,7 @@ import { auditService } from '../observability/audit.js';
 import { getCache } from '../cache/index.js';
 import { queueProducer } from '../queue/producer.js';
 import { getCurrentTenantIdSync, getCurrentUserIdSync, getCurrentRequestIdSync } from '../tenant/context.js';
-import type { RouteDefinition, PluginBootstrapResult, PluginApiDependencies, BootstrapPluginsOptions } from '@oktis-works/plugin-runtime';
+import type { RouteDefinition, PluginAPI, PluginBootstrapResult, PluginApiDependencies, BootstrapPluginsOptions } from '@oktis-works/plugin-runtime';
 import type { AdminExtensionsState, PluginBlockManifest, PluginPatternManifest } from '@oktis-works/types';
 import type { EnqueuedAsset, PluginHealthCheck } from '@oktis-works/plugin-sdk';
 
@@ -212,6 +212,9 @@ export interface PluginsRuntimeState {
 export interface PluginRouteEntry {
   pluginName: string;
   routes: RouteDefinition[];
+  api: PluginAPI;
+  scope: string;
+  tenantId: string | null;
   /** rpm do rate limit por plugin (manifest rateLimit.rpm, Item 17). */
   rpm?: number;
 }
@@ -219,14 +222,26 @@ export interface PluginRouteEntry {
 const pluginRoutesRegistry = new Map<string, PluginRouteEntry>();
 
 /** Registra rotas de um plugin (chamado durante bootstrap). */
-export function registerPluginRoutes(pluginName: string, routes: RouteDefinition[], rpm?: number): void {
+export function registerPluginRoutes(
+  pluginName: string,
+  routes: RouteDefinition[],
+  api: PluginAPI,
+  scope: string,
+  tenantId: string | null,
+  rpm?: number
+): void {
   if (routes.length === 0) return;
-  pluginRoutesRegistry.set(pluginName, { pluginName, routes, ...(rpm ? { rpm } : {}) });
+  pluginRoutesRegistry.set(`${scope}:${pluginName}`, { pluginName, routes, api, scope, tenantId, ...(rpm ? { rpm } : {}) });
 }
 
 /** Remove rotas de um plugin (quando desativado/desinstalado). */
-export function unregisterPluginRoutes(pluginName: string): boolean {
-  return pluginRoutesRegistry.delete(pluginName);
+export function unregisterPluginRoutes(pluginName: string, scope?: string): boolean {
+  if (scope) return pluginRoutesRegistry.delete(`${scope}:${pluginName}`);
+  let removed = false;
+  for (const key of [...pluginRoutesRegistry.keys()]) {
+    if (key.endsWith(`:${pluginName}`)) removed = pluginRoutesRegistry.delete(key) || removed;
+  }
+  return removed;
 }
 
 /** Gets every route registered for mounting on the API router. */
@@ -313,7 +328,7 @@ function createApiDeps(tenantId: string | null): Partial<PluginApiDependencies> 
       // itself (getLoadedPluginRoutes) — this point only logs.
       console.debug(`[PluginAPI] ${routes.length} route(s) registered — collected at bootstrap`);
     },
-    registerContentFields: async (fields) => {
+    registerContentFields: async (fields, pluginName) => {
       // Explicit guard: with noUncheckedIndexedAccess, fields[0] is
       // T | undefined even with the length check above — checked
       // destructuring leaves the narrowing to TS with the same semantics.
@@ -321,21 +336,26 @@ function createApiDeps(tenantId: string | null): Partial<PluginApiDependencies> 
       if (!firstField) return;
       try {
         // Cria/atualiza field group do plugin
-        const groupKey = `plugin_${firstField.name.split('_')[0]}_fields`; // prefixo baseado no primeiro campo
+        const owner = pluginName ?? firstField.name.split('_')[0] ?? 'plugin';
+        const scope = tenantId ?? 'platform';
+        const safeOwner = owner.replace(/[^a-zA-Z0-9_-]/g, '_');
+        const safeScope = scope.replace(/[^a-zA-Z0-9_-]/g, '_');
+        const groupKey = `plugin_${safeOwner}_${safeScope}_fields`;
         const existing = await fieldGroupService.getByKey(groupKey);
         const fieldInputs = fields.map((f, idx) => ({
           type: f.type,
           name: f.name,
-          key: f.name,
+          key: `${groupKey}_${f.name}`,
           label: f.label,
           required: f.required ?? false,
           config: f.options ?? {},
           sortOrder: idx,
         }));
         if (existing) {
-          await fieldGroupService.update(existing.id, { fields: fieldInputs });
+          await fieldGroupService.update(existing.id, { fields: fieldInputs, metadata: { pluginName: owner, tenantId: scope } });
         } else {
           await fieldGroupService.create({
+            tenantId,
             title: `Campos do Plugin`,
             key: groupKey,
             locationRules: [],
@@ -343,11 +363,13 @@ function createApiDeps(tenantId: string | null): Partial<PluginApiDependencies> 
             displayStyle: 'standard',
             active: true,
             fields: fieldInputs,
+            metadata: { pluginName: owner, tenantId: scope },
           });
         }
         console.debug(`[PluginAPI] ${fields.length} content field(s) registered in field group "${groupKey}"`);
       } catch (error) {
         console.error('[PluginAPI] Failed to register content fields:', error);
+        throw error;
       }
     },
     registerFieldTypes: async (fieldTypes) => {
@@ -567,13 +589,16 @@ async function syncScope(tenantId: string | null, force: boolean): Promise<Plugi
       // Coleta rotas registradas pelos plugins neste escopo
       const scopeKey = key; // 'platform' ou 'tenant:<id>'
       const pluginRoutes = await getLoadedPluginRoutes(scopeKey);
-      for (const { pluginName, routes, rpm } of pluginRoutes) {
-        registerPluginRoutes(pluginName, routes, rpm);
+      for (const { pluginName, routes, api, scope, tenantId, rpm } of pluginRoutes) {
+        registerPluginRoutes(pluginName, routes, api, scope, tenantId, rpm);
       }
 
       // Remove rotas de plugins que foram descarregados (unloaded)
       for (const pluginName of result.unloaded) {
-        unregisterPluginRoutes(pluginName);
+        unregisterPluginRoutes(pluginName, key);
+        await fieldGroupService.removePluginFields(pluginName, tenantId).catch((error) => {
+          console.warn(`[plugins] failed to remove content fields for ${pluginName}:`, error);
+        });
       }
 
       const previousErrors = states.get(key)?.errors ?? new Map<string, string>();

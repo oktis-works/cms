@@ -142,29 +142,36 @@ Package the plugin directory as an npm package with the keyword
 
 ## Extending the API — Custom Routes
 
-Plugins can register their own HTTP endpoints under `/api/v1/...`.  
-The API passes a `registerRoutes` function to the plugin's `register` callback.
+### Runtime trust model
+
+The current runtime applies capability checks, path validation, request limits,
+and callback timeouts, but it loads plugin modules in the application process.
+Plugins must therefore be treated as trusted server code. The runtime guard is
+not a process or filesystem sandbox; deploy untrusted extensions in a separate
+worker or service boundary.
+
+Plugins can register their own HTTP endpoints under `/api/v1/plugins/<plugin>/...`.
+Routes are private by default and require the `routes:register` permission.
 
 ```js
 module.exports.register = function register(api) {
-  // api.registerRoutes receives an array of RouteDefinition objects
+  // registerRoutes is the compatibility batch alias for addRoute.
   api.registerRoutes([
     {
       method: 'GET',
       path: '/meu-plugin/ping',
-      handler: async (context, request) => {
-        // context.api.query() → SQL seguro (precisa permissão db:query no manifest)
-        // context.api.emit() → dispara eventos internos
-        // request → body/query/params do Hono
+      handler: async (context, api) => {
+        // context is the Hono request context and api is the plugin API.
+        // Return a Response or a JSON-serializable object.
         return { ok: true, message: 'pong' };
       },
     },
     {
       method: 'POST',
       path: '/meu-plugin/acao',
-      handler: async (context, request) => {
-        const body = await request.json(); // Hono request
-        // faça algo...
+      requiredPermissions: ['content:write'],
+      handler: async (context, api) => {
+        const body = await context.req.json();
         return { success: true };
       },
     },
@@ -176,7 +183,7 @@ module.exports.register = function register(api) {
 
 | Campo | Tipo | Obrigatório? |
 |-------|------|--------------|
-| `method` | `'GET' \| 'POST' \| 'PUT' \| 'DELETE' \| 'PATCH'` | Sim |
+| `method` | `'GET' \| 'POST' \| 'PUT' \| 'DELETE' \| 'PATCH' \| 'OPTIONS'` | Yes |
 | `path` | `string` (ex: `/meu-plugin/ping`) | Sim |
 | `handler` | `async (context, request) => Promise<unknown>` | Sim |
 

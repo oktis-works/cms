@@ -34,8 +34,10 @@ export function emptyAdminExtensionsState(): AdminExtensionsState {
 
 /** `plugin:Component` or full paths (`@/...`, `.../x.tsx`) stay untouched. */
 function componentIdFor(slug: string, componentId: string): string {
-  if (componentId.startsWith('@') || componentId.includes('/')) return componentId
-  return componentId.includes(':') ? componentId : `${slug}:${componentId}`
+  if (componentId.startsWith('@')) return componentId
+  if (componentId.includes(':')) return componentId
+  if (componentId.startsWith(`${slug}/`)) return `${slug}:${componentId.slice(slug.length + 1)}`
+  return `${slug}:${componentId}`
 }
 
 function idFor(slug: string, id: string): string {
@@ -131,7 +133,7 @@ export function mergePluginAdminState(target: AdminExtensionsState, source: Admi
     if (!page?.capability) continue
     const prefixed = menuSlugFor(slug, page.slug)
     if (!target.menuPages.some((existing) => existing.slug === prefixed)) {
-      target.menuPages.push({ ...page, slug: prefixed })
+      target.menuPages.push({ ...page, slug: prefixed, componentId: page.componentId ? componentIdFor(slug, page.componentId) : undefined })
     }
   }
   for (const page of source.submenuPages) {
@@ -139,7 +141,7 @@ export function mergePluginAdminState(target: AdminExtensionsState, source: Admi
     const parentSlug = menuSlugFor(slug, page.parentSlug)
     const prefixed = menuSlugFor(slug, page.slug)
     if (!target.submenuPages.some((existing) => existing.slug === prefixed)) {
-      target.submenuPages.push({ ...page, parentSlug, slug: prefixed })
+      target.submenuPages.push({ ...page, parentSlug, slug: prefixed, componentId: page.componentId ? componentIdFor(slug, page.componentId) : undefined })
     }
   }
   for (const widget of source.dashboardWidgets) {

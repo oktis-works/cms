@@ -6,7 +6,7 @@ import { Hono } from 'hono';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { serve } from '@hono/node-server';
-import { bootstrap } from '@oktis-works/core';
+import { bootstrap, ensureTenantPluginsLoaded, getPluginBlocks, getPluginPatterns } from '@oktis-works/core';
 import { resolveExtensionDirectory } from '@oktis-works/core';
 import { runWithTenantContext } from '@oktis-works/core';
 import { getPluginAssets } from '@oktis-works/core';
@@ -23,6 +23,7 @@ import {
   buildThemeSettings,
   mergePreviewSettings,
   renderAssetTags,
+  renderPluginBlocks,
 } from './rendering.js';
 import { createDatabaseThemeDataProvider, loadThemeRenderData } from './theme-data.js';
 import { resolveTenantFromHost } from './tenant-resolver.js';
@@ -133,7 +134,7 @@ async function main() {
     return runWithTenantTransaction(tenantId, () =>
       runWithTenantContext({ tenantId }, () => {
         c.set('tenant', tenant);
-        return next();
+        return ensureTenantPluginsLoaded(tenantId).then(() => next());
       })
     );
   });
@@ -262,6 +263,29 @@ async function main() {
         // platform + tenant, dedupe por URL na renderização. Falha nunca
         // derruba a página (segue sem assets de plugin).
         const tenantId = String(c.get('tenant')['id']);
+        const [platformBlocks, tenantBlocks, platformPatterns, tenantPatterns] = await Promise.all([
+          getPluginBlocks(null),
+          getPluginBlocks(tenantId),
+          getPluginPatterns(null),
+          getPluginPatterns(tenantId),
+        ]);
+        const themeDataWithPlugins = {
+          ...themeData,
+          pluginBlocks: [...platformBlocks, ...tenantBlocks].flatMap((entry) => entry.blocks) as unknown as Array<Record<string, unknown>>,
+          pluginPatterns: [...platformPatterns, ...tenantPatterns].flatMap((entry) => entry.patterns) as unknown as Array<Record<string, unknown>>,
+        };
+        const blockCatalog = (themeDataWithPlugins.pluginBlocks as Array<{ type: string; label: string; pluginName: string; rendererPath?: string }>)
+          .map((block) => ({
+            ...block,
+            type: block.type.includes('/') ? block.type : `${block.pluginName}/${block.type}`,
+          }));
+        const renderedBlocks = await renderPluginBlocks(
+          data['_blocks'] ?? data['blocks'],
+          blockCatalog,
+          resolveExtensionDirectory('plugin'),
+          (themeDataWithPlugins.pluginPatterns as Array<{ name: string; label: string; pluginName: string; content: string }>)
+        );
+        const renderData = renderedBlocks === null ? data : { ...data, html: renderedBlocks };
         let pluginAssetTags: { head: string; footer: string } | undefined;
         try {
           const [platformAssets, tenantAssets] = await Promise.all([
@@ -305,11 +329,11 @@ async function main() {
         return renderContentPage({
           resolution,
           contentRow,
-          data,
+          data: renderData,
           items,
           pagination,
           settings,
-          themeData,
+          themeData: themeDataWithPlugins,
           activeTheme,
           themesRoot,
           pluginAssets: pluginAssetTags,

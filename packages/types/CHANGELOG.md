@@ -1,5 +1,11 @@
 # @oktis-works/types
 
+## 0.9.2
+
+### Patch Changes
+
+- Harden plugin registration, permissions, tenancy, lifecycle reconciliation, admin extension loading, and public rendering.
+
 ## 0.9.1
 
 ### Patch Changes

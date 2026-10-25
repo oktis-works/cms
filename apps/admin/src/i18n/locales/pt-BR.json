@@ -927,7 +927,8 @@
       "name": "Nome",
       "version": "Versão",
       "status": "Status",
-      "enabled": "Ativo no tenant"
+      "enabled": "Ativo no tenant",
+      "actions": "Ações"
     },
     "status": {
       "active": "Ativo",
@@ -944,6 +945,8 @@
     "version": "Versão",
     "manifest": "Manifesto (JSON)",
     "loadError": "Não foi possível carregar os plugins.",
+    "actionError": "Não foi possível atualizar o plugin.",
+    "actions": { "activate": "Ativar", "deactivate": "Desativar" },
     "installError": "Não foi possível instalar o plugin.",
     "uninstallError": "Não foi possível desinstalar o plugin.",
     "empty": "Nenhum plugin instalado.",

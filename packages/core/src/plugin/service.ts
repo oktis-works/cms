@@ -8,6 +8,7 @@ import { CMS_VERSION, unknownPluginPermissions } from '@oktis-works/validation';
 import { auditService } from '../observability/index.js';
 import { getEventBus } from '../events/bus.js';
 import { resolveExtensionDirectory } from '../extensions/project-directories.js';
+import { fieldTypeExtensionService } from '../fields/service.js';
 
 // Dynamic import for circular dependency with plugin-runtime
 const readPluginManifest = async (dir: string, options?: { strict?: boolean }) => {
@@ -30,6 +31,15 @@ export interface PluginTenantLink {
   error?: string | null;
   enabled_at?: string | null;
   disabled_at?: string | null;
+}
+
+type PluginSql = {
+  unsafe(text: string, values?: unknown[]): Promise<unknown[]>;
+  begin?<T>(callback: (tx: PluginSql) => Promise<T>): Promise<T>;
+};
+
+async function inPluginTransaction<T>(sql: PluginSql, callback: (tx: PluginSql) => Promise<T>): Promise<T> {
+  return typeof sql.begin === 'function' ? sql.begin(callback) : callback(sql);
 }
 
 export class PluginService {
@@ -226,12 +236,17 @@ export class PluginService {
     // REQ-plugin-installation-002: dependências devem estar instaladas primeiro
     const missing: string[] = [];
     for (const dep of input.dependencies ?? []) {
+      const range = dep.versionRange ?? '*';
+      if (!validRange(range)) throw new Error(`DEPENDENCY_INVALID_RANGE: ${dep.name} ${range}`);
       if (dep.optional) continue;
       const found = await sql.unsafe(
-        "SELECT id FROM plugins WHERE name = $1 AND status IN ('INSTALLED','ACTIVATED') LIMIT 1",
+        "SELECT id, version FROM plugins WHERE name = $1 AND status IN ('INSTALLED','ACTIVATED','RUNNING') LIMIT 1",
         [dep.name]
       );
       if ((found as unknown[]).length === 0) missing.push(dep.name);
+      else if (!satisfies(String((found as unknown as Array<{ version: string }>)[0]?.version ?? ''), range)) {
+        throw new Error(`DEPENDENCY_VERSION_MISMATCH: ${dep.name} does not satisfy ${range}`);
+      }
     }
     if (missing.length > 0) {
       throw new Error(`DEPENDENCY_MISSING: instale primeiro as dependências: ${missing.join(', ')}`);
@@ -355,13 +370,24 @@ export class PluginService {
       }
     }
 
-    await sql.unsafe(
-      `INSERT INTO plugin_tenants (id, plugin_id, tenant_id, status, enabled_at, disabled_at, created_at, updated_at)
-       VALUES ($1, $2, $3, 'ENABLED', NOW(), NULL, NOW(), NOW())
-       ON CONFLICT (plugin_id, tenant_id)
-       DO UPDATE SET status = 'ENABLED', enabled_at = NOW(), disabled_at = NULL, updated_at = NOW()`,
-      [randomUUID(), id, tenantId]
-    );
+    try {
+      await inPluginTransaction(sql as PluginSql, async (tx) => {
+        await tx.unsafe(
+          `INSERT INTO plugin_tenants (id, plugin_id, tenant_id, status, enabled_at, disabled_at, created_at, updated_at)
+           VALUES ($1, $2, $3, 'ENABLED', NOW(), NULL, NOW(), NOW())
+           ON CONFLICT (plugin_id, tenant_id)
+           DO UPDATE SET status = 'ENABLED', enabled_at = NOW(), disabled_at = NULL, error = NULL, updated_at = NOW()`,
+          [randomUUID(), id, tenantId]
+        );
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await sql.unsafe(
+        `UPDATE plugins SET status = 'ACTIVATION_FAILED', error = $1, updated_at = NOW() WHERE id = $2`,
+        [message, id]
+      ).catch(() => undefined);
+      throw new Error(`ACTIVATION_FAILED: ${message}`);
+    }
 
     const result = await this.getById(id);
 
@@ -395,23 +421,35 @@ export class PluginService {
       throw new Error('Invalid plugin transition: plugin não está vinculado a este tenant');
     }
 
-    await sql.unsafe(
-      `UPDATE plugin_tenants
-       SET status = 'DISABLED', disabled_at = NOW(), updated_at = NOW()
-       WHERE plugin_id = $1 AND tenant_id = $2`,
-      [id, tenantId]
-    );
+    let dependents: string[];
+    try {
+      dependents = await inPluginTransaction(sql as PluginSql, async (tx) => {
+        await tx.unsafe(
+          `UPDATE plugin_tenants
+           SET status = 'DISABLED', disabled_at = NOW(), error = NULL, updated_at = NOW()
+           WHERE plugin_id = $1 AND tenant_id = $2`,
+          [id, tenantId]
+        );
 
-    // REQ-plugin-activation-003: dependentes habilitados são notificados via evento
-    const dependentsResult = await sql.unsafe(
-      `SELECT p.id, p.name FROM plugins p
-       JOIN plugin_dependencies pd ON pd.plugin_id = p.id
-       JOIN plugins dep ON dep.id = pd.dependency_id
-       JOIN plugin_tenants pt ON pt.plugin_id = p.id AND pt.tenant_id = $3
-       WHERE dep.name = $1 AND pt.status = 'ENABLED' AND p.id <> $2`,
-      [existing.name, id, tenantId]
-    );
-    const dependents = (dependentsResult as unknown as Array<{ id: string; name: string }>).map((d) => d.name);
+        // Dependents are read in the same transaction as the deactivation.
+        const dependentsResult = await tx.unsafe(
+          `SELECT p.id, p.name FROM plugins p
+           JOIN plugin_dependencies pd ON pd.plugin_id = p.id
+           JOIN plugins dep ON dep.id = pd.dependency_id
+           JOIN plugin_tenants pt ON pt.plugin_id = p.id AND pt.tenant_id = $3
+           WHERE dep.name = $1 AND pt.status = 'ENABLED' AND p.id <> $2`,
+          [existing.name, id, tenantId]
+        );
+        return (dependentsResult as unknown as Array<{ id: string; name: string }>).map((d) => d.name);
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await sql.unsafe(
+        `UPDATE plugin_tenants SET error = $1, updated_at = NOW() WHERE plugin_id = $2 AND tenant_id = $3`,
+        [message, id, tenantId]
+      ).catch(() => undefined);
+      throw new Error(`DEACTIVATION_FAILED: ${message}`);
+    }
 
     const result = await this.getById(id);
 
@@ -445,25 +483,21 @@ export class PluginService {
     // REQU-022-004: desinstalação remove dependências, vínculos e reverte migrations
     const tenantId = (existing as unknown as { tenant_id?: string | null }).tenant_id ?? '';
     let rolledBack = 0;
-    try {
-      rolledBack = await rollbackPluginMigrations(tenantId, existing.name);
-    } catch {
-      rolledBack = 0;
-    }
-
-    await sql.unsafe('DELETE FROM plugin_dependencies WHERE plugin_id = $1', [id]);
-    await sql.unsafe('DELETE FROM plugin_tenants WHERE plugin_id = $1', [id]);
-
-    await sql.unsafe(
-      `UPDATE plugins SET status = $1, updated_at = NOW() WHERE id = $2`,
-      ['UNINSTALLED', id]
-    );
+    rolledBack = await rollbackPluginMigrations(tenantId, existing.name);
+    const removedFieldTypes = await fieldTypeExtensionService.unregisterAllForPlugin(existing.name);
+    await fieldTypeExtensionService.syncToRegistry({ includeLazy: true });
+    await sql.begin(async (tx) => {
+      await tx.unsafe('DELETE FROM plugin_dependencies WHERE plugin_id = $1', [id]);
+      await tx.unsafe('DELETE FROM plugin_tenants WHERE plugin_id = $1', [id]);
+      await tx.unsafe(`UPDATE plugins SET status = $1, updated_at = NOW() WHERE id = $2`, ['UNINSTALLED', id]);
+      await tx.unsafe(`DELETE FROM field_groups WHERE metadata->>'pluginName' = $1`, [existing.name]);
+    });
 
     await auditService.record({
       action: 'plugin.uninstall',
       resourceType: 'plugin',
       resourceId: id,
-      changes: { migrationsRolledBack: rolledBack },
+      changes: { migrationsRolledBack: rolledBack, fieldTypesRemoved: removedFieldTypes },
     });
 
     return true;

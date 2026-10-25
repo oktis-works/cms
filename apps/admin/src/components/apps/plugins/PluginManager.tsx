@@ -2,16 +2,19 @@ import { For, createSignal, onMount } from 'solid-js';
 import { useTranslation } from '../../../i18n';
 import { apiClient, PluginInfo } from '../../../lib/api';
 
-// Read-only plugin listing. Installation, update and activation are manual:
-// drop the plugin files into the project's plugins/ directory and restart the
-// server (okcms start, pm2 or docker) — no actions are exposed here.
 export function PluginManager() {
   const { t } = useTranslation();
   const [plugins, setPlugins] = createSignal<PluginInfo[]>([]);
   const [loading, setLoading] = createSignal(true);
   const [error, setError] = createSignal<string | null>(null);
+  const [tenantId, setTenantId] = createSignal<string | null>(null);
 
   onMount(async () => {
+    try {
+      setTenantId((await apiClient.getMe()).tenantId ?? null);
+    } catch {
+      setTenantId(null);
+    }
     await loadPlugins();
   });
 
@@ -24,6 +27,21 @@ export function PluginManager() {
       setError(t('plugins.loadError'));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function togglePlugin(plugin: PluginInfo) {
+    const currentTenantId = tenantId();
+    if (!currentTenantId) return;
+    try {
+      if (plugin.enabled) {
+        await apiClient.deactivatePlugin(plugin.id, currentTenantId);
+      } else {
+        await apiClient.activatePlugin(plugin.id, currentTenantId);
+      }
+      await loadPlugins();
+    } catch {
+      setError(t('plugins.actionError'));
     }
   }
 
@@ -72,6 +90,7 @@ export function PluginManager() {
                 <th>{t('plugins.columns.version')}</th>
                 <th>{t('plugins.columns.status')}</th>
                 <th>{t('plugins.columns.enabled')}</th>
+                <th>{t('plugins.columns.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -90,6 +109,11 @@ export function PluginManager() {
                       <span class={`status-badge ${getStatusClass(plugin.status)}`}>
                         {getStatusLabel(plugin.status)}
                       </span>
+                    </td>
+                    <td>
+                      <button type="button" onClick={() => void togglePlugin(plugin)}>
+                        {plugin.enabled ? t('plugins.actions.deactivate') : t('plugins.actions.activate')}
+                      </button>
                     </td>
                     <td>
                       {plugin.enabled ? (

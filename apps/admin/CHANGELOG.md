@@ -1,5 +1,14 @@
 # @oktis-works/admin
 
+## 0.23.3
+
+### Patch Changes
+
+- Harden plugin registration, permissions, tenancy, lifecycle reconciliation, admin extension loading, and public rendering.
+- Updated dependencies
+  - @oktis-works/plugin-sdk@0.7.1
+  - @oktis-works/types@0.9.2
+
 ## 0.23.2
 
 ### Patch Changes

@@ -2,7 +2,9 @@
 
 import { existsSync, realpathSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { join, resolve, sep } from 'node:path';
+import { join, relative, resolve, sep } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { createRequire } from 'node:module';
 import { getConnection } from '@oktis-works/database';
 import { getHookRegistry } from '@oktis-works/plugin-runtime';
 import { postTypeRegistry, HOOK_POINTS } from '@oktis-works/core';
@@ -318,6 +320,133 @@ export function renderAssetTags(assets: ReadonlyArray<EnqueuedAsset>): { head: s
   }
 
   return { head: head.join('\n'), footer: footer.join('\n') };
+}
+
+export interface PublicBlockCatalogEntry {
+  type: string;
+  label: string;
+  pluginName: string;
+  rendererPath?: string;
+}
+
+export interface PublicPatternCatalogEntry {
+  name: string;
+  label: string;
+  pluginName: string;
+  content: string;
+}
+
+/** Removes executable markup from output returned by a plugin renderer. */
+export function sanitizePluginHtml(value: string): string {
+  return value
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
+    .replace(/\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/\s+(?:href|src)\s*=\s*(?:"\s*javascript:[^"]*"|'\s*javascript:[^']*'|\s*javascript:[^\s>]+)/gi, '')
+    .replace(/javascript\s*:/gi, '')
+    .replace(/<iframe\b[^>]*>[\s\S]*?<\/iframe\s*>/gi, '');
+}
+
+function rendererFilePath(pluginsRoot: string, pluginName: string, rendererPath: string): string | null {
+  if (!/^[a-z0-9][a-z0-9._-]*$/i.test(pluginName)) return null;
+  if (!rendererPath || rendererPath.includes('..') || rendererPath.includes('://') || rendererPath.includes('\\') || rendererPath.startsWith('/')) return null;
+  const pluginRoot = resolve(pluginsRoot, pluginName);
+  const target = resolve(pluginRoot, rendererPath);
+  if (target !== pluginRoot && !target.startsWith(pluginRoot + sep)) return null;
+  try {
+    const realRoot = realpathSync(pluginRoot);
+    const realTarget = realpathSync(target);
+    const escaped = relative(realRoot, realTarget).startsWith('..');
+    return escaped ? null : realTarget;
+  } catch {
+    return null;
+  }
+}
+
+async function renderPluginBlock(
+  block: Record<string, unknown>,
+  entry: PublicBlockCatalogEntry,
+  pluginsRoot: string
+): Promise<string> {
+  const type = String(entry.type);
+  const fallback = `<div data-plugin-block="${escapeHtml(type)}" data-plugin="${escapeHtml(entry.pluginName)}">${escapeHtml(entry.label)}</div>`;
+  if (!entry.rendererPath) return fallback;
+
+  const file = rendererFilePath(pluginsRoot, entry.pluginName, entry.rendererPath);
+  if (!file) return fallback;
+  try {
+    // Keep plugin modules outside the web bundle. The path has already passed
+    // the realpath containment check above; this import only selects that
+    // validated file at runtime.
+    const module = file.endsWith('.cjs')
+      ? createRequire(import.meta.url)(file) as Record<string, unknown>
+      : await import(pathToFileURL(file).href) as Record<string, unknown>;
+    const renderer = module['default'] ?? module['renderBlock'] ?? module['render'];
+    if (typeof renderer !== 'function') return fallback;
+    const output = await renderer({
+      block,
+      attrs: (block['attrs'] as Record<string, unknown> | undefined) ?? {},
+      pluginName: entry.pluginName,
+      type,
+    });
+    const html = typeof output === 'string'
+      ? output
+      : output && typeof output === 'object' && typeof (output as { html?: unknown }).html === 'string'
+        ? (output as { html: string }).html
+        : '';
+    return html
+      ? `<div data-plugin-block="${escapeHtml(type)}" data-plugin="${escapeHtml(entry.pluginName)}">${sanitizePluginHtml(html)}</div>`
+      : fallback;
+  } catch (error) {
+    console.warn(`[web] plugin block renderer failed for ${type}:`, error);
+    return fallback;
+  }
+}
+
+/** Renders serialized editor blocks with plugin-owned SSR renderers. */
+export async function renderPluginBlocks(
+  blocks: unknown,
+  catalog: ReadonlyArray<PublicBlockCatalogEntry>,
+  pluginsRoot: string,
+  patterns: ReadonlyArray<PublicPatternCatalogEntry> = []
+): Promise<string | null> {
+  if (!Array.isArray(blocks)) return null;
+  const byType = new Map(catalog.map((entry) => [entry.type, entry]));
+  const byPattern = new Map(patterns.map((entry) => [entry.name, entry]));
+  const output: string[] = [];
+  for (const value of blocks) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) continue;
+    const block = value as Record<string, unknown>;
+    const rawType = typeof block['type'] === 'string' ? block['type'] : '';
+    if (!rawType) continue;
+    if (rawType === 'pattern' || rawType.startsWith('pattern/')) {
+      const attrs = block['attrs'] && typeof block['attrs'] === 'object' ? block['attrs'] as Record<string, unknown> : {};
+      const requestedName = typeof block['name'] === 'string'
+        ? block['name']
+        : typeof attrs['name'] === 'string'
+          ? attrs['name']
+          : rawType.slice('pattern/'.length);
+      const pattern = byPattern.get(requestedName);
+      if (pattern) {
+        output.push(`<div data-plugin-pattern="${escapeHtml(pattern.name)}" data-plugin="${escapeHtml(pattern.pluginName)}">${sanitizePluginHtml(pattern.content)}</div>`);
+      }
+      continue;
+    }
+    const entry = byType.get(rawType);
+    if (entry) {
+      output.push(await renderPluginBlock(block, entry, pluginsRoot));
+      continue;
+    }
+    if (rawType === 'heading') {
+      const level = Math.min(6, Math.max(1, Number(block['level']) || 2));
+      output.push(`<h${level}>${escapeHtml(String(block['content'] ?? ''))}</h${level}>`);
+    } else if (rawType === 'paragraph') {
+      output.push(`<p>${escapeHtml(String(block['content'] ?? ''))}</p>`);
+    } else if (rawType === 'image' && block['content'] && typeof block['content'] === 'object') {
+      const image = block['content'] as Record<string, unknown>;
+      output.push(`<figure><img src="${escapeHtml(String(image['url'] ?? ''))}" alt="${escapeHtml(String(image['alt'] ?? ''))}" /></figure>`);
+    }
+  }
+  return output.join('\n');
 }
 
 /**
@@ -727,7 +856,10 @@ export function createRouter(themesRoot: string, activeTheme: string): RuntimeRo
  */
 export async function wireThemeHooks(): Promise<void> {
   const sdk = await import('@oktis-works/theme-sdk');
-  sdk.setThemeHooks(getHookRegistry());
+  sdk.setThemeHooks({
+    applyFilters: (filter, value, ...args) => getHookRegistry().applyFilters(filter, value, ...args),
+    applyFiltersAsync: (filter, value, ...args) => getHookRegistry().applyFiltersAsync(filter, value, ...args),
+  });
 
   // Ponto de extensão head: plugins podem injetar tags no <head> do site público.
   void HOOK_POINTS;

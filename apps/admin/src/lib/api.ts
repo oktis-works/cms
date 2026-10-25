@@ -263,6 +263,25 @@ export interface PluginInfo {
   } | null;
 }
 
+export interface PluginBlockCatalogEntry {
+  type: string;
+  label: string;
+  icon: string;
+  category?: string;
+  adminComponentPath: string;
+  rendererPath?: string;
+  pluginName: string;
+}
+
+export interface PluginPatternCatalogEntry {
+  name: string;
+  label: string;
+  icon?: string;
+  category?: string;
+  content: string;
+  pluginName: string;
+}
+
 export class ApiClient {
   private baseUrl: string;
   private csrfToken: string | null = null;
@@ -1142,6 +1161,28 @@ export class ApiClient {
   /** Slots declarativos do admin (FEAT-098): manifest.admin + api.admin (runtime). */
   async getAdminExtensions(): Promise<AdminExtensionsState> {
     return this.request('GET', '/api/v1/plugins/extensions');
+  }
+
+  async getBlocks(): Promise<PluginBlockCatalogEntry[]> {
+    const response = await this.request<{ blocks: PluginBlockCatalogEntry[] }>('GET', '/api/v1/blocks');
+    return response.blocks ?? [];
+  }
+
+  async getPatterns(): Promise<PluginPatternCatalogEntry[]> {
+    const response = await this.request<{ patterns: PluginPatternCatalogEntry[] }>('GET', '/api/v1/patterns');
+    return response.patterns ?? [];
+  }
+
+  async activatePlugin(id: string, tenantId: string): Promise<PluginInfo> {
+    return this.request('POST', `/api/v1/plugins/${encodeURIComponent(id)}/activate`, { tenantId });
+  }
+
+  async deactivatePlugin(id: string, tenantId: string): Promise<PluginInfo> {
+    return this.request('POST', `/api/v1/plugins/${encodeURIComponent(id)}/deactivate`, { tenantId });
+  }
+
+  async uninstallPlugin(id: string): Promise<{ success: boolean }> {
+    return this.request('DELETE', `/api/v1/plugins/${encodeURIComponent(id)}`);
   }
 
   /** Estado de runtime dos plugins (WP2) — por escopo platform/tenant. */

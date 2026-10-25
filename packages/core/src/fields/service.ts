@@ -35,6 +35,7 @@ export interface FieldDefinitionInput {
 }
 
 export interface FieldGroupInput {
+  tenantId?: string | null;
   title: string;
   key?: string;
   locationRules?: LocationRule[][];
@@ -142,10 +143,11 @@ export class FieldGroupService {
     const key = input.key ?? `group_${slugifyKey(input.title)}_${Date.now().toString(36)}`;
 
     await sql.unsafe(
-      `INSERT INTO field_groups (id, title, key, location_rules, position, display_style, active, metadata)
-       VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8::jsonb)`,
+      `INSERT INTO field_groups (id, tenant_id, title, key, location_rules, position, display_style, active, metadata)
+       VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9::jsonb)`,
       [
         id,
+        input.tenantId ?? null,
         input.title,
         key,
         input.locationRules ?? [],
@@ -207,6 +209,24 @@ export class FieldGroupService {
     const sql = getConnection();
     const result = await sql.unsafe('DELETE FROM field_groups WHERE id = $1 RETURNING id', [id]);
     return result.length > 0;
+  }
+
+  /** Removes only the field groups owned by a plugin in one runtime scope. */
+  async removePluginFields(pluginName: string, tenantId: string | null): Promise<number> {
+    const sql = getConnection();
+    const result = await sql.unsafe(
+      tenantId === null
+        ? `DELETE FROM field_groups
+           WHERE metadata->>'pluginName' = $1
+             AND (metadata->>'tenantId' IS NULL OR metadata->>'tenantId' = 'platform')
+           RETURNING id`
+        : `DELETE FROM field_groups
+           WHERE metadata->>'pluginName' = $1
+             AND metadata->>'tenantId' = $2
+           RETURNING id`,
+      tenantId === null ? [pluginName] : [pluginName, tenantId]
+    );
+    return result.length;
   }
 
   async resolveGroupsByLocation(context: LocationContext): Promise<FieldGroup[]> {
@@ -678,7 +698,9 @@ export class FieldTypeExtensionService {
          admin_renderer_path = EXCLUDED.admin_renderer_path,
          config_schema = EXCLUDED.config_schema,
          lazy = EXCLUDED.lazy,
-         updated_at = NOW()`,
+         updated_at = NOW()
+       WHERE field_type_extensions.plugin_name = EXCLUDED.plugin_name
+       RETURNING type`,
       [
         definition.pluginName,
         definition.type,
@@ -693,6 +715,21 @@ export class FieldTypeExtensionService {
         definition.lazy ?? false,
       ]
     );
+    const existing = await sql.unsafe('SELECT plugin_name FROM field_type_extensions WHERE type = $1', [definition.type]);
+    const owner = (existing[0] as { plugin_name?: string } | undefined)?.plugin_name;
+    if (owner && owner !== definition.pluginName) {
+      throw new Error(`Field type "${definition.type}" is already owned by plugin "${owner}"`);
+    }
+  }
+
+  /** Reconciles stale declarations after a plugin update. */
+  async reconcilePlugin(pluginName: string, definitions: PluginFieldTypeDefinition[]): Promise<void> {
+    const current = await this.listForPlugin(pluginName);
+    const next = new Set(definitions.map((definition) => definition.type));
+    for (const existing of current) {
+      if (!next.has(existing.type)) await this.unregister(pluginName, existing.type);
+    }
+    for (const definition of definitions) await this.register(definition);
   }
 
   /**
@@ -798,7 +835,14 @@ export class FieldTypeExtensionService {
    */
   async syncToRegistry(options?: { includeLazy?: boolean }): Promise<void> {
     const types = await this.listAll();
-    const { registerFieldType } = await import('./types/registry.js');
+    const { getPluginFieldTypes, registerFieldType, unregisterFieldType } = await import('./types/registry.js');
+    const persisted = new Set(types.map((type) => type.type));
+
+    // Remove declarations deleted from a plugin manifest. Built-in field
+    // types are never touched by this reconciliation pass.
+    for (const current of getPluginFieldTypes()) {
+      if (!persisted.has(current.type)) unregisterFieldType(current.type);
+    }
 
     for (const type of types) {
       if (type.lazy && !options?.includeLazy) continue;

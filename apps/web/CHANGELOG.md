@@ -1,5 +1,16 @@
 # @oktis-works/web
 
+## 0.12.5
+
+### Patch Changes
+
+- Harden plugin registration, permissions, tenancy, lifecycle reconciliation, admin extension loading, and public rendering.
+- Updated dependencies
+  - @oktis-works/plugin-runtime@0.7.1
+  - @oktis-works/types@0.9.2
+  - @oktis-works/core@0.14.2
+  - @oktis-works/theme-sdk@0.6.2
+
 ## 0.12.4
 
 ### Patch Changes

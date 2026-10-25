@@ -246,9 +246,7 @@ describe('api.addPostType / api.addTaxonomy (Item 1)', () => {
 
     const result = await bootstrap(deps);
     expect(result.failed[0]!.error).toContain('already registered');
-    // primeira chamada persistiu; a segunda falhou antes de re-persistir
-    expect(deps.registerPostTypes).toHaveBeenCalledTimes(1);
-    expect(deps.registerPostTypes.mock.calls[0]![0]).toHaveLength(1);
+    expect(deps.registerPostTypes).not.toHaveBeenCalled();
   });
 
   it('rejects taxonomy without a non-empty postTypes[]', async () => {
