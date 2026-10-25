@@ -1,5 +1,39 @@
 # @oktis-works/web
 
+## 0.12.1
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/core@0.13.0
+
+## 0.12.0
+
+### Minor Changes
+
+- ### Features
+  
+  - **Theme Customizer Phase 3**: Advanced UI/UX features for theme customization
+    - **Conditional Logic**: Fields now show/hide based on `conditionalLogic` in manifest (reuses `isFieldVisible` from FieldRenderer)
+    - **Tabs/Accordion Groups**: Fields with `group` property render as tabs (multiple groups) or accordion (single group/ungrouped)
+    - **Parent/Child Theme Inheritance**: `buildThemeSettings` now accepts `parentManifest` for deep merge (parent defaults → child defaults → child config)
+    - **Group Ordering**: Groups sorted by `groupOrder`, fields by `sort_order`
+  
+  - **Web Runtime**: Updated `buildThemeSettings` to accept optional `parentManifest` for deep merge inheritance
+  - **Web Server**: Fetches parent theme manifest and passes to `buildThemeSettings`
+  - **CLI**: `theme:create` generates example settings with `group` and `groupOrder`
+  
+  ### Related
+  
+  - Theme Customizer now supports complex field layouts with conditional visibility
+  - Parent/child theme inheritance works for settings (child inherits parent defaults, overrides with own)
+  - Theme customizer UI adapts to field group structure automatically
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/core@0.12.0
+
 ## 0.11.2
 
 ### Patch Changes

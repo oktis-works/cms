@@ -270,8 +270,9 @@ describe('ThemeService.updateConfig', () => {
 
   it('grava config como jsonb com updated_at', async () => {
     queue = [
-      [themeRow()],
-      [themeRow({ config: { siteTitle: 'Meu site' } })],
+      [themeRow()], // SELECT getById
+      [], // INSERT INTO theme_config_versions
+      [themeRow({ config: { siteTitle: 'Meu site' } })], // UPDATE RETURNING
     ];
 
     const result = await new ThemeService().updateConfig('id-1', { siteTitle: 'Meu site' });

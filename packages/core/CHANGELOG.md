@@ -1,5 +1,56 @@
 # @oktis-works/core
 
+## 0.13.0
+
+### Minor Changes
+
+- ### Features
+  
+  - **Theme Config Export/Import**: Export theme config as JSON file, import with validation (merge/replace modes)
+  - **Config History/Versioning**: Automatic history tracking via `theme_config_versions` table, with REST API for history and restore
+  - **Permission `theme:customize`**: New granular permission for theme config operations (separate from `theme:update`)
+  - **Audit Log**: Automatic history entries on config changes with user tracking
+  - **Restore Defaults**: One-click reset to manifest defaults
+  
+  ### Database
+  
+  - New migration `V022__core__theme_config_history.sql` creates `theme_config_versions` table with RLS
+  
+  ### API
+  
+  - `GET /themes/:id/config/export` - Export config as downloadable JSON
+  - `POST /themes/:id/config/import` - Import config with merge/replace modes
+  - `GET /themes/:id/config/history` - Paginated config history
+  - `POST /themes/:id/config/restore` - Restore specific version
+  - `POST /themes/:id/config/restore-defaults` - Reset to manifest defaults
+  
+  ### Permissions
+  
+  - New `theme:customize` permission added to TENANT_ADMIN role
+  - Config routes (`PATCH/GET/POST /themes/:id/config/*`) now require `theme:customize` instead of `theme:update`
+
+## 0.12.0
+
+### Minor Changes
+
+- ### Features
+  
+  - **Theme Customizer Phase 3**: Advanced UI/UX features for theme customization
+    - **Conditional Logic**: Fields now show/hide based on `conditionalLogic` in manifest (reuses `isFieldVisible` from FieldRenderer)
+    - **Tabs/Accordion Groups**: Fields with `group` property render as tabs (multiple groups) or accordion (single group/ungrouped)
+    - **Parent/Child Theme Inheritance**: `buildThemeSettings` now accepts `parentManifest` for deep merge (parent defaults → child defaults → child config)
+    - **Group Ordering**: Groups sorted by `groupOrder`, fields by `sort_order`
+  
+  - **Web Runtime**: Updated `buildThemeSettings` to accept optional `parentManifest` for deep merge inheritance
+  - **Web Server**: Fetches parent theme manifest and passes to `buildThemeSettings`
+  - **CLI**: `theme:create` generates example settings with `group` and `groupOrder`
+  
+  ### Related
+  
+  - Theme Customizer now supports complex field layouts with conditional visibility
+  - Parent/child theme inheritance works for settings (child inherits parent defaults, overrides with own)
+  - Theme customizer UI adapts to field group structure automatically
+
 ## 0.11.5
 
 ### Patch Changes

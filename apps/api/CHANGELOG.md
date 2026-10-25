@@ -1,5 +1,48 @@
 # @oktis-works/api
 
+## 0.15.0
+
+### Minor Changes
+
+- ### Features
+  
+  - **Theme Config Export/Import**: Export theme config as JSON file, import with validation (merge/replace modes)
+  - **Config History/Versioning**: Automatic history tracking via `theme_config_versions` table, with REST API for history and restore
+  - **Permission `theme:customize`**: New granular permission for theme config operations (separate from `theme:update`)
+  - **Audit Log**: Automatic history entries on config changes with user tracking
+  - **Restore Defaults**: One-click reset to manifest defaults
+  
+  ### Database
+  
+  - New migration `V022__core__theme_config_history.sql` creates `theme_config_versions` table with RLS
+  
+  ### API
+  
+  - `GET /themes/:id/config/export` - Export config as downloadable JSON
+  - `POST /themes/:id/config/import` - Import config with merge/replace modes
+  - `GET /themes/:id/config/history` - Paginated config history
+  - `POST /themes/:id/config/restore` - Restore specific version
+  - `POST /themes/:id/config/restore-defaults` - Reset to manifest defaults
+  
+  ### Permissions
+  
+  - New `theme:customize` permission added to TENANT_ADMIN role
+  - Config routes (`PATCH/GET/POST /themes/:id/config/*`) now require `theme:customize` instead of `theme:update`
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/core@0.13.0
+  - @oktis-works/auth@0.8.0
+
+## 0.14.6
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/core@0.12.0
+  - @oktis-works/auth@0.7.10
+
 ## 0.14.5
 
 ### Patch Changes

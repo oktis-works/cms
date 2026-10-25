@@ -34,7 +34,10 @@ const DEFAULT_POLICY: RBACPolicy = {
       // recursas explícitos perdiam recursos reais das rotas (ex.: rota
       // `roles` vs política `role`, taxonomy, content-type...) e davam 403
       // para o próprio dono do tenant.
-      permissions: [{ action: '*', resource: '*' }],
+      permissions: [
+        { action: '*', resource: '*' },
+        { action: 'customize', resource: 'theme' },
+      ],
       // ...menos gestão de plugins: instalação/ativação/remoção é operação de
       // plataforma (SUPER_ADMIN). Listar (`read`) continua liberado, afinal o
       // gestor do tenant precisa ver o que está ativo nele.

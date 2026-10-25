@@ -554,7 +554,7 @@ export class ThemeService {
   }
 
   /** Atualiza o config (customizador) do tema — validado contra manifest.settings. */
-  async updateConfig(id: string, config: unknown): Promise<Theme | null> {
+  async updateConfig(id: string, config: unknown, userId?: string): Promise<Theme | null> {
     if (!isPlainObject(config)) {
       throw new Error('Theme config must be an object');
     }
@@ -572,6 +572,13 @@ export class ThemeService {
     }
 
     const sql = getConnection();
+    // Create history entry before updating
+    await sql.unsafe(
+      `INSERT INTO theme_config_versions (theme_id, config, user_id, change_summary)
+       VALUES ($1, $2::jsonb, $3, $4)`,
+      [id, existing.config ?? {}, userId ?? 'system', 'Config updated via API']
+    );
+
     const result = await sql.unsafe(
       `UPDATE themes SET config = $1::jsonb, updated_at = NOW() WHERE id = $2 RETURNING *`,
       [validation.sanitized, id]
@@ -588,6 +595,70 @@ export class ThemeService {
     await sql.unsafe('DELETE FROM themes WHERE id = $1', [id]);
 
     return true;
+  }
+
+  /** Export theme config as JSON. */
+  async exportConfig(id: string): Promise<{ config: Record<string, unknown>; manifest: Record<string, unknown>; exportedAt: string } | null> {
+    const theme = await this.getById(id);
+    if (!theme) return null;
+
+    return {
+      config: theme.config ?? {},
+      manifest: theme.manifest as unknown as Record<string, unknown>,
+      exportedAt: new Date().toISOString(),
+    };
+  }
+
+  /** Import theme config from JSON, validating against manifest. */
+  async importConfig(id: string, config: Record<string, unknown>, options?: { mode?: 'merge' | 'replace' }): Promise<Theme | null> {
+    const existing = await this.getById(id);
+    if (!existing) return null;
+
+    const mode = options?.mode ?? 'merge';
+    const manifest = existing.manifest as { settings?: any[] } | null;
+    const manifestSettings = manifest?.settings ?? [];
+
+    // Validate config against manifest
+    const validation = validateThemeConfig(config, manifestSettings);
+    if (!validation.valid) {
+      throw new Error(`Theme config validation failed: ${validation.errors.join('; ')}`);
+    }
+
+    let newConfig: Record<string, unknown>;
+    if (mode === 'replace') {
+      newConfig = validation.sanitized;
+    } else {
+      newConfig = { ...(existing.config ?? {}), ...validation.sanitized };
+    }
+
+    return this.updateConfig(id, newConfig);
+  }
+
+  /** Get config version history for a theme. */
+  async getConfigHistory(id: string, limit = 50, offset = 0): Promise<Array<{ id: string; config: Record<string, unknown>; userId: string | null; changeSummary: string | null; createdAt: Date }>> {
+    const sql = getConnection();
+    const rows = await sql.unsafe(
+      `SELECT id, config, user_id, change_summary, created_at
+       FROM theme_config_versions
+       WHERE theme_id = $1
+       ORDER BY created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [id, limit, offset]
+    );
+    return rows as unknown as Array<{ id: string; config: Record<string, unknown>; userId: string | null; changeSummary: string | null; createdAt: Date }>;
+  }
+
+  /** Restore a previous config version. */
+  async restoreConfigVersion(themeId: string, versionId: string, _userId: string): Promise<Theme | null> {
+    const sql = getConnection();
+    const version = await sql.unsafe(
+      `SELECT config FROM theme_config_versions WHERE id = $1 AND theme_id = $2`,
+      [versionId, themeId]
+    );
+    if (!version[0]) return null;
+
+    const config = version[0]['config'] as Record<string, unknown>;
+    return this.updateConfig(themeId, config);
   }
 }
 

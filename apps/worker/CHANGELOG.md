@@ -1,5 +1,19 @@
 # @oktis-works/worker
 
+## 0.8.10
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/core@0.13.0
+
+## 0.8.9
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/core@0.12.0
+
 ## 0.8.8
 
 ### Patch Changes
