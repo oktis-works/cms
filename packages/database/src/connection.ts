@@ -67,15 +67,43 @@ function configKey(config: DatabaseConfig): string {
   });
 }
 
+/**
+ * Wraps a postgres.js reserved connection (which lacks .begin()) to expose a
+ * .begin() shim that uses manual BEGIN/COMMIT/ROLLBACK on the same session.
+ * This is necessary because the migration runner calls sql.begin() on the
+ * connection it receives, including the reserved one.
+ */
+function wrapReservedConnection(reserved: RepoSql & { release?: () => void }): RepoSql {
+  const wrapped = reserved as RepoSql;
+  if (typeof wrapped.begin !== 'function') {
+    (wrapped as RepoSql & { begin: RepoSql['begin'] }).begin = async <T>(fn: (tx: RepoSql) => Promise<T>): Promise<T> => {
+      await (reserved as unknown as { (s: TemplateStringsArray, ...v: unknown[]): Promise<unknown[]> })`BEGIN`;
+      try {
+        const result = await fn(reserved);
+        await (reserved as unknown as { (s: TemplateStringsArray, ...v: unknown[]): Promise<unknown[]> })`COMMIT`;
+        return result;
+      } catch (error) {
+        await (reserved as unknown as { (s: TemplateStringsArray, ...v: unknown[]): Promise<unknown[]> })`ROLLBACK`.catch(() => undefined);
+        throw error;
+      }
+    };
+  }
+  if (typeof (wrapped as RepoSql & { end?: unknown }).end !== 'function') {
+    (wrapped as RepoSql & { end: RepoSql['end'] }).end = async () => { reserved.release?.(); };
+  }
+  Object.defineProperty(wrapped, 'driver', { value: 'postgres', enumerable: true, configurable: true });
+  return wrapped;
+}
+
 function postgresConnection(config: DatabaseConfig): RepoSql {
-  const client = postgres({
+  const raw = postgres({
     host: config.host,
     port: config.port,
     database: config.database,
     username: config.user,
     password: config.password,
     ssl: config.ssl,
-    max: config.maxConnections,
+    max: config.maxConnections ?? 10,
     idle_timeout: 60,
     connect_timeout: 10,
     max_lifetime: 60 * 30,
@@ -83,9 +111,14 @@ function postgresConnection(config: DatabaseConfig): RepoSql {
     onnotice: (notice) => {
       if (notice['severity'] === 'WARNING') console.warn('[postgres]', notice['message']);
     },
-  }) as unknown as RepoSql;
+  });
+  const client = raw as unknown as RepoSql & { reserve?: () => Promise<RepoSql> };
+  const originalReserve = client.reserve?.bind(raw);
+  if (originalReserve) {
+    client.reserve = async () => wrapReservedConnection(await originalReserve() as RepoSql & { release?: () => void });
+  }
   Object.defineProperty(client, 'driver', { value: 'postgres', enumerable: true });
-  return client;
+  return client as unknown as RepoSql;
 }
 
 function mysqlError(driver: DatabaseDriver, error: unknown): Error {

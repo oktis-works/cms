@@ -26,7 +26,15 @@ for (const boundary of manifest.boundaries) {
     await target.unsafe("INSERT INTO schema_bootstrap (id, schema_version, schema_checksum) VALUES (1, 'V025', 'historical-fixture') ON CONFLICT (id) DO NOTHING");
     await target.unsafe(readFileSync(new URL(`../fixtures/historical/${boundary.fixture}`, import.meta.url), 'utf8'));
     const tenant = await target`INSERT INTO tenants (name, slug) VALUES ('Acceptance', ${boundary.id}) RETURNING id`;
+
+    // Each boundary needs its own pool pointed at the isolated database.
+    // Close any pool from a previous boundary before creating a new one;
+    // this ensures the session-level advisory lock acquired by runMigrations
+    // is released (via pg_advisory_unlock in the runner's finally block) before
+    // the pool is torn down — avoiding an infinite wait on the next boundary.
+    await closeConnection().catch(() => undefined);
     createConnection({ driver: 'postgres', host: targetUrl.hostname, port: Number(targetUrl.port || 5432), database, user: decodeURIComponent(targetUrl.username), password: decodeURIComponent(targetUrl.password) });
+
     let migrationResult;
     if (boundary.baseline === 'legacy-pending') {
       await ensureCoreSchema();
@@ -36,17 +44,20 @@ for (const boundary of manifest.boundaries) {
       } catch (error) {
         if (!String(error?.message ?? error).toLowerCase().includes('legacy')) throw error;
       }
-      await target.unsafe("UPDATE schema_bootstrap SET schema_version = 'V025', status = 'ready' WHERE id = 1");
+      await target.unsafe("UPDATE schema_bootstrap SET schema_version = 'V025' WHERE id = 1");
       migrationResult = await runMigrations(tenant[0].id, migrationsDir);
     } else {
       await ensureCoreSchema();
       migrationResult = await runMigrations(tenant[0].id, migrationsDir);
     }
+
     const state = await target`SELECT schema_version FROM schema_bootstrap WHERE id = 1`;
     if (state[0]?.schema_version !== 'V025') throw new Error(`${boundary.id}: expected V025, got ${state[0]?.schema_version}`);
     results.push({ id: boundary.id, applied: migrationResult.applied, state: state[0]?.schema_version });
-    await closeConnection();
   } finally {
+    // Always close the global pool so the session-level advisory lock is
+    // released before the next boundary opens a fresh pool.
+    await closeConnection().catch(() => undefined);
     await target.end({ timeout: 5 }).catch(() => undefined);
     await admin.unsafe(`DROP DATABASE IF EXISTS "${database}"`).catch(() => undefined);
   }

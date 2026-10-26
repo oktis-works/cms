@@ -596,6 +596,27 @@ export async function runMigrations(
         }
       }
     }
+    // After applying core_schema migrations, advance schema_bootstrap.schema_version
+    // to reflect the highest core version now present. This keeps the baseline in sync
+    // for databases that started below the current snapshot (e.g. V018 → V025 via
+    // numbered migrations) without relying on the adoptLegacy path.
+    if (result.applied.length > 0) {
+      const latestAppliedCore = migrations
+        .filter((m) => result.applied.includes(m.name) && domainFor(m) === 'core_schema')
+        .reduce((latest, m) => Math.max(latest, Number(m.version)), 0);
+      if (latestAppliedCore > baselineVersion) {
+        const newVersion = `V${String(latestAppliedCore).padStart(3, '0')}`;
+        try {
+          await connection`
+            UPDATE schema_bootstrap
+            SET schema_version = ${newVersion}, applied_at = NOW()
+            WHERE id = 1
+          `;
+        } catch (error) {
+          if (!/relation .* does not exist/i.test(error instanceof Error ? error.message : String(error))) throw error;
+        }
+      }
+    }
     return preflightReports.length > 0 ? { ...result, preflight: preflightReports } : result;
   } finally {
     if (reserved) {

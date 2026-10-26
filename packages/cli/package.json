@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/cms",
-  "version": "0.13.10",
+  "version": "0.13.11",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",

@@ -1,5 +1,39 @@
 # @oktis-works/database
 
+## 0.14.4
+
+### Patch Changes
+
+- Fix PostgreSQL upgrade acceptance hang and three related bugs
+  
+  - **connection.ts**: `postgresConnection` now passes `max: config.maxConnections ?? 10`
+    instead of `max: undefined` to postgres.js. When `maxConnections` is not set,
+    postgres.js treated `max: undefined` as a single-connection pool, causing
+    `reserve()` to deadlock against `assertSupportedServerVersion()` (which uses the
+    same pool) — the process would hang indefinitely with no Postgres activity.
+  
+  - **connection.ts**: `wrapReservedConnection` adds a `.begin()` shim to the object
+    returned by `pool.reserve()`. The postgres.js reserved connection does not expose
+    `.begin()`, but the migration runner calls `sql.begin()` on the connection it
+    receives (including the reserved one used for the session-level advisory lock).
+    The shim implements `BEGIN` / `COMMIT` / `ROLLBACK` on the same session.
+  
+  - **preflight.ts**: The regex that extracts affected table names from migration SQL
+    (`/\b(?:UPDATE|DELETE\s+FROM)\s+([a-z_][a-z0-9_]*)/gi`) matched `DO UPDATE SET`
+    inside `ON CONFLICT ... DO UPDATE SET`, capturing `set` as a table name. The
+    runner then executed `SELECT COUNT(*) FROM set`, which Postgres rejects with
+    `relation "set" does not exist`. Fixed by filtering out matches where the
+    captured name is `set`.
+  
+  - **runner.ts**: After applying `core_schema` migrations, `schema_bootstrap.schema_version`
+    is now advanced to the highest applied core version. Previously, a database
+    starting at V018 would reach V025 via migrations but still report V018 in
+    `schema_bootstrap`, causing the acceptance script assertion to fail.
+  
+  - **postgres-upgrade-acceptance.mjs**: Moved `closeConnection()` into the `finally`
+    block so it always runs (including on assertion failure), and removed the
+    non-existent `status` column from the `UPDATE schema_bootstrap` statement.
+
 ## 0.14.3
 
 ### Patch Changes

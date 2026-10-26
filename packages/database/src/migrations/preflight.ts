@@ -67,7 +67,10 @@ export async function preflightMigration(
     conflicts.push({ kind: 'json_content', table, count: affected, policy, message: `${affected} rows are in the JSON/content conversion scope` });
   }
 
-  const affectedTables = [...source.matchAll(/\b(?:UPDATE|DELETE\s+FROM)\s+([a-z_][a-z0-9_]*)/gi)].map((match) => match[1]!);
+  // Match UPDATE <table> and DELETE FROM <table> but not ON CONFLICT ... DO UPDATE SET
+  const affectedTables = [...source.matchAll(/\b(?:UPDATE|DELETE\s+FROM)\s+([a-z_][a-z0-9_]*)/gi)]
+    .filter((match) => match[1]?.toLowerCase() !== 'set')
+    .map((match) => match[1]!);
   const uniqueTables = [...new Set(affectedTables)];
   for (const table of uniqueTables) {
     const affected = await count(sql, `SELECT COUNT(*) AS affected FROM ${table}`);

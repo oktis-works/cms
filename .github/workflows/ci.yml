@@ -68,7 +68,8 @@ jobs:
         env:
           OKCMS_ACCEPTANCE_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
       - name: PostgreSQL historical upgrade matrix
-        run: bun run build && bun --cwd packages/database scripts/postgres-upgrade-acceptance.mjs
+        timeout-minutes: 5
+        run: bun run build && node packages/database/scripts/postgres-upgrade-acceptance.mjs
         env:
           OKCMS_ACCEPTANCE_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
       - name: MySQL and MariaDB acceptance matrix
