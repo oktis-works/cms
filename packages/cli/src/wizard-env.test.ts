@@ -144,8 +144,8 @@ describe('catalog completeness', () => {
 });
 
 describe('ENV_FIELDS sizing', () => {
-  it('has 52 fields across 10 sections (rate-limit classes added)', () => {
-    expect(ENV_FIELDS.length).toBe(52);
+  it('has 53 fields across 10 sections (rate-limit classes added)', () => {
+    expect(ENV_FIELDS.length).toBe(53);
     expect(ENV_SECTIONS.length).toBe(10);
   });
 });

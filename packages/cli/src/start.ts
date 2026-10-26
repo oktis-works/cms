@@ -81,7 +81,9 @@ export async function startProject(options: Record<string, string> = {}): Promis
       // This also keeps `okcms start` consistent across WSL, Linux and Windows.
       const apiUrl = process.env['PUBLIC_API_URL']?.trim()
         || `http://localhost:${config.ports.api}`;
-      spawnApp('admin', 'bunx', ['@oktis-works/admin'], { PORT: String(config.ports.admin), PUBLIC_API_URL: apiUrl });
+      const webUrl = process.env['PUBLIC_WEB_URL']?.trim()
+        || `http://localhost:${config.ports.web}`;
+      spawnApp('admin', 'bunx', ['@oktis-works/admin'], { PORT: String(config.ports.admin), PUBLIC_API_URL: apiUrl, PUBLIC_WEB_URL: webUrl });
     }
 
     if (includeWeb) {

@@ -50,7 +50,7 @@ module.exports = {
       name: 'okcms-admin',
       script: 'bunx',
       args: '@oktis-works/admin',
-      env: { NODE_ENV: 'production', PORT: Number(process.env.ADMIN_PORT || 3011), PUBLIC_API_URL: process.env.PUBLIC_API_URL || 'http://localhost:' + (process.env.PORT || 3000) },
+      env: { NODE_ENV: 'production', PORT: Number(process.env.ADMIN_PORT || 3011), PUBLIC_API_URL: process.env.PUBLIC_API_URL || 'http://localhost:' + (process.env.PORT || 3000), PUBLIC_WEB_URL: process.env.PUBLIC_WEB_URL || 'http://localhost:' + (process.env.WEB_PORT || 3001) },
       instances: 1,
       autorestart: true,
       watch: false,

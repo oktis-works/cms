@@ -119,6 +119,14 @@ export const ENV_FIELDS: EnvField[] = [
     example: 'https://api.meusite.com',
   },
   {
+    key: 'PUBLIC_WEB_URL',
+    section: 'app',
+    label: 'PUBLIC_WEB_URL',
+    description: 'Public web site URL for theme preview (browser) — e.g., https://meusite.com or http://localhost:3001',
+    type: 'url',
+    example: 'https://meusite.com',
+  },
+  {
     key: 'TRUST_PROXY',
     section: 'app',
     label: 'TRUST_PROXY',

@@ -13,6 +13,30 @@ import { isFieldVisible } from '../../content/FieldRenderer';
 
 const PREVIEW_DEBOUNCE_MS = 800;
 
+/** Resolve a URL base do web app (site público) para o preview do tema. */
+function resolveWebAppBaseUrl(): string {
+  const envUrl = import.meta.env.PUBLIC_WEB_URL?.trim();
+  if (envUrl) return envUrl.replace(/\/$/, '');
+
+  // Fallback: derivar da PUBLIC_API_URL trocando a porta (ex.: :3000 → :3001)
+  const apiUrl = import.meta.env.PUBLIC_API_URL?.trim();
+  if (apiUrl) {
+    const portMatch = apiUrl.match(/:(\d+)(?=\/|$)/);
+    if (portMatch) {
+      const apiPort = Number(portMatch[1]);
+      const webPort = apiPort === 3000 ? 3001 : apiPort + 1;
+      return apiUrl.replace(`:${apiPort}`, `:${webPort}`);
+    }
+  }
+
+  // Desenvolvimento local: admin em 3011, web em 3001
+  if (import.meta.env.DEV) return 'http://localhost:3001';
+
+  // Sem informação: usa a origem atual (último recurso)
+  if (typeof location !== 'undefined') return location.origin;
+  return '';
+}
+
 function defaultForField(field: ThemeSettingField): unknown {
   if (field.default !== undefined) return field.default;
   if (field.type === 'checkbox') return false;
@@ -208,12 +232,23 @@ export function ThemeCustomizer() {
   }
 
   const previewUrl = (): string => {
-    const base = previewPath() || '/';
+    const rawBase = previewPath() || '/';
+    // Se o usuário já digitou uma URL absoluta, usa diretamente.
+    if (/^https?:\/\//i.test(rawBase)) {
+      const separator = rawBase.includes('?') ? '&' : '?';
+      const encoded = encodeURIComponent(JSON.stringify(draft()));
+      const themeName = selectedTheme()?.name;
+      const selected = themeName ? `&preview_theme=${encodeURIComponent(themeName)}` : '';
+      return `${rawBase}${separator}preview_settings=${encoded}${selected}&_=${previewNonce()}`;
+    }
+    const base = rawBase.startsWith('/') ? rawBase : `/${rawBase}`;
     const encoded = encodeURIComponent(JSON.stringify(draft()));
     const separator = base.includes('?') ? '&' : '?';
     const themeName = selectedTheme()?.name;
     const selected = themeName ? `&preview_theme=${encodeURIComponent(themeName)}` : '';
-    return `${base}${separator}preview_settings=${encoded}${selected}&_=${previewNonce()}`;
+    const webAppBase = resolveWebAppBaseUrl();
+    const previewBase = webAppBase ? `${webAppBase}${base}` : base;
+    return `${previewBase}${separator}preview_settings=${encoded}${selected}&_=${previewNonce()}`;
   };
 
   // Render settings panel content based on field groups
