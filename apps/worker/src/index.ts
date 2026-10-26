@@ -4,6 +4,7 @@
 import Redis from 'ioredis';
 import { loadConfig } from '@oktis-works/config';
 import { bootstrap } from '@oktis-works/core';
+import { createConnection } from '@oktis-works/database';
 import { QueueManager } from './queues/manager.js';
 import {
   contentPublishHandler,
@@ -22,6 +23,11 @@ import { mailDeliverHandler } from './jobs/mail-deliver.js';
 async function main() {
   const lifecycle = await bootstrap();
   const config = loadConfig();
+
+  // Garante que a conexão com o banco está ativa neste processo (o bootstrap
+  // do core já chama createConnection, mas reafirmamos aqui para cobrir o caso
+  // de cópias duplicadas do módulo @oktis-works/database em workspaces).
+  createConnection(config.database);
 
   // Worker mode: docker (default, single), pm2 (cluster), k8s (HPA)
   // Quantidade via WORKER_COUNT (default 1), concorrência via WORKER_CONCURRENCY (default 5)

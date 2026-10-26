@@ -1,5 +1,20 @@
 # @oktis-works/worker
 
+## 0.8.14
+
+### Patch Changes
+
+- Fix worker jobs failing with "Database connection not initialized"
+  
+  The worker process relied solely on `@oktis-works/core` bootstrap to initialize
+  the database connection via `createConnection()`. When the worker was launched
+  via `bunx` (as `okcms start` does), nested `node_modules` could create a
+  separate copy of `@oktis-works/database`, so `getConnection()` in job handlers
+  saw `_sql === null` and threw `invalid input syntax for type uuid: """`.
+  
+  The worker now calls `createConnection(config.database)` explicitly after
+  bootstrap, ensuring the DB connection is active before any job handler runs.
+
 ## 0.8.13
 
 ### Patch Changes
