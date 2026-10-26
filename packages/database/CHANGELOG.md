@@ -1,5 +1,13 @@
 # @oktis-works/database
 
+## 0.14.6
+
+### Patch Changes
+
+- Fix postgres upgrade acceptance script version expectation to V026
+  
+  The `postgres-upgrade-acceptance.mjs` script expected `schema_version = 'V025'` but the new migration `V026__core__content_types_source_admin.sql` advances the schema to V026. Updated the acceptance script to expect V026 so CI passes.
+
 ## 0.14.5
 
 ### Patch Changes
