@@ -348,13 +348,15 @@ describe('resolveThemeStylesheet — link só quando dist/theme.css existe', () 
 describe('wrapDocument — idioma do documento vem das settings', () => {
   it('usa settings.language (não mais pt-BR hardcoded)', () => {
     const html = wrapDocument('<main>corpo</main>', 'Título', { ...settings, language: 'en-US' }, 'default', null);
-    expect(html).toContain('<html lang="en-US">');
+    expect(html).toMatch(/<html[^>]*lang="en-US"[^>]*>/);
+    expect(html).toContain('data-theme="default"');
     expect(html).not.toContain('data-theme-style');
   });
 
   it('fallback pt-BR e link do tema quando o stylesheet existe', () => {
     const html = wrapDocument('<main>corpo</main>', 'Título', settings, 'default', 'default');
-    expect(html).toContain('<html lang="pt-BR">');
+    expect(html).toMatch(/<html[^>]*lang="pt-BR"[^>]*>/);
+    expect(html).toContain('data-theme="default"');
     expect(html).toContain('<link rel="stylesheet" href="/themes/default/dist/theme.css"');
   });
 });

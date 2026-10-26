@@ -1,5 +1,34 @@
 # @oktis-works/web
 
+## 0.13.3
+
+### Patch Changes
+
+- Fix theme styling: add data-theme attribute to HTML
+  
+  The default theme's CSS uses `[data-theme="default"]` scoped selectors, but
+  the rendered HTML never included the `data-theme` attribute, so no styles
+  were applied and the site appeared unstyled.
+  
+  `wrapDocument` now sets `data-theme` on the `<html>` element using the
+  active theme name, so all theme CSS selectors match and the site renders
+  with its intended design.
+
+## 0.13.2
+
+### Patch Changes
+
+- Fix theme styling: add data-theme attribute to HTML
+  
+  The default theme's CSS uses `[data-theme="default"]` scoped selectors, but
+  the rendered HTML never included the `data-theme` attribute, so no styles
+  were applied and the site appeared unstyled (broken layout, no colors,
+  no spacing).
+  
+  `wrapDocument` now sets `data-theme` on the `<html>` element using the
+  active theme name, so all theme CSS selectors match and the site renders
+  with its intended design.
+
 ## 0.13.1
 
 ### Patch Changes

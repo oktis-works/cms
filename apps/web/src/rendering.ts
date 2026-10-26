@@ -505,7 +505,7 @@ export function wrapDocument(
   const assetFooter = pluginAssets?.footer ? `\n${pluginAssets.footer}` : '';
 
   return `<!DOCTYPE html>
-<html lang="${lang}">
+<html lang="${lang}" data-theme="${escapeHtml(activeTheme)}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">

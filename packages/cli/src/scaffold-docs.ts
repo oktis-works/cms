@@ -919,6 +919,32 @@ estilos entre temas; o Tailwind já sai com \`preflight: false\`).
 > produção quando a imagem é reconstruída: \`okcms theme:build\` seguido de
 > \`okcms redeploy\`.
 
+## data-theme no HTML (isolamento automático)
+
+O runtime do site envolve cada página pública com \`<html data-theme="<nome-do-tema>">\`.
+Você **não precisa** adicionar esse atributo nos templates Astro — ele é injetado
+automaticamente pelo servidor web em toda resposta pública.
+
+O que isso significa para seu CSS:
+
+- **Engine \`css\` (isolation: \`manual\`)**: escreva todo o CSS escopado dentro de
+  \`[data-theme="seu-tema"]\`. Exemplo:
+
+  \`\`\`css
+  [data-theme="meu-tema"] .hero {
+    padding: 4rem 0;
+    text-align: center;
+  }
+  \`\`\`
+
+- **Engine \`scss\`/\`tailwind\` (isolation: \`true\`)**: o build já escapa todo o CSS
+  automaticamente com \`[data-theme="seu-tema"]\`. Você escreve CSS puro sem
+  pensar no prefixo.
+
+Se você omitir \`[data-theme="..."]\` no CSS, as regras terão alcance global e
+poderão vazar para outros temas instalados no mesmo site — o isolamento é a
+proteção contra isso.
+
 ## Fluxo de desenvolvimento
 
 \`\`\`bash
@@ -1206,6 +1232,32 @@ isolation** (styles never leak between themes; Tailwind already ships with
 > SCSS or Tailwind inside the image. The file exists on the host and only
 > reaches production when the image is rebuilt: \`okcms theme:build\` followed by
 > \`okcms redeploy\`.
+
+## data-theme on HTML (automatic isolation)
+
+The site runtime wraps every public page with \`<html data-theme="<theme-name>">\`.
+You **do not need** to add this attribute in your Astro templates — it is injected
+automatically by the web server on every public response.
+
+What this means for your CSS:
+
+- **Engine \`css\` (isolation: \`manual\`)**: write all CSS scoped inside
+  \`[data-theme="your-theme"]\`. Example:
+
+  \`\`\`css
+  [data-theme="my-theme"] .hero {
+    padding: 4rem 0;
+    text-align: center;
+  }
+  \`\`\`
+
+- **Engine \`scss\`/\`tailwind\` (isolation: \`true\`)**: the build already scopes all
+  CSS automatically with \`[data-theme="your-theme"]\`. You write plain CSS without
+  thinking about the prefix.
+
+If you omit \`[data-theme="..."]\` in your CSS, rules will have global scope and
+may leak into other themes installed on the same site — isolation is the
+protection against this.
 
 ## Development workflow
 
