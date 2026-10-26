@@ -586,7 +586,7 @@ CREATE TABLE IF NOT EXISTS content_types (
   id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
   name VARCHAR(255) NOT NULL,
   slug VARCHAR(255) NOT NULL UNIQUE,
-  source VARCHAR(20) NOT NULL CHECK (source IN ('CORE', 'PLUGIN')),
+  source VARCHAR(20) NOT NULL CHECK (source IN ('CORE', 'PLUGIN', 'ADMIN')),
   source_id CHAR(36),
   `schema` JSON NOT NULL,
   plural_label VARCHAR(255) NOT NULL,

@@ -593,7 +593,7 @@ CREATE TABLE IF NOT EXISTS content_types (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name VARCHAR(255) NOT NULL,
   slug VARCHAR(255) NOT NULL UNIQUE,
-  source VARCHAR(20) NOT NULL CHECK (source IN ('CORE', 'PLUGIN')),
+  source VARCHAR(20) NOT NULL CHECK (source IN ('CORE', 'PLUGIN', 'ADMIN')),
   source_id UUID,
   schema JSONB NOT NULL,
   plural_label VARCHAR(255) NOT NULL,

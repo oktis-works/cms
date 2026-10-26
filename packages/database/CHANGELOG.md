@@ -1,5 +1,18 @@
 # @oktis-works/database
 
+## 0.14.5
+
+### Patch Changes
+
+- Fix content_types source CHECK constraint to accept 'ADMIN'
+  
+  The `content_types` table CHECK constraint only accepted `'CORE'` and `'PLUGIN'`,
+  but the API creates admin-defined content types with `source = 'ADMIN'`, causing
+  `new row for relation "content_types" violates check constraint "content_types_source_check"`.
+  
+  - Updated `schema.sql`, `schema.mysql.sql`, `schema.mariadb.sql` to include `'ADMIN'` in the CHECK constraint
+  - Added migration `V026__core__content_types_source_admin.sql` to drop and recreate the constraint on existing databases
+
 ## 0.14.4
 
 ### Patch Changes
