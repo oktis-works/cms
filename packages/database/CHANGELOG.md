@@ -1,5 +1,21 @@
 # @oktis-works/database
 
+## 0.14.8
+
+### Patch Changes
+
+- Fix migration runner: sync schema_version against both this-run and ledger applied migrations
+  
+  The migration runner only considered migrations already in the ledger
+  (appliedVersions, read before applying migrations) when advancing
+  schema_bootstrap.schema_version. Migrations applied in the current run
+  (result.applied) were not counted, so after applying V019→V026 the baseline
+  stayed at V018 and the same migrations were re-applied on the next run.
+  
+  Now the runner syncs schema_version against both result.applied (this run)
+  and appliedVersions (prior ledger state), so the baseline always advances
+  to the highest core_schema version actually applied.
+
 ## 0.14.7
 
 ### Patch Changes

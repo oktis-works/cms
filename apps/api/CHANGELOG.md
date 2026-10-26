@@ -1,5 +1,13 @@
 # @oktis-works/api
 
+## 0.16.10
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/database@0.14.8
+  - @oktis-works/core@0.15.6
+
 ## 0.16.9
 
 ### Patch Changes

@@ -600,13 +600,18 @@ export async function runMigrations(
     // to reflect the highest core version now present. This keeps the baseline in sync
     // for databases that started below the current snapshot (e.g. V018 → V025 via
     // numbered migrations) without relying on the adoptLegacy path.
-    // Sync against ALL applied core_schema migrations in the ledger (not just this run),
-    // so a migration applied in a previous run but whose schema_version bump was missed
-    // (e.g. tenant context was empty) still gets the baseline corrected here.
-    const allAppliedCore = migrations
+    // Sync against BOTH migrations applied in this run (result.applied) and
+    // migrations already in the ledger (appliedVersions), so a migration applied
+    // in a previous run but whose schema_version bump was missed (e.g. tenant context
+    // was empty) still gets the baseline corrected here.
+    const appliedCoreFromThisRun = migrations
+      .filter((m) => result.applied.includes(m.name) && domainFor(m) === 'core_schema')
+      .map((m) => Number(m.version));
+    const appliedCoreFromLedger = migrations
       .filter((m) => domainFor(m) === 'core_schema')
       .filter((m) => appliedVersions.has(`${m.owner}:${m.version}`))
-      .reduce((latest, m) => Math.max(latest, Number(m.version)), 0);
+      .map((m) => Number(m.version));
+    const allAppliedCore = Math.max(0, ...appliedCoreFromThisRun, ...appliedCoreFromLedger);
     if (allAppliedCore > baselineVersion) {
       const newVersion = `V${String(allAppliedCore).padStart(3, '0')}`;
       try {
