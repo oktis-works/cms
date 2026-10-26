@@ -33,19 +33,19 @@
             {{#if excerpt}}
             <p class="post-card__excerpt">{{excerpt}}</p>
             {{/if}}
-            <a href="/{{page.type}}/{{slug}}" class="btn btn-outline">Continuar lendo</a>
+            <a href="/{{page.type}}/{{slug}}" class="btn btn-outline">Continue reading</a>
           </div>
         </article>
         {{/each}}
       </div>
 
       {{#if pagination}}
-      <nav class="pagination" aria-label="Paginação">
+      <nav class="pagination" aria-label="Pagination">
         {{pagination}}
       </nav>
       {{/if}}
       {{else}}
-      <p class="no-posts">Nenhum conteúdo publicado ainda.</p>
+      <p class="no-posts">No content published yet.</p>
       {{/if}}
     </div>
   </section>

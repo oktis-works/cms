@@ -32,16 +32,16 @@
 
   <footer class="post-footer">
     <div class="container">
-      <nav class="post-nav" aria-label="Navegação entre posts">
+      <nav class="post-nav" aria-label="Post navigation">
         {{#if prevPost}}
         <a href="/{{page.type}}/{{prevPost.slug}}" class="post-nav__prev" rel="prev">
-          <span class="post-nav__label">Artigo anterior</span>
+          <span class="post-nav__label">Previous article</span>
           <span class="post-nav__title">{{prevPost.title}}</span>
         </a>
         {{/if}}
         {{#if nextPost}}
         <a href="/{{page.type}}/{{nextPost.slug}}" class="post-nav__next" rel="next">
-          <span class="post-nav__label">Próximo artigo</span>
+          <span class="post-nav__label">Next article</span>
           <span class="post-nav__title">{{nextPost.title}}</span>
         </a>
         {{/if}}
