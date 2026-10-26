@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import { defaultProjectConfig, DEFAULT_CONFIG_FILENAME } from './project-config.js';
 import { DEPLOY_GITIGNORE } from './assets.js';
-import { DEFAULT_THEME_FILES, DEFAULT_THEME_BINARY_FILES } from './theme-assets.js';
+import { DEFAULT_THEME_FILES, DEFAULT_THEME_BINARY_FILES, isBinaryThemeAsset } from './theme-assets.js';
 import { writeDeployAssets } from './bluegreen.js';
 import { DEFAULT_DOCS_LANG, docsLangLabel, pluginDoc, projectReadme, providerMatrixDoc, themeDoc } from './scaffold-docs.js';
 import type { DocsLang } from './scaffold-docs.js';
@@ -14,47 +14,75 @@ import { getLatestVersion } from './npm-registry.js';
 import { APP_VERSIONS } from './generated/app-versions.js';
 import { style, symbol } from './prompt.js';
 
-/** Resolve o diretório de assets do tema default.
+/**
+ * Resolves the directory holding the REAL default theme (`themes/default`).
  *
- * Prioridade:
- *  1. `dist/themes/default/` relativo ao pacote CLI instalado (produção / bunx).
- *  2. `themes/default/` relativo à raiz do monorepo (desenvolvimento local).
+ * Candidates, first existing wins:
  *
- * Isso garante que `okcms init` copie o tema IDÊNTICO ao monorepo, em vez de
- * strings hardcoded que ficam desatualizadas.
+ *  1. `<pkg>/dist/themes/default` — the published package layout.
+ *     `import.meta.url` already lives inside `dist/`, and
+ *     `scripts/copy-theme-assets.mjs` copies the monorepo theme there at
+ *     build time. This is the only candidate that exists under `bunx`;
+ *     looking one level ABOVE `dist/` (the old `'..'` path) never resolved
+ *     and silently dropped every scaffolded project onto the embedded
+ *     fallback — a theme that was no longer the monorepo's.
+ *  2. `<pkg>/themes/default` — same layout if the directory is ever shipped
+ *     outside `dist/`.
+ *  3. `<monorepo>/themes/default` — local development (running from
+ *     `packages/cli/src` or `packages/cli/dist`).
+ *
+ * `fromDir` exists so tests can simulate any install layout.
+ *
+ * @returns the theme directory, or null when none resolves (the caller then
+ * falls back to the generated strings in `theme-assets.ts`).
  */
-function getThemeAssetDir(): string | null {
-  // 1. produção: pacote instalado em node_modules/@oktis-works/cms/dist/
-  const pkgDistThemes = join(dirname(fileURLToPath(import.meta.url)), '..', 'themes', 'default');
-  if (existsSync(pkgDistThemes)) return pkgDistThemes;
-
-  // 2. desenvolvimento: monorepo raiz /themes/default/
-  const monoRepoThemes = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'themes', 'default');
-  if (existsSync(monoRepoThemes)) return monoRepoThemes;
-
-  return null;
+export function getThemeAssetDir(
+  fromDir: string = dirname(fileURLToPath(import.meta.url))
+): string | null {
+  const candidates = [
+    join(fromDir, 'themes', 'default'),
+    join(fromDir, '..', 'themes', 'default'),
+    join(fromDir, '..', '..', '..', 'themes', 'default'),
+  ];
+  return candidates.find((dir) => existsSync(dir)) ?? null;
 }
 
-/** Lê todos os arquivos de um diretório de tema recursivamente. */
-async function readThemeFiles(dir: string): Promise<Map<string, string | Buffer>> {
+/**
+ * Read every file of a theme directory recursively (used by `init` when a real
+ * theme directory resolves). Exported for the parity test.
+ */
+export async function readThemeFiles(dir: string, prefix = ''): Promise<Map<string, string | Buffer>> {
   const { readdir } = await import('node:fs/promises');
   const files = new Map<string, string | Buffer>();
   const entries = await readdir(dir, { withFileTypes: true });
   for (const entry of entries) {
     const full = join(dir, entry.name);
     if (entry.isDirectory()) {
-      const sub = await readThemeFiles(full);
-      for (const [rel, content] of sub) {
-        files.set(`${entry.name}/${rel}`, content);
+      const sub = await readThemeFiles(full, `${prefix}${entry.name}/`);
+      for (const [relative, content] of sub) {
+        files.set(relative, content);
       }
     } else {
-      const ext = entry.name.split('.').pop() ?? '';
-      if (['png', 'jpg', 'jpeg', 'gif', 'ico', 'svg'].includes(ext)) {
-        files.set(entry.name, readFileSync(full));
-      } else {
-        files.set(entry.name, await readFile(full, 'utf-8'));
-      }
+      // Classification comes from the generated binary map, so the disk copy
+      // and the embedded fallback write every file the same way.
+      const relative = `${prefix}${entry.name}`;
+      files.set(relative, isBinaryThemeAsset(relative) ? readFileSync(full) : await readFile(full, 'utf-8'));
     }
+  }
+  return files;
+}
+
+/**
+ * Theme files when no real theme directory resolves: the generated strings
+ * (same source — `themes/default/` — embedded by the build).
+ */
+function embeddedThemeFiles(): Map<string, string | Buffer> {
+  const files = new Map<string, string | Buffer>();
+  for (const [relative, content] of Object.entries(DEFAULT_THEME_FILES)) {
+    files.set(relative, content);
+  }
+  for (const [relative, base64] of Object.entries(DEFAULT_THEME_BINARY_FILES)) {
+    files.set(relative, Buffer.from(base64, 'base64'));
   }
   return files;
 }
@@ -178,35 +206,27 @@ export async function scaffoldProject(
   await mkdir(join(root, 'plugins'), { recursive: true });
   await mkdir(join(root, 'migrations'), { recursive: true });
 
-  // Tema default pronto: copia os arquivos reais do tema default (idênticos ao
-  // monorepo) em vez de strings hardcoded. Nunca sobrescreve em re-init — o
-  // operador pode ter editado o tema.
+  // Default theme: copied from the REAL theme directory (identical to the
+  // monorepo) — `getThemeAssetDir` resolves `dist/themes/default` in the
+  // published package and the monorepo copy in development. Only when no
+  // directory resolves does it fall back to the generated strings, which are
+  // produced from that same directory. Never overwrites on re-init — the
+  // operator may have edited the theme.
   const themeAssetDir = getThemeAssetDir();
-  if (themeAssetDir) {
-    const themeFiles = await readThemeFiles(themeAssetDir);
-    for (const [relative, content] of themeFiles) {
-      const target = join(root, 'themes', 'default', relative);
-      if (existsSync(target)) continue;
-      await mkdir(dirname(target), { recursive: true });
-      if (content instanceof Buffer) {
-        writeFileSync(target, content);
-      } else {
-        await writeFile(target, content, 'utf-8');
-      }
-    }
-  } else {
-    // Fallback: assets hardcoded (não deve acontecer em builds corretos).
-    for (const [relative, content] of Object.entries(DEFAULT_THEME_FILES)) {
-      const target = join(root, 'themes', 'default', relative);
-      if (existsSync(target)) continue;
-      await mkdir(dirname(target), { recursive: true });
+  if (!themeAssetDir) {
+    console.log(
+      style.dim('  [scaffold] theme directory not found — using embedded themes/default copy')
+    );
+  }
+  const themeFiles = themeAssetDir ? await readThemeFiles(themeAssetDir) : embeddedThemeFiles();
+  for (const [relative, content] of themeFiles) {
+    const target = join(root, 'themes', 'default', relative);
+    if (existsSync(target)) continue;
+    await mkdir(dirname(target), { recursive: true });
+    if (content instanceof Buffer) {
+      writeFileSync(target, content);
+    } else {
       await writeFile(target, content, 'utf-8');
-    }
-    for (const [relative, base64] of Object.entries(DEFAULT_THEME_BINARY_FILES)) {
-      const target = join(root, 'themes', 'default', relative);
-      if (existsSync(target)) continue;
-      await mkdir(dirname(target), { recursive: true });
-      writeFileSync(target, Buffer.from(base64, 'base64'));
     }
   }
 

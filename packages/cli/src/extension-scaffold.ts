@@ -81,6 +81,12 @@ export function scaffoldTheme(name: string, baseDir?: string, style: ScaffoldThe
   const styleConfig =
     style === 'css' ? undefined : style === 'scss' ? { engine: 'scss', entry: 'styles/main.scss', output: 'dist/theme.css', isolation: true } : { engine: 'tailwind', entry: 'src/input.css', output: 'dist/theme.css', isolation: true };
 
+  // The manifest must declare exactly the templates being written — the
+  // runtime resolves a page to `provides.layouts` entries.
+  const layouts = Object.keys(THEME_TEMPLATE_FILES).map((file) =>
+    file.replace(/\.astro$/, '')
+  );
+
   const manifest: Record<string, unknown> = {
     name,
     version: '0.1.0',
@@ -88,7 +94,7 @@ export function scaffoldTheme(name: string, baseDir?: string, style: ScaffoldThe
     type: 'theme',
     compatibility: { okcms: `^${CMS_VERSION}` },
     provides: {
-      layouts: ['home', 'index', 'single', 'page', 'archive', '404'],
+      layouts,
       ...(style === 'css' ? { assets: ['dist/theme.css'] } : {}),
     },
     ...(styleConfig ? { stylesConfig: styleConfig } : {}),
@@ -130,7 +136,9 @@ export function scaffoldTheme(name: string, baseDir?: string, style: ScaffoldThe
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, 'theme.json'), JSON.stringify(manifest, null, 2));
 
-  // Templates da hierarquia na raiz — é o que o catch-all do web procura.
+  // Templates at the theme root — that is what the runtime catch-all looks
+  // for. They come from `themes/default/` (generated), so a scaffolded theme
+  // starts with exactly the templates the default theme ships.
   for (const [file, content] of Object.entries(THEME_TEMPLATE_FILES)) {
     writeFileSync(join(dir, file), content);
   }
@@ -158,21 +166,25 @@ export function scaffoldTheme(name: string, baseDir?: string, style: ScaffoldThe
       ].join('\n')
     );
   } else {
-    // engine css: servível direto de dist/theme.css (caminho que o web linka)
+    // engine css: servível direto de dist/theme.css (caminho que o web linka).
+    // The stylesheet is scoped by `[data-theme="<name>"]` — the default
+    // theme's copy targets `default`, so it is re-scoped here or a brand new
+    // theme would ship CSS that never matches its own wrapper.
     mkdirSync(join(dir, 'dist'), { recursive: true });
-    writeFileSync(join(dir, 'dist', 'theme.css'), DEFAULT_THEME_CSS);
+    const css = DEFAULT_THEME_CSS.replaceAll('data-theme="default"', `data-theme="${name}"`);
+    writeFileSync(join(dir, 'dist', 'theme.css'), css);
   }
   writeFileSync(
     join(dir, 'README.md'),
     [
       `# ${name}`,
       '',
-      `Tema OkCMS.`,
+      `OkCMS theme.`,
       '',
       `- Manifest: theme.json`,
-      `- Templates: *.astro na raiz (home, index, single, page, archive, 404)`,
-      `- Contexto do template: site.*, page.*, content.*, items, menus, settings`,
-      `- Engine: ${style}${style === 'css' ? ' (dist/theme.css servido direto)' : ' (okcms theme:build → dist/theme.css)'}`,
+      `- Templates: *.astro at the theme root (the hierarchy the runtime resolves)`,
+      `- Template context: site.*, page.*, content.*, items, menus, settings`,
+      `- Engine: ${style}${style === 'css' ? ' (dist/theme.css served directly)' : ' (okcms theme:build → dist/theme.css)'}`,
       '',
     ].join('\n')
   );

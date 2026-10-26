@@ -1,88 +1,129 @@
-// @oktis-works/cms - Default theme embedded assets
-
-import { Buffer } from 'node:buffer';
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_THEME_FILES, DEFAULT_THEME_BINARY_FILES, DEFAULT_THEME_MANIFEST, THEME_TEMPLATE_FILES } from './theme-assets.js';
+import { readdirSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join, relative, sep } from 'node:path';
+import {
+  DEFAULT_THEME_FILES,
+  DEFAULT_THEME_BINARY_FILES,
+  isBinaryThemeAsset,
+} from './theme-assets.js';
+import { readThemeFiles } from './scaffold.js';
+import { assertCompatible, CMS_VERSION } from '@oktis-works/validation';
 
-describe('DEFAULT_THEME_FILES (default theme embedded by init)', () => {
-  const manifest = JSON.parse(DEFAULT_THEME_MANIFEST) as Record<string, unknown>;
+const THEME_DIR = join(
+  dirname(fileURLToPath(import.meta.url)),
+  '..',
+  '..',
+  '..',
+  'themes',
+  'default',
+);
 
-  it('manifest has name/version/type readable by the service', () => {
-    expect(manifest['name']).toBe('default');
-    expect(manifest['version']).toBe('0.2.0');
-    expect(manifest['type']).toBe('theme');
-    expect((manifest['provides'] as Record<string, unknown>)['layouts']).toEqual([
-      'front-page', 'home', 'posts', 'index', 'single', 'page', 'archive', '404',
-      'page-about', 'page-contact', 'post-first-post', 'post-second-post',
-    ]);
+function walkThemeFiles(dir: string): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      out.push(...walkThemeFiles(full));
+    } else {
+      out.push(relative(THEME_DIR, full).split(sep).join('/'));
+    }
+  }
+  return out;
+}
+
+/**
+ * Parity guard: the embedded fallback theme in the CLI must be a byte-exact
+ * snapshot of the monorepo themes/default directory (the source of truth).
+ * If this test fails after editing the theme, regenerate with:
+ *   node packages/cli/scripts/generate-theme-assets.mjs
+ */
+describe('default theme assets (generated parity)', () => {
+  it('embeds every file from themes/default, with no extras or omissions', () => {
+    const sourceFiles = walkThemeFiles(THEME_DIR).sort();
+    const embeddedFiles = [
+      ...Object.keys(DEFAULT_THEME_FILES),
+      ...Object.keys(DEFAULT_THEME_BINARY_FILES),
+    ].sort();
+    expect(embeddedFiles).toEqual(sourceFiles);
   });
 
-  it('ships the complete .astro template hierarchy at the theme root', () => {
-    for (const file of ['front-page.astro', 'home.astro', 'posts.astro', 'index.astro', 'single.astro', 'page.astro', 'archive.astro', '404.astro']) {
-      expect(Object.keys(THEME_TEMPLATE_FILES)).toContain(file);
-      // All templates share the scoped shell: data-theme wrapper + header + footer
-      expect(THEME_TEMPLATE_FILES[file]!.startsWith('<div class="site" data-theme=')).toBe(true);
-      expect(THEME_TEMPLATE_FILES[file]!).toContain('site-header');
-      expect(THEME_TEMPLATE_FILES[file]!).toContain('site-footer');
+  it('embeds byte-identical content for every file', () => {
+    for (const [name, content] of Object.entries(DEFAULT_THEME_FILES)) {
+      expect(readFileSync(join(THEME_DIR, name), 'utf8'), name).toBe(content);
+    }
+    for (const [name, content] of Object.entries(DEFAULT_THEME_BINARY_FILES)) {
+      expect(readFileSync(join(THEME_DIR, name)), name).toEqual(
+        Buffer.from(content, 'base64'),
+      );
     }
   });
 
-  it('renders the header menu and footer menu from the runtime menus context', () => {
-    expect(THEME_TEMPLATE_FILES['front-page.astro']).toContain('{{#each menus.header.items}}');
-    expect(THEME_TEMPLATE_FILES['front-page.astro']).toContain('{{#each menus.footer.items}}');
-    expect(THEME_TEMPLATE_FILES['home.astro']).toContain('{{#each menus.header.items}}');
-    expect(THEME_TEMPLATE_FILES['404.astro']).toContain('{{#each menus.header.items}}');
+  it('classifies binary assets by their generated map', () => {
+    expect(isBinaryThemeAsset('screenshot.png')).toBe(true);
+    expect(isBinaryThemeAsset('theme.json')).toBe(false);
+    expect(isBinaryThemeAsset('index.astro')).toBe(false);
   });
 
-  it('templates use the real runtime context (items, site, content) — never hardcoded posts', () => {
-    expect(THEME_TEMPLATE_FILES['front-page.astro']).toContain('{{#each items}}');
-    expect(THEME_TEMPLATE_FILES['home.astro']).toContain('{{#each items}}');
-    expect(THEME_TEMPLATE_FILES['single.astro']).toContain('{{content.title}}');
-    expect(THEME_TEMPLATE_FILES['page.astro']).toContain('{{{content.html}}}');
-    expect(THEME_TEMPLATE_FILES['archive.astro']).toContain('{{#each items}}');
+  it('readThemeFiles reads the real theme directory byte-exact', async () => {
+    const files = await readThemeFiles(THEME_DIR);
+    const sourceFiles = walkThemeFiles(THEME_DIR).sort();
+    expect([...files.keys()].sort()).toEqual(sourceFiles);
+    for (const [name, content] of files) {
+      // Text files are read as utf-8 strings, binaries as Buffers — compare
+      // each against the same representation on disk.
+      const expected =
+        typeof content === 'string'
+          ? readFileSync(join(THEME_DIR, name), 'utf-8')
+          : readFileSync(join(THEME_DIR, name));
+      expect(content, name).toEqual(expected);
+    }
   });
 
-  it('posts.astro (posts page / WP home.php) lists the items feed with the page title', () => {
-    expect(THEME_TEMPLATE_FILES['posts.astro']).toContain('{{page.title}}');
-    expect(THEME_TEMPLATE_FILES['posts.astro']).toContain('{{#each items}}');
-    expect(THEME_TEMPLATE_FILES['posts.astro']).toContain('{{{content.html}}}');
-    // listing template, never the static page body alone
-    expect(THEME_TEMPLATE_FILES['posts.astro']).toContain('data-template="posts"');
+  it('exposes a complete, OkCMS-compatible manifest', () => {
+    const manifest = JSON.parse(DEFAULT_THEME_FILES['theme.json'] ?? '');
+    expect(manifest.name).toBe('default');
+    expect(manifest.version).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(() => assertCompatible('theme', manifest, CMS_VERSION)).not.toThrow();
+    for (const layout of manifest.provides.layouts) {
+      expect(DEFAULT_THEME_FILES[`${layout}.astro`], layout).toBeDefined();
+    }
+    expect(manifest.stylesConfig.entry).toBe('src/theme.css');
+    expect(manifest.stylesConfig.output).toBe('dist/theme.css');
+    expect(DEFAULT_THEME_FILES['dist/theme.css']).toBeDefined();
   });
 
-  it('includes servable dist/theme.css (the path the web app links)', () => {
-    expect(DEFAULT_THEME_FILES['dist/theme.css']).toContain('--brand');
-    expect(Object.keys(DEFAULT_THEME_FILES)).toContain('theme.json');
-  });
-
-  it('resets the UA body margin so the site never renders inside a white frame', () => {
-    // The wrapper's `margin: 0` does not touch <body> — without an explicit,
-    // theme-scoped body reset the browser's 8px margin shows on every side.
-    expect(DEFAULT_THEME_FILES['dist/theme.css']).toContain('body:has([data-theme="default"]){ margin: 0; padding: 0; }');
-  });
-
-  it('covers exactly manifest + 12 templates + css (screenshot is separate binary)', () => {
-    expect(Object.keys(DEFAULT_THEME_FILES).sort()).toEqual(
-      [
-        '404.astro', 'archive.astro', 'dist/theme.css', 'front-page.astro',
-        'home.astro', 'index.astro', 'page-about.astro', 'page-contact.astro',
-        'page.astro', 'post-first-post.astro', 'post-second-post.astro',
-        'posts.astro', 'single.astro', 'theme.json',
-      ].sort()
+  it('ships a decodable 600x400 screenshot', () => {
+    const png = Buffer.from(
+      DEFAULT_THEME_BINARY_FILES['screenshot.png'] ?? '',
+      'base64',
     );
-    expect(Object.keys(DEFAULT_THEME_BINARY_FILES)).toEqual(['screenshot.png']);
+    // PNG signature + IHDR: width/height are big-endian uint32 at offset 16/20.
+    expect(png.subarray(0, 8)).toEqual(
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    );
+    expect(png.subarray(12, 16).toString('ascii')).toBe('IHDR');
+    expect(png.readUInt32BE(16)).toBe(600);
+    expect(png.readUInt32BE(20)).toBe(400);
   });
 
-  it('manifest declares compatibility.okcms (BUSI-022 — theme:install requires it)', () => {
-    expect((manifest['compatibility'] as Record<string, unknown>)['okcms']).toMatch(/^\^\d+\.\d+\.\d+$/);
+  it('scopes the stylesheet to [data-theme="default"]', () => {
+    expect(DEFAULT_THEME_FILES['dist/theme.css']).toContain(
+      '[data-theme="default"]',
+    );
+    expect(DEFAULT_THEME_FILES['src/theme.css']).toContain(
+      '[data-theme="default"]',
+    );
   });
 
-  it('manifest declares screenshots for the admin preview and the PNG decodes valid', () => {
-    expect(manifest['screenshots']).toEqual(['screenshot.png']);
-    const decoded = Buffer.from(DEFAULT_THEME_BINARY_FILES['screenshot.png']!, 'base64');
-    // magic number PNG + dimensions 600x400 (IHDR)/big-endian
-    expect(decoded.subarray(0, 8)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
-    expect(decoded.readUInt32BE(16)).toBe(600);
-    expect(decoded.readUInt32BE(20)).toBe(400);
+  it('regenerates the embedded assets during build and prepack', () => {
+    const pkg = JSON.parse(
+      readFileSync(
+        join(dirname(fileURLToPath(import.meta.url)), '..', 'package.json'),
+        'utf8',
+      ),
+    );
+    expect(pkg.scripts.build).toContain('generate-theme-assets.mjs');
+    expect(pkg.scripts.prepack).toContain('generate-theme-assets.mjs');
   });
 });

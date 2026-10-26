@@ -15,8 +15,8 @@
     }
   },
   "scripts": {
-    "build": "node scripts/generate-versions.mjs && tsc && node scripts/copy-migrations.mjs && node scripts/copy-theme-assets.mjs",
-    "prepack": "node scripts/generate-versions.mjs && tsc && node scripts/copy-migrations.mjs && node scripts/copy-theme-assets.mjs",
+    "build": "node scripts/generate-versions.mjs && node scripts/generate-theme-assets.mjs && tsc && node scripts/copy-migrations.mjs && node scripts/copy-theme-assets.mjs",
+    "prepack": "node scripts/generate-versions.mjs && node scripts/generate-theme-assets.mjs && tsc && node scripts/copy-migrations.mjs && node scripts/copy-theme-assets.mjs",
     "clean": "rm -rf dist migrations tsconfig.tsbuildinfo dist/themes"
   },
   "dependencies": {

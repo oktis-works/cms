@@ -1,11 +1,11 @@
 // @oktis-works/cms - Project Scaffolding Tests (init cria dir nomeado com tudo dentro)
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { mkdtempSync, mkdirSync, rmSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, existsSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { scaffoldProject, toPackageName, appRangeFor, resolveAppRanges, validateScaffold, APP_PACKAGES } from './scaffold.js';
+import { scaffoldProject, toPackageName, appRangeFor, resolveAppRanges, validateScaffold, APP_PACKAGES, getThemeAssetDir } from './scaffold.js';
 import {
   detectPackageManager,
   installProjectDepsLive,
@@ -26,6 +26,20 @@ vi.mock('./npm-registry.js', () => ({
 
 let workDir: string;
 let originalCwd: string;
+
+/** Recursive list of relative file paths (posix separators) under dir. */
+function walkFiles(dir: string, prefix = ''): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      out.push(...walkFiles(full, `${prefix}${entry.name}/`));
+    } else {
+      out.push(`${prefix}${entry.name}`);
+    }
+  }
+  return out;
+}
 
 beforeEach(() => {
   originalCwd = process.cwd();
@@ -254,12 +268,35 @@ describe('scaffoldProject', () => {
   it('não sobrescreve o tema default editado no re-init', async () => {
     await scaffoldProject('keep-theme', 'keep-theme');
 
-    const homePath = join(workDir, 'keep-theme', 'themes', 'default', 'home.astro');
+    const homePath = join(workDir, 'keep-theme', 'themes', 'default', 'page-home.astro');
     writeFileSync(homePath, '<main>editado por mim</main>');
 
     await scaffoldProject('keep-theme', 'keep-theme');
 
     expect(readFileSync(homePath, 'utf-8')).toBe('<main>editado por mim</main>');
+  });
+
+  it('o tema escrito no init é byte-idêntico ao themes/default do monorepo', async () => {
+    await scaffoldProject('parity-theme', 'parity-theme');
+
+    const repoTheme = join(
+      dirname(fileURLToPath(import.meta.url)),
+      '..', '..', '..',
+      'themes', 'default',
+    );
+    const writtenTheme = join(workDir, 'parity-theme', 'themes', 'default');
+
+    // Every monorepo file lands byte-exact in the scaffold — and nothing
+    // extra is invented.
+    const repoFiles = walkFiles(repoTheme).sort();
+    const writtenFiles = walkFiles(writtenTheme).sort();
+    expect(writtenFiles).toEqual(repoFiles);
+    for (const relative of repoFiles) {
+      expect(
+        readFileSync(join(writtenTheme, relative)),
+        relative,
+      ).toEqual(readFileSync(join(repoTheme, relative)));
+    }
   });
 
   it('docker-compose sobe postgres + redis com healthcheck e volume', async () => {
@@ -431,6 +468,39 @@ describe('scaffoldProject', () => {
     expect(toPackageName('***')).toBe('okcms-project');
   });
 
+});
+
+describe('getThemeAssetDir', () => {
+  it('resolves the published npm layout (<pkg>/dist/themes/default)', () => {
+    const root = mkdtempSync(join(tmpdir(), 'okcms-pkg-'));
+    try {
+      // Simulated install layout: code at <pkg>/dist/assets/*.js, theme at
+      // <pkg>/dist/themes/default (what copy-theme-assets.mjs ships).
+      const distAssets = join(root, 'dist', 'assets');
+      mkdirSync(join(root, 'dist', 'themes', 'default'), { recursive: true });
+      expect(getThemeAssetDir(distAssets)).toBe(
+        join(root, 'dist', 'themes', 'default'),
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('resolves the monorepo layout (packages/cli/src → <root>/themes/default)', () => {
+    const fromDir = dirname(fileURLToPath(import.meta.url));
+    expect(getThemeAssetDir(fromDir)).toBe(
+      join(fromDir, '..', '..', '..', 'themes', 'default'),
+    );
+  });
+
+  it('returns null when no theme directory exists (embedded fallback path)', () => {
+    const root = mkdtempSync(join(tmpdir(), 'okcms-empty-'));
+    try {
+      expect(getThemeAssetDir(root)).toBeNull();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });
 
 describe('validateScaffold', () => {
