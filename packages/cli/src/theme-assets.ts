@@ -23,7 +23,7 @@ export const DEFAULT_THEME_MANIFEST = `${JSON.stringify(
     // Preview card on the admin Themes screen (served from /themes/default/).
     screenshots: ['screenshot.png'],
     provides: {
-      layouts: ['front-page', 'home', 'posts', 'index', 'single', 'page', 'archive', '404'],
+      layouts: ['front-page', 'home', 'posts', 'index', 'single', 'page', 'archive', '404', 'page-about', 'page-contact', 'post-first-post', 'post-second-post'],
       assets: ['dist/theme.css'],
     },
     stylesConfig: {
@@ -547,6 +547,224 @@ ${HEADER}
     </section>
   </main>
 ${FOOTER}</div>
+`,
+  // Page: About (English slug fallback for page-{slug}.astro hierarchy)
+  'page-about.astro': `<main data-template="page-about" data-type="page" class="page-about">
+  <header class="site-header">
+    <nav class="nav" role="navigation" aria-label="Main navigation">
+      <a href="/" class="site-brand" aria-label="Home">
+        {{site.title}}
+      </a>
+      <ul class="nav-menu">
+        <li><a href="/about">{{#if menus.header.bySlug.about}}{{menus.header.bySlug.about.label}}{{else}}About{{/if}}</a></li>
+        <li><a href="#contact">Contact</a></li>
+        <li><a href="/blog">{{#if menus.header.bySlug.blog}}{{menus.header.bySlug.blog.label}}{{else}}Blog{{/if}}</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <section class="page-header">
+    <div class="container">
+      <h1>{{field "title"}}</h1>
+      {{#if (field "excerpt")}}
+      <p class="page-excerpt">{{field "excerpt"}}</p>
+      {{/if}}
+    </div>
+  </header>
+
+  <div class="page-content container">
+    {{#if (field "content")}}
+    <div class="entry-content">{{{field "content"}}}</div>
+    {{else if (field "blocks")}}
+    <div class="entry-content">
+      {{#each fields.blocks}}
+        {{#if (eq type 'heading')}}
+        <h{{level}}>{{content}}</h{{level}}>
+        {{else if (eq type 'paragraph')}}
+        <p>{{content}}</p>
+        {{else if (eq type 'image')}}
+        <figure><img src="{{content.url}}" alt="{{content.alt}}" /></figure>
+        {{/if}}
+      {{/each}}
+    </div>
+    {{/if}}
+  </div>
+</main>
+
+<footer class="site-footer" role="contentinfo">
+  <div class="container">
+    <nav class="footer-nav" aria-label="Footer navigation">
+      {{#each menus.footer.items}}
+      <a href="{{url}}">{{label}}</a>
+      {{/each}}
+    </nav>
+    <p class="copyright">&copy; {{new Date().getFullYear()}} {{site.title}}. All rights reserved.</p>
+  </div>
+</footer>
+`,
+  // Page: Contact (English slug fallback for page-{slug}.astro hierarchy)
+  'page-contact.astro': `<main data-template="page-contact" data-type="page" class="page-contact">
+  <header class="site-header">
+    <nav class="nav" role="navigation" aria-label="Main navigation">
+      <a href="/" class="site-brand" aria-label="Home">
+        {{site.title}}
+      </a>
+      <ul class="nav-menu">
+        <li><a href="/about">{{#if menus.header.bySlug.about}}{{menus.header.bySlug.about.label}}{{else}}About{{/if}}</a></li>
+        <li><a href="#contact">Contact</a></li>
+        <li><a href="/blog">{{#if menus.header.bySlug.blog}}{{menus.header.bySlug.blog.label}}{{else}}Blog{{/if}}</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <section class="page-header">
+    <div class="container">
+      <h1>{{field "title"}}</h1>
+      {{#if (field "excerpt")}}
+      <p class="page-excerpt">{{field "excerpt"}}</p>
+      {{/if}}
+    </div>
+  </section>
+
+  <section class="contact" id="contact" aria-labelledby="contact-title">
+    <div class="container">
+      <h2 id="contact-title">Get in Touch</h2>
+      <p class="contact-intro">{{settings.contactText || 'Fill out the form or send us an email at hello@example.com — we would love to hear from you.'}}</p>
+      <form class="contact-form" action="mailto:hello@example.com" method="POST" enctype="text/plain">
+        <div class="form-group">
+          <label for="contact-name">Name</label>
+          <input type="text" id="contact-name" name="name" required />
+        </div>
+        <div class="form-group">
+          <label for="contact-email">E-mail</label>
+          <input type="email" id="contact-email" name="email" required />
+        </div>
+        <div class="form-group">
+          <label for="contact-message">Message</label>
+          <textarea id="contact-message" name="message" rows="5" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Send</button>
+      </form>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer" role="contentinfo">
+  <div class="container">
+    <nav class="footer-nav" aria-label="Footer navigation">
+      {{#each menus.footer.items}}
+      <a href="{{url}}">{{label}}</a>
+      {{/each}}
+    </nav>
+    <p class="copyright">&copy; {{new Date().getFullYear()}} {{site.title}}. All rights reserved.</p>
+  </div>
+</footer>
+`,
+  // Post: first post (English slug fallback for post-{slug}.astro hierarchy)
+  'post-first-post.astro': `<article data-template="post-first-post" data-type="post" class="post post-single">
+  <header class="post-header">
+    <div class="container">
+      <h1 class="post-title">{{field "title"}}</h1>
+      <div class="post-meta">
+        <time datetime="{{content.published_at}}" class="post-date">
+          {{#if content.published_at}}
+          {{formatDate content.published_at}}
+          {{/if}}
+        </time>
+      </div>
+    </div>
+  </header>
+
+  <div class="post-body container">
+    {{#if (field "content")}}
+    <div class="entry-content">{{{field "content"}}}</div>
+    {{else if (field "blocks")}}
+    <div class="entry-content">
+      {{#each fields.blocks}}
+        {{#if (eq type 'heading')}}
+        <h{{level}}>{{content}}</h{{level}}>
+        {{else if (eq type 'paragraph')}}
+        <p>{{content}}</p>
+        {{else if (eq type 'image')}}
+        <figure><img src="{{content.url}}" alt="{{content.alt}}" /></figure>
+        {{/if}}
+      {{/each}}
+    </div>
+    {{/if}}
+  </div>
+
+  <footer class="post-footer">
+    <div class="container">
+      <nav class="post-nav" aria-label="Post navigation">
+        {{#if prevPost}}
+        <a href="/{{page.type}}/{{prevPost.slug}}" class="post-nav__prev" rel="prev">
+          <span class="post-nav__label">Previous article</span>
+          <span class="post-nav__title">{{prevPost.title}}</span>
+        </a>
+        {{/if}}
+        {{#if nextPost}}
+        <a href="/{{page.type}}/{{nextPost.slug}}" class="post-nav__next" rel="next">
+          <span class="post-nav__label">Next article</span>
+          <span class="post-nav__title">{{nextPost.title}}</span>
+        </a>
+        {{/if}}
+      </nav>
+    </div>
+  </footer>
+</article>
+`,
+  // Post: second post (English slug fallback for post-{slug}.astro hierarchy)
+  'post-second-post.astro': `<article data-template="post-second-post" data-type="post" class="post post-single">
+  <header class="post-header">
+    <div class="container">
+      <h1 class="post-title">{{field "title"}}</h1>
+      <div class="post-meta">
+        <time datetime="{{content.published_at}}" class="post-date">
+          {{#if content.published_at}}
+          {{formatDate content.published_at}}
+          {{/if}}
+        </time>
+      </div>
+    </div>
+  </header>
+
+  <div class="post-body container">
+    {{#if (field "content")}}
+    <div class="entry-content">{{{field "content"}}}</div>
+    {{else if (field "blocks")}}
+    <div class="entry-content">
+      {{#each fields.blocks}}
+        {{#if (eq type 'heading')}}
+        <h{{level}}>{{content}}</h{{level}}>
+        {{else if (eq type 'paragraph')}}
+        <p>{{content}}</p>
+        {{else if (eq type 'image')}}
+        <figure><img src="{{content.url}}" alt="{{content.alt}}" /></figure>
+        {{/if}}
+      {{/each}}
+    </div>
+    {{/if}}
+  </div>
+
+  <footer class="post-footer">
+    <div class="container">
+      <nav class="post-nav" aria-label="Post navigation">
+        {{#if prevPost}}
+        <a href="/{{page.type}}/{{prevPost.slug}}" class="post-nav__prev" rel="prev">
+          <span class="post-nav__label">Previous article</span>
+          <span class="post-nav__title">{{prevPost.title}}</span>
+        </a>
+        {{/if}}
+        {{#if nextPost}}
+        <a href="/{{page.type}}/{{nextPost.slug}}" class="post-nav__next" rel="next">
+          <span class="post-nav__label">Next article</span>
+          <span class="post-nav__title">{{nextPost.title}}</span>
+        </a>
+        {{/if}}
+      </nav>
+    </div>
+  </footer>
+</article>
 `,
 };
 

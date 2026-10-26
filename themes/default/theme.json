@@ -1,7 +1,7 @@
 {
   "name": "default",
   "version": "0.36.2",
-  "description": "Tema padrão do OkCMS — templates hierárquicos com interpolação real de conteúdo + Static Front Page",
+  "description": "Default OkCMS theme — hierarchical templates with real content interpolation + Static Front Page",
   "type": "theme",
   "author": "Oktis Works",
   "compatibility": {
@@ -14,11 +14,10 @@
     "layouts": [
       "page-home",
       "page-about",
-      "page-sobre",
       "page-contact",
       "page-blog",
-      "post-primeiro-post",
-      "post-segundo-post",
+      "post-first-post",
+      "post-second-post",
       "page",
       "single",
       "archive",
@@ -39,20 +38,20 @@
     {
       "name": "siteTitle",
       "type": "text",
-      "label": "Título do site",
+      "label": "Site title",
       "default": "OkCMS"
     },
     {
       "name": "siteDescription",
       "type": "text",
-      "label": "Descrição do site",
+      "label": "Site description",
       "default": ""
     },
     {
       "name": "contactText",
       "type": "textarea",
-      "label": "Texto da seção de contato",
-      "default": "Preencha o formulário ou envie um e-mail para contato@exemplo.com"
+      "label": "Contact section text",
+      "default": "Fill out the form or send us an email at hello@example.com"
     }
   ]
 }

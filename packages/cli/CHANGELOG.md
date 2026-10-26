@@ -1,5 +1,35 @@
 # @oktis-works/cms
 
+## 0.13.17
+
+### Patch Changes
+
+- Embed English default theme templates in CLI for `okcms init`
+  
+  New projects created with `okcms init` now ship English versions of the default
+  theme templates (`page-about.astro`, `page-contact.astro`, `post-first-post.astro`,
+  `post-second-post.astro`) plus `page-home.astro` translated to English, so users
+  who create pages/posts with English slugs (`about`, `contact`, `first-post`,
+  `second-post`) get styled templates instead of falling back to the generic
+  `page.astro` / `index.astro`.
+  
+  Updated `theme.json` `provides.layouts` to register the new layouts.
+
+## 0.13.16
+
+### Patch Changes
+
+- Add English page templates to default theme
+  
+  The default theme only shipped Portuguese templates (`page-sobre.astro`,
+  `page-contact` section in `page-home.astro`). When a user creates pages with
+  English slugs (`about`, `contact`), the template hierarchy could not find
+  `page-about.astro` / `page-contact.astro` and fell back to the generic
+  `page.astro` / `index.astro` — breaking the styling.
+  
+  Adds `page-about.astro` and `page-contact.astro` (English versions) to the
+  default theme and registers them in `theme.json` `provides.layouts`.
+
 ## 0.13.15
 
 ### Patch Changes

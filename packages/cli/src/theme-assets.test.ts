@@ -13,6 +13,7 @@ describe('DEFAULT_THEME_FILES (default theme embedded by init)', () => {
     expect(manifest['type']).toBe('theme');
     expect((manifest['provides'] as Record<string, unknown>)['layouts']).toEqual([
       'front-page', 'home', 'posts', 'index', 'single', 'page', 'archive', '404',
+      'page-about', 'page-contact', 'post-first-post', 'post-second-post',
     ]);
   });
 
@@ -60,9 +61,14 @@ describe('DEFAULT_THEME_FILES (default theme embedded by init)', () => {
     expect(DEFAULT_THEME_FILES['dist/theme.css']).toContain('body:has([data-theme="default"]){ margin: 0; padding: 0; }');
   });
 
-  it('covers exactly manifest + 8 templates + css (screenshot is separate binary)', () => {
+  it('covers exactly manifest + 12 templates + css (screenshot is separate binary)', () => {
     expect(Object.keys(DEFAULT_THEME_FILES).sort()).toEqual(
-      ['404.astro', 'archive.astro', 'dist/theme.css', 'front-page.astro', 'home.astro', 'index.astro', 'theme.json', 'page.astro', 'posts.astro', 'single.astro'].sort()
+      [
+        '404.astro', 'archive.astro', 'dist/theme.css', 'front-page.astro',
+        'home.astro', 'index.astro', 'page-about.astro', 'page-contact.astro',
+        'page.astro', 'post-first-post.astro', 'post-second-post.astro',
+        'posts.astro', 'single.astro', 'theme.json',
+      ].sort()
     );
     expect(Object.keys(DEFAULT_THEME_BINARY_FILES)).toEqual(['screenshot.png']);
   });
