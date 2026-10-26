@@ -1,0 +1,56 @@
+<main data-template="page-contact" data-type="page" class="page-contact">
+  <header class="site-header">
+    <nav class="nav" role="navigation" aria-label="Main navigation">
+      <a href="/" class="site-brand" aria-label="Home">
+        {{site.title}}
+      </a>
+      <ul class="nav-menu">
+        <li><a href="/about">{{#if menus.header.bySlug.about}}{{menus.header.bySlug.about.label}}{{else}}About{{/if}}</a></li>
+        <li><a href="#contact">Contact</a></li>
+        <li><a href="/blog">{{#if menus.header.bySlug.blog}}{{menus.header.bySlug.blog.label}}{{else}}Blog{{/if}}</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <section class="page-header">
+    <div class="container">
+      <h1>{{field "title"}}</h1>
+      {{#if (field "excerpt")}}
+      <p class="page-excerpt">{{field "excerpt"}}</p>
+      {{/if}}
+    </div>
+  </section>
+
+  <section class="contact" id="contact" aria-labelledby="contact-title">
+    <div class="container">
+      <h2 id="contact-title">Get in Touch</h2>
+      <p class="contact-intro">{{settings.contactText || 'Fill out the form or send us an email at hello@example.com — we would love to hear from you.'}}</p>
+      <form class="contact-form" action="mailto:hello@example.com" method="POST" enctype="text/plain">
+        <div class="form-group">
+          <label for="contact-name">Name</label>
+          <input type="text" id="contact-name" name="name" required />
+        </div>
+        <div class="form-group">
+          <label for="contact-email">E-mail</label>
+          <input type="email" id="contact-email" name="email" required />
+        </div>
+        <div class="form-group">
+          <label for="contact-message">Message</label>
+          <textarea id="contact-message" name="message" rows="5" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Send</button>
+      </form>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer" role="contentinfo">
+  <div class="container">
+    <nav class="footer-nav" aria-label="Footer navigation">
+      {{#each menus.footer.items}}
+      <a href="{{url}}">{{label}}</a>
+      {{/each}}
+    </nav>
+    <p class="copyright">&copy; {{new Date().getFullYear()}} {{site.title}}. All rights reserved.</p>
+  </div>
+</footer>

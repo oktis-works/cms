@@ -13,7 +13,9 @@
   "provides": {
     "layouts": [
       "page-home",
+      "page-about",
       "page-sobre",
+      "page-contact",
       "page-blog",
       "post-primeiro-post",
       "post-segundo-post",
