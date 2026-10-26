@@ -16,9 +16,10 @@
  * segue a sua própria numeração de biblioteca — ela NÃO é a versão do produto
  * (anti-padrão: versão de produto dentro de uma lib publicada).
  *
- * Propaga a âncora de produto para as duas âncoras derivadas:
+ * Propaga a âncora de produto para as três âncoras derivadas:
  *   1. `CMS_VERSION` em packages/validation/src/compatibility.ts;
- *   2. arquivo CMS_VERSION na raiz (referência humana/deploy).
+ *   2. arquivo CMS_VERSION na raiz (referência humana/deploy);
+ *   3. README.md — substitui "OkCMS v2" por "OkCMS v{version}" no título.
  *
  * Uso:
  *   bun run sync-version            # valida e sai com 0 se tudo alinhado
@@ -92,6 +93,29 @@ if (existsSync(cmsVersionPath)) {
   writeFileSync(cmsVersionPath, `${version}\n`);
 } else {
   errors.push('arquivo CMS_VERSION não encontrado na raiz');
+}
+
+// ---------------------------------------------------------------------------
+// 3. README.md — título "OkCMS v2" → "OkCMS v{version}"
+// ---------------------------------------------------------------------------
+const readmePath = join(ROOT, 'README.md');
+if (existsSync(readmePath)) {
+  const content = readFileSync(readmePath, 'utf8');
+  // Match "# OkCMS vX.Y.Z" or "# OkCMS v2" at start of file
+  const match = content.match(/^# OkCMS v([^\n]+)/m);
+  if (!match) {
+    errors.push('README.md: título "# OkCMS v..." não encontrado');
+  } else if (match[1] !== version) {
+    if (write) {
+      const updated = content.replace(/^# OkCMS v[^\n]+/m, `# OkCMS v${version}`);
+      writes.push({ path: readmePath, label: 'README.md (título)', detail: `v${match[1]} → v${version}` });
+      writeFileSync(readmePath, updated);
+    } else {
+      errors.push(`README.md título: v${match[1]} (esperado v${version})`);
+    }
+  }
+} else {
+  errors.push('README.md não encontrado na raiz');
 }
 
 // ---------------------------------------------------------------------------

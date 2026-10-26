@@ -1,6 +1,6 @@
 > 📄 **English** · [Português](./README.pt-BR.md)
 
-# OkCMS v2
+# OkCMS v0.36.9
 
 Hybrid, modular, API-first, extensible CMS with Astro+SolidJS frontend, Node.js/TypeScript backend, PostgreSQL, Docker immutable deployments, plugin and theme extension systems, and multi-tenancy.
 
@@ -26,16 +26,47 @@ configuration always happen from the host.
 ### Installation
 
 ```bash
-# global (allows `okcms ...` without a prefix)
+# Global install (allows `okcms ...` from anywhere)
 npm install -g @oktis-works/cms      # or: bun add -g @oktis-works/cms
 
-# create a project without a global install
-npx @oktis-works/cms@latest --help
-# or: bunx @oktis-works/cms@latest --help
+# Use without global install (runs latest version)
+npx @oktis-works/cms@latest init meu-site
+# or: bunx @oktis-works/cms@latest init meu-site
 
-# in a scaffolded project the CLI is available as `okcms`
+# Inside a scaffolded project, the CLI is available as `okcms`
+cd meu-site
 okcms doctor
 ```
+
+**Local project usage (recommended):**
+
+```bash
+# 1. Create a new project
+npx @oktis-works/cms@latest init meu-site
+cd meu-site
+
+# 2. Configure environment (set DB_PASSWORD and JWT_SECRET)
+$EDITOR .env
+
+# 3. Apply database migrations
+okcms db:migrate
+
+# 4. Start all apps (API + Admin + Web + Worker)
+okcms start
+
+# 5. Run diagnostics if anything fails
+okcms doctor
+```
+
+**Or do everything in one shot with `okcms dev`:**
+
+```bash
+npx @oktis-works/cms@latest init meu-site
+cd meu-site
+okcms dev
+```
+
+`okcms dev` completes `.env` (generating missing secrets), starts the infrastructure (Postgres + Redis via Docker Compose), waits for Postgres, applies schema + seed + migrations, creates the first admin user, starts all apps, and prints the final URLs. It is re-runnable — after `docker compose down -v` everything is recreated on the next run.
 
 ### Interactive wizard
 

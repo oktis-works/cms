@@ -8,7 +8,7 @@ This document defines strict operational rules and workflows that the AI Agent m
 
 ## 2. Versioning Model (memorize this — the release gate validates it)
 * **Product version anchor:** the `version` in the ROOT `package.json` (private workspace `okcms`, never published). It carries product semantics and is the ONLY source of truth for releases.
-* **`CMS_VERSION` is DERIVED, never edited by hand:** it lives in two places — the root `CMS_VERSION` file and the `CMS_VERSION` constant in `packages/validation/src/compatibility.ts`. Sync both from the anchor with `bun run sync-version --write`.
+* **`CMS_VERSION` is DERIVED, never edited by hand:** it lives in three places — the root `CMS_VERSION` file, the `CMS_VERSION` constant in `packages/validation/src/compatibility.ts`, and the **README.md title** (`# OkCMS vX.Y.Z`). Sync all three from the anchor with `bun run sync-version --write`.
 * **Individual package versions are independent:** managed by Changesets (`.changeset/*.md`), consumed with `bun run version-packages` (which also runs `sync-version --write` at the end).
 * **Release tag = product version:** the tag `vX.Y.Z` must exactly match the root `package.json` version. This is a BLOCKING check (`scripts/prepare-publish.mjs --check --tag`) — if they differ, `publish.yml` fails before publishing anything.
 * **Never reuse a burned tag:** a tag whose CI run failed (e.g. `v0.16.0`, `v0.16.1`) never published anything — skip to the next version instead of re-tagging.
