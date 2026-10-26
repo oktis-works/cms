@@ -1,5 +1,23 @@
 # @oktis-works/database
 
+## 0.14.7
+
+### Patch Changes
+
+- Fix migration runner: always sync schema_bootstrap.schema_version against applied ledger
+  
+  The migration runner only updated `schema_bootstrap.schema_version` when migrations
+  were applied in the current run (`result.applied.length > 0`). If a `core_schema`
+  migration was applied in a previous run but the baseline bump was missed (e.g. empty
+  tenant context), the schema_version stayed behind. On the next run, `baselineVersion`
+  was still the old value, so the same migration was applied again.
+  
+  Now the runner syncs `schema_version` against ALL applied `core_schema` migrations in
+  the ledger (not just this run's), so a previously-applied migration correctly advances
+  the baseline and prevents re-application. The `content_types_source_admin` migration
+  (V026) SQL is idempotent (`DROP CONSTRAINT IF EXISTS` + `ADD CONSTRAINT`), so re-running
+  it is harmless, but the baseline sync prevents unnecessary re-execution.
+
 ## 0.14.6
 
 ### Patch Changes

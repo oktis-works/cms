@@ -1,5 +1,31 @@
 # @oktis-works/cms
 
+## 0.13.19
+
+### Patch Changes
+
+- Fix default theme CSS: cover all embedded template classes
+  
+  The embedded default theme CSS (`DEFAULT_THEME_CSS`) didn't cover classes used
+  by the English page templates (`page-about.astro`, `page-contact.astro`,
+  `post-first-post.astro`, `post-second-post.astro`, updated `page-home.astro`),
+  so sections appeared unstyled (no container width, no spacing, no colors).
+  
+  Rewrote `DEFAULT_THEME_CSS` to cover every class used by the bundled templates:
+  container, header/nav, hero, buttons, generic section wrapper, about-preview,
+  contact, posts-grid, post-card, entry, cards/listing, archive, empty, 404,
+  footer, pagination — all scoped under `[data-theme="default"]` and responsive.
+  
+  Users no longer see broken layouts on seeded home content after `okcms init`.
+
+## 0.13.18
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/database@0.14.7
+  - @oktis-works/core@0.15.5
+
 ## 0.13.17
 
 ### Patch Changes
