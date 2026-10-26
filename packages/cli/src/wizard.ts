@@ -97,9 +97,15 @@ export async function runWizard(opts: WizardOptions = {}): Promise<number> {
       clearScreen(prompt);
       printBanner(prompt, catalog, ctx.lang, suggestNext(state), state);
 
-      const choice = await prompt.select<MenuChoice>(catalog.title, mainMenu(catalog, stateFn()), {
-        cancelValue: 'exit',
-      });
+      let choice: MenuChoice;
+      try {
+        choice = await prompt.select<MenuChoice>(catalog.title, mainMenu(catalog, stateFn()), {
+          cancelValue: 'exit',
+        });
+      } catch (error) {
+        prompt.error(`menu error: ${error instanceof Error ? error.message : String(error)}`);
+        continue;
+      }
 
       switch (choice) {
         case 'flows': {
@@ -235,15 +241,21 @@ async function flowsMenu(ctx: WizardRunCtx): Promise<void> {
   };
 
   type FlowKey = 'init' | 'dev' | 'bg' | 'simple' | 'pm2' | 'update' | 'back';
-  const pick = await ctx.prompt.select<FlowKey>(`${catalog.title} / ${catalog.flowsHeading}`, [
-    { value: 'dev', label: catalog.flowDev, hint: catalog.flowDevHint },
-    { value: 'bg', label: catalog.flowDeployBg, hint: catalog.flowDeployBgHint },
-    { value: 'simple', label: catalog.flowDeploySimple, hint: catalog.flowDeploySimpleHint },
-    { value: 'pm2', label: catalog.flowDeployPm2, hint: catalog.flowDeployPm2Hint },
-    { value: 'update', label: catalog.flowUpdate, hint: catalog.flowUpdateHint },
-    { value: 'init', label: catalog.flowInit, hint: catalog.flowInitHint },
-    { value: 'back', label: catalog.flowBack, hint: catalog.flowBackHint },
-  ], { cancelValue: 'back' });
+  let pick: FlowKey;
+  try {
+    pick = await ctx.prompt.select<FlowKey>(`${catalog.title} / ${catalog.flowsHeading}`, [
+      { value: 'dev', label: catalog.flowDev, hint: catalog.flowDevHint },
+      { value: 'bg', label: catalog.flowDeployBg, hint: catalog.flowDeployBgHint },
+      { value: 'simple', label: catalog.flowDeploySimple, hint: catalog.flowDeploySimpleHint },
+      { value: 'pm2', label: catalog.flowDeployPm2, hint: catalog.flowDeployPm2Hint },
+      { value: 'update', label: catalog.flowUpdate, hint: catalog.flowUpdateHint },
+      { value: 'init', label: catalog.flowInit, hint: catalog.flowInitHint },
+      { value: 'back', label: catalog.flowBack, hint: catalog.flowBackHint },
+    ], { cancelValue: 'back' });
+  } catch (error) {
+    ctx.prompt.error(`flows error: ${error instanceof Error ? error.message : String(error)}`);
+    return;
+  }
 
   const runners: Record<Exclude<FlowKey, 'back'>, (deps: FlowDeps) => Promise<FlowOutcome>> = {
     init: flowInit,
@@ -279,9 +291,15 @@ async function catalogMenu(ctx: WizardRunCtx): Promise<void> {
   }));
   groupChoices.push({ value: 'back', label: catalog.flowBack, hint: catalog.flowBackHint });
 
-  const groupPick = await prompt.select<string>(`${catalog.title} / ${catalog.catalogHeading}`, groupChoices, {
-    cancelValue: 'back',
-  });
+  let groupPick: string;
+  try {
+    groupPick = await prompt.select<string>(`${catalog.title} / ${catalog.catalogHeading}`, groupChoices, {
+      cancelValue: 'back',
+    });
+  } catch (error) {
+    prompt.error(`group select error: ${error instanceof Error ? error.message : String(error)}`);
+    return;
+  }
   if (groupPick === 'back') return;
 
   const group = groupPick.slice('group:'.length);
@@ -294,9 +312,15 @@ async function catalogMenu(ctx: WizardRunCtx): Promise<void> {
   commandChoices.push({ value: '__search', label: 'Search commands', hint: 'filter this group by name or description' });
   commandChoices.push({ value: 'back', label: catalog.flowBack, hint: catalog.flowBackHint });
 
-  const namePick = await prompt.select<string>(`${catalog.catalogHeading} / ${group}`, commandChoices, {
-    cancelValue: 'back',
-  });
+  let namePick: string;
+  try {
+    namePick = await prompt.select<string>(`${catalog.catalogHeading} / ${group}`, commandChoices, {
+      cancelValue: 'back',
+    });
+  } catch (error) {
+    prompt.error(`catalog error: ${error instanceof Error ? error.message : String(error)}`);
+    return;
+  }
   if (namePick === 'back') return;
   if (namePick === '__search') {
     const query = await prompt.ask('Search commands', { default: '' });
@@ -305,14 +329,20 @@ async function catalogMenu(ctx: WizardRunCtx): Promise<void> {
       prompt.warn(`No commands match "${query}".`);
       return;
     }
-    const filteredPick = await prompt.select<string>(`${catalog.catalogHeading} / ${group} / ${query}`, [
-      ...filtered.map((name) => {
-        const cmd = getCommand(name)!;
-        const danger = commandMetadata(name).risk === 'destructive' ? ` ${symbol.warn}` : '';
-        return { value: name, label: `${name}${danger}`, hint: cmd.description };
-      }),
-      { value: 'back', label: catalog.flowBack, hint: catalog.flowBackHint },
-    ], { cancelValue: 'back' });
+    let filteredPick: string;
+    try {
+      filteredPick = await prompt.select<string>(`${catalog.catalogHeading} / ${group} / ${query}`, [
+        ...filtered.map((name) => {
+          const cmd = getCommand(name)!;
+          const danger = commandMetadata(name).risk === 'destructive' ? ` ${symbol.warn}` : '';
+          return { value: name, label: `${name}${danger}`, hint: cmd.description };
+        }),
+        { value: 'back', label: catalog.flowBack, hint: catalog.flowBackHint },
+      ], { cancelValue: 'back' });
+    } catch (error) {
+      prompt.error(`search error: ${error instanceof Error ? error.message : String(error)}`);
+      return;
+    }
     if (filteredPick === 'back') return;
     await runCommandInteractive(ctx, getCommand(filteredPick)!);
     return;

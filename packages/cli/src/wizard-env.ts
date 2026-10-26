@@ -192,7 +192,9 @@ export async function runEnvInterview(
       let result: { type: 'value' } | { type: 'back' } | { type: 'cancel' };
 
       if (step.kind === 'engine') {
-        const pick = await prompt.select<'postgres' | 'mysql' | 'mariadb' | '__back__'>(
+        let pick: 'postgres' | 'mysql' | 'mariadb' | '__back__';
+    try {
+      pick = await prompt.select<'postgres' | 'mysql' | 'mariadb' | '__back__'>(
           catalog.envDbEngineChoose,
           [
             { value: 'postgres', label: catalog.envDbEnginePostgres, hint: catalog.envDbEnginePostgresHint },
@@ -202,30 +204,42 @@ export async function runEnvInterview(
           ],
           { defaultValue: (env.get('DB_ENGINE') as 'postgres' | 'mysql' | 'mariadb' | undefined) ?? 'postgres', fullClear: true, cancelValue: '__back__' }
         );
-        if (pick === '__back__') {
-          result = { type: 'back' };
-        } else {
-          if (!env.get('DB_ENGINE') || env.get('DB_ENGINE') !== pick) {
-            env.set('DB_ENGINE', pick);
-            changed.add('DB_ENGINE');
-          }
-          result = { type: 'value' };
-        }
-      } else if (step.kind === 'mode') {
+    } catch (error) {
+      prompt.error(`engine select error: ${error instanceof Error ? error.message : String(error)}`);
+      result = { type: 'back' };
+      break;
+    }
+    if (pick === '__back__') {
+      result = { type: 'back' };
+    } else {
+      if (!env.get('DB_ENGINE') || env.get('DB_ENGINE') !== pick) {
+        env.set('DB_ENGINE', pick);
+        changed.add('DB_ENGINE');
+      }
+      result = { type: 'value' };
+    }
+  } else if (step.kind === 'mode') {
         const defaultMode = env.get('DATABASE_URL') ? 'connectionString' : 'individual';
-        const pick = await prompt.select<'connectionString' | 'individual' | '__back__'>(
-          catalog.envDbModeChoose,
-          [
-            { value: 'connectionString', label: catalog.envDbModeConnectionString, hint: catalog.envDbModeConnectionStringHint },
-            { value: 'individual', label: catalog.envDbModeIndividual, hint: catalog.envDbModeIndividualHint },
-            { value: '__back__' as const, label: `← ${catalog.flowBack}`, hint: catalog.flowBackHint },
-          ],
-          { defaultValue: defaultMode, fullClear: true }
-        );
-        if (pick === '__back__') {
+        let modePick: 'connectionString' | 'individual' | '__back__';
+        try {
+          modePick = await prompt.select<'connectionString' | 'individual' | '__back__'>(
+            catalog.envDbModeChoose,
+            [
+              { value: 'connectionString', label: catalog.envDbModeConnectionString, hint: catalog.envDbModeConnectionStringHint },
+              { value: 'individual', label: catalog.envDbModeIndividual, hint: catalog.envDbModeIndividualHint },
+              { value: '__back__' as const, label: `← ${catalog.flowBack}`, hint: catalog.flowBackHint },
+            ],
+            { defaultValue: defaultMode, fullClear: true }
+          );
+        } catch (error) {
+          prompt.error(`mode select error: ${error instanceof Error ? error.message : String(error)}`);
+          result = { type: 'back' };
+          break;
+        }
+        if (modePick === '__back__') {
           result = { type: 'back' };
         } else {
-          env.set('__db_mode', pick);
+          env.set('__db_mode', modePick);
           result = { type: 'value' };
         }
       } else {

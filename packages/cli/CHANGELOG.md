@@ -1,5 +1,16 @@
 # @oktis-works/cms
 
+## 0.13.22
+
+### Patch Changes
+
+- Fix wizard/menu navigation: force full screen clear on every menu repaint so
+  arrow-key navigation never leaves stale prompt residues on the terminal. Add
+  try/catch around every interactive select in the wizard (main menu, flows,
+  command catalog, search, env interview engine/mode selects) so a transient
+  input error never breaks the navigation tree or leaves a half-drawn prompt on
+  screen.
+
 ## 0.13.21
 
 ### Patch Changes

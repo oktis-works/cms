@@ -493,7 +493,9 @@ export class Prompt {
 
     if (this.input.canRaw) {
       return await this.navigate<T>(title, choices, defaultIndex < 0 ? 0 : defaultIndex, {
-        fullClear: opts.fullClear,
+        // limpeza completa da tela a cada repaint: evita resíduos de prompts
+        // anteriores quando o usuário navega rápido com as setas
+        fullClear: opts.fullClear !== false,
         cancelValue: opts.cancelValue,
       });
     }
@@ -655,6 +657,7 @@ export class Prompt {
         });
         if (cancelIndex >= 0) return settle(choices[cancelIndex]!.value);
         if (choices.every((choice) => typeof choice.value === 'boolean')) return settle(false as T);
+        // sem cancel explícito: não apaga a seleção atual, mantém o menu
         return settle(choices[index]!.value);
       }
 
