@@ -98,6 +98,7 @@ To prevent migration-related failures (based on bugs fixed in v0.36.9):
 * **Runner must update `schema_bootstrap.schema_version`:** After applying `core_schema` migrations, set `schema_version` to the highest applied version (not only in `adoptLegacy` path).
 * **CI step for acceptance:** Use `timeout-minutes: 5` and run with `node` (not `bun`) — postgres.js pool behavior differs in Bun for small/undefined pools.
 * **No references to non-existent columns:** The `schema_bootstrap` table has no `status` column — do not write `SET status = 'ready'` in migrations.
+* **`db:migrate` always resolves the `default` tenant:** Even when all pending migrations are `core_schema` domain, `prepareDb` must run with `createDefaultTenant: true` and `resolveTenant: true`. The migration runner calls `SELECT set_config('app.current_tenant_id', ${tenantId}, true)` inside `applyMigration`, and an empty `tenantId` causes PostgreSQL to throw `invalid input syntax for type uuid: """` when casting to UUID for RLS. Never skip tenant resolution based on migration domain.
 
 ## 9. Tenant Context & RLS Rules
 The entire system is multi-tenant with PostgreSQL Row Level Security (RLS). Violations cause cross-tenant data leaks.

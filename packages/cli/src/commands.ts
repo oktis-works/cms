@@ -620,13 +620,15 @@ export const commands: Command[] = [
     ],
     handler: async (args, options) => {
       const dir = getMigrationsDir(options);
-      const { loadMigrationsFromDir, runMigrations } = await import('@oktis-works/database');
-      const migrations = loadMigrationsFromDir(dir);
-      const needsTenant = migrations.some((migration) => migration.metadata?.domain !== 'core_schema');
+      const { runMigrations } = await import('@oktis-works/database');
+      // db:migrate SEMPRE precisa do tenant default existente para o contexto
+      // RLS (set_config('app.current_tenant_id', ...)) funcionar nas migrações,
+      // mesmo quando todas são de domain core_schema. Sem tenant, o UUID vazio
+      // causa "invalid input syntax for type uuid: """.
       const tenantId = await prepareDb(options, {
         adoptLegacy: options['adopt-legacy'] !== undefined,
-        createDefaultTenant: needsTenant,
-        resolveTenant: needsTenant,
+        createDefaultTenant: true,
+        resolveTenant: true,
       });
       const result = await runMigrations(tenantId, dir, { adoptLegacy: options['adopt-legacy'] !== undefined });
       if (result.applied.length === 0 && result.skipped.length === 0) {

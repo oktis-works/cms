@@ -1,5 +1,21 @@
 # @oktis-works/cms
 
+## 0.13.14
+
+### Patch Changes
+
+- Fix `okcms db:migrate` failing with "invalid input syntax for type uuid: """ when no default tenant exists
+  
+  When `db:migrate` ran only `core_schema` domain migrations, `prepareDb` was told
+  not to create/resolve the tenant default (`createDefaultTenant: false`,
+  `resolveTenant: false`). The `tenantId` ended up as an empty string `""`, and
+  when `applyMigration` executed `SELECT set_config('app.current_tenant_id', ...)`,
+  Postgres tried to cast the empty string to UUID in RLS queries, producing
+  `invalid input syntax for type uuid: """`.
+  
+  `db:migrate` now always creates/resolves the `default` tenant, regardless of
+  the migration domain, so the RLS context is always valid.
+
 ## 0.13.13
 
 ### Patch Changes
