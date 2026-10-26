@@ -11,7 +11,8 @@ import { resolveExtensionDirectory } from '@oktis-works/core';
 import { runWithTenantContext } from '@oktis-works/core';
 import { getPluginAssets } from '@oktis-works/core';
 import { CMS_VERSION, normalizeLogicalValues } from '@oktis-works/validation';
-import { getConnection, runWithTenantTransaction } from '@oktis-works/database';
+import { getConnection, createConnection, runWithTenantTransaction } from '@oktis-works/database';
+import { loadConfig } from '@oktis-works/config';
 import {
   createRouter,
   wireThemeHooks,
@@ -104,6 +105,18 @@ async function main() {
   const lifecycle = await bootstrap();
 
   await wireThemeHooks();
+
+  // Garante que a conexão com o banco esteja inicializada neste processo.
+  // Quando o web é instalado via npm/bunx (não workspace), pode haver uma
+  // cópia aninhada de @oktis-works/database diferente da que o core usou
+  // para criar a conexão via bootstrap(). Se getConnection() lançar,
+  // inicializamos nossa própria conexão a partir da config do projeto.
+  try {
+    getConnection();
+  } catch {
+    const config = loadConfig();
+    createConnection(config.database);
+  }
 
   // Fonte ÚNICA de resolução do diretório de temas: a mesma função usada pela
   // API/CLI (env → okcms.config.json → ./themes). Antes o web lia só

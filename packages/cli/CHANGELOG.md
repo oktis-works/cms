@@ -1,5 +1,11 @@
 # @oktis-works/cms
 
+## 0.13.21
+
+### Patch Changes
+
+- Update scaffold to document `bun run start` / `bun run dev` shortcuts and align project README/operator-guide to use local `bun run` scripts instead of `bunx`.
+
 ## 0.13.20
 
 ### Patch Changes

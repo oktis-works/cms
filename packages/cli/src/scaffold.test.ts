@@ -221,7 +221,7 @@ describe('scaffoldProject', () => {
     expect(out).toContain('DEV');
     expect(out).toContain('PROD');
     expect(out).toContain('okcms db:migrate');
-    expect(out).toContain('okcms start');
+    expect(out).toContain('bun run start');
     expect(out).toContain('okcms deploy');
     expect(out).toContain('okcms --help');
     expect(out).toContain('bun run migrate');

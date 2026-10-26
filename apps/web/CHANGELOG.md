@@ -1,5 +1,11 @@
 # @oktis-works/web
 
+## 0.13.4
+
+### Patch Changes
+
+- Fix `Database connection not initialized` when running the web app outside a workspace install (e.g. via `bunx`). The web process now guarantees its own database connection is initialized before serving requests, instead of relying on the copy created by core's bootstrap which may be a different nested module instance.
+
 ## 0.13.3
 
 ### Patch Changes

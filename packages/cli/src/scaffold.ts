@@ -192,6 +192,9 @@ export async function scaffoldProject(
         'update-plan': 'okcms update --dry-run',
         deploy: 'okcms deploy',
       },
+      // Atalhos executáveis via bun run / npm run: node_modules/.bin injeta
+      // o okcms local no PATH dos scripts, então `bun run start` e
+      // `bun run dev` funcionam sem instalação global e sem bunx.
       dependencies: {
         '@oktis-works/api': appRanges['@oktis-works/api'],
         '@oktis-works/admin': appRanges['@oktis-works/admin'],
@@ -435,9 +438,9 @@ volumes:
 
   console.log('');
   console.log(`  ${style.bold('DEV')}    ${'edit .env'.padEnd(26)}${style.dim('(DB_PASSWORD · JWT_SECRET)')}`);
-  console.log(command('okcms dev', `(env · ${provider} · Redis · migrations · apps)`));
-  console.log(command('okcms db:migrate', '(or: bun run migrate; manual migration only)'));
-  console.log(command('okcms start', '(apps only, after okcms dev --skip-start)'));
+  console.log(command('bun run dev', `(env · ${provider} · Redis · migrations · apps)`));
+  console.log(command('bun run migrate', '(or: okcms db:migrate; manual migration only)'));
+  console.log(command('bun run start', '(apps only, after bun run dev --skip-start)'));
   console.log(command('okcms menu', '(interactive command center)'));
 
   console.log('');

@@ -26,7 +26,7 @@ extensions, update, back up and diagnose.
 npm install -g @oktis-works/cms      # or: bun add -g @oktis-works/cms
 
 # without installing — always works
-npx okcms --help                     # bunx okcms --help with Bun
+npx okcms --help                     # bun run okcms --help with Bun
 ```
 
 In a project created with `okcms init` the CLI is already in `devDependencies`, so

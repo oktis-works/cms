@@ -1,6 +1,6 @@
 > 📄 **English** · [Português](./README.pt-BR.md)
 
-# OkCMS v0.36.21
+# OkCMS v0.36.22
 
 Hybrid, modular, API-first, extensible CMS with Astro+SolidJS frontend, Node.js/TypeScript backend, PostgreSQL, Docker immutable deployments, plugin and theme extension systems, and multi-tenancy.
 
@@ -49,24 +49,24 @@ cd meu-site
 $EDITOR .env
 
 # 3. Apply database migrations
-okcms db:migrate
+bun run migrate
 
 # 4. Start all apps (API + Admin + Web + Worker)
-okcms start
+bun run start
 
 # 5. Run diagnostics if anything fails
-okcms doctor
+bun run doctor
 ```
 
-**Or do everything in one shot with `okcms dev`:**
+**Or do everything in one shot with `bun run dev`:**
 
 ```bash
 npx @oktis-works/cms@latest init meu-site
 cd meu-site
-okcms dev
+bun run dev
 ```
 
-`okcms dev` completes `.env` (generating missing secrets), starts the infrastructure (Postgres + Redis via Docker Compose), waits for Postgres, applies schema + seed + migrations, creates the first admin user, starts all apps, and prints the final URLs. It is re-runnable — after `docker compose down -v` everything is recreated on the next run.
+`bun run dev` completes `.env` (generating missing secrets), starts the infrastructure (Postgres + Redis via Docker Compose), waits for Postgres, applies schema + seed + migrations, creates the first admin user, starts all apps, and prints the final URLs. It is re-runnable — after `docker compose down -v` everything is recreated on the next run.
 
 ### Interactive wizard
 
@@ -107,12 +107,12 @@ automation behavior never changes.
 npx @oktis-works/cms@latest init meu-site  # or: bunx @oktis-works/cms@latest init meu-site
 cd meu-site
 $EDITOR .env                 # set DB_PASSWORD and JWT_SECRET
-okcms db:migrate             # applies migrations/
-okcms start                  # api + admin + web + worker
-okcms doctor                 # if anything fails
+bun run migrate              # applies migrations/
+bun run start                # api + admin + web + worker
+bun run doctor               # if anything fails
 ```
 
-Or do the whole sequence in one shot with **`okcms dev`**: it completes
+Or do the whole sequence in one shot with **`bun run dev`**: it completes
 `.env` (generating missing secrets, keeping existing values), starts the
 project infra (the same compose `okcms deploy` reuses) and **waits for
 Postgres to accept connections** before migrating, makes Redis reachable

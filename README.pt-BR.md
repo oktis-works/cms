@@ -76,12 +76,12 @@ o comportamento de automação nunca muda.
 npx @oktis-works/cms@latest init meu-site  # ou: bunx @oktis-works/cms@latest init meu-site
 cd meu-site
 $EDITOR .env                 # ajuste DB_PASSWORD e JWT_SECRET
-okcms db:migrate             # aplica migrations/
-okcms start                  # api + admin + web + worker
-okcms doctor                 # se algo falhar
+bun run migrate             # aplica migrations/
+bun run start                  # api + admin + web + worker
+bun run doctor                 # se algo falhar
 ```
 
-Ou faça a sequência inteira em um comando com o **`okcms dev`**: ele completa
+Ou faça a sequência inteira em um comando com o **`bun run dev`**: ele completa
 o `.env` (gera os segredos que faltam, mantém os valores existentes), sobe a
 infra do projeto (o MESMO compose que o `okcms deploy` reutiliza) e **espera
 o Postgres aceitar conexões** antes das migrations, deixa o Redis alcançável
@@ -94,7 +94,7 @@ reexecutável — depois de um `docker compose down -v` tudo é recriado na
 próxima rodada — e fora de TTY exige `--yes` (com
 `--email/--name/--password` para o primeiro usuário).
 
-> **Dev → deploy.** O `okcms dev` prepara o MESMO estado que o
+> **Dev → deploy.** O `bun run dev` prepara o MESMO estado que o
 > `okcms deploy` consome (`.env` do projeto, compose de infra compartilhado,
 > migrations versionadas, seed idempotente, o usuário admin) — nada é jogado
 > fora. A única colisão: os processos do `start` ocupam as mesmas portas que
