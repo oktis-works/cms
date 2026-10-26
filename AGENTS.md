@@ -85,3 +85,75 @@ Everything the agent writes in this repository is **English-only**:
 * **Code comments:** every comment, JSDoc block, docstring and inline note in source files must be written in English — no Portuguese (or other natural language) comments in code.
 * **Identifiers & docs:** variable/function/type names, string literals exposed to users of the API, and developer documentation (PLUGIN.md, README, ADRs, plan/scratch files committed to the repo) are written in English.
 * Existing legacy comments in other languages may remain untouched unless the task explicitly includes translating them.
+
+## 8. Migration Safety Rules
+To prevent migration-related failures (based on bugs fixed in v0.36.9):
+
+* **Run acceptance test before submitting migrations:** Always execute `packages/database/scripts/postgres-upgrade-acceptance.mjs` (tests upgrade V018 → V025+).
+* **Pool max must have a fallback:** Use `max: config.maxConnections ?? 10` in `postgresConnection`. Passing `max: undefined` to postgres.js creates a single-connection pool, causing `reserve()` to deadlock against `assertSupportedServerVersion()`.
+* **Reserved connections need `.begin()` shim:** The object returned by `pool.reserve()` lacks `.begin()`. Wrap it with `wrapReservedConnection` to add `BEGIN`/`COMMIT`/`ROLLBACK` on the same session — the migration runner calls `sql.begin()` on all connections.
+* **Preflight regex must filter `'set'`:** The regex `/\b(?:UPDATE|DELETE\s+FROM)\s+([a-z_][a-z0-9_]*)/gi` matches `DO UPDATE SET` from `ON CONFLICT` clauses, capturing `'set'` as a table name. Explicitly filter `table === 'set'`.
+* **Runner must update `schema_bootstrap.schema_version`:** After applying `core_schema` migrations, set `schema_version` to the highest applied version (not only in `adoptLegacy` path).
+* **CI step for acceptance:** Use `timeout-minutes: 5` and run with `node` (not `bun`) — postgres.js pool behavior differs in Bun for small/undefined pools.
+* **No references to non-existent columns:** The `schema_bootstrap` table has no `status` column — do not write `SET status = 'ready'` in migrations.
+
+## 9. Tenant Context & RLS Rules
+The entire system is multi-tenant with PostgreSQL Row Level Security (RLS). Violations cause cross-tenant data leaks.
+
+* **Always establish tenant context before database operations:** Use `establishTenantContext(tenantId)` or `runWithTenantTransaction(tenantId, fn)`. The context is stored in `AsyncLocalStorage` and mirrors to Postgres via `SET app.current_tenant_id = '...'`.
+* **Never bypass RLS with superuser connections in application code:** Admin operations that need cross-tenant access must use explicit `SET LOCAL row_security = off` inside a transaction, never globally.
+* **`getCurrentTenantIdSync()` is the only synchronous accessor:** It reads strictly from `AsyncLocalStorage` — the module-level `_fallbackContext` is process-wide and **must not** be used for per-request decisions (it crosses tenants under concurrency).
+* **CLI commands default to `default` tenant:** `resolveTenantId()` creates the default tenant on first bootstrap. Explicit `--tenant` required for multi-tenant operations.
+* **Tenant isolation in tests:** Each test must call `establishTenantContext()` with a unique tenant ID or use the test utilities that auto-isolate.
+
+## 10. Event Store Idempotency Rules
+The event bus uses a persistent `EventStore` with idempotency guarantees.
+
+* **Event IDs must be globally unique (UUID v4):** Duplicate IDs are ignored via `ON CONFLICT (id) DO NOTHING` — handlers never re-execute for the same event.
+* **Persistence before processing:** `EventStore.persist(event)` **must** be called before dispatching to handlers. The bus does this automatically; custom emitters must follow the same pattern.
+* **Mark processed only after ALL handlers succeed:** `EventStore.markProcessed(eventId)` is called after the full handler chain. If any handler throws, the event stays unprocessed and is retried (up to 2 attempts by default).
+* **Dead Letter Queue (DLQ) is durable:** Failed events go to `dead_letter_events` table with error + attempt count. Survives restarts. Monitor and replay manually.
+* **Never emit events outside tenant context:** Events carry `tenantId` from the current context. Emitting without context creates orphan events with `tenant_id = NULL`.
+
+## 11. Plugin & Theme Compatibility Rules
+Semantic versioning governs extension compatibility. The CMS version is the anchor.
+
+* **Manifest MUST declare `compatibility.okcms`:** A valid semver range (e.g., `^0.36.0`, `>=0.35.0 <0.38.0`). Missing or invalid range blocks install/load.
+* **Plugin loader validates at load time:** `PluginLoader.loadPlugin()` throws if `!satisfies(CMS_VERSION, range)`. The check runs **before** dynamic import of the entry point.
+* **Theme renderer validates at render time:** Same check in `theme-runtime` before loading theme components.
+* **Dependencies between plugins use semver ranges too:** `manifest.dependencies[].versionRange` must be satisfied by the target plugin's version.
+* **Never hardcode CMS_VERSION in extensions:** Read it from the host at runtime via `api.cmsVersion` or the `PLUGIN_API_VERSION` env var injected by the loader.
+
+## 12. Database Provider Abstraction Rules
+The database layer supports PostgreSQL (primary), MySQL 8.0.36+, and MariaDB 11.4+.
+
+* **All SQL goes through `translateProviderSql()` for non-Postgres:** The function in `connection.ts` strips Postgres-specific syntax (`::cast`, `jsonb`, `ILIKE`, `ON CONFLICT`, advisory locks, etc.). Write migrations in Postgres dialect; the translator handles the rest.
+* **Capabilities dictate feature availability:** Check `getDatabaseCapabilities().rowLevelSecurity`, `.advisoryLocks`, `.transactionalDdl` before using provider-specific features. Do not assume Postgres features exist on MySQL/MariaDB.
+* **Schema snapshots are provider-specific:** `schema.sql` (Postgres), `schema.mysql.sql`, `schema.mariadb.sql`. Update all three when changing the baseline.
+* **Connection pooling defaults differ:** Postgres `max: 10`, MySQL/MariaDB `connectionLimit: 20`. Do not hardcode pool sizes — use `config.maxConnections ?? default`.
+
+## 13. Cache Invalidation Rules
+Tag-based invalidation (`TaggedCacheIndex`) is the primary cache strategy.
+
+* **Tag index is eventually consistent:** Concurrent `setWithTags` may lose a key registration (last write wins). Acceptable for cache — worst case is a stale entry until TTL.
+* **Tag index TTL extends entry TTL by 30s:** `invalidateTag` can find and delete keys even after the entry expires.
+* **Invalidation is fire-and-forget:** `invalidateTag` returns count of deleted keys but does not wait for replicas. Do not rely on immediate cross-instance consistency.
+* **Never use raw cache keys for invalidation:** Always tag related entries (`entity:123`, `collection:posts`, `tenant:abc`) and call `invalidateTag('entity:123')`.
+
+## 14. Field Registry & Schema Contracts
+The field type system is the contract between core, plugins, and admin UI.
+
+* **Built-in types are registered at startup:** `FieldTypeExtensionService.registerBuiltins()` runs during `core` initialization. Plugin types register via `api.addFieldType()` in their `register()` function.
+* **Config schema is JSON Schema (draft-07):** `FieldTypeDefinition.configSchema` validates plugin configuration in the admin. Invalid config blocks field creation.
+* **Renderer components must be self-contained:** `adminRendererPath` component receives `{ value, config, field }` and must not depend on external admin state. Fallback is `<textarea>` showing raw JSON.
+* **Field values are stored as JSONB in `field_values.value`:** The `config` column stores the field type's configuration. Do not add columns to `field_values` — extend via `config` or custom field types.
+* **Field type registry is cached:** `/api/v1/field-types` is cached by the admin. After registering a new type, the admin must refresh (or the server must restart).
+
+## 15. Build & Deployment Invariants
+These invariants must hold for every release.
+
+* **`bun run build` must succeed on fresh checkout:** No pre-existing `dist/` or `node_modules/`. The build order (validation → types → config → database → auth → plugin-sdk → plugin-runtime → core → theme-sdk → theme-runtime → api-client → ui → cli) is enforced by the root `build.mjs`.
+* **Typecheck runs on all packages EXCEPT plugins:** `tsc --noEmit -p tsconfig.typecheck.json` excludes `plugins/**` (they have their own tsconfig).
+* **CLI scaffold test is lint-ignored:** `packages/cli/src/scaffold.test.js` uses dynamic patterns that ESLint cannot parse — it is explicitly ignored in `.eslintrc.json`.
+* **Worker process is a separate entry point:** `apps/worker` runs the job queue. It shares the same codebase but has its own `package.json` and build output. Changes to `core` events/queues require worker rebuild.
+* **Admin is a Vite + React SPA:** Built to `apps/admin/dist`. Served statically by the API in production. API routes under `/api/v1/**`, admin under `/admin/**`, public under `/`.
