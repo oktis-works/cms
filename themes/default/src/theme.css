@@ -447,8 +447,11 @@
 }
 
 [data-theme="default"] .hero-content {
-  max-width: 720px;
+  max-width: var(--container-max);
   margin: 0 auto;
+  padding: 0 var(--container-padding);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 [data-theme="default"] .hero h1 {
