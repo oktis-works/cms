@@ -1,5 +1,19 @@
 # @oktis-works/cms
 
+## 0.13.23
+
+### Patch Changes
+
+- Fix hero section margins in the default theme. The hero (.hero-content)
+  did not use .container padding, so its content stretched edge-to-edge
+  while About, Latest Posts and Contact sections were inset by the
+  container's side padding. This made section margins appear misaligned.
+  
+  Both themes/default/src/theme.css (source) and themes/default/dist/theme.css
+  (production) now give .hero-content the same max-width, padding and
+  box-sizing as .container, so all sections share identical left/right
+  margins.
+
 ## 0.13.22
 
 ### Patch Changes
