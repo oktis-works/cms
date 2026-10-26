@@ -1,5 +1,16 @@
 # @oktis-works/auth
 
+## 0.8.4
+
+### Patch Changes
+
+- Standardize password hashing on bcrypt only
+  
+  Replaced PBKDF2 (`$pbkdf2-sha256$`) with bcrypt (`$2b$`) as the sole
+  password hashing algorithm in `@oktis-works/auth`. The CLI already used
+  bcrypt for user creation; now both sides match so login works after
+  `okcms dev` creates the first admin.
+
 ## 0.8.3
 
 ### Patch Changes

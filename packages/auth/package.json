@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/auth",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -20,11 +20,13 @@
     "@oktis-works/types": "^0.9.4",
     "@oktis-works/config": "^0.6.5",
     "@oktis-works/database": "^0.14.3",
-    "@oktis-works/core": "^0.15.1"
+    "@oktis-works/core": "^0.15.1",
+    "bcryptjs": "^2.4.3"
   },
   "devDependencies": {
     "typescript": "5.7.3",
-    "@types/jsonwebtoken": "9.0.0"
+    "@types/jsonwebtoken": "9.0.0",
+    "@types/bcryptjs": "2.4.6"
   },
   "files": [
     "dist"

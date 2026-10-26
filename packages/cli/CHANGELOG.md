@@ -1,5 +1,19 @@
 # @oktis-works/cms
 
+## 0.13.15
+
+### Patch Changes
+
+- Fix CLI password hash validation: bcrypt only
+  
+  `isValidBcryptHash` in `@oktis-works/cms` validated bcrypt hashes for the
+  first-admin check during `okcms dev`. The auth service now hashes exclusively
+  with bcrypt, so login works after the CLI creates the admin user. No more
+  PBKDF2/bcrypt mismatch causing "existing user has invalid password hash"
+  followed by login 401.
+- Updated dependencies
+  - @oktis-works/auth@0.8.4
+
 ## 0.13.14
 
 ### Patch Changes
