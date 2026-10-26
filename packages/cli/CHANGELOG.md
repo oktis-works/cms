@@ -1,5 +1,20 @@
 # @oktis-works/cms
 
+## 0.13.24
+
+### Patch Changes
+
+- fix(cli): copy real theme files from package instead of hardcoded strings
+  
+  `okcms init` now reads theme files from `dist/themes/default/` bundled into
+  the package (and falls back to the monorepo root during development) so
+  fresh projects get an identical copy of `themes/default/` — including
+  `page-home.astro`, `page-about.astro`, `page-contact.astro`,
+  `page-blog.astro`, `post-first-post.astro`, `post-second-post.astro`, and
+  `src/theme.css`. Previously the CLI wrote stale hardcoded templates
+  (`home.astro`, `front-page.astro`, `posts.astro`) that no longer matched
+  the repository.
+
 ## 0.13.23
 
 ### Patch Changes

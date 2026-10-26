@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/cms",
-  "version": "0.13.23",
+  "version": "0.13.24",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -15,9 +15,9 @@
     }
   },
   "scripts": {
-    "build": "node scripts/generate-versions.mjs && tsc && node scripts/copy-migrations.mjs",
-    "prepack": "node scripts/generate-versions.mjs && tsc && node scripts/copy-migrations.mjs",
-    "clean": "rm -rf dist migrations tsconfig.tsbuildinfo"
+    "build": "node scripts/generate-versions.mjs && tsc && node scripts/copy-migrations.mjs && node scripts/copy-theme-assets.mjs",
+    "prepack": "node scripts/generate-versions.mjs && tsc && node scripts/copy-migrations.mjs && node scripts/copy-theme-assets.mjs",
+    "clean": "rm -rf dist migrations tsconfig.tsbuildinfo dist/themes"
   },
   "dependencies": {
     "@oktis-works/auth": "workspace:*",
@@ -32,7 +32,8 @@
   },
   "files": [
     "dist",
-    "migrations"
+    "migrations",
+    "themes"
   ],
   "publishConfig": {
     "access": "public",

@@ -2,6 +2,7 @@
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import { defaultProjectConfig, DEFAULT_CONFIG_FILENAME } from './project-config.js';
 import { DEPLOY_GITIGNORE } from './assets.js';
@@ -12,6 +13,51 @@ import type { DocsLang } from './scaffold-docs.js';
 import { getLatestVersion } from './npm-registry.js';
 import { APP_VERSIONS } from './generated/app-versions.js';
 import { style, symbol } from './prompt.js';
+
+/** Resolve o diretório de assets do tema default.
+ *
+ * Prioridade:
+ *  1. `dist/themes/default/` relativo ao pacote CLI instalado (produção / bunx).
+ *  2. `themes/default/` relativo à raiz do monorepo (desenvolvimento local).
+ *
+ * Isso garante que `okcms init` copie o tema IDÊNTICO ao monorepo, em vez de
+ * strings hardcoded que ficam desatualizadas.
+ */
+function getThemeAssetDir(): string | null {
+  // 1. produção: pacote instalado em node_modules/@oktis-works/cms/dist/
+  const pkgDistThemes = join(dirname(fileURLToPath(import.meta.url)), '..', 'themes', 'default');
+  if (existsSync(pkgDistThemes)) return pkgDistThemes;
+
+  // 2. desenvolvimento: monorepo raiz /themes/default/
+  const monoRepoThemes = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'themes', 'default');
+  if (existsSync(monoRepoThemes)) return monoRepoThemes;
+
+  return null;
+}
+
+/** Lê todos os arquivos de um diretório de tema recursivamente. */
+async function readThemeFiles(dir: string): Promise<Map<string, string | Buffer>> {
+  const { readdir } = await import('node:fs/promises');
+  const files = new Map<string, string | Buffer>();
+  const entries = await readdir(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      const sub = await readThemeFiles(full);
+      for (const [rel, content] of sub) {
+        files.set(`${entry.name}/${rel}`, content);
+      }
+    } else {
+      const ext = entry.name.split('.').pop() ?? '';
+      if (['png', 'jpg', 'jpeg', 'gif', 'ico', 'svg'].includes(ext)) {
+        files.set(entry.name, readFileSync(full));
+      } else {
+        files.set(entry.name, await readFile(full, 'utf-8'));
+      }
+    }
+  }
+  return files;
+}
 
 /** Normaliza o nome do projeto para um npm name válido (slug). */
 export function toPackageName(name: string): string {
@@ -132,23 +178,36 @@ export async function scaffoldProject(
   await mkdir(join(root, 'plugins'), { recursive: true });
   await mkdir(join(root, 'migrations'), { recursive: true });
 
-  // Tema default pronto: o projeto novo já renderiza de cara (templates .astro
-  // na raiz + dist/theme.css servido direto). Nunca sobrescreve em re-init —
-  // o operador pode ter editado o tema.
-  for (const [relative, content] of Object.entries(DEFAULT_THEME_FILES)) {
-    const target = join(root, 'themes', 'default', relative);
-    if (existsSync(target)) continue;
-    await mkdir(dirname(target), { recursive: true });
-    await writeFile(target, content, 'utf-8');
-  }
-
-  // Binários (screenshot.png): writeFile de string corromperia o PNG —
-  // decodifica do base64 e grava Buffer. Mesma regra de re-init.
-  for (const [relative, base64] of Object.entries(DEFAULT_THEME_BINARY_FILES)) {
-    const target = join(root, 'themes', 'default', relative);
-    if (existsSync(target)) continue;
-    await mkdir(dirname(target), { recursive: true });
-    writeFileSync(target, Buffer.from(base64, 'base64'));
+  // Tema default pronto: copia os arquivos reais do tema default (idênticos ao
+  // monorepo) em vez de strings hardcoded. Nunca sobrescreve em re-init — o
+  // operador pode ter editado o tema.
+  const themeAssetDir = getThemeAssetDir();
+  if (themeAssetDir) {
+    const themeFiles = await readThemeFiles(themeAssetDir);
+    for (const [relative, content] of themeFiles) {
+      const target = join(root, 'themes', 'default', relative);
+      if (existsSync(target)) continue;
+      await mkdir(dirname(target), { recursive: true });
+      if (content instanceof Buffer) {
+        writeFileSync(target, content);
+      } else {
+        await writeFile(target, content, 'utf-8');
+      }
+    }
+  } else {
+    // Fallback: assets hardcoded (não deve acontecer em builds corretos).
+    for (const [relative, content] of Object.entries(DEFAULT_THEME_FILES)) {
+      const target = join(root, 'themes', 'default', relative);
+      if (existsSync(target)) continue;
+      await mkdir(dirname(target), { recursive: true });
+      await writeFile(target, content, 'utf-8');
+    }
+    for (const [relative, base64] of Object.entries(DEFAULT_THEME_BINARY_FILES)) {
+      const target = join(root, 'themes', 'default', relative);
+      if (existsSync(target)) continue;
+      await mkdir(dirname(target), { recursive: true });
+      writeFileSync(target, Buffer.from(base64, 'base64'));
+    }
   }
 
   const config = defaultProjectConfig(name);
