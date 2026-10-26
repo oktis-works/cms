@@ -167,6 +167,23 @@ const productVersion = String(rootPkg.version);
   } else {
     warnings.push('arquivo CMS_VERSION não encontrado na raiz — pulando validação 3b');
   }
+
+  // 3c. README.md title "# OkCMS vX.Y.Z" === âncora de versão de produto
+  const readmePath = join(ROOT, 'README.md');
+  if (existsSync(readmePath)) {
+    const readmeContent = readFileSync(readmePath, 'utf8');
+    const readmeMatch = readmeContent.match(/^# OkCMS v([^\n]+)/m);
+    if (!readmeMatch) {
+      errors.push('README.md: título "# OkCMS vX.Y.Z" não encontrado — rode \`bun run sync-version --write\`');
+    } else if (readmeMatch[1] !== productVersion) {
+      errors.push(
+        `README.md title (v${readmeMatch[1]}) diverge da versão de produto (v${productVersion}) — ` +
+          `rode \`bun run sync-version --write\` para propagar`,
+      );
+    }
+  } else {
+    warnings.push('README.md não encontrado na raiz — pulando validação 3c');
+  }
 }
 
 // ---------------------------------------------------------------------------
