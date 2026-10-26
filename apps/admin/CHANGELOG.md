@@ -1,5 +1,23 @@
 # @oktis-works/admin
 
+## 0.24.2
+
+### Patch Changes
+
+- Fix theme preview iframe loading the admin instead of the active theme
+  
+  The live preview iframe in the Theme Customizer (`/customize?theme=<uuid>`) was
+  building a relative URL (`/`) that resolved to the admin application itself,
+  so the preview showed the admin UI instead of the active theme's frontend.
+  
+  The preview now resolves the public web app URL (`PUBLIC_WEB_URL`, derived
+  from `PUBLIC_API_URL` or `http://localhost:3001` in dev) and loads the
+  theme preview there with `?preview_settings` and `?preview_theme` query
+  params.
+  
+  Added `PUBLIC_WEB_URL` to the env schema and to the admin process env in
+  `okcms start` and `okcms deploy` (pm2), with sensible defaults per port.
+
 ## 0.24.1
 
 ### Patch Changes
