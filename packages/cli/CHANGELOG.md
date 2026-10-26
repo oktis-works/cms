@@ -1,5 +1,15 @@
 # @oktis-works/cms
 
+## 0.13.25
+
+### Patch Changes
+
+- Fix scaffolded default theme: generate the embedded theme from `themes/default/` at build time and translate its UI copy to English.
+  
+  The embedded fallback theme was a hand-maintained fork of `themes/default/` that drifted silently (missing `page-home.astro`, `page-blog.astro` and `src/theme.css`; stale `theme.json` and `dist/theme.css`), so `okcms init` scaffolded a theme that no longer existed in the repository. A new generator (`scripts/generate-theme-assets.mjs`) now rebuilds `src/generated/theme-assets.ts` from `themes/default/` during `build`/`prepack`, and a byte-parity test fails CI on any drift.
+  
+  `getThemeAssetDir()` also probes the published layout (`dist/themes/default`), so `bunx`-installed CLIs resolve the bundled copy instead of always falling back to embedded strings. Remaining Portuguese UI strings in `404.astro`, `archive.astro`, `page-blog.astro` and `single.astro` are now English.
+
 ## 0.13.24
 
 ### Patch Changes
