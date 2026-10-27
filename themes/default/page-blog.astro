@@ -16,7 +16,7 @@
         <article class="post-card">
           {{#if thumbnail.url}}
           <figure class="post-card__image">
-            <a href="/blog/{{slug}}">
+            <a href="{{url}}">
               <img src="{{thumbnail.url}}" alt="{{thumbnail.alt}}" loading="lazy" />
             </a>
           </figure>
@@ -29,11 +29,11 @@
                 {{/if}}
               </time>
             </header>
-            <h2 class="post-card__title"><a href="/blog/{{slug}}">{{title}}</a></h2>
+            <h2 class="post-card__title"><a href="{{url}}">{{title}}</a></h2>
             {{#if excerpt}}
             <p class="post-card__excerpt">{{excerpt}}</p>
             {{/if}}
-            <a href="/blog/{{slug}}" class="btn btn-outline">Continue reading</a>
+            <a href="{{url}}" class="btn btn-outline">Continue reading</a>
           </div>
         </article>
         {{/each}}

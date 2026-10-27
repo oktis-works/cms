@@ -34,13 +34,13 @@
     <div class="container">
       <nav class="post-nav" aria-label="Post navigation">
         {{#if prevPost}}
-        <a href="/{{page.type}}/{{prevPost.slug}}" class="post-nav__prev" rel="prev">
+        <a href="{{prevPost.url || ('/' + page.type + '/' + prevPost.slug)}}" class="post-nav__prev" rel="prev">
           <span class="post-nav__label">Previous article</span>
           <span class="post-nav__title">{{prevPost.title}}</span>
         </a>
         {{/if}}
         {{#if nextPost}}
-        <a href="/{{page.type}}/{{nextPost.slug}}" class="post-nav__next" rel="next">
+        <a href="{{nextPost.url || ('/' + page.type + '/' + nextPost.slug)}}" class="post-nav__next" rel="next">
           <span class="post-nav__label">Next article</span>
           <span class="post-nav__title">{{nextPost.title}}</span>
         </a>
@@ -49,3 +49,7 @@
     </div>
   </footer>
 </article>
+
+{{#if jsonLd}}
+<script type="application/ld+json">{{{jsonLd}}}</script>
+{{/if}}

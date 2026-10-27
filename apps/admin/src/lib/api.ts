@@ -227,6 +227,7 @@ export interface Content {
   authorId: string;
   version: number;
   layout?: string | null;
+  metadata?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
   /** Presente quando ?include=author (expandido pelo backend em uma query). */

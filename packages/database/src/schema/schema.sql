@@ -118,6 +118,28 @@ CREATE INDEX IF NOT EXISTS idx_content_author ON content(author_id);
 CREATE INDEX IF NOT EXISTS idx_content_published ON content(published_at) WHERE published_at IS NOT NULL;
 ALTER TABLE content ADD COLUMN IF NOT EXISTS data JSONB NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE content ADD COLUMN IF NOT EXISTS layout VARCHAR(255);
+ALTER TABLE content ADD COLUMN IF NOT EXISTS parent_id UUID REFERENCES content(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_content_parent ON content(parent_id);
+CREATE INDEX IF NOT EXISTS idx_content_tenant_type_parent ON content(tenant_id, type, parent_id);
+
+-- ============================================================
+-- URL Redirects
+-- ============================================================
+CREATE TABLE IF NOT EXISTS url_redirects (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  source_path TEXT NOT NULL,
+  target_path TEXT NOT NULL,
+  redirect_type SMALLINT NOT NULL DEFAULT 301,
+  is_prefix BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  reason TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_url_redirects_tenant_source ON url_redirects(tenant_id, source_path);
+CREATE INDEX IF NOT EXISTS idx_url_redirects_tenant_prefix ON url_redirects(tenant_id) WHERE is_prefix = true;
 
 -- ============================================================
 -- Content Versions

@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/validation",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "description": "Pure field validation library — UI-safe, sem dependência de banco",
   "type": "module",
   "main": "./dist/index.js",

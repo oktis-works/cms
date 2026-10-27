@@ -128,7 +128,7 @@ describe('renderPluginBlocks — public plugin renderer pipeline', () => {
   });
 });
 
-const settings = { siteTitle: 'Meu Site', siteDescription: 'Descrição do site', language: 'pt-BR' };
+const settings = { siteTitle: 'Meu Site', siteDescription: 'Descrição do site', language: 'pt-BR', siteUrl: 'https://example.com' };
 const resolution = { matched: true, template: 'single.astro', contentType: 'page', slug: 'sobre' };
 const contentRow = { id: 'c1', title: 'Sobre nós', slug: 'sobre', type: 'page', body: { html: '<p>Conteúdo</p>' } };
 
@@ -288,6 +288,7 @@ describe('toSiteSettings — B1 settings do site (via ThemeDataProvider)', () =>
     expect(result.siteTitle).toBe('Título do Banco');
     expect(result.siteDescription).toBe('Descrição do Banco');
     expect(result.language).toBe('en-US');
+    expect(result.siteUrl).toBe('');
   });
 
   it('settings vazias/faltando → fallbacks locais', () => {
@@ -295,6 +296,7 @@ describe('toSiteSettings — B1 settings do site (via ThemeDataProvider)', () =>
     expect(result.siteTitle).toBe('OkCMS');
     expect(result.siteDescription).toBe('');
     expect(result.language).toBe('pt-BR');
+    expect(result.siteUrl).toBe('');
   });
 
   it('valores não-texto (null/número) são tratados de forma robusta', () => {
@@ -401,7 +403,7 @@ describe('contentTypeForAsset — B2 mime types', () => {
 });
 
 describe('renderContentPage — E5 render hooks (theme:before/after:render)', () => {
-  const hookSettings = { siteTitle: 'Hook Site', siteDescription: '', language: 'pt-BR' };
+  const hookSettings = { siteTitle: 'Hook Site', siteDescription: '', language: 'pt-BR', siteUrl: 'https://example.com' };
 
   function withApplyFilters(
     impl: (hook: string, value: unknown, ...rest: unknown[]) => unknown,

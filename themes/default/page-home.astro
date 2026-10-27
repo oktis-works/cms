@@ -49,11 +49,11 @@
           </figure>
           {{/if}}
           <div class="post-card__content">
-            <h3 class="post-card__title"><a href="/blog/{{slug}}">{{title}}</a></h3>
+            <h3 class="post-card__title"><a href="{{url}}">{{title}}</a></h3>
             {{#if excerpt}}
             <p class="post-card__excerpt">{{excerpt}}</p>
             {{/if}}
-            <a href="/blog/{{slug}}" class="btn btn-outline">Continue reading</a>
+            <a href="{{url}}" class="btn btn-outline">Continue reading</a>
           </div>
         </article>
         {{/each}}

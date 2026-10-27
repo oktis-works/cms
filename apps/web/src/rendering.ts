@@ -54,6 +54,8 @@ export function loadTemplateSource(themesRoot: string, activeTheme: string, file
 export interface SiteSettings {
   siteTitle: string;
   siteDescription: string;
+  /** URL base do site (ex: https://example.com). Usado para canonical URLs, sitemap, JSON-LD. */
+  siteUrl: string;
   /** Idioma do documento (setting `language`); fallback pt-BR. */
   language: string;
   [key: string]: unknown;
@@ -63,6 +65,7 @@ export function toSiteSettings(raw: Record<string, unknown>): SiteSettings {
   return {
     siteTitle: toText(raw['siteTitle']) || 'OkCMS',
     siteDescription: toText(raw['siteDescription']) || '',
+    siteUrl: toText(raw['siteUrl']) || '',
     language: toText(raw['language']) || 'pt-BR',
   };
 }
@@ -196,7 +199,17 @@ export function buildThemeSettings(
 }
 
 export interface ContentPageRenderInput {
-  resolution: { template?: string; contentType?: string; slug?: string; matched: boolean };
+  resolution: {
+    template?: string;
+    contentType?: string;
+    slug?: string;
+    matched: boolean;
+    hubBase?: string | null;
+    itemPath?: string | null;
+    canonicalPath?: string | null;
+    isPageForPosts?: boolean;
+    isFrontPage?: boolean;
+  };
   contentRow?: Record<string, unknown> | null;
   data: Record<string, unknown>;
   /** Itens de archive/home (conteúdo publicado recente do tipo). */
@@ -269,6 +282,12 @@ export function renderContentPage(input: ContentPageRenderInput): string {
       template: input.resolution.template ?? '',
       type: input.resolution.contentType ?? '',
       slug: input.resolution.slug ?? '',
+      url: input.resolution.canonicalPath ?? '',
+      hubBase: input.resolution.hubBase ?? '',
+      itemPath: input.resolution.itemPath ?? '',
+      canonicalPath: input.resolution.canonicalPath ?? '',
+      isPageForPosts: input.resolution.isPageForPosts ?? false,
+      isFrontPage: input.resolution.isFrontPage ?? false,
     },
     content: { ...plainColumns(row), ...renderData },
     fields: renderData,
@@ -288,7 +307,21 @@ export function renderContentPage(input: ContentPageRenderInput): string {
     input.activeTheme
   );
   const stylesheet = resolveThemeStylesheet(input.themesRoot, input.activeTheme);
-  const html = wrapDocument(body, title, input.settings, input.activeTheme, stylesheet, input.pluginAssets);
+
+  // Build canonical URL for SEO
+  const canonicalPath = input.resolution.canonicalPath ?? '';
+  const siteUrl = (input.settings['siteUrl'] as string) || '';
+  const canonicalUrl = canonicalPath && siteUrl ? new URL(canonicalPath, siteUrl).toString() : '';
+
+  // Page-specific meta description: seo_description > excerpt > siteDescription
+  const pageDescription = (input.contentRow
+    ? (input.contentRow['seo_description'] as string) ?? (input.contentRow['excerpt'] as string)
+    : undefined) ?? input.settings.siteDescription;
+
+  const html = wrapDocument(body, title, input.settings, input.activeTheme, stylesheet, input.pluginAssets, {
+    canonicalUrl,
+    pageDescription,
+  });
   return registry.applyFilters(HOOK_POINTS.THEME_AFTER_RENDER, html, hookContext) as string;
 }
 
@@ -481,7 +514,8 @@ export function wrapDocument(
   settings: SiteSettings,
   activeTheme: string,
   stylesheetTheme: string | null = null,
-  pluginAssets?: { head: string; footer: string }
+  pluginAssets?: { head: string; footer: string },
+  seo?: { canonicalUrl?: string; pageDescription?: string }
 ): string {
   if (body.includes('<html') || body.includes('<!DOCTYPE')) {
     return body;
@@ -504,6 +538,14 @@ export function wrapDocument(
   const assetHead = pluginAssets?.head ? `${pluginAssets.head}\n` : '';
   const assetFooter = pluginAssets?.footer ? `\n${pluginAssets.footer}` : '';
 
+  // SEO: canonical URL + og:url
+  const canonicalUrl = seo?.canonicalUrl ?? '';
+  const canonicalTag = canonicalUrl ? `  <link rel="canonical" href="${escapeHtml(canonicalUrl)}">\n` : '';
+  const ogUrlTag = canonicalUrl ? `  <meta property="og:url" content="${escapeHtml(canonicalUrl)}">\n` : '';
+
+  // Meta description: page-specific (seo_description/excerpt) > siteDescription
+  const description = escapeHtml(seo?.pageDescription ?? settings.siteDescription);
+
   return `<!DOCTYPE html>
 <html lang="${lang}" data-theme="${escapeHtml(activeTheme)}">
 <head>
@@ -511,8 +553,8 @@ export function wrapDocument(
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="generator" content="OkCMS ${CMS_VERSION}">
   <title>${escapeHtml(title)}</title>
-  <meta name="description" content="${escapeHtml(settings.siteDescription)}">
-${stylesheet}${headInjections}${assetHead}</head>
+  <meta name="description" content="${description}">
+${canonicalTag}${ogUrlTag}  ${stylesheet}${headInjections}${assetHead}</head>
 <body>
 ${body}${assetFooter}
 </body>
@@ -537,6 +579,16 @@ function renderFallbackPage(
   const title = toText((input.contentRow ?? {})['title']) || input.settings.siteTitle;
   const lang = escapeHtml(input.settings.language || 'pt-BR');
 
+  // SEO for fallback page
+  const canonicalPath = input.resolution.canonicalPath ?? '';
+  const siteUrl = (input.settings['siteUrl'] as string) || '';
+  const canonicalUrl = canonicalPath && siteUrl ? new URL(canonicalPath, siteUrl).toString() : '';
+  const canonicalTag = canonicalUrl ? `  <link rel="canonical" href="${escapeHtml(canonicalUrl)}">\n` : '';
+  const ogUrlTag = canonicalUrl ? `  <meta property="og:url" content="${escapeHtml(canonicalUrl)}">\n` : '';
+  const pageDescription = (input.contentRow
+    ? (input.contentRow['seo_description'] as string) ?? (input.contentRow['excerpt'] as string)
+    : undefined) ?? input.settings.siteDescription;
+
   // WP6: ponto de extensão theme:head — plugins injetam tags no <head>
   const registry = getHookRegistry();
   const headInjections = registry.applyFilters(
@@ -553,8 +605,8 @@ function renderFallbackPage(
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${escapeHtml(title)} | ${escapeHtml(input.settings.siteTitle)}</title>
-  <meta name="description" content="${escapeHtml(input.settings.siteDescription)}">
-  <style>
+  <meta name="description" content="${escapeHtml(pageDescription)}">
+${canonicalTag}${ogUrlTag}  <style>
     body { font-family: system-ui, sans-serif; margin: 0; color: #111; }
     main { max-width: 46rem; margin: 0 auto; padding: 3rem 1.5rem; }
     .fallback__hint { color: #555; line-height: 1.5; }
@@ -832,6 +884,75 @@ export function createContentLookup(): ContentLookup {
       return types
         .filter((type) => type.public !== false)
         .map((type) => ({ slug: type.slug, hasArchive: Boolean(type.hasArchive) }));
+    },
+
+    // NOVO: hub pages dinâmicas (metadata.hub_type)
+    async getHubPages() {
+      const sql = getConnection();
+      const result = await sql.unsafe(
+        `SELECT id, slug, metadata->>'hub_type' as hub_type
+         FROM content
+         WHERE type = 'page'
+           AND status = 'PUBLISHED'
+           AND metadata ? 'hub_type'
+           AND tenant_id = current_setting('app.current_tenant_id', true)::uuid`
+      );
+      return (result as unknown as Array<{ id: string; slug: string; hub_type: string }>)
+        .filter((r) => r.hub_type && r.slug)
+        .map((r) => ({ type: r.hub_type, base: r.slug, hubPageId: r.id }));
+    },
+
+    // NOVO: buscar pai direto (para walk-up validation)
+    async findParent(parentId) {
+      const sql = getConnection();
+      const result = await sql.unsafe(
+        `SELECT id, slug, type FROM content WHERE id = $1`,
+        [parentId]
+      );
+      const row = result[0] as Record<string, unknown> | undefined;
+      if (!row) return null;
+      return {
+        id: String(row['id']),
+        slug: String(row['slug']),
+        type: String(row['type']),
+      };
+    },
+
+    // NOVO: consultar store de redirects (exact + prefix)
+    async findRedirect(sourcePath) {
+      const sql = getConnection();
+      // Exact match
+      const exactResult = await sql.unsafe(
+        `SELECT target_path, redirect_type FROM url_redirects
+         WHERE tenant_id = current_setting('app.current_tenant_id', true)::uuid
+           AND source_path = $1
+           AND is_prefix = false
+         ORDER BY created_at DESC LIMIT 1`,
+        [sourcePath]
+      );
+      const exactRow = exactResult[0] as Record<string, unknown> | undefined;
+      if (exactRow) {
+        return { targetPath: String(exactRow['target_path']), redirectType: Number(exactRow['redirect_type']) };
+      }
+      // Prefix match: find longest matching prefix (source_path ends with *)
+      const prefixResult = await sql.unsafe(
+        `SELECT source_path, target_path, redirect_type FROM url_redirects
+         WHERE tenant_id = current_setting('app.current_tenant_id', true)::uuid
+           AND is_prefix = true
+         ORDER BY length(source_path) DESC`
+      );
+      for (const row of prefixResult as Array<Record<string, unknown>>) {
+        const source = String(row['source_path']);
+        const prefix = source.replace(/\*$/, ''); // remove trailing *
+        if (sourcePath.startsWith(prefix)) {
+          const target = String(row['target_path']);
+          const suffix = sourcePath.slice(prefix.length); // part after prefix
+          const targetPrefix = target.replace(/\*$/, '');
+          const targetPath = suffix ? `${targetPrefix}${suffix}` : targetPrefix;
+          return { targetPath, redirectType: Number(row['redirect_type']) };
+        }
+      }
+      return null;
     },
   };
 }

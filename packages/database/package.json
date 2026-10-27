@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/database",
-  "version": "0.14.8",
+  "version": "0.15.0",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -19,8 +19,8 @@
     "db:rollback": "node --loader ts-node/esm src/migrations/runner.ts rollback"
   },
   "dependencies": {
-    "@oktis-works/config": "^0.6.5",
-    "@oktis-works/types": "^0.9.4",
+    "@oktis-works/config": "^0.6.6",
+    "@oktis-works/types": "^0.10.0",
     "mariadb": "^3.4.2",
     "mysql2": "^3.14.1",
     "postgres": "3.4.0"

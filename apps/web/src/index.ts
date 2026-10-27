@@ -26,6 +26,9 @@ import {
   renderAssetTags,
   renderPluginBlocks,
 } from './rendering.js';
+import { buildItemUrl } from './url-helpers.js';
+import { buildJsonLd } from './jsonld.js';
+import { generateFeeds } from './rss.js';
 import { createDatabaseThemeDataProvider, loadThemeRenderData } from './theme-data.js';
 import { resolveTenantFromHost } from './tenant-resolver.js';
 import { runWithThemeDataProvider } from '@oktis-works/theme-sdk';
@@ -39,6 +42,38 @@ const SAFE_THEME_NAME_RE = /^[A-Za-z0-9_-]+$/;
 
 function bodyOf(row: ContentRow): Record<string, unknown> {
   return normalizeLogicalValues({ body: row['body'], data: row['data'], native: row });
+}
+
+/** XML escape for sitemap URLs. */
+function escapeXml(str: string): string {
+  return str
+    .replace(/&/g, '&')
+    .replace(/</g, '<')
+    .replace(/>/g, '>')
+    .replace(/"/g, '"')
+    .replace(/'/g, '&apos;');
+}
+
+/** Build parent chain slugs from parent_id (root to immediate parent). */
+async function buildParentChain(
+  sql: ReturnType<typeof getConnection>,
+  tenantId: string,
+  parentId: string | null
+): Promise<string[]> {
+  const chain: string[] = [];
+  let currentId: string | null = parentId;
+  const visited = new Set<string>();
+
+  while (currentId) {
+    if (visited.has(currentId)) break;
+    visited.add(currentId);
+    const rows = await sql.unsafe('SELECT id, slug, parent_id FROM content WHERE id = $1 AND tenant_id = $2', [currentId, tenantId]);
+    const row = rows[0] as { id: string; slug: string; parent_id: string | null } | undefined;
+    if (!row) break;
+    chain.unshift(row.slug);
+    currentId = row.parent_id ?? null;
+  }
+  return chain;
 }
 
 /**
@@ -173,6 +208,169 @@ async function main() {
     }
   });
 
+  // RSS/Atom feeds — GET /{hubBase}/feed
+  // Derivado da hub page: lista itens do tipo do hub, ordenados por published_at DESC
+  app.get('/:hubBase/feed', async (c) => {
+    try {
+      const hubBase = c.req.param('hubBase');
+      const sql = getConnection();
+      const tenantId = String(c.get('tenant')['id']);
+
+      // Find hub page and its type
+      const hubPage = await sql`
+        SELECT id, slug, title, metadata->>'hub_type' as hub_type, excerpt
+        FROM content
+        WHERE type = 'page'
+          AND slug = ${hubBase}
+          AND status = 'PUBLISHED'
+          AND metadata ? 'hub_type'
+          AND tenant_id = ${tenantId}::uuid
+        LIMIT 1
+      `;
+
+      if (hubPage.length === 0) {
+        return c.notFound();
+      }
+
+      const hubPageRow = hubPage[0] as Record<string, unknown>;
+      const hubType = hubPageRow['hub_type'] as string;
+      const hubTitle = hubPageRow['title'] as string;
+      const hubDescription = (hubPageRow['excerpt'] as string | undefined) ?? undefined;
+
+      // Fetch published items of this type
+      const itemRows = await sql`
+        SELECT id, type, slug, title, excerpt, published_at, updated_at
+        FROM content
+        WHERE type = ${hubType}
+          AND status = 'PUBLISHED'
+          AND tenant_id = ${tenantId}::uuid
+        ORDER BY published_at DESC NULLS LAST, updated_at DESC
+        LIMIT 50
+      `;
+
+      const siteUrl = (await sql`
+        SELECT value FROM settings WHERE key = 'siteUrl'
+        AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid)
+        ORDER BY tenant_id NULLS LAST LIMIT 1
+      `).map((r: any) => r.value)[0] ?? '';
+
+      const { rss, atom } = generateFeeds({
+        hubBase,
+        hubTitle,
+        hubDescription,
+        siteName: (await sql`SELECT value FROM settings WHERE key = 'siteTitle' AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid) ORDER BY tenant_id NULLS LAST LIMIT 1`).map((r: any) => r.value)[0] ?? 'OkCMS',
+        siteUrl,
+        contentType: hubType,
+        items: itemRows as any[],
+        feedUrl: `/${hubBase}/feed`,
+      });
+
+      const format = c.req.query('format');
+      if (format === 'atom') {
+        return c.text(atom, 200, { 'Content-Type': 'application/atom+xml' });
+      }
+      return c.text(rss, 200, { 'Content-Type': 'application/rss+xml' });
+    } catch (error) {
+      console.error('[web] Feed generation failed:', error);
+      return c.text('Feed unavailable', 500);
+    }
+  });
+
+  // Sitemap — GET /sitemap.xml
+  // Lista hubs (/{base}/) + itens publicados com paths canônicos completos.
+  // Exclui fontes de redirect (source_path de url_redirects).
+  // Paginação (?page=N) → canonical self (não gera URLs separadas).
+  app.get('/sitemap.xml', async (c) => {
+    try {
+      const sql = getConnection();
+      const tenantId = String(c.get('tenant')['id']);
+      const siteUrl = (await sql`SELECT value FROM settings WHERE key = 'siteUrl' AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid) ORDER BY tenant_id NULLS LAST LIMIT 1`)
+        .map((r: any) => r.value)[0] ?? '';
+
+      if (!siteUrl) {
+        return c.text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>', 200, { 'Content-Type': 'application/xml' });
+      }
+
+      // 1) Hub pages (metadata.hub_type)
+      const hubRows = await sql`
+        SELECT slug FROM content
+        WHERE type = 'page'
+          AND status = 'PUBLISHED'
+          AND metadata ? 'hub_type'
+          AND tenant_id = ${tenantId}::uuid
+      `;
+
+      // 2) Published items (excluindo páginas que são hubs)
+      const hubSlugs = hubRows.map((r: any) => r.slug);
+      const hubSlugCondition = hubSlugs.length > 0 ? `AND slug NOT IN (${hubSlugs.map(() => '?').join(',')})` : '';
+
+      const itemRows = await sql.unsafe(
+        `SELECT id, type, slug, published_at, updated_at, parent_id
+         FROM content
+         WHERE status = 'PUBLISHED'
+           AND tenant_id = $1
+           AND type != 'page'
+           ${hubSlugCondition}
+         ORDER BY published_at DESC NULLS LAST, updated_at DESC`,
+        [tenantId, ...hubSlugs]
+      );
+
+      // 3) Redirect sources to exclude
+      const redirectRows = await sql`
+        SELECT source_path FROM url_redirects
+        WHERE tenant_id = ${tenantId}::uuid
+      `;
+      const redirectSources = new Set(redirectRows.map((r: any) => r.source_path));
+
+      // Build XML
+      const urls: string[] = [];
+      const now = new Date().toISOString().split('T')[0];
+
+      // Hub pages (listings)
+      for (const row of hubRows as Array<Record<string, unknown>>) {
+        const slug = row['slug'] as string;
+        const path = `/${slug}/`;
+        if (!redirectSources.has(path.replace(/^\//, ''))) {
+          urls.push(`  <url>\n    <loc>${escapeXml(siteUrl + path)}</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.9</priority>\n  </url>`);
+        }
+      }
+
+      // Items
+      for (const row of itemRows as Array<Record<string, unknown>>) {
+        const hubType = row['type'] as string;
+        // Find hub base for this type
+        const hubRow = await sql`
+          SELECT slug FROM content
+          WHERE type = 'page'
+            AND metadata->>'hub_type' = ${hubType}
+            AND status = 'PUBLISHED'
+            AND tenant_id = ${tenantId}::uuid
+          LIMIT 1
+        `;
+        const hubBase = (hubRow[0] as Record<string, unknown> | undefined)?.['slug'] as string | undefined;
+        if (!hubBase) continue;
+
+        // Build parent chain for canonical path
+        const parentId = row['parent_id'] as string | null;
+        const parentChain = await buildParentChain(sql, tenantId, parentId);
+        const itemSlug = row['slug'] as string;
+        const itemPath = parentChain.length > 0 ? [...parentChain, itemSlug].join('/') : itemSlug;
+        const path = `/${hubBase}/${itemPath}`;
+
+        if (!redirectSources.has(path.replace(/^\//, ''))) {
+          const lastmod = (row['published_at'] ?? row['updated_at']) as string | null;
+          urls.push(`  <url>\n    <loc>${escapeXml(siteUrl + path)}</loc>\n    <lastmod>${lastmod ? new Date(lastmod).toISOString().split('T')[0] : now}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.7</priority>\n  </url>`);
+        }
+      }
+
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>`;
+      return c.text(xml, 200, { 'Content-Type': 'application/xml' });
+    } catch (error) {
+      console.error('[web] Sitemap generation failed:', error);
+      return c.text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>', 500, { 'Content-Type': 'application/xml' });
+    }
+  });
+
   // B2 — assets do tema: GET /themes/<tema>/<path> → serveStatic do diretório
   // themes/ com traversal guard (resolveThemeAssetPath nega qualquer escape).
   app.get('/themes/*', async (c) => {
@@ -205,6 +403,11 @@ async function main() {
 
       if (!resolution.matched) {
         return c.notFound();
+      }
+
+      // 301 redirect for canonical URLs (legacy formats, old bases, etc.)
+      if (resolution.redirectTo) {
+        return c.redirect(resolution.redirectTo, 301);
       }
 
       // B1 — conteúdo real: payload já enriquecido pelo lookup (mídia real +
@@ -265,6 +468,16 @@ async function main() {
           await enrichItemsMedia(getConnection(), items);
         } catch {
           // enriquecimento de lista nunca derruba a renderização
+        }
+      }
+
+      // Build item URLs for listings (canonical paths with hub base + parent chain)
+      const hubBase = resolution.hubBase ?? '';
+      if (hubBase && items.length > 0) {
+        // We need parent chains for items. For now, add basic URL without parent chain.
+        // TODO: Batch fetch parent chains for all items in listing.
+        for (const item of items) {
+          item['url'] = buildItemUrl(item as any, hubBase);
         }
       }
 
@@ -339,10 +552,41 @@ async function main() {
           ),
         };
 
+        // Build JSON-LD for single content pages (not listings)
+        let jsonLd: Record<string, unknown>[] | undefined;
+        if (resolution.slug && resolution.contentType && resolution.canonicalPath) {
+          const siteUrl = (settings['siteUrl'] as string) || '';
+          const canonicalUrl = resolution.canonicalPath && siteUrl ? new URL(resolution.canonicalPath, siteUrl).toString() : '';
+          
+          if (canonicalUrl) {
+            // Build parent chain for breadcrumbs
+            let parentChain: string[] = [];
+            if (contentRow && (contentRow as any).parent_id) {
+              parentChain = await buildParentChain(getConnection(), tenantId, (contentRow as any).parent_id);
+            }
+
+            jsonLd = buildJsonLd({
+              canonicalUrl,
+              siteName: settings.siteTitle,
+              siteUrl,
+              hubBase: resolution.hubBase ?? undefined,
+              itemPath: resolution.itemPath ?? undefined,
+              parentChain,
+              title: (contentRow?.['title'] as string) ?? '',
+              description: (contentRow?.['seo_description'] as string) ?? (contentRow?.['excerpt'] as string) ?? settings.siteDescription,
+              datePublished: (contentRow?.['published_at'] as string) ?? undefined,
+              dateModified: (contentRow?.['updated_at'] as string) ?? undefined,
+              authorName: (contentRow?.['author'] as any)?.name ?? undefined,
+              imageUrl: (contentRow?.['featured_image'] as any)?.url ?? undefined,
+              contentType: resolution.contentType,
+            });
+          }
+        }
+
         return renderContentPage({
           resolution,
           contentRow,
-          data: renderData,
+          data: { ...renderData, jsonLd },
           items,
           pagination,
           settings,

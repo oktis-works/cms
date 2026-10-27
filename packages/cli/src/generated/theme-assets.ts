@@ -33,7 +33,7 @@ export const DEFAULT_THEME_FILES: Record<string, string> = {
         <article class="post-card">
           {{#if thumbnail.url}}
           <figure class="post-card__image">
-            <a href="/{{page.type}}/{{slug}}">
+            <a href="{{url}}">
               <img src="{{thumbnail.url}}" alt="{{thumbnail.alt}}" loading="lazy" />
             </a>
           </figure>
@@ -46,11 +46,11 @@ export const DEFAULT_THEME_FILES: Record<string, string> = {
                 {{/if}}
               </time>
             </header>
-            <h2 class="post-card__title"><a href="/{{page.type}}/{{slug}}">{{title}}</a></h2>
+            <h2 class="post-card__title"><a href="{{url}}">{{title}}</a></h2>
             {{#if excerpt}}
             <p class="post-card__excerpt">{{excerpt}}</p>
             {{/if}}
-            <a href="/{{page.type}}/{{slug}}" class="btn btn-outline">Continue reading</a>
+            <a href="{{url}}" class="btn btn-outline">Continue reading</a>
           </div>
         </article>
         {{/each}}
@@ -1184,7 +1184,7 @@ export const DEFAULT_THEME_FILES: Record<string, string> = {
         <article class="post-card">
           {{#if thumbnail.url}}
           <figure class="post-card__image">
-            <a href="/blog/{{slug}}">
+            <a href="{{url}}">
               <img src="{{thumbnail.url}}" alt="{{thumbnail.alt}}" loading="lazy" />
             </a>
           </figure>
@@ -1197,11 +1197,11 @@ export const DEFAULT_THEME_FILES: Record<string, string> = {
                 {{/if}}
               </time>
             </header>
-            <h2 class="post-card__title"><a href="/blog/{{slug}}">{{title}}</a></h2>
+            <h2 class="post-card__title"><a href="{{url}}">{{title}}</a></h2>
             {{#if excerpt}}
             <p class="post-card__excerpt">{{excerpt}}</p>
             {{/if}}
-            <a href="/blog/{{slug}}" class="btn btn-outline">Continue reading</a>
+            <a href="{{url}}" class="btn btn-outline">Continue reading</a>
           </div>
         </article>
         {{/each}}
@@ -1327,11 +1327,11 @@ export const DEFAULT_THEME_FILES: Record<string, string> = {
           </figure>
           {{/if}}
           <div class="post-card__content">
-            <h3 class="post-card__title"><a href="/blog/{{slug}}">{{title}}</a></h3>
+            <h3 class="post-card__title"><a href="{{url}}">{{title}}</a></h3>
             {{#if excerpt}}
             <p class="post-card__excerpt">{{excerpt}}</p>
             {{/if}}
-            <a href="/blog/{{slug}}" class="btn btn-outline">Continue reading</a>
+            <a href="{{url}}" class="btn btn-outline">Continue reading</a>
           </div>
         </article>
         {{/each}}
@@ -1407,6 +1407,10 @@ export const DEFAULT_THEME_FILES: Record<string, string> = {
     {{/if}}
   </div>
 </main>
+
+{{#if jsonLd}}
+<script type="application/ld+json">{{{jsonLd}}}</script>
+{{/if}}
 `,
   "post-first-post.astro": `<article data-template="post-first-post" data-type="post" class="post post-single">
   <header class="post-header">
@@ -1548,13 +1552,13 @@ export const DEFAULT_THEME_FILES: Record<string, string> = {
     <div class="container">
       <nav class="post-nav" aria-label="Post navigation">
         {{#if prevPost}}
-        <a href="/{{page.type}}/{{prevPost.slug}}" class="post-nav__prev" rel="prev">
+        <a href="{{prevPost.url || ('/' + page.type + '/' + prevPost.slug)}}" class="post-nav__prev" rel="prev">
           <span class="post-nav__label">Previous article</span>
           <span class="post-nav__title">{{prevPost.title}}</span>
         </a>
         {{/if}}
         {{#if nextPost}}
-        <a href="/{{page.type}}/{{nextPost.slug}}" class="post-nav__next" rel="next">
+        <a href="{{nextPost.url || ('/' + page.type + '/' + nextPost.slug)}}" class="post-nav__next" rel="next">
           <span class="post-nav__label">Next article</span>
           <span class="post-nav__title">{{nextPost.title}}</span>
         </a>
@@ -1563,6 +1567,10 @@ export const DEFAULT_THEME_FILES: Record<string, string> = {
     </div>
   </footer>
 </article>
+
+{{#if jsonLd}}
+<script type="application/ld+json">{{{jsonLd}}}</script>
+{{/if}}
 `,
   "src/theme.css": `/**
  * Tema Default do OkCMS — Design System CSS

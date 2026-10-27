@@ -21,6 +21,7 @@ interface Draft {
   featuredImageId?: string;
   status: string;
   layout?: string | null;
+  parentId?: string;
 }
 
 interface Props {
@@ -79,6 +80,31 @@ export function ContentEditor(props: Props) {
       for (const layout of theme.manifest?.provides?.layouts ?? []) layouts.add(layout);
     }
     return [...layouts].sort();
+  };
+
+  const [parentOptions, setParentOptions] = createSignal<Array<{ id: string; title: string }>>([]);
+
+  const loadParentOptions = async (type: string, excludeId?: string): Promise<void> => {
+    try {
+      const result = await apiClient.getContent({
+        type,
+        status: 'PUBLISHED',
+        limit: 100,
+      });
+      const options = (result.data ?? [])
+        .filter((item: any) => item.id !== excludeId)
+        .map((item: any) => ({ id: item.id, title: item.title }));
+      setParentOptions(options);
+    } catch {
+      setParentOptions([]);
+    }
+  };
+
+  const availableParents = () => {
+    // Only show parent select for types that support hierarchy (not singleton)
+    const typeDef = types().find((t) => t.slug === draft().type);
+    if (typeDef?.singleton) return [];
+    return parentOptions();
   };
 
   const loadGroups = async (context: { type?: string; slug?: string; status?: string } | string): Promise<void> => {
@@ -146,8 +172,11 @@ export function ContentEditor(props: Props) {
           featuredImageId: typeof logical['featured_image'] === 'string' ? logical['featured_image'] : undefined,
           status: String(logical['status'] ?? existing.status),
           layout: existing.layout,
+          parentId: (existing as any).parent_id ?? undefined,
         });
         setData(logical);
+        // Load parent options for the current type (excluding self)
+        await loadParentOptions(existing.type, existing.id);
       } catch (err) {
         setErrors([err instanceof Error ? err.message : String(err)]);
       }
@@ -156,6 +185,8 @@ export function ContentEditor(props: Props) {
     }
 
     await loadGroups({ type: draft().type, slug: draft().slug, status: draft().status });
+    // Load parent options for new content
+    await loadParentOptions(draft().type);
   });
 
   const editorContent = (): string => {
@@ -193,6 +224,7 @@ export function ContentEditor(props: Props) {
         seoDescription: typeof logical['seo_description'] === 'string' ? logical['seo_description'] : undefined,
         status: String(logical['status'] ?? draft().status),
         layout: draft().layout || null,
+        parentId: draft().parentId,
         body,
       };
 
@@ -288,6 +320,14 @@ export function ContentEditor(props: Props) {
                 <select class="input" value={draft().layout ?? ''} onChange={(event) => setDraft({ ...draft(), layout: event.currentTarget.value || null })}>
                   <option value="">{t('content.editor.layoutAuto')}</option>
                   <For each={availableLayouts()}>{(layout) => <option value={layout}>{layout}</option>}</For>
+                </select>
+              </label>
+              {/* Parent select for hierarchical URLs */}
+              <label class="mt-3">
+                {t('content.editor.parent')}
+                <select class="input" value={draft().parentId ?? ''} onChange={(event) => setDraft({ ...draft(), parentId: event.currentTarget.value || undefined })}>
+                  <option value="">{t('content.editor.parentPlaceholder')}</option>
+                  <For each={availableParents()}>{(parent) => <option value={parent.id}>{parent.title}</option>}</For>
                 </select>
               </label>
             </section>

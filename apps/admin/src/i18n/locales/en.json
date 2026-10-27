@@ -137,6 +137,8 @@
       },
       "layout": "Layout",
       "layoutAuto": "Automatic (theme hierarchy)",
+      "parent": "Parent",
+      "parentPlaceholder": "Select parent (optional)",
       "customFields": "Custom Fields",
       "inspectTypes": "Inspect available types",
       "save": "Save",
@@ -700,7 +702,18 @@
       "gmtOffsetPlaceholder": "-3",
       "timezoneDescription": "A timezone string in IANA format (e.g. America/Sao_Paulo). GMT offset is an alternative in hours.",
       "gmtOffsetDescription": "GMT offset in hours (e.g. -3 for UTC-3). Alternative to IANA timezone string.",
-      "loading": "Loading…"
+      "loading": "Loading…",
+      "hubPages": "Listing Pages (Hubs)",
+      "hubPages": {
+        "empty": "No listing pages configured yet.",
+        "type": "Content Type",
+        "page": "Page",
+        "selectType": "— Select content type —",
+        "selectPage": "— Select page —",
+        "add": "Add Listing Page",
+        "remove": "Remove",
+        "description": "Each listing page acts as the base URL for a content type (e.g. /blog/ for posts, /projects/ for projects). The page's slug becomes the URL base."
+      }
     }
   },
   "menus": {

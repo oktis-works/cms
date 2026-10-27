@@ -128,6 +128,8 @@ export interface Content extends Timestamps {
   metadata?: Record<string, unknown>;
   /** Override de layout/template escolhido no editor (TASK-058). */
   layout?: string | null;
+  /** Parent content ID for hierarchical URLs (same type, same tenant). */
+  parentId?: UUID | null;
   publishedAt?: Date;
   version: number;
 }

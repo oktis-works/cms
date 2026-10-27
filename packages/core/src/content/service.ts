@@ -32,6 +32,8 @@ export interface CreateContentInput {
   metadata?: Record<string, unknown>;
   /** Override de layout/template (content.layout) resolvido pelo theme runtime. */
   layout?: string | null;
+  /** Parent content ID for hierarchical URLs (same type, same tenant). */
+  parentId?: string;
 }
 
 export interface UpdateContentInput {
@@ -46,6 +48,8 @@ export interface UpdateContentInput {
   metadata?: Record<string, unknown>;
   /** Override de layout/template (content.layout); string vazia limpa o override. */
   layout?: string | null;
+  /** Parent content ID for hierarchical URLs. null = remover pai. */
+  parentId?: string | null;
 }
 
 const FIELD_SUPPORT_REQUIREMENT: Record<string, string> = {
@@ -110,6 +114,130 @@ async function invalidateContentCache(id: string, slug?: string | null, type?: s
   await index.invalidateTag(`content:${id}`);
   if (type) await index.invalidateTag(`content:type:${type}`);
   if (slug) await index.invalidateTag(`content:slug:${slug}`);
+}
+
+/**
+ * Validates parent chain: no cycles, same type, max depth 5.
+ * Called inside the transaction before INSERT/UPDATE.
+ */
+async function validateParentChain(
+  sql: ReturnType<typeof getConnection>,
+  tenantId: string,
+  childId: string,
+  newParentId: string | null,
+  type: string
+): Promise<void> {
+  if (!newParentId) return;
+
+  // 1) Parent exists, same tenant, same type
+  const parent = await sql.unsafe(
+    'SELECT id, type FROM content WHERE id = $1 AND tenant_id = $2',
+    [newParentId, tenantId]
+  );
+  if (!parent.length) {
+    throw new Error('Parent not found or cross-tenant');
+  }
+  const parentRow = parent[0] as { type: string };
+  if (parentRow.type !== type) {
+    throw new Error('Parent must be same content type');
+  }
+
+  // 2) Detect cycle: walk up from newParentId
+  let current: string | null = newParentId;
+  const visited = new Set<string>();
+  while (current) {
+    if (current === childId || visited.has(current)) {
+      throw new Error('Parent assignment would create a cycle');
+    }
+    visited.add(current);
+    const p = await sql.unsafe('SELECT parent_id FROM content WHERE id = $1', [current]);
+    const row = p[0] as { parent_id: string | null } | undefined;
+    current = row?.parent_id ?? null;
+  }
+
+  // 3) Max depth (5 levels including the item itself)
+  if (visited.size >= 5) {
+    throw new Error('Maximum nesting depth (5) exceeded');
+  }
+}
+
+/**
+ * Builds path segments from parent chain (excludes the base segment).
+ * Returns array like ['cliente-a'] for item whose parent is 'cliente-a'.
+ */
+async function buildItemPathSegments(
+  sql: ReturnType<typeof getConnection>,
+  tenantId: string,
+  itemId: string
+): Promise<string[]> {
+  const segments: string[] = [];
+  let currentId: string | null = itemId;
+  const visited = new Set<string>();
+
+  while (true) {
+    const row = await sql.unsafe('SELECT parent_id, slug FROM content WHERE id = $1', [currentId]);
+    const rowData = row[0] as { parent_id: string | null; slug: string } | undefined;
+    if (!rowData || !rowData.parent_id) break;
+    if (visited.has(rowData.parent_id)) break;
+    visited.add(rowData.parent_id);
+    segments.unshift(rowData.slug);
+    currentId = rowData.parent_id;
+  }
+  return segments;
+}
+
+/**
+ * Builds full path (without base) for an item given slug and parent_id.
+ * Used for redirect recording.
+ */
+async function buildFullPath(
+  sql: ReturnType<typeof getConnection>,
+  tenantId: string,
+  type: string,
+  slug: string,
+  parentId: string | null
+): Promise<string> {
+  if (!parentId) return slug;
+  const parentSegments = await buildItemPathSegments(sql, tenantId, parentId);
+  return [...parentSegments, slug].join('/');
+}
+
+/**
+ * Records an exact-match redirect in url_redirects table.
+ */
+async function recordExactRedirect(
+  sql: ReturnType<typeof getConnection>,
+  tenantId: string,
+  sourcePath: string,
+  targetPath: string,
+  userId: string,
+  reason: string
+): Promise<void> {
+  if (sourcePath === targetPath) return;
+  await sql.unsafe(
+    `INSERT INTO url_redirects (tenant_id, source_path, target_path, redirect_type, is_prefix, created_by, reason)
+     VALUES ($1, $2, $3, 301, false, $4, $5)
+     ON CONFLICT DO NOTHING`,
+    [tenantId, sourcePath, targetPath, userId, reason]
+  );
+}
+
+/**
+ * Records a prefix redirect (for base rename: /old-base/* -> /new-base/*).
+ */
+async function recordPrefixRedirect(
+  sql: ReturnType<typeof getConnection>,
+  tenantId: string,
+  oldBase: string,
+  newBase: string,
+  userId: string
+): Promise<void> {
+  await sql.unsafe(
+    `INSERT INTO url_redirects (tenant_id, source_path, target_path, redirect_type, is_prefix, created_by, reason)
+     VALUES ($1, $2, $3, 301, true, $4, 'base_rename')
+     ON CONFLICT DO NOTHING`,
+    [tenantId, `${oldBase}/*`, `${newBase}/*`, userId]
+  );
 }
 
 export class ContentService {
@@ -247,6 +375,11 @@ export class ContentService {
       }
     }
 
+    // Validate parentId if provided
+    if (input.parentId) {
+      await validateParentChain(sql, input.tenantId, '', input.parentId, input.type);
+    }
+
     const filteredInput = (await registry.applyFiltersAsync(
       HOOK_POINTS.BEFORE_SAVE_CONTENT(input.type),
       input.body ?? {},
@@ -275,10 +408,10 @@ export class ContentService {
     const metadata = input.metadata ?? {};
 
     const result = await sql.unsafe(
-      `INSERT INTO content (id, tenant_id, type, title, slug, body, excerpt, status, author_id, featured_image_id, seo_title, seo_description, metadata, layout)
-       VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11, $12, $13::jsonb, $14)
+      `INSERT INTO content (id, tenant_id, type, title, slug, body, excerpt, status, author_id, featured_image_id, seo_title, seo_description, metadata, layout, parent_id)
+       VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11, $12, $13::jsonb, $14, $15)
        RETURNING *`,
-      [id, input.tenantId, input.type, String(logical['title'] ?? input.title), String(logical['slug'] ?? slug), canonicalBody, native['excerpt'] ?? null, String(logical['status'] ?? status), String(native['authorId'] ?? input.authorId), native['featuredImageId'] ?? null, native['seoTitle'] ?? null, native['seoDescription'] ?? null, metadata, input.layout ?? null]
+      [id, input.tenantId, input.type, String(logical['title'] ?? input.title), String(logical['slug'] ?? slug), canonicalBody, native['excerpt'] ?? null, String(logical['status'] ?? status), String(native['authorId'] ?? input.authorId), native['featuredImageId'] ?? null, native['seoTitle'] ?? null, native['seoDescription'] ?? null, metadata, input.layout ?? null, input.parentId ?? null]
     );
 
     const content = result[0] as unknown as Content;
@@ -314,7 +447,21 @@ export class ContentService {
     const existing = await this.getById(id);
     if (!existing) return null;
 
+    // Capture old values for redirect recording
+    const oldSlug = existing.slug;
+    const oldParentId = (existing as any).parent_id ?? null;
+    const oldMetadata = existing.metadata ?? {};
+
     input = (await stripUnsupportedFields(existing.type, input)) as UpdateContentInput;
+    const existingRow = existing as unknown as Record<string, unknown>;
+
+    // Validate parentId if provided (including null to remove)
+    if (Object.prototype.hasOwnProperty.call(input, 'parentId')) {
+      const newParentId = input.parentId ?? null;
+      if (newParentId !== oldParentId) {
+        await validateParentChain(sql, existingRow['tenant_id'] as string, id, newParentId, existing.type);
+      }
+    }
 
     let logical = normalizeLogicalValues({
       body: existing.body,
@@ -416,6 +563,11 @@ export class ContentService {
       setClauses.push(`layout = $${setParams.length + 1}`);
       setParams.push(input.layout ? input.layout : null);
     }
+    // parent_id handling
+    if (Object.prototype.hasOwnProperty.call(input, 'parentId')) {
+      setClauses.push(`parent_id = $${setParams.length + 1}`);
+      setParams.push(input.parentId ?? null);
+    }
 
     setClauses.push(`version = $${setParams.length + 1}`);
     setParams.push(String(newVersion));
@@ -433,6 +585,36 @@ export class ContentService {
     );
 
     const content = result[0] as unknown as Content;
+    const contentRow = result[0] as Record<string, unknown>; // DB row with snake_case
+
+    // Record redirects AFTER successful update
+    // 1) slug change
+    if (content.slug !== oldSlug) {
+      const oldPath = await buildFullPath(sql, contentRow['tenant_id'] as string, content.type, oldSlug, oldParentId);
+      const newPath = await buildFullPath(sql, contentRow['tenant_id'] as string, content.type, content.slug, (contentRow['parent_id'] as string | null) ?? null);
+      // We need a userId - get from author_id as fallback (should come from context in real usage)
+      await recordExactRedirect(sql, contentRow['tenant_id'] as string, oldPath, newPath, contentRow['author_id'] as string, 'slug_change');
+    }
+
+    // 2) parent change
+    const newParentId = (contentRow['parent_id'] as string | null) ?? null;
+    if (newParentId !== oldParentId) {
+      const oldPath = await buildFullPath(sql, contentRow['tenant_id'] as string, content.type, oldSlug, oldParentId);
+      const newPath = await buildFullPath(sql, contentRow['tenant_id'] as string, content.type, content.slug, newParentId);
+      await recordExactRedirect(sql, contentRow['tenant_id'] as string, oldPath, newPath, contentRow['author_id'] as string, 'parent_change');
+    }
+
+    // 3) Base rename detection: if this is a PAGE and its slug changed, check if it's a hub page
+    if (existing.type === 'page' && content.slug !== oldSlug) {
+      const wasHub = oldMetadata?.['hub_type'] as string | undefined;
+      const newMetadata = input.metadata ?? existing.metadata ?? {};
+      const isHub = newMetadata?.['hub_type'] as string | undefined;
+      const hubType = wasHub || isHub;
+      if (hubType) {
+        // This page is/was a hub page - record prefix redirect for all items under it
+        await recordPrefixRedirect(sql, contentRow['tenant_id'] as string, oldSlug, content.slug, contentRow['author_id'] as string);
+      }
+    }
 
     await registry.doAction(HOOK_POINTS.AFTER_SAVE_CONTENT(content.type), content, { operation: 'update', previousVersion: existing.version });
 

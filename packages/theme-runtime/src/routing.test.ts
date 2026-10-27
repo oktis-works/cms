@@ -12,14 +12,23 @@ function makeRouter(lookup: ContentLookup, files: string[]): RuntimeRouter {
   return new RuntimeRouter(lookup, resolver);
 }
 
+function stubHubMethods(lookup: Partial<ContentLookup>): ContentLookup {
+  return {
+    ...lookup,
+    getHubPages: vi.fn().mockResolvedValue([]),
+    findParent: vi.fn().mockResolvedValue(null),
+    findRedirect: vi.fn().mockResolvedValue(null),
+  } as ContentLookup;
+}
+
 describe('RuntimeRouter', () => {
   it('resolve home para index.astro (fallback quando sem static_front_page)', async () => {
-    const lookup: ContentLookup = {
+    const lookup = stubHubMethods({
       findByPath: vi.fn(),
       listTypes: vi.fn().mockResolvedValue([]),
       findById: vi.fn(),
       getSetting: vi.fn().mockResolvedValue(null),
-    };
+    });
     const router = makeRouter(lookup, ['index.astro']);
 
     const result = await router.resolve('/');
@@ -31,12 +40,12 @@ describe('RuntimeRouter', () => {
   });
 
   it('resolve static_front_page quando configurado', async () => {
-    const lookup: ContentLookup = {
+    const lookup = stubHubMethods({
       findByPath: vi.fn(),
       listTypes: vi.fn().mockResolvedValue([]),
       findById: vi.fn().mockResolvedValue({ type: 'page', slug: 'home', data: {}, record: {} }),
       getSetting: vi.fn().mockImplementation((key) => key === 'static_front_page' ? Promise.resolve('page-id-123') : Promise.resolve(null)),
-    };
+    });
     const router = makeRouter(lookup, ['page-home.astro', 'index.astro']);
 
     const result = await router.resolve('/');
@@ -48,7 +57,7 @@ describe('RuntimeRouter', () => {
   });
 
   it('resolve page_for_posts quando configurado', async () => {
-    const lookup: ContentLookup = {
+    const lookup = stubHubMethods({
       findByPath: vi.fn(),
       listTypes: vi.fn().mockResolvedValue([]),
       findById: vi.fn().mockResolvedValue({ type: 'page', slug: 'blog', data: {}, record: {} }),
@@ -57,7 +66,7 @@ describe('RuntimeRouter', () => {
         if (key === 'page_for_posts') return Promise.resolve('page-id-456');
         return Promise.resolve(null);
       }),
-    };
+    });
     const router = makeRouter(lookup, ['page-blog.astro', 'index.astro']);
 
     const result = await router.resolve('/');
@@ -70,14 +79,14 @@ describe('RuntimeRouter', () => {
   });
 
   it('fallback de / para a página de posts prefere posts.astro (home.php)', async () => {
-    const lookup: ContentLookup = {
+    const lookup = stubHubMethods({
       findByPath: vi.fn(),
       listTypes: vi.fn().mockResolvedValue([]),
       findById: vi.fn().mockResolvedValue({ type: 'page', slug: 'blog', data: {}, record: {} }),
       getSetting: vi.fn().mockImplementation((key) =>
         key === 'page_for_posts' ? Promise.resolve('page-id-456') : Promise.resolve(null)
       ),
-    };
+    });
     const router = makeRouter(lookup, ['posts.astro', 'page-blog.astro']);
 
     const result = await router.resolve('/');
@@ -89,14 +98,14 @@ describe('RuntimeRouter', () => {
 
   it('resolve /blog (página de posts acessada direto) como listagem — posts.astro + isPageForPosts', async () => {
     const blogRecord = { id: 'page-id-456', title: 'Blog' };
-    const lookup: ContentLookup = {
+    const lookup = stubHubMethods({
       findByPath: vi.fn().mockResolvedValue({ type: 'page', slug: 'blog', data: {}, record: blogRecord }),
       listTypes: vi.fn().mockResolvedValue([]),
       findById: vi.fn(),
       getSetting: vi.fn().mockImplementation((key) =>
         key === 'page_for_posts' ? Promise.resolve('page-id-456') : Promise.resolve(null)
       ),
-    };
+    });
     const router = makeRouter(lookup, ['posts.astro', 'page.astro']);
 
     const result = await router.resolve('/blog');
@@ -111,14 +120,14 @@ describe('RuntimeRouter', () => {
 
   it('sem posts.astro no tema, /blog ainda sinaliza a listagem e cai na cadeia de page', async () => {
     const blogRecord = { id: 'page-id-456', title: 'Blog' };
-    const lookup: ContentLookup = {
+    const lookup = stubHubMethods({
       findByPath: vi.fn().mockResolvedValue({ type: 'page', slug: 'blog', data: {}, record: blogRecord }),
       listTypes: vi.fn().mockResolvedValue([]),
       findById: vi.fn(),
       getSetting: vi.fn().mockImplementation((key) =>
         key === 'page_for_posts' ? Promise.resolve('page-id-456') : Promise.resolve(null)
       ),
-    };
+    });
     const router = makeRouter(lookup, ['page-blog.astro']);
 
     const result = await router.resolve('/blog');
@@ -129,7 +138,7 @@ describe('RuntimeRouter', () => {
 
   it('/blog usa a chave canônica postsPage com precedência sobre a legada page_for_posts', async () => {
     const blogRecord = { id: 'canonical-id', title: 'Blog' };
-    const lookup: ContentLookup = {
+    const lookup = stubHubMethods({
       findByPath: vi.fn().mockResolvedValue({ type: 'page', slug: 'blog', data: {}, record: blogRecord }),
       listTypes: vi.fn().mockResolvedValue([]),
       findById: vi.fn(),
@@ -138,7 +147,7 @@ describe('RuntimeRouter', () => {
         if (key === 'page_for_posts') return Promise.resolve('legacy-id');
         return Promise.resolve(null);
       }),
-    };
+    });
     const router = makeRouter(lookup, ['posts.astro']);
 
     const result = await router.resolve('/blog');
@@ -153,14 +162,14 @@ describe('RuntimeRouter', () => {
 
   it('página comum (não é a de posts) continua estática — sem listagem', async () => {
     const aboutRecord = { id: 'about-id', title: 'About' };
-    const lookup: ContentLookup = {
+    const lookup = stubHubMethods({
       findByPath: vi.fn().mockResolvedValue({ type: 'page', slug: 'about', data: {}, record: aboutRecord }),
       listTypes: vi.fn().mockResolvedValue([]),
       findById: vi.fn(),
       getSetting: vi.fn().mockImplementation((key) =>
         key === 'page_for_posts' ? Promise.resolve('page-id-456') : Promise.resolve(null)
       ),
-    };
+    });
     const router = makeRouter(lookup, ['posts.astro', 'page.astro']);
 
     const result = await router.resolve('/about');
@@ -169,35 +178,37 @@ describe('RuntimeRouter', () => {
     expect((result as any).isPageForPosts).toBeUndefined();
   });
 
-  it('conteúdo que não é page nunca vira página de posts (sem query extra de setting)', async () => {
+  it('conteúdo que não é page nunca vira página de posts (settings chamados para hub map, mas isPageForPosts não setado)', async () => {
     const postRecord = { id: 'page-id-456', title: 'Hello' };
     const getSetting = vi.fn().mockResolvedValue(null);
-    const lookup: ContentLookup = {
+    const lookup = stubHubMethods({
       findByPath: vi.fn().mockResolvedValue({ type: 'post', slug: 'hello', data: {}, record: postRecord }),
       listTypes: vi.fn().mockResolvedValue([]),
       findById: vi.fn(),
       getSetting,
-    };
+    });
     const router = makeRouter(lookup, ['single.astro']);
 
     const result = await router.resolve('/hello');
 
     expect(result.template).toBe('single.astro');
     expect((result as any).isPageForPosts).toBeUndefined();
-    expect(getSetting).not.toHaveBeenCalledWith('postsPage');
-    expect(getSetting).not.toHaveBeenCalledWith('page_for_posts');
+    // O router agora SEMPRE chama settings para construir o hub map (postsPage + page_for_posts)
+    // Mas isPageForPosts só é true para páginas (type === 'page')
+    expect(getSetting).toHaveBeenCalledWith('postsPage');
+    expect(getSetting).toHaveBeenCalledWith('page_for_posts');
   });
 
   it('/page/blog (aninhada) também resolve a listagem quando o slug é a página de posts', async () => {
     const blogRecord = { id: 'page-id-456', title: 'Blog' };
-    const lookup: ContentLookup = {
+    const lookup = stubHubMethods({
       findByPath: vi.fn().mockResolvedValue({ type: 'page', slug: 'blog', data: {}, record: blogRecord }),
       listTypes: vi.fn().mockResolvedValue([]),
       findById: vi.fn(),
       getSetting: vi.fn().mockImplementation((key) =>
         key === 'page_for_posts' ? Promise.resolve('page-id-456') : Promise.resolve(null)
       ),
-    };
+    });
     const router = makeRouter(lookup, ['posts.astro']);
 
     const result = await router.resolve('/page/blog');
@@ -208,12 +219,12 @@ describe('RuntimeRouter', () => {
   });
 
   it('resolve home para archive de posts quando sem configuração', async () => {
-    const lookup: ContentLookup = {
+    const lookup = stubHubMethods({
       findByPath: vi.fn(),
       listTypes: vi.fn().mockResolvedValue([{ slug: 'post', hasArchive: true }]),
       findById: vi.fn(),
       getSetting: vi.fn().mockResolvedValue(null),
-    };
+    });
     const router = makeRouter(lookup, ['archive.astro', 'index.astro']);
 
     const result = await router.resolve('/');
@@ -224,12 +235,12 @@ describe('RuntimeRouter', () => {
   });
 
   it('resolve conteúdo por slug com template específico', async () => {
-    const lookup: ContentLookup = {
+    const lookup = stubHubMethods({
       findByPath: vi.fn().mockResolvedValue({ type: 'post', slug: 'hello', data: {} }),
       listTypes: vi.fn(),
       findById: vi.fn(),
       getSetting: vi.fn(),
-    };
+    });
     const router = makeRouter(lookup, ['post-hello.astro']);
 
     const result = await router.resolve('/post/hello');
@@ -243,12 +254,12 @@ describe('RuntimeRouter', () => {
   it('propaga data (enriquecido) e record até a resolução (sem re-consulta no web)', async () => {
     const enriched = { title: 'Olá', cover: { id: '1', url: '/media/a.png', alt: null }, _terms: { tag: [{ slug: 'cms', name: 'CMS' }] } };
     const record = { id: 'content-1', title: 'Olá', body: { title: 'Olá' } };
-    const lookup: ContentLookup = {
+    const lookup = stubHubMethods({
       findByPath: vi.fn().mockResolvedValue({ type: 'post', slug: 'hello', data: enriched, record }),
-      listTypes: vi.fn(),
+      listTypes: vi.fn().mockResolvedValue([]),
       findById: vi.fn(),
       getSetting: vi.fn(),
-    };
+    });
     const router = makeRouter(lookup, ['post.astro']);
 
     const result = await router.resolve('/hello');
@@ -259,12 +270,12 @@ describe('RuntimeRouter', () => {
   });
 
   it('não casa URL aninhada quando o primeiro segmento não é o tipo do conteúdo', async () => {
-    const lookup: ContentLookup = {
+    const lookup = stubHubMethods({
       findByPath: vi.fn().mockResolvedValue({ type: 'post', slug: 'hello', data: {} }),
       listTypes: vi.fn().mockResolvedValue([]),
       findById: vi.fn(),
       getSetting: vi.fn(),
-    };
+    });
     const router = makeRouter(lookup, ['post-hello.astro']);
 
     const result = await router.resolve('/qualquer-caminho/hello');
@@ -273,7 +284,7 @@ describe('RuntimeRouter', () => {
   });
 
   it('resolve arquivo de content type quando não há conteúdo com o slug', async () => {
-    const lookup: ContentLookup = {
+    const lookup = stubHubMethods({
       findByPath: vi.fn().mockResolvedValue(null),
       listTypes: vi
         .fn()
@@ -283,7 +294,7 @@ describe('RuntimeRouter', () => {
         ]),
       findById: vi.fn(),
       getSetting: vi.fn(),
-    };
+    });
     const router = makeRouter(lookup, ['archive.astro']);
 
     const result = await router.resolve('/produto');
@@ -294,12 +305,12 @@ describe('RuntimeRouter', () => {
   });
 
   it('não trata content types sem archive como rota de arquivo', async () => {
-    const lookup: ContentLookup = {
+    const lookup = stubHubMethods({
       findByPath: vi.fn().mockResolvedValue(null),
       listTypes: vi.fn().mockResolvedValue([{ slug: 'page', hasArchive: false }]),
       findById: vi.fn(),
       getSetting: vi.fn(),
-    };
+    });
     const router = makeRouter(lookup, []);
 
     const result = await router.resolve('/page');
@@ -308,12 +319,12 @@ describe('RuntimeRouter', () => {
   });
 
   it('caminho desconhecido não corresponde', async () => {
-    const lookup: ContentLookup = {
+    const lookup = stubHubMethods({
       findByPath: vi.fn().mockResolvedValue(null),
       listTypes: vi.fn().mockResolvedValue([]),
       findById: vi.fn(),
       getSetting: vi.fn(),
-    };
+    });
     const router = makeRouter(lookup, []);
 
     const result = await router.resolve('/nao/existe');

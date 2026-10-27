@@ -1,7 +1,7 @@
 // @oktis-works/admin - Settings → Reading (grupo "reading")
-// Configuração de Static Front Page estilo WordPress.
+// Configuração de Static Front Page estilo WordPress + Hub Pages dinâmicos.
 
-import { Show, createSignal, onMount } from '@oktis-works/ui';
+import { Show, createSignal, onMount, For } from '@oktis-works/ui';
 import { Card, Select, Button, Input } from '@oktis-works/ui';
 import { apiClient } from '../../../lib/api';
 import { useTranslation } from '../../../i18n';
@@ -10,6 +10,12 @@ import { TimezoneSelect } from './TimezoneSelect';
 interface PageOption {
   value: string;
   label: string;
+}
+
+interface HubPageEntry {
+  pageId: string;
+  pageSlug: string;
+  hubType: string;
 }
 
 export function ReadingSettings() {
@@ -21,21 +27,21 @@ export function ReadingSettings() {
     timezone_string: '',
     gmt_offset: '',
   });
+  const [hubPages, setHubPages] = createSignal<HubPageEntry[]>([]);
   const [pages, setPages] = createSignal<PageOption[]>([]);
+  const [contentTypes, setContentTypes] = createSignal<Array<{ slug: string; singularLabel: string; hasArchive: boolean }>>([]);
   const [loading, setLoading] = createSignal(true);
   const [saving, setSaving] = createSignal(false);
   const [error, setError] = createSignal('');
   const [info, setInfo] = createSignal('');
 
   onMount(async () => {
-    // Safety timeout: if loading takes >35s, show an error instead of a stuck spinner
     const safetyTimer = setTimeout(() => {
       setError('Loading timed out. Please check your connection and try again.');
       setLoading(false);
     }, 35000);
 
     try {
-      // Load published pages (type=page) for the front page / posts page selects
       const pageRows = await apiClient.getContent({ type: 'page', status: 'PUBLISHED', limit: 100 });
       const pageOptions = pageRows.data.map((p) => ({
         value: p.id,
@@ -43,13 +49,17 @@ export function ReadingSettings() {
       }));
       setPages(pageOptions);
 
-      // Load existing reading settings
+      const typeRows = await apiClient.getContentTypes();
+      const archiveTypes = typeRows
+        .filter((type) => type.hasArchive)
+        .map((type) => ({ slug: type.slug, singularLabel: type.singularLabel, hasArchive: Boolean(type.hasArchive) }));
+      setContentTypes(archiveTypes);
+
       const rows = await apiClient.getSettings('reading');
       const map: Record<string, string> = {};
       for (const row of rows) {
         map[row.key] = typeof row.value === 'string' ? row.value : JSON.stringify(row.value ?? '');
       }
-      // Defaults
       if (!map['frontPageDisplays']) map['frontPageDisplays'] = 'static';
       setValues({
         frontPageDisplays: map['frontPageDisplays'] ?? 'static',
@@ -58,6 +68,14 @@ export function ReadingSettings() {
         timezone_string: map['timezone_string'] ?? '',
         gmt_offset: map['gmt_offset'] ?? '',
       });
+
+      const hubPageRows = pageRows.data.filter((p) => (p.metadata as any)?.hub_type);
+      const hubEntries = hubPageRows.map((p) => ({
+        pageId: p.id,
+        pageSlug: p.slug,
+        hubType: (p.metadata as any)?.hub_type,
+      }));
+      setHubPages(hubEntries);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -90,9 +108,34 @@ export function ReadingSettings() {
     }
   };
 
-  // Reactive render: Solid component bodies run once, so the loading state
-  // must be switched with <Show> (a top-level early return would freeze the
-  // initial "Loading..." markup forever).
+  const addHubPage = async (): Promise<void> => {
+    const v = values();
+    const type = v['newHubType'];
+    const pageId = v['newHubPage'];
+    if (!type || !pageId) return;
+
+    try {
+      await apiClient.updateContent(pageId, {
+        metadata: { hub_type: type },
+      });
+      setHubPages([...hubPages(), { pageId, pageSlug: pages().find(p => p.value === pageId)?.label ?? pageId, hubType: type }]);
+      setValues({ ...v, newHubType: '', newHubPage: '' });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const removeHubPage = async (pageId: string): Promise<void> => {
+    try {
+      await apiClient.updateContent(pageId, {
+        metadata: { hub_type: undefined },
+      });
+      setHubPages(hubPages().filter((e) => e.pageId !== pageId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
   return (
     <div class="reading-settings">
       <Show when={!loading()} fallback={<p class="muted">{t('settings.reading.loading')}</p>}>
@@ -140,6 +183,57 @@ export function ReadingSettings() {
                   />
                 </div>
               </Show>
+
+              {/* Hub Pages (páginas de listagem para tipos de conteúdo) */}
+              <div class="form-field">
+                <label>{t('settings.reading.hubPages')}</label>
+                <div class="hub-pages-manager">
+                  <Show when={hubPages().length > 0} fallback={<p class="muted">{t('settings.reading.hubPages.empty')}</p>}>
+                    <table class="hub-pages-table">
+                      <thead>
+                        <tr>
+                          <th>{t('settings.reading.hubPages.type')}</th>
+                          <th>{t('settings.reading.hubPages.page')}</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <For each={hubPages()}>
+                          {(entry) => (
+                            <tr>
+                              <td>{contentTypes().find((ct) => ct.slug === entry.hubType)?.singularLabel || entry.hubType}</td>
+                              <td>{entry.pageSlug}</td>
+                              <td>
+                                <Button variant="danger" size="sm" type="button" onClick={() => removeHubPage(entry.pageId)}>
+                                  {t('settings.reading.hubPages.remove')}
+                                </Button>
+                              </td>
+                            </tr>
+                          )}
+                        </For>
+                      </tbody>
+                    </table>
+                  </Show>
+                  <div class="hub-page-add">
+                    <Select
+                      name="newHubType"
+                      value={values()['newHubType'] ?? ''}
+                      options={[{ value: '', label: t('settings.reading.hubPages.selectType') }, ...contentTypes().map((ct) => ({ value: ct.slug, label: ct.singularLabel }))]}
+                      onChange={(value) => setValues({ ...values(), newHubType: value })}
+                    />
+                    <Select
+                      name="newHubPage"
+                      value={values()['newHubPage'] ?? ''}
+                      options={[{ value: '', label: t('settings.reading.hubPages.selectPage') }, ...pages()]}
+                      onChange={(value) => setValues({ ...values(), newHubPage: value })}
+                    />
+                    <Button variant="secondary" type="button" onClick={addHubPage} disabled={!values()['newHubType'] || !values()['newHubPage']}>
+                      {t('settings.reading.hubPages.add')}
+                    </Button>
+                  </div>
+                </div>
+                <p class="form-hint">{t('settings.reading.hubPages.description')}</p>
+              </div>
 
               <div class="form-field">
                 <label>{t('settings.reading.timezoneString')}</label>
