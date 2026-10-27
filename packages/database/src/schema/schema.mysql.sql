@@ -128,8 +128,8 @@ CREATE INDEX idx_content_tenant_type_parent ON content(tenant_id, type, parent_i
 CREATE TABLE IF NOT EXISTS url_redirects (
   id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
   tenant_id CHAR(36) NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-  source_path TEXT NOT NULL,
-  target_path TEXT NOT NULL,
+  source_path VARCHAR(2048) NOT NULL,
+  target_path VARCHAR(2048) NOT NULL,
   redirect_type SMALLINT NOT NULL DEFAULT 301,
   is_prefix BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

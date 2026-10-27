@@ -1,5 +1,11 @@
 # @oktis-works/database
 
+## 0.15.2
+
+### Patch Changes
+
+- Fix MySQL index on TEXT column by changing source_path/target_path from TEXT to VARCHAR(2048) in PostgreSQL source, so generated MySQL/MariaDB schemas use VARCHAR which supports indexing without prefix length.
+
 ## 0.15.1
 
 ### Patch Changes
