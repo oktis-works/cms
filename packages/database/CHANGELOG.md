@@ -1,5 +1,11 @@
 # @oktis-works/database
 
+## 0.15.5
+
+### Patch Changes
+
+- Fix check-provider-matrix.mjs expected migration count from 26 to 27 (V026 and V027 added for MySQL/MariaDB).
+
 ## 0.15.4
 
 ### Patch Changes

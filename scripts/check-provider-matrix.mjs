@@ -13,7 +13,7 @@ for (const file of ['schema.sql', 'schema.mysql.sql', 'schema.mariadb.sql']) {
 for (const provider of ['mysql', 'mariadb']) {
   const dir = join(root, 'migrations', provider);
   const files = readdirSync(dir).filter((file) => file.endsWith('.sql'));
-  if (files.length !== 26) fail(`${provider} migration set has ${files.length} files, expected 26`);
+  if (files.length !== 27) fail(`${provider} migration set has ${files.length} files, expected 27`);
   if (!files.every((file) => readFileSync(join(dir, file), 'utf8').includes(`provider=${provider}`))) fail(`${provider} migration set contains a provider mismatch`);
   const forbidden = /CREATE\s+OR\s+REPLACE\s+FUNCTION|EXECUTE\s+FUNCTION|ROW\s+LEVEL\s+SECURITY|DO\s+\$\$|\bON\s+CONFLICT\b|\bRETURNING\b|::/i;
   if (files.some((file) => forbidden.test(readFileSync(join(dir, file), 'utf8')))) fail(`${provider} migration set contains PostgreSQL-only SQL`);
@@ -24,4 +24,4 @@ for (const file of ['docs/provider-matrix.md', 'docs/provider-matrix.pt-BR.md'])
 }
 const ci = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8');
 for (const token of ['mysql:8.0.36', 'mariadb:11.4', 'OKCMS_MYSQL_ACCEPTANCE_URL', 'OKCMS_MARIADB_ACCEPTANCE_URL']) if (!ci.includes(token)) fail(`CI provider matrix omits ${token}`);
-console.log(JSON.stringify({ ok: true, providers: ['postgres', 'mysql', 'mariadb'], migrationCount: 26 }));
+console.log(JSON.stringify({ ok: true, providers: ['postgres', 'mysql', 'mariadb'], migrationCount: 27 }));
