@@ -137,7 +137,7 @@ CREATE TABLE IF NOT EXISTS url_redirects (
   reason TEXT
 );
 
-CREATE INDEX idx_url_redirects_tenant_source ON url_redirects(tenant_id, source_path);
+CREATE INDEX idx_url_redirects_tenant_source ON url_redirects(tenant_id, source_path(255));
 CREATE INDEX idx_url_redirects_tenant_prefix ON url_redirects(tenant_id);
 
 -- ============================================================

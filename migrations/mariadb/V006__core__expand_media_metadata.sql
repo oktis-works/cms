@@ -1,8 +1,8 @@
 -- @okcms domain=core_schema provider=mariadb
 -- +migrate Up
 -- WordPress-style attachment metadata: display title and long description.
-ALTER TABLE media ADD COLUMN IF NOT EXISTS title VARCHAR(500);
-ALTER TABLE media ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE media ADD COLUMN title VARCHAR(500);
+ALTER TABLE media ADD COLUMN description TEXT;
 
 -- Existing uploads keep their filename as a useful initial attachment title.
 UPDATE media SET title = filename WHERE title IS NULL;

@@ -1,4 +1,3 @@
 -- @okcms domain=core_schema provider=mariadb
 -- WordPress-style menu settings and richer menu item metadata.
-ALTER TABLE menus
-  ADD COLUMN IF NOT EXISTS settings JSON NOT NULL DEFAULT '{}';
+ALTER TABLE menus ADD COLUMN settings JSON NOT NULL DEFAULT '{}';

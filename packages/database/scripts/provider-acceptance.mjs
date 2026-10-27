@@ -31,7 +31,7 @@ for (const [provider, url] of targets) {
     const target = provider === 'mysql' ? await mysql.createConnection(targetOptions) : await mariadb.createConnection(targetOptions);
     try {
       await target.query(readFileSync(new URL(`schema.${provider}.sql`, schemaDir), 'utf8'));
-      await target.query("INSERT INTO schema_bootstrap (id, schema_version, schema_checksum) VALUES (1, 'V025', REPEAT('0', 64))");
+      await target.query("INSERT INTO schema_bootstrap (id, schema_version, schema_checksum) VALUES (1, 'V027', REPEAT('0', 64))");
       const rows = await target.query('SELECT COUNT(*) AS count FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name IN (\'tenants\', \'core_schema_migrations\', \'tenant_data_migrations\', \'plugin_schema_migrations\')');
       const rowList = Array.isArray(rows) && Array.isArray(rows[0]) ? rows[0] : rows;
       const count = Number(rowList?.[0]?.count ?? 0);
@@ -52,7 +52,7 @@ for (const [provider, url] of targets) {
       const migrationResult = await runMigrations('acceptance-tenant', new URL('../../../migrations/', import.meta.url).pathname, { provider });
       if (migrationResult.applied.length !== 0) throw new Error(`${provider}: fresh baseline unexpectedly applied migrations`);
       await closeConnection();
-      results.push({ provider, schema: 'ok', lock: 'ok', baseline: 'V025' });
+      results.push({ provider, schema: 'ok', lock: 'ok', baseline: 'V027' });
     } finally {
       await closeConnection().catch(() => undefined);
       await target.end();

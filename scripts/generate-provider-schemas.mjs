@@ -44,6 +44,12 @@ function convert(provider) {
   sql = sql.replace(/CREATE UNIQUE INDEX idx_themes_single_active[\s\S]*?;\n/i,
     "ALTER TABLE themes ADD COLUMN active_scope CHAR(36);\nCREATE UNIQUE INDEX idx_themes_single_active ON themes(active_scope);\nCREATE TRIGGER themes_active_scope_insert BEFORE INSERT ON themes FOR EACH ROW SET NEW.active_scope = IF(NEW.status = 'ACTIVE', IFNULL(NEW.tenant_id, '00000000-0000-0000-0000-000000000000'), NULL);\nCREATE TRIGGER themes_active_scope_update BEFORE UPDATE ON themes FOR EACH ROW SET NEW.active_scope = IF(NEW.status = 'ACTIVE', IFNULL(NEW.tenant_id, '00000000-0000-0000-0000-000000000000'), NULL);\n");
   sql = sql.replaceAll("DEFAULT 'postgres'", `DEFAULT '${provider}'`);
+  // MySQL: prefix length for index on VARCHAR(2048) to stay under 3072 byte limit (utf8mb4 = 4 bytes/char)
+  // tenant_id CHAR(36) = 144 bytes, so prefix ≤ (3072-144)/4 = 732. Use 255 for safety.
+  sql = sql.replace(
+    /CREATE INDEX idx_url_redirects_tenant_source ON url_redirects\(tenant_id, source_path\);/,
+    "CREATE INDEX idx_url_redirects_tenant_source ON url_redirects(tenant_id, source_path(255));"
+  );
   sql = sql.replace(/\bkey\b/g, '`key`').replace(/\bschema\b/g, '`schema`');
   return `-- Generated from schema.sql for ${provider}. Do not edit by hand.\n${sql}`;
 }

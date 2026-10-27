@@ -5,7 +5,7 @@
 -- 2. Add timezone settings to settings table (handled by seed)
 
 -- Add published_at_gmt column to content table
-ALTER TABLE content ADD COLUMN IF NOT EXISTS published_at_gmt TIMESTAMP;
+ALTER TABLE content ADD COLUMN published_at_gmt TIMESTAMP;
 
 -- Index for GMT-based queries (archives, scheduling, etc.)
 CREATE INDEX idx_content_published_gmt ON content(published_at_gmt);

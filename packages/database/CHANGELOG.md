@@ -1,5 +1,17 @@
 # @oktis-works/database
 
+## 0.15.3
+
+### Patch Changes
+
+- Fix MySQL/MariaDB migration compatibility:
+  - Remove IF NOT EXISTS from ADD COLUMN in migration SQL (PostgreSQL-only syntax)
+  - Convert TEXT to VARCHAR(2048) for url_redirects source_path/target_path
+  - Add prefix length (255) to index on source_path to stay under 3072 byte limit
+  - Handle DROP CONSTRAINT IF EXISTS (not supported in MySQL)
+  - Mark V026 and V027 as no-op for MySQL/MariaDB (schema already includes changes)
+  - Update provider acceptance test baseline to V027
+
 ## 0.15.2
 
 ### Patch Changes

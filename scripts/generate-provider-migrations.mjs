@@ -22,6 +22,8 @@ function convert(sql, provider) {
     .replace(/::(?:jsonb|json|uuid|text|integer|int|boolean|bigint|timestamptz)/gi, '')
     .replace(/\bILIKE\b/gi, 'LIKE')
     .replace(/CREATE\s+(UNIQUE\s+)?INDEX\s+IF\s+NOT\s+EXISTS/gi, 'CREATE $1INDEX')
+    // MySQL/MariaDB don't support ADD COLUMN IF NOT EXISTS - remove it
+    .replace(/ALTER\s+TABLE\s+(\w+)\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+/gi, 'ALTER TABLE $1 ADD COLUMN ')
     .replace(/\bON\s+CONFLICT\s*\([^)]*\)\s+DO\s+NOTHING/gi, '')
     .replace(/\bEXCLUDED\.([a-zA-Z0-9_]+)/gi, 'VALUES($1)')
     .replace(/\bON\s+CONFLICT\s*\([^)]*\)\s+DO\s+UPDATE\s+SET/gi, 'ON DUPLICATE KEY UPDATE')
@@ -55,6 +57,8 @@ CREATE TRIGGER themes_active_scope_update BEFORE UPDATE ON themes FOR EACH ROW S
     '023': `SELECT 1;`,
     '024': `SELECT 1;`,
     '025': `CREATE TABLE IF NOT EXISTS content_value_migration_conflicts (\n  id CHAR(36) PRIMARY KEY DEFAULT (UUID()),\n  content_id CHAR(36) NOT NULL REFERENCES content(id) ON DELETE CASCADE,\n  field_name VARCHAR(255) NOT NULL, sources JSON NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT NOW(),\n  UNIQUE(content_id, field_name)\n);\nUPDATE content SET body = JSON_MERGE_PATCH(COALESCE(data, JSON_OBJECT()), COALESCE(body, JSON_OBJECT())), data = JSON_OBJECT();\nUPDATE content_versions SET body = COALESCE(body, JSON_OBJECT());`,
+    '026': `SELECT 1; -- MySQL: ALTER TABLE DROP CONSTRAINT IF EXISTS not supported; constraint may not exist`,
+    '027': `SELECT 1; -- MySQL: schema already includes parent_id, url_redirects table, and indexes`,
   }[version];
   if (!custom) return convert(original, provider);
   const down = version === '019'

@@ -3,4 +3,4 @@
 -- WordPress-parity item 25: lazy field types (lazy:true defers registry sync
 -- until first use — GET /api/v1/field-types).
 
-ALTER TABLE field_type_extensions ADD COLUMN IF NOT EXISTS lazy BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE field_type_extensions ADD COLUMN lazy BOOLEAN NOT NULL DEFAULT false;

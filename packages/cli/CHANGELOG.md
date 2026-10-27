@@ -1,5 +1,13 @@
 # @oktis-works/cms
 
+## 0.14.3
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/database@0.15.3
+  - @oktis-works/core@0.16.3
+
 ## 0.14.2
 
 ### Patch Changes
