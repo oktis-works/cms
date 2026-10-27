@@ -117,9 +117,8 @@ CREATE INDEX idx_content_author ON content(author_id);
 CREATE INDEX idx_content_published ON content(published_at);
 ALTER TABLE content ADD COLUMN data JSON NOT NULL DEFAULT ('{}');
 ALTER TABLE content ADD COLUMN layout VARCHAR(255);
-ALTER TABLE `content`
-  ADD COLUMN IF NOT EXISTS `parent_id` CHAR(36) NULL,
-  ADD CONSTRAINT IF NOT EXISTS `fk_content_parent` FOREIGN KEY (`parent_id`) REFERENCES `content`(`id`) ON DELETE SET NULL;
+ALTER TABLE `content` ADD COLUMN IF NOT EXISTS `parent_id` CHAR(36) NULL;
+ALTER TABLE `content` ADD CONSTRAINT `fk_content_parent` FOREIGN KEY (`parent_id`) REFERENCES `content`(`id`) ON DELETE SET NULL;
 
 CREATE INDEX idx_content_parent ON content(parent_id);
 CREATE INDEX idx_content_tenant_type_parent ON content(tenant_id, type, parent_id);
