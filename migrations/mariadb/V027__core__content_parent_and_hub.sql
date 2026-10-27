@@ -4,9 +4,9 @@
 
 -- 1) parent_id in content (self-reference, same tenant, SET NULL on delete)
 -- MariaDB uses CHAR(36) for UUID
-ALTER TABLE `content`
-  ADD COLUMN IF NOT EXISTS `parent_id` CHAR(36) NULL,
-  ADD CONSTRAINT `fk_content_parent` FOREIGN KEY (`parent_id`) REFERENCES `content`(`id`) ON DELETE SET NULL;
+-- Split into separate statements because MariaDB doesn't support multiple ADD clauses with IF NOT EXISTS in single ALTER TABLE
+ALTER TABLE `content` ADD COLUMN IF NOT EXISTS `parent_id` CHAR(36) NULL;
+ALTER TABLE `content` ADD CONSTRAINT `fk_content_parent` FOREIGN KEY (`parent_id`) REFERENCES `content`(`id`) ON DELETE SET NULL;
 
 CREATE INDEX `idx_content_parent` ON `content`(`parent_id`);
 CREATE INDEX `idx_content_tenant_type_parent` ON `content`(`tenant_id`, `type`, `parent_id`);
