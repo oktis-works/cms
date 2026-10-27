@@ -403,7 +403,7 @@ describe('scaffoldProject', () => {
       '@oktis-works/web': '0.11.0',
       '@oktis-works/worker': '0.8.7',
       '@oktis-works/core': '0.11.4',
-      '@oktis-works/plugin-runtime': '0.7.0',
+      '@oktis-works/plugin-runtime': '0.8.0',
       '@oktis-works/cms': '0.11.1',
     };
     const ranges = await resolveAppRanges(async (name) => published[name] ?? null);
@@ -412,7 +412,7 @@ describe('scaffoldProject', () => {
       expect(ranges[name]).toBe(appRangeFor(version));
     }
     // plugin-runtime@0.7.0 → window >=0.6.0 <0.8.0 (never the CLI's window)
-    expect(ranges['@oktis-works/plugin-runtime']).toBe('>=0.6.0 <0.8.0');
+    expect(ranges['@oktis-works/plugin-runtime']).toBe('>=0.7.0 <0.9.0');
   });
 
   it('resolveAppRanges: registry inacessível → cai no map do build (tolera publish parcial)', async () => {
@@ -426,7 +426,7 @@ describe('scaffoldProject', () => {
     // 0.7.0 still resolves if only 0.6.x is on the registry (window reaches
     // one minor back). A 0.8.x-only registry would ETARGET — the release
     // flow publishes the CLI from the same tree, so that state is transient.
-    expect(ranges['@oktis-works/plugin-runtime']).toBe('>=0.6.0 <0.8.0');
+    expect(ranges['@oktis-works/plugin-runtime']).toBe('>=0.7.0 <0.9.0');
   });
 
   it('resolveAppRanges: pacote ausente do registry E do map → "*"', async () => {

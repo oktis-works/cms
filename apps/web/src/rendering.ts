@@ -641,7 +641,8 @@ export function escapeHtml(value: string): string {
  */
 export function resolveThemeAssetPath(themesRoot: string, themeName: string, assetPath: string): string | null {
   if (!themeName || !/^[A-Za-z0-9_-]+$/.test(themeName)) return null;
-  if (!/^(?:dist|public)(?:\/|$)/.test(assetPath) || assetPath.includes('\\')) return null;
+  // Allow theme root screenshot.png (for theme card preview) plus dist/ and public/ assets
+  if (!/^(?:dist|public)(?:\/|$)/.test(assetPath) && assetPath !== 'screenshot.png' || assetPath.includes('\\')) return null;
 
   const lexicalThemeRoot = resolve(themesRoot, themeName);
   const target = resolve(lexicalThemeRoot, assetPath);

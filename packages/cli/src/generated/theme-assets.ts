@@ -2594,7 +2594,7 @@ export const DEFAULT_THEME_FILES: Record<string, string> = {
   "type": "theme",
   "author": "Oktis Works",
   "compatibility": {
-    "okcms": "^0.36.0"
+    "okcms": "^0.37.0"
   },
   "screenshots": [
     "screenshot.png"
@@ -2643,8 +2643,7 @@ export const DEFAULT_THEME_FILES: Record<string, string> = {
       "default": "Fill out the form or send us an email at hello@example.com"
     }
   ]
-}
-`,
+}`,
 };
 
 /**

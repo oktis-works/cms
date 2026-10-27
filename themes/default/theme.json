@@ -5,7 +5,7 @@
   "type": "theme",
   "author": "Oktis Works",
   "compatibility": {
-    "okcms": "^0.36.0"
+    "okcms": "^0.37.0"
   },
   "screenshots": [
     "screenshot.png"
