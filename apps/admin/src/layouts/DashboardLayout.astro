@@ -275,8 +275,11 @@ const settingsChildren = [
     const link = document.createElement('a');
     link.className = className;
     link.href = href;
-    link.textContent = label;
-    if (translationKey) link.dataset.sidebarI18n = translationKey;
+    const span = document.createElement('span');
+    span.className = 'nav-label';
+    span.textContent = label;
+    if (translationKey) span.dataset.sidebarI18n = translationKey;
+    link.appendChild(span);
     return link;
   };
 

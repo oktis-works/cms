@@ -1,5 +1,11 @@
 # @oktis-works/admin
 
+## 0.25.1
+
+### Patch Changes
+
+- Fix sidebar collapse: dynamically created content type links now wrap text in <span class="nav-label"> so they hide when sidebar is collapsed (matching static nav items behavior).
+
 ## 0.25.0
 
 ### Minor Changes
