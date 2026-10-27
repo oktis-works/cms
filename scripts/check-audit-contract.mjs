@@ -26,7 +26,7 @@ assertCheck('provider matrix', existsSync(join(root, 'docs/provider-matrix.md'))
 assertCheck('provider migration sets', ['mysql', 'mariadb'].every((provider) => existsSync(join(root, 'migrations', provider))), 'provider migration directories are present');
 for (const provider of ['mysql', 'mariadb']) {
   const files = readdirSync(join(root, 'migrations', provider)).filter((file) => file.endsWith('.sql'));
-  assertCheck(`${provider} migration metadata`, files.length === 25 && files.every((file) => readFileSync(join(root, 'migrations', provider, file), 'utf8').includes(`provider=${provider}`)), `${files.length} ${provider} files checked`);
+  assertCheck(`${provider} migration metadata`, files.length === 26 && files.every((file) => readFileSync(join(root, 'migrations', provider, file), 'utf8').includes(`provider=${provider}`)), `${files.length} ${provider} files checked`);
 }
 
 console.log(JSON.stringify({ ok: true, checks }, null, 2));
