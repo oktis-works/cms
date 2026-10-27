@@ -23,7 +23,7 @@ for (const boundary of manifest.boundaries) {
   const target = postgres(targetUrl.toString(), { max: 2 });
   try {
     await target.unsafe(schema);
-    await target.unsafe("INSERT INTO schema_bootstrap (id, schema_version, schema_checksum) VALUES (1, 'V026', 'historical-fixture') ON CONFLICT (id) DO NOTHING");
+    await target.unsafe("INSERT INTO schema_bootstrap (id, schema_version, schema_checksum) VALUES (1, 'V027', 'historical-fixture') ON CONFLICT (id) DO NOTHING");
     await target.unsafe(readFileSync(new URL(`../fixtures/historical/${boundary.fixture}`, import.meta.url), 'utf8'));
     const tenant = await target`INSERT INTO tenants (name, slug) VALUES ('Acceptance', ${boundary.id}) RETURNING id`;
 
@@ -44,7 +44,7 @@ for (const boundary of manifest.boundaries) {
       } catch (error) {
         if (!String(error?.message ?? error).toLowerCase().includes('legacy')) throw error;
       }
-      await target.unsafe("UPDATE schema_bootstrap SET schema_version = 'V026' WHERE id = 1");
+      await target.unsafe("UPDATE schema_bootstrap SET schema_version = 'V027' WHERE id = 1");
       migrationResult = await runMigrations(tenant[0].id, migrationsDir);
     } else {
       await ensureCoreSchema();
@@ -52,7 +52,7 @@ for (const boundary of manifest.boundaries) {
     }
 
     const state = await target`SELECT schema_version FROM schema_bootstrap WHERE id = 1`;
-    if (state[0]?.schema_version !== 'V026') throw new Error(`${boundary.id}: expected V026, got ${state[0]?.schema_version}`);
+    if (state[0]?.schema_version !== 'V027') throw new Error(`${boundary.id}: expected V027, got ${state[0]?.schema_version}`);
     results.push({ id: boundary.id, applied: migrationResult.applied, state: state[0]?.schema_version });
   } finally {
     // Always close the global pool so the session-level advisory lock is
