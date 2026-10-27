@@ -1,5 +1,11 @@
 # @oktis-works/database
 
+## 0.15.4
+
+### Patch Changes
+
+- Fix audit contract check: update expected mysql/mariadb migration file count from 26 to 27 (V026 and V027 added).
+
 ## 0.15.3
 
 ### Patch Changes
