@@ -1,5 +1,11 @@
 # @oktis-works/database
 
+## 0.15.1
+
+### Patch Changes
+
+- Fix MySQL/MariaDB schema compatibility by removing IF NOT EXISTS from ADD COLUMN statements (PostgreSQL-only syntax). The generate-provider-schemas.mjs script now correctly converts all ADD COLUMN IF NOT EXISTS to ADD COLUMN for MySQL/MariaDB.
+
 ## 0.15.0
 
 ### Minor Changes
