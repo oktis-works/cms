@@ -2594,7 +2594,7 @@ export const DEFAULT_THEME_FILES: Record<string, string> = {
   "type": "theme",
   "author": "Oktis Works",
   "compatibility": {
-    "okcms": "^0.37.0"
+    "okcms": "^0.38.0"
   },
   "screenshots": [
     "screenshot.png"

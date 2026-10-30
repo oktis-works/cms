@@ -139,8 +139,9 @@ describe('command catalog', () => {
   });
 
   it('runs a command through a subprocess and prints the automation mirror', async () => {
-    // comando → grupo System → system:status (2º, desde a remoção do prerender) → confirmar → sair
-    const io = fakeIO(['2', '5', '2', 'y', '7']);
+    // comando → grupo System → system:status (2º) → confirmar → sair
+    // Groups: 1=Project, 2=Database, 3=Migration, 4=Extensions, 5=Deploy, 6=System
+    const io = fakeIO(['2', '6', '2', 'y', '7']);
     const { spawn, calls } = spawnRecorder();
 
     await runWizard({ cwd: dir, io, lang: 'en', stateFn: () => stateOf(), spawn });

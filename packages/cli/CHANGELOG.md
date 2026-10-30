@@ -1,5 +1,23 @@
 # @oktis-works/cms
 
+## 0.15.0
+
+### Minor Changes
+
+- Add WordPress migration functionality and fix pre-existing test failures
+  
+  ### Features
+  - Add `wp` command group for WordPress migration (import, validate)
+  - Add `okcms wp import` and `okcms wp validate` subcommands
+  - Implement WordPress database schema readers and mappers (users, content, taxonomies, menus, media, comments, etc.)
+  - Add CLI wizard integration for `wp` command
+  
+  ### Bug Fixes
+  - Fix CLI parser test failures by registering `wp` command in command catalog
+  - Fix wizard test failure due to new command group shifting indices
+  - Fix TypeScript errors in wp-migrate transformers, mappers, and validators
+  - Remove unused imports and variables across wp-migrate modules
+
 ## 0.14.5
 
 ### Patch Changes

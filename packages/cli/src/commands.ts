@@ -56,6 +56,40 @@ export interface Command {
 
 export const commands: Command[] = [
   {
+    name: 'wp',
+    description: 'WordPress migration tools (import, validate)',
+    options: [
+      { name: 'help', alias: 'h', description: 'Show help for wp subcommands', required: false },
+    ],
+    positionals: { max: 1, label: 'subcommand (import|validate)' },
+    handler: async (args, options) => {
+      const subcommand = args[0] ?? 'help';
+      if (subcommand === 'help' || options['help'] !== undefined) {
+        console.log(`
+Usage: okcms wp <subcommand> [options]
+
+Subcommands:
+  import    Import WordPress database into OkCMS
+  validate  Validate WordPress database structure without migrating
+
+Run 'okcms wp import --help' or 'okcms wp validate --help' for subcommand options.
+        `);
+        return;
+      }
+      // Delegate to subcommand handler
+      const { runWPImport, runWPValidate } = await import('./wp-migrate/index.js');
+      if (subcommand === 'import') {
+        await runWPImport(args.slice(1), options);
+      } else if (subcommand === 'validate') {
+        await runWPValidate(args.slice(1), options);
+      } else {
+        console.error(`Unknown wp subcommand: ${subcommand}`);
+        console.log('Run "okcms wp --help" for usage.');
+        process.exitCode = 1;
+      }
+    },
+  },
+  {
     name: 'init',
     description: 'Scaffold a new OkCMS project in a directory',
     positionals: { max: 2, label: 'project directory and optional project name' },

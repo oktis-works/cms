@@ -1,6 +1,6 @@
 > 📄 **English** · [Português](./README.pt-BR.md)
 
-# OkCMS v0.37.6
+# OkCMS v0.38.0
 
 Hybrid, modular, API-first, extensible CMS with Astro+SolidJS frontend, Node.js/TypeScript backend, PostgreSQL, Docker immutable deployments, plugin and theme extension systems, and multi-tenancy.
 

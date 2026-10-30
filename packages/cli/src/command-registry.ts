@@ -18,6 +18,7 @@ export interface CommandMetadata {
 export const COMMAND_GROUPS: ReadonlyArray<readonly [string, readonly string[]]> = [
   ['Project', ['init', 'menu', 'start', 'stop', 'status', 'dev', 'doctor', 'config']],
   ['Database', ['db:migrate', 'db:rollback', 'db:status', 'db:inventory', 'db:backup', 'db:restore', 'seed', 'user:create']],
+  ['Migration', ['wp']],
   ['Extensions', ['plugin:create', 'plugin:install', 'plugin:list', 'plugin:search', 'plugin:manage', 'theme:create', 'theme:install', 'theme:list', 'theme:search', 'theme:manage', 'theme:build']],
   ['Deploy', ['build', 'update', 'redeploy', 'rollback', 'deploy']],
   ['System', ['media:migrate', 'system:status', 'i18n:extract']],
@@ -26,6 +27,7 @@ export const COMMAND_GROUPS: ReadonlyArray<readonly [string, readonly string[]]>
 const READ_ONLY = new Set([
   'menu', 'status', 'doctor', 'plugin:list', 'plugin:search', 'theme:list', 'theme:search',
   'db:status', 'db:inventory', 'system:status',
+  'wp',
 ]);
 
 const DESTRUCTIVE = new Set([
@@ -38,12 +40,14 @@ const PROJECT_REQUIRED = new Set([
   'db:migrate', 'db:rollback', 'db:status', 'db:backup', 'db:restore', 'seed', 'user:create',
   'plugin:install', 'plugin:list', 'plugin:manage', 'theme:install', 'theme:list', 'theme:manage',
   'theme:build', 'build', 'media:migrate', 'system:status', 'i18n:extract',
+  'wp',
 ]);
 
 const DATABASE_REQUIRED = new Set([
   'start', 'stop', 'status', 'dev', 'db:migrate', 'db:rollback', 'db:status', 'db:backup',
   'db:restore', 'seed', 'user:create', 'plugin:install', 'plugin:list', 'plugin:manage',
   'theme:install', 'theme:list', 'theme:manage', 'system:status',
+  'wp',
 ]);
 
 const INTERACTIVE = new Set(['init', 'menu', 'dev', 'config', 'update', 'redeploy', 'rollback', 'deploy']);
