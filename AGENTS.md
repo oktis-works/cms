@@ -160,3 +160,49 @@ These invariants must hold for every release.
 * **CLI scaffold test is lint-ignored:** `packages/cli/src/scaffold.test.js` uses dynamic patterns that ESLint cannot parse — it is explicitly ignored in `.eslintrc.json`.
 * **Worker process is a separate entry point:** `apps/worker` runs the job queue. It shares the same codebase but has its own `package.json` and build output. Changes to `core` events/queues require worker rebuild.
 * **Admin is a Vite + React SPA:** Built to `apps/admin/dist`. Served statically by the API in production. API routes under `/api/v1/**`, admin under `/admin/**`, public under `/`.
+
+## 16. Mandatory Pre-Tag CI/CD Validation
+Before pushing a new release tag to GitHub, the agent MUST execute the full CI/CD test suite locally **repeatedly until zero errors remain**. This prevents burned tags and failed CI runs.
+
+### Required local validation sequence (run in order, repeat until all pass):
+
+```bash
+# 1. Full test suite (unit + integration)
+bun run test:run
+
+# 2. API plugin source drift check
+bun run check:api-drift
+
+# 3. Audit contracts (migration headers, schema tables, provider matrix, docs)
+bun run audit:contracts
+
+# 4. Provider compatibility matrix
+bun run check:provider-matrix
+
+# 5. PostgreSQL acceptance (fresh schema + upgrade matrix V018→latest)
+OKCMS_ACCEPTANCE_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres bun run test:postgres
+
+# 6. Build all packages
+bun run build
+
+# 7. PostgreSQL historical upgrade acceptance (run with node, not bun)
+OKCMS_ACCEPTANCE_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres node packages/database/scripts/postgres-upgrade-acceptance.mjs
+
+# 8. MySQL & MariaDB acceptance
+OKCMS_MYSQL_ACCEPTANCE_URL=mysql://root:root@127.0.0.1:3306/mysql \
+OKCMS_MARIADB_ACCEPTANCE_URL=mariadb://root:root@127.0.0.1:3307/mysql \
+bun run test:providers
+
+# 9. Typecheck (all packages except plugins)
+bun run typecheck
+
+# 10. Lint
+bun run lint
+```
+
+### Rules:
+* **Repeat the entire sequence** if ANY check fails. Fix the root cause, then re-run from step 1.
+* **Minimum 3 consecutive clean runs** required before tagging (proves no flaky tests).
+* **All checks must use the same commands as `.github/workflows/ci.yml`** (see §3).
+* **Never push a tag** until the full sequence passes 3x consecutively.
+* **Burned tags are forbidden:** If a tag's CI fails, skip to the next version (patch/minor) — never re-push the same tag.
