@@ -1,4 +1,4 @@
--- @oktis-works/core - V028: User RLS Support
+-- @okcms domain=core_schema provider=postgres
 -- Adds current_user_id() function for per-user Row Level Security
 -- This enables plugins to create policies like: USING (user_id = current_user_id())
 
