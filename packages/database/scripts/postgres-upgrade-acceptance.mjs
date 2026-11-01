@@ -52,7 +52,7 @@ for (const boundary of manifest.boundaries) {
     }
 
     const state = await target`SELECT schema_version FROM schema_bootstrap WHERE id = 1`;
-    if (state[0]?.schema_version !== 'V027') throw new Error(`${boundary.id}: expected V027, got ${state[0]?.schema_version}`);
+    if (state[0]?.schema_version !== 'V028') throw new Error(`${boundary.id}: expected V028, got ${state[0]?.schema_version}`);
     results.push({ id: boundary.id, applied: migrationResult.applied, state: state[0]?.schema_version });
   } finally {
     // Always close the global pool so the session-level advisory lock is
