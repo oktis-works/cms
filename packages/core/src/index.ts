@@ -28,6 +28,10 @@ export type { CacheEntry } from './cache/index.js';
 export { establishTenantContext, runWithTenantContext, getCurrentContext, clearCurrentContext, requireTenantContext, getCurrentTenantIdSync, getCurrentUserIdSync, getCurrentRequestIdSync } from './tenant/context.js';
 export type { TenantContext } from './tenant/context.js';
 
+// Web Auth
+export { webAuthMiddleware, resolveUserFromToken, runWithUserContext, getCurrentUserContextSync, getCurrentUserEmailSync, getCurrentUserRolesSync, getCurrentUserTenantIdSync, setFallbackUserContext, clearFallbackUserContext, requireUserContext } from './web-auth/index.js';
+export type { UserContext, UserPayload, WebAuthMiddlewareOptions } from './web-auth/index.js';
+
 // Core Services
 export { tenantService, TenantService } from './tenant/service.js';
 export { userService, UserService } from './user/service.js';

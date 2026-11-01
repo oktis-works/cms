@@ -715,4 +715,358 @@ the render-time filters `theme:before:render` / `theme:after:render`
 
 ---
 
-*Documentação gerada automaticamente — mantenha sincronizada com o código.*
+## 15. Infraestrutura Genérica para Plugins Verticais (OkCMS 0.38+)
+
+O OkCMS fornece primitivas genéricas que permitem plugins construírem qualquer
+vertical (ecommerce, marketplace, LMS, CRM, etc.) sem modificar o core.
+
+---
+
+### 15.1 Autenticação no Site Público (Web App)
+
+O middleware `webAuthMiddleware` resolve o usuário logado no **site público**
+(temas SSR) via cookie HttpOnly `access_token` ou header `Authorization: Bearer`.
+
+**Disponível no core:** `@oktis-works/core`
+
+```javascript
+// No entrypoint do plugin, NÃO é necessário chamar nada.
+// O middleware já roda automaticamente no web app (apps/web).
+// Ele popula o contexto da requisição com:
+```
+
+**Contexto disponível em rotas de plugin e theme data providers:**
+
+| Propriedade | Tipo | Descrição |
+|-------------|------|-----------|
+| `c.get('userId')` | `string` | UUID do usuário autenticado |
+| `c.get('userEmail')` | `string` | Email do usuário |
+| `c.get('tenantId')` | `string` | UUID do tenant atual |
+| `c.get('userRoles')` | `string[]` | Slugs das roles (ex: `['customer', 'subscriber']`) |
+
+**Síncrono (para theme data providers):**
+
+```typescript
+import { getCurrentUserIdSync, getCurrentUserRolesSync, getCurrentUserTenantIdSync } from '@oktis-works/core';
+
+const userId = getCurrentUserIdSync();        // string | null
+const roles = getCurrentUserRolesSync();      // string[]
+const tenantId = getCurrentUserTenantIdSync(); // string | null
+```
+
+---
+
+### 15.2 RLS por Usuário (Row Level Security)
+
+Plugins podem criar tabelas com isolamento **por usuário** (não apenas por tenant)
+usando a função Postgres `current_user_id()`.
+
+#### Função SQL disponível:
+```sql
+-- Retorna UUID do usuário autenticado ou NULL (anônimo)
+SELECT current_user_id();
+```
+
+#### Helper TypeScript para migrations de plugin:
+```typescript
+import { createUserRlsPolicy, createTenantUserRlsPolicy } from '@oktis-works/database';
+
+// Policy padrão: apenas o dono vê seus dados
+createUserRlsPolicy('orders', 'user_id');
+// Retorna: "user_id = current_user_id()"
+
+// Policy combinada: tenant + user (para tabelas multi-tenant)
+createTenantUserRlsPolicy('orders', 'tenant_id', 'user_id');
+// Retorna: "tenant_id = current_setting('app.current_tenant_id', true)::uuid AND user_id = current_user_id()"
+```
+
+#### Exemplo de migration de plugin (`plugins/meu-ecommerce/migrations/V001__orders.sql`):
+```sql
+-- Tabela de pedidos com RLS por usuário
+CREATE TABLE orders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  status VARCHAR(50) NOT NULL DEFAULT 'pending',
+  total_cents INTEGER NOT NULL,
+  items JSONB NOT NULL DEFAULT '[]',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Habilita RLS
+ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE orders FORCE ROW LEVEL SECURITY;
+
+-- Policy: usuário vê APENAS seus próprios pedidos
+CREATE POLICY user_own_orders ON orders
+FOR ALL USING (user_id = current_user_id());
+
+-- Índice para performance
+CREATE INDEX idx_orders_user_id ON orders(user_id);
+CREATE INDEX idx_orders_tenant_user ON orders(tenant_id, user_id);
+```
+
+> **Importante:** O `user_id` deve ser preenchido pelo plugin na criação do pedido
+> (ex: `user_id: payload.sub` no handler da rota de checkout).
+
+---
+
+### 15.3 Rotas de Plugin com Auth Opcional
+
+Plugins registram rotas que podem ser **públicas** ou **exigir usuário logado**.
+
+#### API do Plugin SDK (`api.addRoute`):
+```javascript
+module.exports.register = function register(api) {
+  // Rota PÚBLICA (webhook Stripe, callback pagamento)
+  api.addRoute({
+    method: 'POST',
+    path: '/webhook/stripe',
+    requireAuth: false,              // default: false
+    handler: async (ctx, api) => {
+      // ctx.req.json() -> payload do Stripe
+      // NÃO há ctx.userId, ctx.userRoles
+      return { received: true };
+    }
+  });
+
+  // Rota AUTENTICADA (meus pedidos, carrinho)
+  api.addRoute({
+    method: 'GET',
+    path: '/my-orders',
+    requireAuth: true,               // exige usuário logado
+    // requiredPermissions: ['read:orders'], // opcional: RBAC adicional
+    handler: async (ctx, api) => {
+      // Disponível automaticamente:
+      // ctx.userId, ctx.userEmail, ctx.tenantId, ctx.userRoles
+      const orders = await api.db.query(`
+        SELECT * FROM orders WHERE user_id = $1 ORDER BY created_at DESC
+      `, [ctx.userId]);
+      return { orders };
+    }
+  });
+
+  // Rota com permissão específica (ex: admin do plugin)
+  api.addRoute({
+    method: 'DELETE',
+    path: '/orders/:id',
+    requireAuth: true,
+    requiredPermissions: ['delete:orders'], // RBAC
+    handler: async (ctx, api) => { ... }
+  });
+};
+```
+
+#### Definição completa `PluginRouteDefinition`:
+```typescript
+interface PluginRouteDefinition {
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  path: string;                    // ex: '/cart', '/checkout', '/orders/:id'
+  handler: PluginRouteHandler;
+  requireAuth?: boolean;           // default: false
+  requiredPermissions?: string[];  // ex: ['read:orders', 'write:cart']
+  middleware?: PluginMiddleware[]; // middlewares customizados
+}
+```
+
+#### Contexto da rota (`ctx`):
+```typescript
+interface PluginRouteContext extends Context {
+  get userId(): string | undefined;      // preenchido se requireAuth: true
+  get tenantId(): string;                // sempre preenchido (tenant atual)
+  get userRoles(): string[];             // roles do usuário no tenant
+}
+```
+
+---
+
+### 15.4 Theme Data Provider Extensível (Para Fase 2)
+
+> **Nota:** Esta seção documenta a API que será completada na Fase 2.
+> O registro do provider já funciona; o consumo no tema virá na Fase 2.
+
+Plugins podem prover dados customizados para **todos os templates do tema**
+(via `api.addThemeDataProvider`).
+
+```javascript
+module.exports.register = function register(api) {
+  api.addThemeDataProvider({
+    // Métodos opcionais - implemente apenas o que precisar
+    async getCurrentUser() {
+      const userId = api.getCurrentUserIdSync(); // síncrono
+      if (!userId) return null;
+      return { id: userId, email: '...', name: '...', roles: ['customer'] };
+    },
+
+    async getUserData(userId) {
+      // Busca dados customizados do plugin (ex: pedidos, carrinho, endereços)
+      const orders = await api.db.query('SELECT * FROM orders WHERE user_id = $1', [userId]);
+      const cart = await api.db.query('SELECT * FROM cart WHERE user_id = $1', [userId]);
+      return { orders, cart, addresses: [...] };
+    }
+  });
+};
+```
+
+**Dados injetados no contexto do tema (automaticamente):**
+```astro
+---
+-- Em qualquer template .astro do tema:
+const { user, userId, isLoggedIn, userRoles } = Astro.props;
+---
+
+{isLoggedIn && <span>Bem-vindo, {user.name}</span>}
+{user.orders && <ul>{user.orders.map(o => <li>{o.id}</li>)}</ul>}
+```
+
+---
+
+### 15.5 Hook `theme:data:user` (Para Fase 2)
+
+> **Nota:** Disponível na Fase 2. Plugins injetam dados no tema via hook.
+
+```javascript
+module.exports.register = function register(api) {
+  api.addFilter('theme:data:user', async (data, context) => {
+    if (!context.userId) return data;
+    const orders = await api.db.query('SELECT * FROM orders WHERE user_id = $1 LIMIT 10', [context.userId]);
+    const cart = await api.db.query('SELECT * FROM cart WHERE user_id = $1', [context.userId]);
+    return { ...data, orders, cart };
+  });
+});
+```
+
+---
+
+### 15.6 Resumo: Checklist para Plugin Ecommerce
+
+| Funcionalidade | Como Implementar |
+|----------------|------------------|
+| **Tabelas isoladas por usuário** | Migration com `CREATE POLICY ... USING (user_id = current_user_id())` |
+| **Helper RLS** | `import { createUserRlsPolicy } from '@oktis-works/database'` |
+| **Rota pública (webhook)** | `api.addRoute({ method: 'POST', path: '/webhook/stripe', requireAuth: false })` |
+| **Rota autenticada (meus pedidos)** | `api.addRoute({ method: 'GET', path: '/my-orders', requireAuth: true })` |
+| **Dados no tema (pedidos, carrinho)** | `api.addThemeDataProvider({ getCurrentUser, getUserData })` |
+| **Hook tema (fallback render-time)** | `api.addFilter('theme:data:user', ...)` |
+| **Contexto síncrono no provider** | `getCurrentUserIdSync()` / `getCurrentUserRolesSync()` |
+
+---
+
+### 15.7 Permissões Novas (OkCMS 0.38+)
+
+| Permissão | Uso |
+|-----------|-----|
+| `routes:register` | Para `api.addRoute()` — registra rotas customizadas |
+| `theme-data:provide` | Para `api.addThemeDataProvider()` — injeta dados no tema |
+
+> Declare no `manifest.json`:
+> ```json
+> { "permissions": ["field-types:register", "routes:register", "theme-data:provide", "db:query"] }
+> ```
+
+---
+
+### 15.8 Exemplo Mínimo: Plugin Ecommerce Básico
+
+**`manifest.json`:**
+```json
+{
+  "name": "simple-ecommerce",
+  "version": "1.0.0",
+  "type": "plugin",
+  "main": "index.js",
+  "scope": "tenant",
+  "permissions": ["field-types:register", "routes:register", "theme-data:provide", "db:query"],
+  "compatibility": { "okcms": "^0.38.0" },
+  "migrations": ["migrations/V001__orders.sql"],
+  "fieldTypes": [
+    { "type": "price", "label": "Preço", "category": "basico", "icon": "dollar-sign", "adminComponentPath": "@/plugins/simple-ecommerce/admin/components/PriceField.tsx" },
+    { "type": "sku", "label": "SKU", "category": "basico", "icon": "hash", "adminComponentPath": "@/plugins/simple-ecommerce/admin/components/SkuField.tsx" }
+  ]
+}
+```
+
+**`index.js`:**
+```javascript
+module.exports.register = function register(api) {
+  // 1. Content type Product + fields price/sku já declarados no manifest
+
+  // 2. Rotas
+  api.addRoute({
+    method: 'POST',
+    path: '/cart/add',
+    requireAuth: true,
+    handler: async (ctx, api) => {
+      const { productId, quantity } = await ctx.req.json();
+      await api.db.query(`
+        INSERT INTO cart_items (user_id, product_id, quantity)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (user_id, product_id) DO UPDATE SET quantity = cart_items.quantity + $3
+      `, [ctx.userId, productId, quantity]);
+      return { success: true };
+    }
+  });
+
+  api.addRoute({
+    method: 'GET',
+    path: '/my-orders',
+    requireAuth: true,
+    handler: async (ctx, api) => {
+      const orders = await api.db.query('SELECT * FROM orders WHERE user_id = $1 ORDER BY created_at DESC', [ctx.userId]);
+      return { orders };
+    }
+  });
+
+  // 3. Theme Data Provider
+  api.addThemeDataProvider({
+    async getCurrentUser() {
+      const userId = api.getCurrentUserIdSync();
+      if (!userId) return null;
+      const row = await api.db.query('SELECT id, email, name FROM users WHERE id = $1', [userId]);
+      return row[0] || null;
+    },
+    async getUserData(userId) {
+      const orders = await api.db.query('SELECT * FROM orders WHERE user_id = $1 ORDER BY created_at DESC LIMIT 10', [userId]);
+      const cart = await api.db.query('SELECT * FROM cart_items WHERE user_id = $1', [userId]);
+      return { orders, cart };
+    }
+  });
+
+  // 4. Hook render-time (fallback)
+  api.addFilter('theme:data:user', async (data, context) => {
+    if (!context.userId) return data;
+    const orders = await api.db.query('SELECT * FROM orders WHERE user_id = $1 LIMIT 5', [context.userId]);
+    return { ...data, recentOrders: orders };
+  });
+};
+```
+
+**`migrations/V001__orders.sql`:**
+```sql
+CREATE TABLE cart_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  product_id UUID NOT NULL,
+  quantity INTEGER NOT NULL DEFAULT 1,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+ALTER TABLE cart_items ENABLE ROW LEVEL SECURITY;
+CREATE POLICY user_own_cart ON cart_items FOR ALL USING (user_id = current_user_id());
+
+CREATE TABLE orders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  status VARCHAR(50) NOT NULL DEFAULT 'pending',
+  total_cents INTEGER NOT NULL,
+  items JSONB NOT NULL DEFAULT '[]',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+CREATE POLICY user_own_orders ON orders FOR ALL USING (user_id = current_user_id());
+```
+
+---
+
+*Documentação atualizada para OkCMS 0.38+ — infraestrutura genérica para plugins verticais.*

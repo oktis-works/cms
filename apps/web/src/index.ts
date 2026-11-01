@@ -10,6 +10,7 @@ import { bootstrap, ensureTenantPluginsLoaded, getPluginBlocks, getPluginPattern
 import { resolveExtensionDirectory } from '@oktis-works/core';
 import { runWithTenantContext } from '@oktis-works/core';
 import { getPluginAssets } from '@oktis-works/core';
+import { webAuthMiddleware } from '@oktis-works/core';
 import { CMS_VERSION, normalizeLogicalValues } from '@oktis-works/validation';
 import { getConnection, createConnection, runWithTenantTransaction } from '@oktis-works/database';
 import { loadConfig } from '@oktis-works/config';
@@ -35,6 +36,10 @@ import { runWithThemeDataProvider } from '@oktis-works/theme-sdk';
 
 type Variables = {
   tenant: Record<string, unknown>;
+  userId?: string;
+  userEmail?: string;
+  tenantId?: string;
+  userRoles?: string[];
 };
 
 type ContentRow = Record<string, unknown>;
@@ -186,6 +191,9 @@ async function main() {
       })
     );
   });
+
+  // Web Auth middleware — resolve usuário logado via cookie/JWT (opcional, não bloqueia)
+  app.use('*', webAuthMiddleware({ optional: true }) as any);
 
   // Health check — verifica conexão com o banco (o web lê direto do Postgres)
   app.get('/health', async (c) => {

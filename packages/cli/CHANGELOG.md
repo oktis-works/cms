@@ -1,5 +1,14 @@
 # @oktis-works/cms
 
+## 0.15.1
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/core@0.17.0
+  - @oktis-works/database@0.16.0
+  - @oktis-works/auth@0.8.6
+
 ## 0.15.0
 
 ### Minor Changes

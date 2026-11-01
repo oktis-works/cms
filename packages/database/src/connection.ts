@@ -318,9 +318,16 @@ export async function runInTransaction<T>(fn: () => Promise<T>): Promise<T> {
   return getConnection().begin((transaction) => requestConnection.run(transaction, fn));
 }
 
-export async function runWithTenantTransaction<T>(tenantId: string, fn: () => Promise<T>): Promise<T> {
+export async function runWithTenantTransaction<T>(
+  tenantId: string,
+  fn: () => Promise<T>,
+  userId?: string
+): Promise<T> {
   return getConnection().begin(async (transaction) => {
     await transaction.unsafe("SELECT set_config('app.current_tenant_id', $1, true)", [tenantId]);
+    if (userId) {
+      await transaction.unsafe("SELECT set_config('app.current_user_id', $1, true)", [userId]);
+    }
     return requestConnection.run(transaction, fn);
   });
 }

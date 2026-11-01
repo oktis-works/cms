@@ -1,5 +1,39 @@
 # @oktis-works/core
 
+## 0.17.0
+
+### Minor Changes
+
+- Add generic plugin infrastructure for vertical plugins (ecommerce, marketplace, LMS, etc.):
+  
+  **@oktis-works/core:**
+  - New `web-auth` module with `webAuthMiddleware` for resolving authenticated users on public web app (themes SSR)
+  - `runWithUserContext` / `getCurrentUserIdSync()` / `getCurrentUserRolesSync()` / `getCurrentUserTenantIdSync()` for sync access to user context
+  - Middleware integrates with existing tenant resolution, sets both `app.current_tenant_id` and `app.current_user_id` in Postgres via `runWithTenantTransaction`
+  
+  **@oktis-works/database:**
+  - `runWithTenantTransaction` now accepts optional `userId` parameter to set `app.current_user_id` for RLS
+  - New `rls-helpers.ts` with `createUserRlsPolicy()` and `createTenantUserRlsPolicy()` for plugin migrations
+  - Migration `V028__core__user_rls_support.sql` adds `current_user_id()` SQL function
+  
+  **@oktis-works/web:**
+  - Integrated `webAuthMiddleware` after tenant resolution (optional, non-blocking)
+  - Request context now includes `userId`, `userEmail`, `tenantId`, `userRoles`
+  
+  **Plugin SDK (documented in PLUGIN.md):**
+  - `api.addRoute()` with `requireAuth` and `requiredPermissions` for public/authenticated plugin routes
+  - `api.addThemeDataProvider()` for injecting user data (orders, cart, etc.) into theme templates
+  - `theme:data:user` hook for render-time data injection
+  - RLS helpers for per-user data isolation in plugin tables
+  - New permissions: `routes:register`, `theme-data:provide`
+  
+  This is a minor version bump (0.38.0 → 0.39.0) as it adds new APIs without breaking changes.
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/database@0.16.0
+
 ## 0.16.5
 
 ### Patch Changes
