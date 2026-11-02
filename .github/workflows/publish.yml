@@ -29,7 +29,7 @@ jobs:
       RELEASE_TAG: ${{ github.event.client_payload.tag }}
     steps:
       # Publica exatamente o código da tag (dispatch sem ref cai no default branch)
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: refs/tags/${{ env.RELEASE_TAG }}
 
