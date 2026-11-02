@@ -89,7 +89,7 @@ function taxonomyRow(row: DatabaseRow): ThemeTaxonomy {
   };
 }
 
-const PUBLIC_SETTING_GROUPS = new Set(['general', 'public', 'theme']);
+const PUBLIC_SETTING_GROUPS = new Set(['general', 'public', 'theme', 'seo']);
 const SENSITIVE_SETTING_KEY = /(password|secret|token|authorization|cookie|api[_-]?key|credential|private[_-]?key|hash)/i;
 
 function publicSetting(row: DatabaseRow): boolean {

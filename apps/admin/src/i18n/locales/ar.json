@@ -322,6 +322,60 @@
           "remove": "إزالة"
         }
       }
+    },
+    "seo": {
+      "title": "SEO",
+      "description": "قم بتكوين إعدادات SEO: خريطة الموقع، robots.txt، علامات التعريف، و Open Graph.",
+      "back": "← كل الإعدادات",
+      "saved": "تم حفظ إعدادات SEO ✓",
+      "loading": "جاري التحميل…",
+      "save": "حفظ التغييرات",
+      "fields": {
+        "siteTitle": "عنوان الموقع",
+        "siteTitlePlaceholder": "موقعي",
+        "siteDescription": "وصف الموقع",
+        "siteDescriptionPlaceholder": "موقع جديد بواسطة OkCMS",
+        "siteUrl": "رابط الموقع",
+        "siteUrlPlaceholder": "https://example.com",
+        "language": "اللغة",
+        "languagePlaceholder": "ar"
+      },
+      "robots": {
+        "title": "robots.txt",
+        "description": "التحكم في كيفية وصول برامج زحف محركات البحث إلى موقعك.",
+        "enabled": "تفعيل robots.txt",
+        "enabledHint": "عند التعطيل، لا يتم تقديم ملف robots.txt.",
+        "rules": "قواعد robots.txt المخصصة",
+        "rulesPlaceholder": "User-agent: *\nAllow: /\nSitemap: https://example.com/sitemap.xml",
+        "defaultRobots": "علامة robots الافتراضية",
+        "defaultRobotsHint": "تُطبق على الصفحات التي لا تحتوي على تجاوز robots لكل صفحة."
+      },
+      "sitemap": {
+        "title": "خريطة الموقع",
+        "description": "قم بتكوين إنشاء خريطة موقع XML لمحركات البحث.",
+        "enabled": "تفعيل sitemap.xml",
+        "enabledHint": "عند التعطيل، يعيد /sitemap.xml مجموعة urlset فارغة.",
+        "maxItems": "الحد الأقصى للعناصر في كل خريطة موقع",
+        "maxItemsPlaceholder": "50000",
+        "includeTypes": "تضمين أنواع المحتوى",
+        "includeTypesPlaceholder": "post, page",
+        "includeTypesHint": "معرفات أنماط المحتوى مفصولة بفاصلة للإدراج. اترك فارغًا لتضمين جميع الأنواع العامة.",
+        "changefreq": "التردد الافتراضي للتغيير",
+        "priority": "الأولوية الافتراضية",
+        "priorityHint": "من 0.0 إلى 1.0"
+      },
+      "og": {
+        "title": "Open Graph",
+        "description": "التحكم في كيفية ظهور موقعك عند مشاركته على وسائل التواصل الاجتماعي.",
+        "type": "نوع Open Graph الافتراضي",
+        "image": "صورة Open Graph الافتراضية",
+        "imagePlaceholder": "https://example.com/og-image.jpg"
+      },
+      "twitter": {
+        "title": "بطاقات تويتر",
+        "card": "نوع بطاقة تويتر",
+        "cardHint": "summary أو summary_large_image"
+      }
     }
   },
   "notFound": {

@@ -318,9 +318,25 @@ export function renderContentPage(input: ContentPageRenderInput): string {
     ? (input.contentRow['seo_description'] as string) ?? (input.contentRow['excerpt'] as string)
     : undefined) ?? input.settings.siteDescription;
 
+  // Per-page SEO overrides from content row
+  const pageRobots = (input.contentRow?.['seo_robots'] as string) ?? undefined;
+  const pageCanonical = (input.contentRow?.['seo_canonical_url'] as string) ?? undefined;
+  const pageOgImage = (input.contentRow?.['seo_og_image'] as string) ?? undefined;
+
   const html = wrapDocument(body, title, input.settings, input.activeTheme, stylesheet, input.pluginAssets, {
-    canonicalUrl,
+    canonicalUrl: pageCanonical ?? canonicalUrl,
     pageDescription,
+    ogTitle: title,
+    ogDescription: pageDescription,
+    ogImage: pageOgImage ?? undefined,
+    ogType: (input.settings['ogType'] as string) ?? 'website',
+    ogSiteName: input.settings.siteTitle,
+    ogLocale: input.settings.language ?? 'pt-BR',
+    twitterCard: (input.settings['twitterCard'] as string) ?? 'summary_large_image',
+    twitterTitle: title,
+    twitterDescription: pageDescription,
+    twitterImage: pageOgImage ?? undefined,
+    robots: pageRobots ?? (input.settings['defaultRobots'] as string) ?? 'index,follow',
   });
   return registry.applyFilters(HOOK_POINTS.THEME_AFTER_RENDER, html, hookContext) as string;
 }
@@ -508,6 +524,35 @@ export function resolveThemeStylesheet(themesRoot: string, activeTheme: string):
  * das settings + CSS do tema + injeções de plugins via hook `theme:head`.
  * Template que já emite documento completo passa intocado (temas headless/full-control).
  */
+export interface SeoMeta {
+  /** URL canônica da página */
+  canonicalUrl?: string;
+  /** Meta description específica da página */
+  pageDescription?: string;
+  /** Open Graph title */
+  ogTitle?: string;
+  /** Open Graph description */
+  ogDescription?: string;
+  /** Open Graph image URL */
+  ogImage?: string;
+  /** Open Graph type (website, article, etc.) */
+  ogType?: string;
+  /** Open Graph site name */
+  ogSiteName?: string;
+  /** Open Graph locale */
+  ogLocale?: string;
+  /** Twitter card type */
+  twitterCard?: string;
+  /** Twitter title */
+  twitterTitle?: string;
+  /** Twitter description */
+  twitterDescription?: string;
+  /** Twitter image URL */
+  twitterImage?: string;
+  /** Robots meta directive (index,follow, noindex,nofollow, etc.) */
+  robots?: string;
+}
+
 export function wrapDocument(
   body: string,
   pageTitle: string,
@@ -515,7 +560,7 @@ export function wrapDocument(
   activeTheme: string,
   stylesheetTheme: string | null = null,
   pluginAssets?: { head: string; footer: string },
-  seo?: { canonicalUrl?: string; pageDescription?: string }
+  seo?: SeoMeta
 ): string {
   if (body.includes('<html') || body.includes('<!DOCTYPE')) {
     return body;
@@ -538,13 +583,56 @@ export function wrapDocument(
   const assetHead = pluginAssets?.head ? `${pluginAssets.head}\n` : '';
   const assetFooter = pluginAssets?.footer ? `\n${pluginAssets.footer}` : '';
 
-  // SEO: canonical URL + og:url
+  // SEO: canonical URL
   const canonicalUrl = seo?.canonicalUrl ?? '';
   const canonicalTag = canonicalUrl ? `  <link rel="canonical" href="${escapeHtml(canonicalUrl)}">\n` : '';
-  const ogUrlTag = canonicalUrl ? `  <meta property="og:url" content="${escapeHtml(canonicalUrl)}">\n` : '';
+
+  // Open Graph defaults das settings
+  const ogTitle = seo?.ogTitle ?? pageTitle ?? settings.siteTitle;
+  const ogDescription = seo?.ogDescription ?? seo?.pageDescription ?? settings.siteDescription;
+  const ogImage = seo?.ogImage ?? settings['siteUrl'] ? `${settings['siteUrl']}/logo.png` : '';
+  const ogType = seo?.ogType ?? 'website';
+  const ogSiteName = seo?.ogSiteName ?? settings.siteTitle;
+  const ogLocale = seo?.ogLocale ?? settings.language ?? 'pt-BR';
+
+  // Twitter defaults
+  const twitterCard = seo?.twitterCard ?? 'summary_large_image';
+  const twitterTitle = seo?.twitterTitle ?? ogTitle;
+  const twitterDescription = seo?.twitterDescription ?? ogDescription;
+  const twitterImage = seo?.twitterImage ?? ogImage;
+
+  // Robots meta: per-page override > settings default > index,follow
+  const robotsDirective = String(seo?.robots ?? settings['defaultRobots'] ?? 'index,follow');
 
   // Meta description: page-specific (seo_description/excerpt) > siteDescription
   const description = escapeHtml(seo?.pageDescription ?? settings.siteDescription);
+
+  // Tags Open Graph
+  const ogTags: string[] = [];
+  if (ogTitle) ogTags.push(`  <meta property="og:title" content="${escapeHtml(ogTitle)}">`);
+  if (ogDescription) ogTags.push(`  <meta property="og:description" content="${escapeHtml(ogDescription)}">`);
+  if (ogImage) ogTags.push(`  <meta property="og:image" content="${escapeHtml(ogImage)}">`);
+  ogTags.push(`  <meta property="og:type" content="${escapeHtml(ogType)}">`);
+  if (ogSiteName) ogTags.push(`  <meta property="og:site_name" content="${escapeHtml(ogSiteName)}">`);
+  if (canonicalUrl) ogTags.push(`  <meta property="og:url" content="${escapeHtml(canonicalUrl)}">`);
+  ogTags.push(`  <meta property="og:locale" content="${escapeHtml(ogLocale)}">`);
+
+  // Tags Twitter
+  const twitterTags: string[] = [];
+  twitterTags.push(`  <meta name="twitter:card" content="${escapeHtml(twitterCard)}">`);
+  if (twitterTitle) twitterTags.push(`  <meta name="twitter:title" content="${escapeHtml(twitterTitle)}">`);
+  if (twitterDescription) twitterTags.push(`  <meta name="twitter:description" content="${escapeHtml(twitterDescription)}">`);
+  if (twitterImage) twitterTags.push(`  <meta name="twitter:image" content="${escapeHtml(twitterImage)}">`);
+
+  // Tag Robots
+  const robotsTag = `  <meta name="robots" content="${escapeHtml(robotsDirective)}">`;
+
+  // Filtro de plugin para injetar meta tags SEO adicionais
+  const seoMetaTags = String(registry.applyFilters(
+    'okcms.seo.meta.tags',
+    '',
+    { settings, activeTheme, seo }
+  ));
 
   return `<!DOCTYPE html>
 <html lang="${lang}" data-theme="${escapeHtml(activeTheme)}">
@@ -554,7 +642,11 @@ export function wrapDocument(
   <meta name="generator" content="OkCMS ${CMS_VERSION}">
   <title>${escapeHtml(title)}</title>
   <meta name="description" content="${description}">
-${canonicalTag}${ogUrlTag}  ${stylesheet}${headInjections}${assetHead}</head>
+  ${robotsTag}
+${canonicalTag}
+${ogTags.join('\n')}
+${twitterTags.join('\n')}
+${seoMetaTags}${stylesheet}${headInjections}${assetHead}</head>
 <body>
 ${body}${assetFooter}
 </body>
@@ -583,11 +675,21 @@ function renderFallbackPage(
   const canonicalPath = input.resolution.canonicalPath ?? '';
   const siteUrl = (input.settings['siteUrl'] as string) || '';
   const canonicalUrl = canonicalPath && siteUrl ? new URL(canonicalPath, siteUrl).toString() : '';
-  const canonicalTag = canonicalUrl ? `  <link rel="canonical" href="${escapeHtml(canonicalUrl)}">\n` : '';
-  const ogUrlTag = canonicalUrl ? `  <meta property="og:url" content="${escapeHtml(canonicalUrl)}">\n` : '';
   const pageDescription = (input.contentRow
     ? (input.contentRow['seo_description'] as string) ?? (input.contentRow['excerpt'] as string)
     : undefined) ?? input.settings.siteDescription;
+
+  const ogTitle = title;
+  const ogDescription = pageDescription;
+  const ogImage = '';
+  const ogType = 'website';
+  const ogSiteName = input.settings.siteTitle;
+  const ogLocale = input.settings.language ?? 'pt-BR';
+  const twitterCard = 'summary_large_image';
+  const twitterTitle = ogTitle;
+  const twitterDescription = ogDescription;
+  const twitterImage = ogImage;
+  const robotsDirective = (input.settings['defaultRobots'] as string) ?? 'index,follow';
 
   // WP6: ponto de extensão theme:head — plugins injetam tags no <head>
   const registry = getHookRegistry();
@@ -596,8 +698,29 @@ function renderFallbackPage(
     '',
     { settings: input.settings, activeTheme: input.activeTheme }
   );
+  const seoMetaTags = String(registry.applyFilters(
+    'okcms.seo.meta.tags',
+    '',
+    { settings: input.settings, activeTheme: input.activeTheme, seo: undefined }
+  ));
   const assetHead = pluginAssets?.head ? `${pluginAssets.head}\n` : '';
   const assetFooter = pluginAssets?.footer ? `\n${pluginAssets.footer}` : '';
+
+  const canonicalTag = canonicalUrl ? `  <link rel="canonical" href="${escapeHtml(canonicalUrl)}">\n` : '';
+  const ogTags: string[] = [];
+  if (ogTitle) ogTags.push(`  <meta property="og:title" content="${escapeHtml(ogTitle)}">`);
+  if (ogDescription) ogTags.push(`  <meta property="og:description" content="${escapeHtml(ogDescription)}">`);
+  if (ogImage) ogTags.push(`  <meta property="og:image" content="${escapeHtml(ogImage)}">`);
+  ogTags.push(`  <meta property="og:type" content="${escapeHtml(ogType)}">`);
+  if (ogSiteName) ogTags.push(`  <meta property="og:site_name" content="${escapeHtml(ogSiteName)}">`);
+  if (canonicalUrl) ogTags.push(`  <meta property="og:url" content="${escapeHtml(canonicalUrl)}">`);
+  ogTags.push(`  <meta property="og:locale" content="${escapeHtml(ogLocale)}">`);
+  const twitterTags: string[] = [];
+  twitterTags.push(`  <meta name="twitter:card" content="${escapeHtml(twitterCard)}">`);
+  if (twitterTitle) twitterTags.push(`  <meta name="twitter:title" content="${escapeHtml(twitterTitle)}">`);
+  if (twitterDescription) twitterTags.push(`  <meta name="twitter:description" content="${escapeHtml(twitterDescription)}">`);
+  if (twitterImage) twitterTags.push(`  <meta name="twitter:image" content="${escapeHtml(twitterImage)}">`);
+  const robotsTag = `  <meta name="robots" content="${escapeHtml(robotsDirective)}">`;
 
   return `<!DOCTYPE html>
 <html lang="${lang}">
@@ -606,7 +729,11 @@ function renderFallbackPage(
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${escapeHtml(title)} | ${escapeHtml(input.settings.siteTitle)}</title>
   <meta name="description" content="${escapeHtml(pageDescription)}">
-${canonicalTag}${ogUrlTag}  <style>
+  ${robotsTag}
+${canonicalTag}
+${ogTags.join('\n')}
+${twitterTags.join('\n')}
+${seoMetaTags}<style>
     body { font-family: system-ui, sans-serif; margin: 0; color: #111; }
     main { max-width: 46rem; margin: 0 auto; padding: 3rem 1.5rem; }
     .fallback__hint { color: #555; line-height: 1.5; }

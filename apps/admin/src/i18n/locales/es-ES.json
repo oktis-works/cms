@@ -322,6 +322,60 @@
           "remove": "Eliminar"
         }
       }
+    },
+    "seo": {
+      "title": "SEO",
+      "description": "Configura los ajustes de SEO: sitemap, robots.txt, metaetiquetas y Open Graph.",
+      "back": "← Todos los ajustes",
+      "saved": "Ajustes de SEO guardados ✓",
+      "loading": "Cargando…",
+      "save": "Guardar cambios",
+      "fields": {
+        "siteTitle": "Título del Sitio",
+        "siteTitlePlaceholder": "Mi Sitio",
+        "siteDescription": "Descripción del Sitio",
+        "siteDescriptionPlaceholder": "Un nuevo sitio construido con OkCMS",
+        "siteUrl": "URL del Sitio",
+        "siteUrlPlaceholder": "https://example.com",
+        "language": "Idioma",
+        "languagePlaceholder": "es-ES"
+      },
+      "robots": {
+        "title": "robots.txt",
+        "description": "Controla cómo los rastreadores de motores de búsqueda acceden a tu sitio.",
+        "enabled": "Habilitar robots.txt",
+        "enabledHint": "Cuando está deshabilitado, no se sirve robots.txt.",
+        "rules": "Reglas personalizadas de robots.txt",
+        "rulesPlaceholder": "User-agent: *\nAllow: /\nSitemap: https://example.com/sitemap.xml",
+        "defaultRobots": "Meta robots predeterminado",
+        "defaultRobotsHint": "Aplicado a páginas que no tienen una anulación de robots por página."
+      },
+      "sitemap": {
+        "title": "Mapa del sitio",
+        "description": "Configura la generación de sitemap XML para motores de búsqueda.",
+        "enabled": "Habilitar sitemap.xml",
+        "enabledHint": "Cuando está deshabilitado, /sitemap.xml devuelve un urlset vacío.",
+        "maxItems": "Elementos máximos por sitemap",
+        "maxItemsPlaceholder": "50000",
+        "includeTypes": "Incluir tipos de contenido",
+        "includeTypesPlaceholder": "post, page",
+        "includeTypesHint": "Slugs de tipos de contenido separados por comas para incluir. Deja vacío para incluir todos los tipos públicos.",
+        "changefreq": "Frecuencia de cambio predeterminada",
+        "priority": "Prioridad predeterminada",
+        "priorityHint": "0.0 a 1.0"
+      },
+      "og": {
+        "title": "Open Graph",
+        "description": "Controla cómo aparece tu sitio al compartir en redes sociales.",
+        "type": "Tipo Open Graph predeterminado",
+        "image": "Imagen Open Graph predeterminada",
+        "imagePlaceholder": "https://example.com/og-image.jpg"
+      },
+      "twitter": {
+        "title": "Twitter Cards",
+        "card": "Tipo de tarjeta de Twitter",
+        "cardHint": "summary o summary_large_image"
+      }
     }
   },
   "notFound": {

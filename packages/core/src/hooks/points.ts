@@ -38,6 +38,11 @@ export const HOOK_POINTS = {
   COMMENT_SPAMMED: 'comment:spammed',
   COMMENT_BEFORE_DELETE: 'comment:before_delete',
   COMMENT_DELETED: 'comment:deleted',
+
+  // SEO (sitemap, robots.txt, meta tags)
+  SEO_ROBOTS_TXT: 'okcms.seo.robots.txt',
+  SEO_SITEMAP_URLS: 'okcms.seo.sitemap.urls',
+  SEO_META_TAGS: 'okcms.seo.meta.tags',
 } as const;
 
 export function hooks() {

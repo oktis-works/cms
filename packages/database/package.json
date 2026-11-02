@@ -21,7 +21,7 @@
   "dependencies": {
     "@oktis-works/config": "^0.7.0",
     "@oktis-works/types": "^0.10.0",
-    "mariadb": "^3.4.2",
+    "mariadb": "^3.6.0",
     "mysql2": "^3.14.1",
     "postgres": "3.4.0"
   },

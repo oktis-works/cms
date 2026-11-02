@@ -322,6 +322,60 @@
           "remove": "削除"
         }
       }
+    },
+    "seo": {
+      "title": "SEO",
+      "description": "SEO設定を構成します: サイトマップ、robots.txt、メタタグ、Open Graph。",
+      "back": "← すべての設定",
+      "saved": "SEO設定を保存しました ✓",
+      "loading": "読み込み中…",
+      "save": "変更を保存",
+      "fields": {
+        "siteTitle": "サイトタイトル",
+        "siteTitlePlaceholder": "マイサイト",
+        "siteDescription": "サイト説明",
+        "siteDescriptionPlaceholder": "OkCMSで作った新しいサイト",
+        "siteUrl": "サイトURL",
+        "siteUrlPlaceholder": "https://example.com",
+        "language": "言語",
+        "languagePlaceholder": "ja"
+      },
+      "robots": {
+        "title": "robots.txt",
+        "description": "検索エンジンクローラーがサイトにアクセスする方法を制御します。",
+        "enabled": "robots.txtを有効にする",
+        "enabledHint": "無効にすると、robots.txtは提供されません。",
+        "rules": "カスタムrobots.txtルール",
+        "rulesPlaceholder": "User-agent: *\nAllow: /\nSitemap: https://example.com/sitemap.xml",
+        "defaultRobots": "デフォルトのメタロボット",
+        "defaultRobotsHint": "ページ単位のロボットオーバーライドがないページに適用されます。"
+      },
+      "sitemap": {
+        "title": "サイトマップ",
+        "description": "検索エンジン向けのXMLサイトマップ生成を構成します。",
+        "enabled": "sitemap.xmlを有効にする",
+        "enabledHint": "無効にすると、/sitemap.xmlは空のurlsetを返します。",
+        "maxItems": "サイトマップあたりの最大項目数",
+        "maxItemsPlaceholder": "50000",
+        "includeTypes": "コンテンツタイプを含める",
+        "includeTypesPlaceholder": "post, page",
+        "includeTypesHint": "含めるコンテンツタイプのスラッグをカンマ区切りで指定。すべてのパブリックタイプを含める場合は空のままにします。",
+        "changefreq": "デフォルトの変更頻度",
+        "priority": "デフォルトの優先度",
+        "priorityHint": "0.0から1.0まで"
+      },
+      "og": {
+        "title": "Open Graph",
+        "description": "ソーシャルメディアで共有された際のサイトの表示を制御します。",
+        "type": "デフォルトのOpen Graphタイプ",
+        "image": "デフォルトのOpen Graph画像",
+        "imagePlaceholder": "https://example.com/og-image.jpg"
+      },
+      "twitter": {
+        "title": "Twitter Cards",
+        "card": "Twitterカードタイプ",
+        "cardHint": "summaryまたはsummary_large_image"
+      }
     }
   },
   "notFound": {

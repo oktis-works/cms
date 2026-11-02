@@ -701,6 +701,60 @@
       "timezoneDescription": "O fuso horário em formato IANA (ex: America/Sao_Paulo). Deslocamento GMT é alternativa em horas.",
       "gmtOffsetDescription": "Deslocamento GMT em horas (ex: -3 para UTC-3). Alternativa à string de fuso IANA.",
       "loading": "Carregando…"
+    },
+    "seo": {
+      "title": "SEO",
+      "description": "Configure as configurações de SEO: sitemap, robots.txt, meta tags e Open Graph.",
+      "back": "← Todas as configurações",
+      "saved": "Configurações de SEO salvas ✓",
+      "loading": "Carregando…",
+      "save": "Salvar alterações",
+      "fields": {
+        "siteTitle": "Título do Site",
+        "siteTitlePlaceholder": "Meu Site",
+        "siteDescription": "Descrição do Site",
+        "siteDescriptionPlaceholder": "Um novo site construído com OkCMS",
+        "siteUrl": "URL do Site",
+        "siteUrlPlaceholder": "https://example.com",
+        "language": "Idioma",
+        "languagePlaceholder": "pt-BR"
+      },
+      "robots": {
+        "title": "robots.txt",
+        "description": "Controle como os rastreadores de mecanismos de busca acessam seu site.",
+        "enabled": "Habilitar robots.txt",
+        "enabledHint": "Quando desabilitado, nenhum robots.txt é servido.",
+        "rules": "Regras personalizadas do robots.txt",
+        "rulesPlaceholder": "User-agent: *\nAllow: /\nSitemap: https://example.com/sitemap.xml",
+        "defaultRobots": "Robots meta padrão",
+        "defaultRobotsHint": "Aplicado a páginas que não têm uma substituição de robots por página."
+      },
+      "sitemap": {
+        "title": "Sitemap",
+        "description": "Configure a geração de sitemap XML para mecanismos de busca.",
+        "enabled": "Habilitar sitemap.xml",
+        "enabledHint": "Quando desabilitado, /sitemap.xml retorna um urlset vazio.",
+        "maxItems": "Itens máximos por sitemap",
+        "maxItemsPlaceholder": "50000",
+        "includeTypes": "Incluir tipos de conteúdo",
+        "includeTypesPlaceholder": "post, page",
+        "includeTypesHint": "Slugs de tipos de conteúdo separados por vírgula para incluir. Deixe vazio para incluir todos os tipos públicos.",
+        "changefreq": "Frequência de alteração padrão",
+        "priority": "Prioridade padrão",
+        "priorityHint": "0.0 a 1.0"
+      },
+      "og": {
+        "title": "Open Graph",
+        "description": "Controle como seu site aparece ao ser compartilhado em redes sociais.",
+        "type": "Tipo Open Graph padrão",
+        "image": "Imagem Open Graph padrão",
+        "imagePlaceholder": "https://example.com/og-image.jpg"
+      },
+      "twitter": {
+        "title": "Twitter Cards",
+        "card": "Tipo do Twitter Card",
+        "cardHint": "summary ou summary_large_image"
+      }
     }
   },
   "menus": {

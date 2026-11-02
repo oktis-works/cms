@@ -1,0 +1,41 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { SEOSettings } from '../../components/apps/settings/SEOSettings';
+import { PageHeader } from '../../components/shared/PageHeader';
+
+const { t } = Astro.locals;
+---
+
+<DashboardLayout title={t('settings.seo.title')}>
+  <PageHeader
+    title={t('settings.seo.title')}
+    description={t('settings.seo.description')}
+  />
+
+  <SEOSettings client:load />
+</DashboardLayout>
+
+<style>
+  .seo-settings {
+    max-width: 900px;
+  }
+  .seo-settings__toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  .seo-settings__toggle .hint {
+    font-size: 0.75rem;
+    color: var(--color-muted);
+    margin-left: 0.25rem;
+  }
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+  }
+  .form-grid > * {
+    width: 100%;
+  }
+</style>

@@ -322,6 +322,60 @@
           "remove": "Ondoa"
         }
       }
+    },
+    "seo": {
+      "title": "SEO",
+      "description": "Geuza mipangilio ya SEO: sitemap, robots.txt, meta tagi na Open Graph.",
+      "back": "← Mipangilio Yote",
+      "saved": "Mipangilio ya SEO yamehifadhiwa ✓",
+      "loading": "Inapakia…",
+      "save": "Hifadhi Mabadiliko",
+      "fields": {
+        "siteTitle": "Kichwa cha Tovuti",
+        "siteTitlePlaceholder": "Tovuti Yangu",
+        "siteDescription": "Maelezo ya Tovuti",
+        "siteDescriptionPlaceholder": "Tovuti mpya ya OkCMS",
+        "siteUrl": "URL ya Tovuti",
+        "siteUrlPlaceholder": "https://example.com",
+        "language": "Lugha",
+        "languagePlaceholder": "sw"
+      },
+      "robots": {
+        "title": "robots.txt",
+        "description": "Weka miili vya jinsi vifuatiliaji vya mitandao ya kutafuta vinaweza kuingia kwenye tovuti yako.",
+        "enabled": "Weka robots.txt",
+        "enabledHint": "Iliyoondolewa, robots.txt haitapatikana.",
+        "rules": "Mashauri ya robots.txt ya Kipekee",
+        "rulesPlaceholder": "User-agent: *\nAllow: /\nSitemap: https://example.com/sitemap.xml",
+        "defaultRobots": "Meta Roboti ya Kawaida",
+        "defaultRobotsHint": "Inategemea ukurasa hasa isiyo na msingi wa roboti."
+      },
+      "sitemap": {
+        "title": "Sitemap",
+        "description": "Geuza utungaji wa sitemap XML kwa mitandao ya kutafuta.",
+        "enabled": "Weka sitemap.xml",
+        "enabledHint": "Iliyoondolewa, /sitemap.itumieze urlset isiyopatikana.",
+        "maxItems": "Idadi ya kawaida ya vitu kila sitemap",
+        "maxItemsPlaceholder": "50000",
+        "includeTypes": "Ongeza aina za maudhui",
+        "includeTypesPlaceholder": "post, page",
+        "includeTypesHint": "Slugs za aina za maudhui, vimezuriwa na koma, ili kuongeza. Funga wazi ili kuongeza aina zote za awamu.",
+        "changefreq": "Mara ya Kawaida ya Mabadiliko",
+        "priority": "Ala ya Kawaida",
+        "priorityHint": "0.0 hadi 1.0"
+      },
+      "og": {
+        "title": "Open Graph",
+        "description": "Weka miili vya jinsi tovuti yako inavyoonekana wakati wa kuwaambatana kwenye mitandao ya kijamii.",
+        "type": "Aina ya Kawaida ya Open Graph",
+        "image": "Picha ya Kawaida ya Open Graph",
+        "imagePlaceholder": "https://example.com/og-image.jpg"
+      },
+      "twitter": {
+        "title": "Mafumbo ya Twitter",
+        "card": "Aina ya Mafia ya Twitter",
+        "cardHint": "summary au summary_large_image"
+      }
     }
   },
   "notFound": {
