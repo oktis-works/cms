@@ -29,7 +29,5 @@ jobs:
             --base main \
             --head "${{ github.ref_name }}" \
             --title "chore(release): v${{ steps.version.outputs.version }} — release branch ${{ github.ref_name }}" \
-            --body "Auto-created release PR for v${{ steps.version.outputs.version }}.
-
-Merge this PR into main, then create and push tag v${{ steps.version.outputs.version }} to trigger publish." \
+            --body "Auto-created release PR for v${{ steps.version.outputs.version }}. Merge this PR into main, then create and push tag v${{ steps.version.outputs.version }} to trigger publish." \
             --label release || true
