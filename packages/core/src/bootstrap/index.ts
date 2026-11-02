@@ -6,6 +6,7 @@ import { establishTenantContext } from '../tenant/context.js';
 import { syncEnabledPlugins } from '../plugin/load.js';
 import { installHookRuntimeWiring } from '../hooks/wiring.js';
 import { okForceUtcRuntime } from '../timezone/index.js';
+import { initRedisClient } from '../redis.js';
 
 export interface BootstrapOptions {
   configPath?: string;
@@ -19,6 +20,8 @@ export async function bootstrap(_options: BootstrapOptions = {}): Promise<Applic
   const lifecycle = new ApplicationLifecycle(config);
 
   await lifecycle.start();
+
+  await initRedisClient();
 
   // Fiação do runtime de hooks: catálogo oficial (allowlist em dev) + resolução
   // de registry por tenant. Antes de qualquer carga de plugin.

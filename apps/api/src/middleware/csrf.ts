@@ -43,15 +43,12 @@ export function isSameOrigin(c: Context): boolean {
     .map((s) => s.trim())
     .filter(Boolean);
 
-  // Aceita tanto `localhost:3011` quanto `http://localhost:3011`, mas nunca
-  // faz wildcard: quando o protocolo é informado, a origem completa precisa
-  // ser exatamente igual (incluindo protocolo, host e porta).
+  // TRUSTED_ORIGINS must include protocol (http:// or https://).
+  // Host-only entries are rejected to prevent subdomain takeover.
   if (trusted.some((value) => {
     const parsedTrusted = normalizeOrigin(value);
-    if (!parsedTrusted) return false;
-    return parsedTrusted.hasProtocol
-      ? parsedTrusted.origin === parsedOrigin.origin
-      : parsedTrusted.host === parsedOrigin.host;
+    if (!parsedTrusted || !parsedTrusted.hasProtocol) return false;
+    return parsedTrusted.origin === parsedOrigin.origin;
   })) return true;
 
   const host = (c.req.header('X-Forwarded-Host') ?? c.req.header('Host'))?.split(',')[0]?.trim();

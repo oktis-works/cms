@@ -306,4 +306,12 @@ export class AuthService {
   getUserPermissions(userRoles: string[]) {
     return this.rbac.getUserPermissions(userRoles);
   }
+
+  async getJwks(): Promise<{ keys: Array<{ kty: string; kid: string; use: string; alg: string; n: string; e: string }> }> {
+    return this.jwt.getJwks();
+  }
+
+  async rotateKeys(): Promise<string> {
+    return this.jwt.rotateKeys();
+  }
 }

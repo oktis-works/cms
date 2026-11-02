@@ -22,6 +22,19 @@ export default defineConfig({
       },
     },
     ssr: { noExternal: ['@oktis-works/types', '@oktis-works/ui'] },
+    build: {
+      rollupOptions: {
+        input: {
+          main: './src/entry-server.ts',
+          'plugin-worker': './src/workers/plugin-worker.tsx',
+        },
+        output: {
+          entryFileNames: '[name].js',
+          chunkFileNames: '[name]-[hash].js',
+          assetFileNames: '[name]-[hash].[ext]',
+        },
+      },
+    },
     ...(apiProxyTarget
       ? {
           server: {

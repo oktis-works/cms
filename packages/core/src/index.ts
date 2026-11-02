@@ -24,12 +24,15 @@ export type { Logger, LogLevel, AuditEntry, AuditFilter } from './observability/
 export { MemoryCache, createCache, getCache } from './cache/index.js';
 export type { CacheEntry } from './cache/index.js';
 
+// Redis (optional, for distributed rate limiting, caching, etc.)
+export { getRedisClient, initRedisClient, closeRedisClient, isRedisAvailable } from './redis.js';
+
 // Tenant Context
 export { establishTenantContext, runWithTenantContext, getCurrentContext, clearCurrentContext, requireTenantContext, getCurrentTenantIdSync, getCurrentUserIdSync, getCurrentRequestIdSync } from './tenant/context.js';
 export type { TenantContext } from './tenant/context.js';
 
 // Web Auth
-export { webAuthMiddleware, resolveUserFromToken, runWithUserContext, getCurrentUserContextSync, getCurrentUserEmailSync, getCurrentUserRolesSync, getCurrentUserTenantIdSync, setFallbackUserContext, clearFallbackUserContext, requireUserContext } from './web-auth/index.js';
+export { webAuthMiddleware, resolveUserFromToken, runWithUserContext, getCurrentUserContextSync, getCurrentUserEmailSync, getCurrentUserRolesSync, getCurrentUserTenantIdSync, requireUserContext } from './web-auth/index.js';
 export type { UserContext, UserPayload, WebAuthMiddlewareOptions } from './web-auth/index.js';
 
 // Core Services

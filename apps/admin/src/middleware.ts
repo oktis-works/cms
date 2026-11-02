@@ -4,6 +4,18 @@ import { SUPPORTED_LOCALES, DEFAULT_LOCALE, isRTLLocale } from './i18n/config';
 import { getTranslationsForLocale } from './i18n';
 import { proxyApiRequest } from './lib/api-proxy';
 
+const ADMIN_CSP = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+
+function addCspHeaders(response: Response): Response {
+  const newHeaders = new Headers(response.headers);
+  newHeaders.set('Content-Security-Policy', ADMIN_CSP);
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: newHeaders,
+  });
+}
+
 // Type definitions for Astro middleware (not available in TS environment)
 interface SsrUser {
   id: string;
@@ -220,8 +232,9 @@ export const onRequest = defineMiddleware(async (context: AstroContext, next: ()
     // A sessão fica `unavailable` (nunca `anonymous`): um problema de rede no
     // servidor não pode ser interpretado como "usuário deslogado".
     context.locals.sessionState = context.locals.sessionState ?? 'unavailable';
-    console.warn('[i18n middleware] fallback ativo:', e instanceof Error ? e.message : e);
+console.warn('[i18n middleware] fallback ativo:', e instanceof Error ? e.message : e);
   }
-  
-  return next();
+
+  const response = await next();
+  return addCspHeaders(response);
 });

@@ -265,12 +265,12 @@ describe('rateLimitMiddleware', () => {
     for (let i = 0; i < 10; i++) {
       await app.request('/api/v1/things', { headers: { 'X-Forwarded-For': `10.1.0.${i}` } });
     }
-    expect(rateLimiterStats().buckets).toBe(10);
+    expect((await rateLimiterStats()).buckets).toBe(10);
 
     vi.useFakeTimers();
     vi.setSystemTime(Date.now() + 61_000);
-    expect(sweepExpiredBuckets()).toBe(10);
-    expect(rateLimiterStats().buckets).toBe(0);
+    expect(await sweepExpiredBuckets()).toBe(10);
+    expect((await rateLimiterStats()).buckets).toBe(0);
   });
 });
 

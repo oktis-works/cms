@@ -29,7 +29,7 @@ export default function MermaidFieldRenderer(props) {
     try {
       mermaid.initialize({
         theme,
-        securityLevel: 'loose',
+        securityLevel: 'strict',
         startOnLoad: false,
         fontFamily: 'inherit',
       });

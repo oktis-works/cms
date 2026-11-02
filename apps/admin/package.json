@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/admin",
-  "version": "0.25.1",
+  "version": "0.26.0",
   "type": "module",
   "bin": {
     "okcms-admin": "./bin/admin.js"
@@ -23,11 +23,12 @@
     "@dnd-kit/solid": "0.5.0",
     "@oktis-works/plugin-sdk": "^0.8.0",
     "@oktis-works/types": "^0.10.0",
-    "@oktis-works/ui": "^0.6.0",
+    "@oktis-works/ui": "^0.6.1",
     "@oktis-works/validation": "^0.8.2",
     "astro": "7.3.5",
+    "comlink": "4.4.1",
     "lucide": "^1.52.0",
-    "solid-js": "1.9.15"
+    "solid-js": "1.9.18"
   },
   "devDependencies": {
     "@dnd-kit/abstract": "0.5.0",

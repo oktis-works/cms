@@ -1,9 +1,10 @@
 // @oktis-works/admin - Plugin Field Renderer Component
-// Dynamic component loader for plugin field type rendering in content editor
+// Uses Web Worker sandbox for plugin field type rendering in content editor
 
 import { Show, Switch, Match, createSignal, onMount } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { loadPluginComponent } from '../ext/slots';
+import { PluginWorkerHost } from '../components/PluginWorkerHost';
 
 interface PluginFieldRendererProps {
   field: {
@@ -23,9 +24,11 @@ interface PluginFieldRendererProps {
 }
 
 export function PluginFieldRenderer(props: PluginFieldRendererProps) {
-  const [Component, setComponent] = createSignal<any>(null);
+  const [Component] = createSignal<any>(null);
   const [error, setError] = createSignal<string | null>(null);
   const [loading, setLoading] = createSignal(true);
+  const [useWorker, setUseWorker] = createSignal(false);
+  const [workerPath, setWorkerPath] = createSignal<string>('');
   const [triedRenderer, setTriedRenderer] = createSignal(false);
 
   onMount(async () => {
@@ -40,20 +43,20 @@ export function PluginFieldRenderer(props: PluginFieldRendererProps) {
         const module = await loadPluginComponent(path);
         const Comp = module['default'] || module['PluginFieldRenderer'] || module['PluginFieldConfig'];
         if (Comp) {
-          setComponent(Comp);
+          // Check if plugin declares sandbox support in manifest
+          // For now, use worker for all plugin components for security
+          setUseWorker(true);
+          setWorkerPath(path);
           setLoading(false);
           return;
         }
       } catch (e) {
-        // Continue to next path
         console.debug(`[PluginFieldRenderer] Failed to load ${path}:`, e);
       }
     }
 
-    // If we have a renderer path but it failed, try the config component as fallback
     if (props.adminRendererPath && !triedRenderer()) {
       setTriedRenderer(true);
-      // The loop above already tried both, so we just set error
     }
 
     setError('Componente de renderização não encontrado');
@@ -64,6 +67,16 @@ export function PluginFieldRenderer(props: PluginFieldRendererProps) {
     props.onChange(newValue);
   };
 
+  const fallback = () => (
+    <FallbackRenderer
+      field={props.field}
+      value={props.value}
+      onChange={handleValueChange}
+      disabled={props.disabled}
+      t={props._t}
+    />
+  );
+
   return (
     <Switch>
       <Match when={loading()}>
@@ -72,7 +85,7 @@ export function PluginFieldRenderer(props: PluginFieldRendererProps) {
           <span>Carregando editor...</span>
         </div>
       </Match>
-      <Match when={error() || !Component()}>
+      <Match when={error() || (!Component() && !useWorker())}>
         <div class="fb-plugin-field-renderer fb-plugin-field-renderer--fallback">
           <Show when={error()}>
             <div class="fb-renderer-error">
@@ -80,12 +93,22 @@ export function PluginFieldRenderer(props: PluginFieldRendererProps) {
               <span>{error()}</span>
             </div>
           </Show>
-          <FallbackRenderer
-            field={props.field}
-            value={props.value}
-            onChange={handleValueChange}
-            disabled={props.disabled}
-        t={props._t}
+          {fallback()}
+        </div>
+      </Match>
+      <Match when={useWorker()}>
+        <div class="fb-plugin-field-renderer">
+          <PluginWorkerHost
+            componentPath={workerPath()}
+            mode="renderer"
+            props={{
+              field: props.field,
+              value: props.value,
+              onChange: handleValueChange,
+              disabled: props.disabled,
+              t: props._t,
+            }}
+            fallback={fallback}
           />
         </div>
       </Match>

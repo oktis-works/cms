@@ -1,9 +1,10 @@
 // @oktis-works/admin - Plugin Field Config Component
-// Dynamic component loader for plugin field type configuration in custom fields editor
+// Uses Web Worker sandbox for plugin field type configuration in custom fields editor
 
 import { Show, Switch, Match, createSignal, onMount } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { loadPluginComponent } from '../../ext/slots';
+import { PluginWorkerHost } from '../PluginWorkerHost';
 
 interface PluginFieldConfigProps {
   field: {
@@ -17,18 +18,20 @@ interface PluginFieldConfigProps {
 }
 
 export function PluginFieldConfig(props: PluginFieldConfigProps) {
-  const [Component, setComponent] = createSignal<any>(null);
+  const [Component] = createSignal<any>(null);
   const [error, setError] = createSignal<string | null>(null);
   const [loading, setLoading] = createSignal(true);
+  const [useWorker, setUseWorker] = createSignal(false);
 
   onMount(async () => {
     try {
-      // Dynamic import of the plugin's admin config component
-      // The path format: @/plugins/{plugin-name}/admin/components/{ComponentName}.tsx
       const module = await loadPluginComponent(props.adminComponentPath);
       const Comp = module['default'] || module['PluginFieldConfig'];
       if (Comp) {
-        setComponent(Comp);
+        // Use worker sandbox for all plugin components for security
+        setUseWorker(true);
+        setLoading(false);
+        return;
       } else {
         setError('Componente de configuração não encontrado no módulo');
       }
@@ -43,6 +46,14 @@ export function PluginFieldConfig(props: PluginFieldConfigProps) {
     props.onChange({ config: newConfig });
   };
 
+  const fallback = () => (
+    <FallbackJsonEditor
+      config={props.field.config}
+      schema={props.configSchema}
+      onChange={handleConfigChange}
+    />
+  );
+
   return (
     <Switch>
       <Match when={loading()}>
@@ -51,7 +62,7 @@ export function PluginFieldConfig(props: PluginFieldConfigProps) {
           <span>Carregando configuração do plugin...</span>
         </div>
       </Match>
-      <Match when={error() || !Component()}>
+      <Match when={error() || !useWorker()}>
         <div class="fb-plugin-field-config fb-plugin-field-config--error">
           <i data-lucide="alert-triangle" aria-hidden="true"></i>
           <div>
@@ -59,13 +70,24 @@ export function PluginFieldConfig(props: PluginFieldConfigProps) {
             <p class="muted">{error() ?? 'Componente não exportado corretamente'}</p>
             <details class="fb-fallback-config">
               <summary>Usar editor JSON bruto (fallback)</summary>
-              <FallbackJsonEditor
-                config={props.field.config}
-                schema={props.configSchema}
-                onChange={handleConfigChange}
-              />
+              {fallback()}
             </details>
           </div>
+        </div>
+      </Match>
+      <Match when={useWorker()}>
+        <div class="fb-plugin-field-config">
+          <PluginWorkerHost
+            componentPath={props.adminComponentPath}
+            mode="config"
+            props={{
+              config: props.field.config,
+              schema: props.configSchema,
+              onChange: handleConfigChange,
+              t: props.t,
+            }}
+            fallback={fallback}
+          />
         </div>
       </Match>
       <Match when={true}>
@@ -99,7 +121,7 @@ function FallbackJsonEditor(props: {
       JSON.parse(value);
       setParseError(null);
     } catch {
-      setParseError('JSON inválido');
+      setParseError('Invalid JSON');
     }
   };
 
@@ -129,7 +151,7 @@ function FallbackJsonEditor(props: {
       </Show>
       <Show when={props.schema}>
         <details>
-          <summary>Ver JSON Schema</summary>
+          <summary>View JSON Schema</summary>
           <pre class="fb-schema-preview">{JSON.stringify(props.schema, null, 2)}</pre>
         </details>
       </Show>

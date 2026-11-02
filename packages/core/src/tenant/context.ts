@@ -6,15 +6,15 @@ import { setTenantContext, clearTenantContext, getCurrentTenantId } from '@oktis
 export interface TenantContext {
   tenantId: string;
   userId?: string;
+  requestId?: string;
 }
 
 const contextStorage = new AsyncLocalStorage<TenantContext>();
-let _fallbackContext: TenantContext | null = null;
 
 /**
- * O espelho para o RLS do Postgres é opcional: sem conexão inicializada
- * mantemos apenas o contexto em memória (útil em testes e boot antecipado).
- * Outros erros de banco são propagados normalmente.
+ * The RLS mirror for Postgres is optional: without an initialized connection
+ * we keep only the in-memory context (useful in tests and early boot).
+ * Other database errors are propagated normally.
  */
 function ignoreIfNoConnection(error: unknown): void {
   if (
@@ -54,11 +54,9 @@ async function tryGetTenantId(): Promise<string | null> {
 export async function establishTenantContext(tenantId: string, userId?: string): Promise<TenantContext> {
   await trySetTenantContext(tenantId);
 
-  _fallbackContext = { tenantId, userId };
-  return _fallbackContext;
+  return { tenantId, userId };
 }
 
-/** Mantém o tenant isolado por requisição quando o processo atende concorrência. */
 export function runWithTenantContext<T>(context: TenantContext, fn: () => T): T {
   return contextStorage.run(context, fn);
 }
@@ -69,14 +67,9 @@ export async function getCurrentContext(): Promise<TenantContext | null> {
     return scopedContext;
   }
 
-  if (_fallbackContext) {
-    return _fallbackContext;
-  }
-
   const tenantId = await tryGetTenantId();
   if (tenantId) {
-    _fallbackContext = { tenantId };
-    return _fallbackContext;
+    return { tenantId };
   }
 
   return null;
@@ -84,35 +77,58 @@ export async function getCurrentContext(): Promise<TenantContext | null> {
 
 export async function clearCurrentContext(): Promise<void> {
   await tryClearTenantContext();
-  _fallbackContext = null;
 }
 
 /**
- * Acesso **síncrono** ao tenant do contexto (usado na resolução do registry de
- * hooks por tenant). Usa exclusivamente o AsyncLocalStorage — o fallback de
- * módulo (_fallbackContext) é processo-único e cruzaria tenants.
+ * Synchronous access to the tenant ID from the current request context.
+ * Reads strictly from AsyncLocalStorage — the module-level fallback is removed
+ * to prevent cross-tenant leakage under concurrency.
+ * Throws if called outside an established tenant context.
  */
-export function getCurrentTenantIdSync(): string | null {
-  return contextStorage.getStore()?.tenantId ?? null;
-}
-
-/** Acesso síncrono ao userId do contexto (para getUser no PluginAPI). */
-export function getCurrentUserIdSync(): string | null {
-  return contextStorage.getStore()?.userId ?? null;
+export function getCurrentTenantIdSync(): string {
+  const context = contextStorage.getStore();
+  if (!context) {
+    throw new Error('Tenant context not established. Call establishTenantContext() or runWithTenantContext() first.');
+  }
+  return context.tenantId;
 }
 
 /**
- * Acesso síncrono ao requestId do contexto (para PluginContext.requestId).
- * O requestId é gerado pelo middleware de auth/request logging.
+ * Synchronous access to the user ID from the current request context.
+ * Reads strictly from AsyncLocalStorage.
+ * Throws if called outside an established tenant context.
  */
-export function getCurrentRequestIdSync(): string | null {
-  return (contextStorage.getStore() as any)?.requestId ?? null;
+export function getCurrentUserIdSync(): string {
+  const context = contextStorage.getStore();
+  if (!context) {
+    throw new Error('Tenant context not established. Call establishTenantContext() or runWithTenantContext() first.');
+  }
+  if (!context.userId) {
+    throw new Error('User ID not available in current context.');
+  }
+  return context.userId;
+}
+
+/**
+ * Synchronous access to the request ID from the current request context.
+ * Reads strictly from AsyncLocalStorage.
+ * Throws if called outside an established tenant context.
+ */
+export function getCurrentRequestIdSync(): string {
+  const context = contextStorage.getStore();
+  if (!context) {
+    throw new Error('Tenant context not established. Call establishTenantContext() or runWithTenantContext() first.');
+  }
+  if (!context.requestId) {
+    throw new Error('Request ID not available in current context.');
+  }
+  return context.requestId;
 }
 
 export function requireTenantContext(): TenantContext {
-  const context = contextStorage.getStore() ?? _fallbackContext;
+  const context = contextStorage.getStore();
   if (!context) {
-    throw new Error('Tenant context not established. Call establishTenantContext() first.');
+    throw new Error('Tenant context not established. Call establishTenantContext() or runWithTenantContext() first.');
   }
   return context;
 }

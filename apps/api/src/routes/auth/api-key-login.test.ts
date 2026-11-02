@@ -5,14 +5,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const { loginWithApiKey } = vi.hoisted(() => ({ loginWithApiKey: vi.fn() }));
 
 vi.mock('@oktis-works/auth', () => ({
-  AuthService: vi.fn(() => ({
-    loginWithApiKey,
-    register: vi.fn(),
-    login: vi.fn(),
-    refreshToken: vi.fn(),
-    logout: vi.fn(),
-    verifyToken: vi.fn(),
-  })),
+  AuthService: vi.fn(function AuthService() {
+    return {
+      loginWithApiKey,
+      register: vi.fn(),
+      login: vi.fn(),
+      refreshToken: vi.fn(),
+      logout: vi.fn(),
+      verifyToken: vi.fn(),
+    };
+  }),
 }));
 
 vi.mock('@oktis-works/config', () => ({

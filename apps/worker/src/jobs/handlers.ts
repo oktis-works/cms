@@ -190,8 +190,9 @@ async function reencode(buffer: Buffer, quality: number): Promise<Buffer> {
       return image.jpeg({ quality, mozjpeg: true }).toBuffer();
     case 'webp':
       return image.webp({ quality }).toBuffer();
-    case 'avif':
-      return image.avif({ quality }).toBuffer();
+    case 'heif':
+      // sharp >= 0.35 reports AVIF inputs as "heif"; re-encode only AVIF (not HEIC)
+      return meta.mediaType === 'image/avif' ? image.avif({ quality }).toBuffer() : buffer;
     case 'png':
       return image.png({ compressionLevel: 9, palette: true }).toBuffer();
     default:

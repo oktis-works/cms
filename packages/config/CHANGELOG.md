@@ -1,5 +1,20 @@
 # @oktis-works/config
 
+## 0.7.0
+
+### Minor Changes
+
+- Security remediation (audit items 1-7, 9-14):
+  
+  - JWT: migrate signing to RS256 with `kid` + JWKS endpoint (`/.well-known/jwks.json`), key rotation with grace period, and dev/test ephemeral key fallback; add `validateProductionConfig()` to reject default `JWT_SECRET`, missing DB SSL, and insecure cookies in production.
+  - Rate limiting: replace in-memory Map with Redis sorted sets (`ratelimit:{key}`, TTL = window + 30s) and keep an in-memory fallback only when Redis is unavailable.
+  - Plugin admin components: sandbox rendering through a Web Worker + Comlink host (`PluginWorkerHost`) instead of trusting plugin JSX in the main thread.
+  - CSP: add Content-Security-Policy middleware for API (`default-src 'none'`), admin, and web surfaces.
+  - Tenant context: remove the process-wide `_fallbackContext`; `getCurrentTenantIdSync()` and friends now throw outside an established context to prevent cross-tenant leakage.
+  - CSRF: require a protocol in `TRUSTED_ORIGINS` entries (host-only entries are rejected).
+  - Theme resolution: log and fail loudly when a requested preview theme cannot be resolved; validate every parent theme manifest with `validateManifestV2` and abort the inheritance chain on invalid manifests.
+  - `X-Powered-By` header is now opt-in via `EXPOSE_POWERED_BY` (default off).
+
 ## 0.6.6
 
 ### Patch Changes

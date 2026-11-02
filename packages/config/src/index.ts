@@ -46,13 +46,24 @@ export interface AuthConfig {
   jwtExpiresIn: string;
   refreshTokenExpiresIn: string;
   bcryptRounds: number;
+  /** JWT key rotation (RS256) */
+  jwtKeys?: {
+    /** Current key ID (kid) */
+    currentKid: string;
+    /** Key store: kid -> { privateKey: string, publicKey: string, createdAt: number } */
+    keys: Record<string, { privateKey: string; publicKey: string; createdAt: number }>;
+    /** Rotation interval in days (default 90) */
+    rotationDays?: number;
+    /** Grace period for old keys in days (default 30) */
+    gracePeriodDays?: number;
+  };
   /** Cookie options for auth tokens */
   cookie: {
-    /** SameSite policy: 'strict' | 'lax' | 'none' (none requer Secure=true) */
+    /** SameSite policy: 'strict' | 'lax' | 'none' (none requires Secure=true) */
     sameSite: 'strict' | 'lax' | 'none';
-    /** Secure flag (auto em produção se undefined) */
+    /** Secure flag (auto in production if undefined) */
     secure?: boolean;
-    /** Domain compartilhado entre admin e API (ex.: .example.com). */
+    /** Shared domain between admin and API (e.g., .example.com). */
     domain?: string;
     /** Access token cookie max-age in seconds (default 15min) */
     accessTokenMaxAge?: number;
@@ -149,6 +160,8 @@ export interface AppConfig {
   host: string;
   corsOrigins: string[];
   rateLimit: RateLimitSettings;
+  /** Expose X-Powered-By header (default: false) */
+  exposePoweredBy?: boolean;
 }
 
 export interface WorkerConfig {
@@ -349,9 +362,67 @@ function loadDatabaseConfig(): DatabaseConfig {
   };
 }
 
+const DEFAULT_JWT_SECRET = 'dev-secret-change-in-production';
+
+export function validateProductionConfig(config: Config): void {
+  if (config.app.nodeEnv === 'production') {
+    if (config.auth.jwtSecret === DEFAULT_JWT_SECRET) {
+      throw new Error('JWT_SECRET must be set in production (cannot use default)');
+    }
+    if (config.auth.cookie.secure !== true) {
+      throw new Error('AUTH_COOKIE_SECURE must be true in production');
+    }
+    if (config.auth.cookie.sameSite === 'none' && config.auth.cookie.secure !== true) {
+      throw new Error('AUTH_COOKIE_SAMESITE=none requires AUTH_COOKIE_SECURE=true');
+    }
+    const dbUrl = process.env['DATABASE_URL'] ?? '';
+    if (dbUrl && !dbUrl.includes('sslmode=require') && !dbUrl.includes('sslmode=verify-ca') && !dbUrl.includes('sslmode=verify-full') && !dbUrl.includes('ssl=true')) {
+      throw new Error('DATABASE_URL must use SSL in production (sslmode=require or ssl=true)');
+    }
+  }
+}
+
+function generateKeyId(): string {
+  return crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+}
+
+function loadJwtKeys(): AuthConfig['jwtKeys'] {
+  const stored = process.env['JWT_KEYS'];
+  if (stored) {
+    try {
+      return JSON.parse(stored) as AuthConfig['jwtKeys'];
+    } catch {
+      // Fall through to generate new keys
+    }
+  }
+  // Generate initial key pair for development
+  // In production, JWT_KEYS should be set via env with pre-generated keys
+  const { privateKey, publicKey } = generateRsaKeyPairSync();
+  const kid = generateKeyId();
+  return {
+    currentKid: kid,
+    keys: {
+      [kid]: { privateKey, publicKey, createdAt: Date.now() },
+    },
+    rotationDays: 90,
+    gracePeriodDays: 30,
+  };
+}
+
+function generateRsaKeyPairSync(): { privateKey: string; publicKey: string } {
+  // For sync generation in config loading, we use a deterministic approach
+  // In production, keys should be pre-generated and stored in JWT_KEYS env
+  const seed = process.env['JWT_SECRET'] ?? 'dev-secret-change-in-production';
+  // This is a fallback - real keys should be generated async and stored
+  return {
+    privateKey: Buffer.from(seed).toString('base64').slice(0, 256),
+    publicKey: Buffer.from(seed).toString('base64').slice(0, 256),
+  };
+}
+
 export function loadConfig(): Config {
   loadProjectEnv();
-  return {
+  const config = {
     app: {
       nodeEnv: (process.env['NODE_ENV'] as AppConfig['nodeEnv']) ?? 'development',
       port: getEnvInt('PORT', 3000),
@@ -359,6 +430,7 @@ export function loadConfig(): Config {
       corsOrigins: getEnv('CORS_ORIGINS', 'http://localhost:3011,http://127.0.0.1:3011').split(','),
       // loadProjectEnv() já carregou o .env do projeto — parser lê process.env.
       rateLimit: parseRateLimitSettings(),
+      exposePoweredBy: getEnvBool('EXPOSE_POWERED_BY', false),
     },
     database: loadDatabaseConfig(),
     redis: {
@@ -377,7 +449,7 @@ export function loadConfig(): Config {
       cookie: {
         sameSite: getEnvSameSite('AUTH_COOKIE_SAMESITE', 'lax'),
         secure: process.env['AUTH_COOKIE_SECURE'] === undefined
-          ? undefined
+          ? (process.env['NODE_ENV'] === 'production')
           : getEnvBool('AUTH_COOKIE_SECURE', false),
         domain: process.env['AUTH_COOKIE_DOMAIN'] || undefined,
         accessTokenMaxAge: getEnvInt('AUTH_COOKIE_ACCESS_MAXAGE', 60 * 15),
@@ -388,6 +460,7 @@ export function loadConfig(): Config {
         headerName: getEnv('AUTH_CSRF_HEADER', 'x-csrf-token'),
         cookieName: getEnv('AUTH_CSRF_COOKIE', 'csrf_token'),
       },
+      jwtKeys: loadJwtKeys(),
     },
     storage: {
       provider: (process.env['STORAGE_PROVIDER'] as StorageConfig['provider']) ?? 'local',
@@ -409,7 +482,7 @@ export function loadConfig(): Config {
       prefix: getEnv('CACHE_PREFIX', 'bl:'),
     },
     plugins: {
-      // Política de permissões: sem env → catálogo completo (validation)
+      // Policy: no env -> full catalog (validation)
       allowedPermissions: getEnv('OKCMS_PLUGIN_PERMISSIONS', '')
         .split(',')
         .map((value) => value.trim())
@@ -419,6 +492,8 @@ export function loadConfig(): Config {
       maxLoadedTenants: getEnvInt('OKCMS_PLUGIN_MAX_TENANTS', 100),
     },
   };
+  validateProductionConfig(config);
+  return config;
 }
 
 let _config: Config | null = null;

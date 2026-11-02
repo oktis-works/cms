@@ -1,5 +1,16 @@
 # @oktis-works/ui
 
+## 0.6.1
+
+### Patch Changes
+
+- Security remediation follow-up fixes:
+  
+  - database: confirm `ON DUPLICATE KEY UPDATE` upserts on MySQL/MariaDB by re-selecting the affected row and returning real affected counts.
+  - plugin-runtime: export `validateManifestV2` so the web renderer can validate parent theme manifests.
+  - worker: upgrade sharp to `^0.35.5` (libvips/libheif/librsvg CVEs) and handle sharp >= 0.35 reporting AVIF inputs as `heif` (guarded by `mediaType`).
+  - ui: bump solid-js to 1.9.18 (seroval deserialization CVEs).
+
 ## 0.6.0
 
 ### Minor Changes

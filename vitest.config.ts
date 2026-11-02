@@ -30,6 +30,15 @@ const stripModuleCondition: Plugin = {
 
 export default defineConfig({
   plugins: [stripModuleCondition],
+  // Vite 8 (via vitest 4) uses oxc for transforms and respects tsconfig
+  // "jsx": "preserve", which skips the JSX transform and breaks .tsx imports
+  // in tests. Force oxc's automatic JSX runtime (solid-js) for all files.
+  oxc: {
+    jsx: {
+      runtime: 'automatic',
+      importSource: 'solid-js',
+    },
+  },
   test: {
     globals: true,
     environment: 'node',

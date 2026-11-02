@@ -33,6 +33,7 @@ import { generateFeeds } from './rss.js';
 import { createDatabaseThemeDataProvider, loadThemeRenderData } from './theme-data.js';
 import { resolveTenantFromHost } from './tenant-resolver.js';
 import { runWithThemeDataProvider } from '@oktis-works/theme-sdk';
+import { validateManifestV2 } from '@oktis-works/plugin-runtime';
 
 type Variables = {
   tenant: Record<string, unknown>;
@@ -121,6 +122,11 @@ async function resolveActiveTheme(
         if (parentRows[0]) {
           const parentManifest = parentRows[0]['manifest'] as Record<string, unknown> | null;
           if (parentManifest) {
+            // Validate parent manifest structure
+            const manifestIssues = validateManifestV2(parentManifest);
+            if (manifestIssues.length > 0) {
+              throw new Error(`Invalid parent theme manifest for "${parentName}": ${manifestIssues.join('; ')}`);
+            }
             parentManifests.push(parentManifest);
             parentName = parentManifest['parent'] as string | undefined;
           } else {
@@ -136,6 +142,12 @@ async function resolveActiveTheme(
     }
   } catch (error) {
     if (error instanceof Error && /theme|parent/i.test(error.message)) throw error;
+    // Log the error for debugging
+    console.error('[web] Failed to resolve active theme:', error);
+    // If previewTheme was explicitly requested, return 500 instead of silently falling back
+    if (previewTheme) {
+      throw new Error(`Failed to resolve preview theme "${previewTheme}": ${error instanceof Error ? error.message : String(error)}`);
+    }
     // tabela ausente/falha de leitura nunca derruba o render — usa o env
   }
   return { name: envFallback, row: null, parentManifests: [] };
@@ -166,14 +178,25 @@ async function main() {
 
   const app = new Hono<{ Variables: Variables }>();
 
+  // Content Security Policy
+  const WEB_CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+  app.use('*', async (c, next) => {
+    c.header('Content-Security-Policy', WEB_CSP);
+    await next();
+  });
+
   // Assinatura do produto para detectores (Wappalyzer etc.): X-Powered-By em
   // TODA resposta do site público. Vale inclusive para temas full-control,
   // que são donos do próprio <head> e por isso não recebem o
   // <meta name="generator"> aplicado pelo wrapDocument.
-  app.use('*', async (c, next) => {
-    c.header('X-Powered-By', `OkCMS/${CMS_VERSION}`);
-    await next();
-  });
+  // Controlled by EXPOSE_POWERED_BY env (default: false)
+  const config = loadConfig();
+  if (config.app.exposePoweredBy) {
+    app.use('*', async (c, next) => {
+      c.header('X-Powered-By', `OkCMS/${CMS_VERSION}`);
+      await next();
+    });
+  }
 
   // Tenant resolution middleware (loopback → default; senão subdomain/domain)
   app.use('*', async (c, next) => {

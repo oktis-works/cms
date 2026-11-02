@@ -2,7 +2,7 @@ export { PluginSandbox } from './sandbox.js';
 export type { SandboxConfig, LoadedPlugin } from './sandbox.js';
 export { PluginLoader } from './loader.js';
 export type { DiscoveredPlugin } from './loader.js';
-export { readPluginManifest, normalizePluginManifest } from './manifest.js';
+export { readPluginManifest, normalizePluginManifest, validateManifestV2 } from './manifest.js';
 export type { ManifestSource, ReadManifestResult } from './manifest.js';
 export {
   HookRegistry,

@@ -111,12 +111,31 @@ describe('isSameOrigin', () => {
         },
       }) as never;
 
-    process.env['TRUSTED_ORIGINS'] = 'app.okcms.dev';
+    process.env['TRUSTED_ORIGINS'] = 'https://app.okcms.dev';
     try {
       expect(isSameOrigin(ctx('https://cms.local'))).toBe(true);
       expect(isSameOrigin(ctx('https://app.okcms.dev'))).toBe(true);
       expect(isSameOrigin(ctx(undefined))).toBe(false);
       expect(isSameOrigin(ctx('https://evil.example'))).toBe(false);
+    } finally {
+      delete process.env['TRUSTED_ORIGINS'];
+    }
+  });
+
+  it('rejects host-only TRUSTED_ORIGINS entries (no protocol)', () => {
+    const ctx = (origin: string | undefined, host = 'cms.local') =>
+      ({
+        req: {
+          header: (name: string) =>
+            name === 'Origin' ? origin : name === 'Host' ? host : undefined,
+        },
+      }) as never;
+
+    process.env['TRUSTED_ORIGINS'] = 'app.okcms.dev';
+    try {
+      // Host-only entries are rejected; the origin must also match the request Host.
+      expect(isSameOrigin(ctx('https://app.okcms.dev'))).toBe(false);
+      expect(isSameOrigin(ctx('https://cms.local'))).toBe(true);
     } finally {
       delete process.env['TRUSTED_ORIGINS'];
     }

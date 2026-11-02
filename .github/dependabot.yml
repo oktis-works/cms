@@ -1,0 +1,65 @@
+# Dependabot configuration for automated dependency updates
+# Updates npm dependencies weekly, grouped by package
+
+version: 2
+updates:
+  # Root workspace (bun lockfile)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    groups:
+      dev-dependencies:
+        patterns:
+          - "@types/*"
+          - "eslint*"
+          - "typescript*"
+          - "vitest*"
+          - "playwright*"
+          - "@typescript-eslint/*"
+          - "@changesets/*"
+        update-types: ["minor", "patch"]
+      production-dependencies:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "@types/*"
+          - "eslint*"
+          - "typescript*"
+          - "vitest*"
+          - "playwright*"
+          - "@typescript-eslint/*"
+          - "@changesets/*"
+        update-types: ["minor", "patch"]
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "npm"
+    ignore:
+      # Ignore major versions for critical packages
+      - dependency-name: "bun"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(ci)"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "github-actions"

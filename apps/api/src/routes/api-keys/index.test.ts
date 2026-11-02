@@ -23,7 +23,9 @@ vi.mock('../../middleware/auth.js', () => ({
 }));
 
 vi.mock('@oktis-works/auth', () => ({
-  ApiKeyService: vi.fn(() => serviceMock),
+  ApiKeyService: vi.fn(function ApiKeyService() {
+    return serviceMock;
+  }),
 }));
 
 vi.mock('@oktis-works/database', () => ({

@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/auth",
-  "version": "0.8.6",
+  "version": "0.9.0",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -18,9 +18,9 @@
   },
   "dependencies": {
     "@oktis-works/types": "^0.10.0",
-    "@oktis-works/config": "^0.6.6",
-    "@oktis-works/database": "^0.16.0",
-    "@oktis-works/core": "^0.17.0",
+    "@oktis-works/config": "^0.7.0",
+    "@oktis-works/database": "^0.16.1",
+    "@oktis-works/core": "^0.18.0",
     "bcryptjs": "^2.4.3"
   },
   "devDependencies": {

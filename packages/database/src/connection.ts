@@ -223,10 +223,34 @@ async function executeMySql(
     if (returning && /^(\s*(INSERT|UPDATE|DELETE))/i.test(query)) {
       const table = /^(?:\s*)(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+`?([a-zA-Z0-9_]+)`?/i.exec(query)?.[1];
       const where = /\sWHERE\s([\s\S]*)$/i.exec(query)?.[1];
+      const isUpsert = /ON\s+DUPLICATE\s+KEY\s+UPDATE/i.test(query);
       if (table && where && /^(\s*(UPDATE|DELETE))/i.test(query)) {
         const before = normalizeDriverRows(await raw.query(`SELECT ${returning} FROM ${table} WHERE ${where}`, values));
         await raw.query(query, values);
         return withCount(before as Row[], before.length) as Row[];
+      }
+      if (isUpsert && table) {
+        // For ON DUPLICATE KEY UPDATE, fetch the row after the operation
+        const result = await raw.query(query, values);
+        const header = (Array.isArray(result) ? result[0] : result) as { insertId?: unknown; affectedRows?: number } | undefined;
+        const affectedRows = Number(header?.affectedRows ?? 0);
+        if (affectedRows > 0) {
+          // Try to find the affected row by primary key
+          const pkMatch = query.match(/INSERT\s+INTO\s+`?\w+`?\s*\(([^)]+)\)/i);
+          const insertColumns = pkMatch?.[1]?.split(',').map((c: string) => c.trim().replace(/["`]/g, '')) ?? [];
+          const idIndex = insertColumns.findIndex((column: string) => column === 'id');
+          let selectWhere = '';
+          if (idIndex >= 0 && values[idIndex] !== undefined) {
+            selectWhere = `id = ${values[idIndex]}`;
+          } else if (where) {
+            selectWhere = where;
+          }
+          if (selectWhere) {
+            const rows = normalizeDriverRows(await raw.query(`SELECT ${returning} FROM ${table} WHERE ${selectWhere}`, values));
+            return withCount(rows as Row[], rows.length) as Row[];
+          }
+        }
+        return withCount([], affectedRows);
       }
       const result = await raw.query(query, values);
       const insertColumns = /INSERT\s+INTO\s+[^\s(]+\s*\(([^)]+)\)/i.exec(query)?.[1]?.split(',').map((column) => column.trim().replace(/["`]/g, '')) ?? [];

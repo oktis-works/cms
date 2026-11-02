@@ -15,7 +15,9 @@ import { rateLimitMiddleware, loginRateLimitMiddleware } from './middleware/rate
 import { csrfMiddleware } from './middleware/csrf.js';
 import { auditMiddleware } from './middleware/audit.js';
 import { authMiddleware, requirePermission } from './middleware/auth.js';
+import { apiCspMiddleware } from './middleware/csp.js';
 import authRouter from './routes/auth/index.js';
+import jwksRouter from './routes/jwks/index.js';
 import contentRouter from './routes/content/index.js';
 import postsRouter from './routes/posts/index.js';
 import pagesRouter from './routes/pages/index.js';
@@ -143,6 +145,9 @@ async function main() {
   }));
   app.use('*', prettyJSON());
 
+  // Content Security Policy
+  app.use('*', apiCspMiddleware);
+
   // rest-api-003: rate limiting por classe de tráfego (429 + Retry-After).
   // Credenciais primeiro: o brute force recebe 429 próprio (por IP e por
   // e-mail) em vez de esvaziar o orçamento dos clientes legítimos. Depois o
@@ -162,9 +167,10 @@ async function main() {
   // Health routes (no auth required)
   app.route('/health', healthRouter);
 
-  // API routes (GET /auth/me vive em routes/auth/index.ts — mais completa:
-  // roles + tenantId + fallback Bearer; a duplicata routes/auth/me.ts foi removida)
+// API routes (GET /auth/me vive em routes/auth/index.ts — mais completa:
+// roles + tenantId + fallback Bearer; a duplicata routes/auth/me.ts foi removida)
   app.route('/api/v1/auth', authRouter);
+  app.route('/', jwksRouter); // /.well-known/jwks.json at root
   app.route('/api/v1/users', usersRouter);
   app.route('/api/v1/tenants', tenantsRouter);
   app.route('/api/v1/roles', rolesRouter);
