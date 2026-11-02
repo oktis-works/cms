@@ -2,6 +2,7 @@
 // Runs in a separate Web Worker, exposes plugin component rendering via Comlink
 
 import { expose } from 'comlink';
+import { createComponent } from 'solid-js';
 import { renderToString } from 'solid-js/web';
 
 interface PluginComponentProps {
@@ -42,7 +43,7 @@ const api = {
       if (!Component) {
         return { html: '', error: 'Component not found in module' };
       }
-      const html = renderToString(() => <Component {...props} />);
+      const html = renderToString(() => createComponent(Component as any, props));
       return { html };
     } catch (e) {
       return { html: '', error: e instanceof Error ? e.message : String(e) };
@@ -55,7 +56,7 @@ const api = {
       if (!Component) {
         return { html: '', error: 'Component not found in module' };
       }
-      const html = renderToString(() => <Component {...props} />);
+      const html = renderToString(() => createComponent(Component as any, props));
       return { html };
     } catch (e) {
       return { html: '', error: e instanceof Error ? e.message : String(e) };

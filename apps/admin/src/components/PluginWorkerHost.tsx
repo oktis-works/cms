@@ -22,7 +22,7 @@ export function PluginWorkerHost(props: PluginWorkerHostProps) {
   onMount(() => {
     async function init() {
       try {
-        worker = new Worker(new URL('../workers/plugin-worker.tsx', import.meta.url), { type: 'module' });
+        worker = new Worker(new URL('../workers/plugin-worker.ts', import.meta.url), { type: 'module' });
         workerApi = wrap<PluginWorkerAPI>(worker);
         await render();
       } catch (e) {
