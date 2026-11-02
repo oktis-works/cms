@@ -42,13 +42,14 @@ Quando não se deseja fazer tag direta no `main`, use este fluxo:
 1. Crie uma branch de release a partir de `main`: `git checkout -b release/vX.Y.Z && git checkout -b release/vX.Y.Z`
 2. Implemente as mudanças, crie changesets em `.changeset/*.md`, bump a versão no root `package.json` e rode `bun run sync-version --write`.
 3. Commit com mensagem conventional (ex: `chore(release): vX.Y.Z`) e faça push da branch: `git push origin release/vX.Y.Z`.
-4. Abra um Pull Request da branch de release para `main`. O CI roda automaticamente em PRs para `main` (test, typecheck, lint).
+4. O workflow `.github/workflows/create-release-pr.yml` abre automaticamente um PR da branch de release para `main`. O CI roda no PR (test, typecheck, lint).
 5. Após revisão e aprovação, faça merge do PR para `main`.
 6. No `main`, crie e push a tag: `git tag vX.Y.Z && git push origin main --tags`.
 7. A tag dispara o `ci.yml` → `trigger-publish` → `repository_dispatch` → `publish.yml` (npm publish).
 
 **Regras:**
 * O CI é disparado em `pull_request` para `main`, `develop` e `release/**` (veja `.github/workflows/ci.yml`).
+* O PR é criado automaticamente pelo workflow `create-release-pr.yml` ao fazer push em qualquer branch `release/**`.
 * A tag `vX.Y.Z` deve exatamente bater com a versão no root `package.json` (validação bloqueante em `prepare-publish.mjs --check --tag`).
 * Nunca reutilize uma tag queimada (CI falhou). Pule para a próxima versão.
 
