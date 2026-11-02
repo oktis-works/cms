@@ -14,51 +14,22 @@ jobs:
     name: Create Pull Request to main
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout release branch
+      - name: Checkout
         uses: actions/checkout@v7
-        with:
-          ref: ${{ github.ref }}
 
-      - name: Get release version from package.json
+      - name: Get version
         id: version
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
-      - name: Check if PR already exists for this branch
-        id: check-pr
-        run: |
-          EXISTING=$(gh pr list --head "${{ github.head_ref || github.ref_name }}" --base main --state open --json number -q '.[0].number // empty' || true)
-          if [ -n "$EXISTING" ]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-            echo "number=$EXISTING" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Create Pull Request to main
-        if: steps.check-pr.outputs.exists == 'false'
+      - name: Create PR to main
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           gh pr create \
             --base main \
             --head "${{ github.ref_name }}" \
             --title "chore(release): v${{ steps.version.outputs.version }} — release branch ${{ github.ref_name }}" \
-            --body "## Release v${{ steps.version.outputs.version }}
+            --body "Auto-created release PR for v${{ steps.version.outputs.version }}.
 
-Automatically created by CI/CD workflow from branch \`${{ github.ref_name }}\`.
-
-### What this includes
-- All commits on branch \`${{ github.ref_name }}\`
-- Changesets in \`.changeset/\`
-- Version bumps
-
-### Next steps
-1. Review and approve this PR.
-2. Merge into \`main\`.
-3. On \`main\`, create and push tag \`v${{ steps.version.outputs.version }}\`:
-   \`\`\`
-   git tag v${{ steps.version.outputs.version }} && git push origin main --tags
-   \`\`\`
-4. The tag triggers \`ci.yml\` → \`trigger-publish\` → \`publish.yml\` (npm publish)." \
-            --label "release" \
-            --reviewer "${{ github.actor }}"
+Merge this PR into main, then create and push tag v${{ steps.version.outputs.version }} to trigger publish." \
+            --label release || true
