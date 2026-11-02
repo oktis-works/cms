@@ -322,6 +322,60 @@
           "remove": "הסר"
         }
       }
+    },
+    "seo": {
+      "title": "SEO",
+      "description": "הגדר הגדרות SEO: מפת אתר, robots.txt, מטא תגיות ו-Open Graph.",
+      "back": "← כל ההגדרות",
+      "saved": "הגדרות SEO נשמרו ✓",
+      "loading": "טוען…",
+      "save": "שמור שינויים",
+      "fields": {
+        "siteTitle": "כותרת אתר",
+        "siteTitlePlaceholder": "האתר שלי",
+        "siteDescription": "תיאור אתר",
+        "siteDescriptionPlaceholder": "אתר חדש שנבנה עם OkCMS",
+        "siteUrl": "כתובת אתר",
+        "siteUrlPlaceholder": "https://example.com",
+        "language": "שפה",
+        "languagePlaceholder": "he"
+      },
+      "robots": {
+        "title": "robots.txt",
+        "description": "שלוט כיצד סורקי מנועי חיפוש ניגשים לאתר שלך.",
+        "enabled": "הפעל robots.txt",
+        "enabledHint": "כאשר מושבת, לא מוגש קובץ robots.txt.",
+        "rules": "כללים מותאמים אישית של robots.txt",
+        "rulesPlaceholder": "User-agent: *\nAllow: /\nSitemap: https://example.com/sitemap.xml",
+        "defaultRobots": "ברירת מחדל של מטא רובוטים",
+        "defaultRobotsHint": "מוחלף על דפים ללא עקיפת רובוטים לעמוד."
+      },
+      "sitemap": {
+        "title": "מפת אתר",
+        "description": "הגדר יצירת מפת אתר XML עבור מנועי חיפוש.",
+        "enabled": "הפעל sitemap.xml",
+        "enabledHint": "כאשר מושבת, /sitemap.xml מחזיר urlset ריק.",
+        "maxItems": "מקסימום פריטים למפת אתר",
+        "maxItemsPlaceholder": "50000",
+        "includeTypes": "כלול סוגי תוכן",
+        "includeTypesPlaceholder": "post, page",
+        "includeTypesHint": "מזהי סוגי תוכן מופרדים בפסיקה להכללה. השאר ריק כדי לכלול את כל הסוגים הציבוריים.",
+        "changefreq": "תדירות שינוי ברירת מחדל",
+        "priority": "עדיפות ברירת מחדל",
+        "priorityHint": "מ-0.0 עד 1.0"
+      },
+      "og": {
+        "title": "Open Graph",
+        "description": "שלוט כיצד האתר שלך נראה בעת שיתוף ברשתות חברתיות.",
+        "type": "סוג Open Graph ברירת מחדל",
+        "image": "תמונת Open Graph ברירת מחדל",
+        "imagePlaceholder": "https://example.com/og-image.jpg"
+      },
+      "twitter": {
+        "title": "Twitter Cards",
+        "card": "סוג כרטיס טוויטר",
+        "cardHint": "summary או summary_large_image"
+      }
     }
   },
   "notFound": {

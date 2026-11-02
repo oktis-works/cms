@@ -322,6 +322,60 @@
           "remove": "Sil"
         }
       }
+    },
+    "seo": {
+      "title": "SEO",
+      "description": "SEO ayarlarını yapılandırın: sitemap, robots.txt, meta etiketler ve Open Graph.",
+      "back": "← Tüm ayarlar",
+      "saved": "SEO ayarları kaydedildi ✓",
+      "loading": "Yükleniyor…",
+      "save": "Değişiklikleri kaydet",
+      "fields": {
+        "siteTitle": "Site Başlığı",
+        "siteTitlePlaceholder": "Sitem",
+        "siteDescription": "Site Açıklaması",
+        "siteDescriptionPlaceholder": "OkCMS ile yeni bir site",
+        "siteUrl": "Site URL",
+        "siteUrlPlaceholder": "https://example.com",
+        "language": "Dil",
+        "languagePlaceholder": "tr"
+      },
+      "robots": {
+        "title": "robots.txt",
+        "description": "Arama motoru 봇larının sitenize nasıl eriştiğini kontrol edin.",
+        "enabled": "robots.txt'i etkinleştir",
+        "enabledHint": "Devre dışı bırakıldığında robots.txt sunulmaz.",
+        "rules": "Özel robots.txt kuralları",
+        "rulesPlaceholder": "User-agent: *\nAllow: /\nSitemap: https://example.com/sitemap.xml",
+        "defaultRobots": "Varsayılan robots meta",
+        "defaultRobotsHint": "Sayfa bazlı geçersiz kılma bulunmayan sayfalara uygulanır."
+      },
+      "sitemap": {
+        "title": "Site Haritası",
+        "description": "Arama motorları için XML site haritası oluşturmayı yapılandırın.",
+        "enabled": "sitemap.xml'i etkinleştir",
+        "enabledHint": "Devre dışı bırakıldığında /sitemap.xml boş urlset döndürür.",
+        "maxItems": "Site haritası başına maksimum öğe",
+        "maxItemsPlaceholder": "50000",
+        "includeTypes": "İçerik türlerini dahil et",
+        "includeTypesPlaceholder": "post, page",
+        "includeTypesHint": "Dahil edilecek içerik türü slug'ları, virgülle ayrılmış. Tüm public türleri dahil etmek için boş bırakın.",
+        "changefreq": "Varsayılan değişiklik sıklığı",
+        "priority": "Varsayılan öncelik",
+        "priorityHint": "0.0 ile 1.0 arasında"
+      },
+      "og": {
+        "title": "Open Graph",
+        "description": "Sitenizin sosyal medyada nasıl göründüğünü kontrol edin.",
+        "type": "Varsayılan Open Graph türü",
+        "image": "Varsayılan Open Graph görseli",
+        "imagePlaceholder": "https://example.com/og-image.jpg"
+      },
+      "twitter": {
+        "title": "Twitter Cards",
+        "card": "Twitter kart türü",
+        "cardHint": "summary veya summary_large_image"
+      }
     }
   },
   "notFound": {

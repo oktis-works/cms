@@ -322,6 +322,60 @@
           "remove": "Fagbọ"
         }
       }
+    },
+    "seo": {
+      "title": "SEO",
+      "description": "Yọ ẹ̀tọ́ SEO: sitemap, robots.txt, meta tagi ati Open Graph.",
+      "back": "← Gbogbo Ẹ̀tọ́",
+      "saved": "Ẹ̀tọ́ SEO ti fifipamọ́ ✓",
+      "loading": "Ń Ṣàtúnṣe…",
+      "save": "Fifipamọ́ Akọsile",
+      "fields": {
+        "siteTitle": "Orí Ìwé",
+        "siteTitlePlaceholder": "Ìwé Mi",
+        "siteDescription": "Àpẹrẹ Ìwé",
+        "siteDescriptionPlaceholder": "Ìwé tuntun nípa OkCMS",
+        "siteUrl": "Àdrésè Ìwé",
+        "siteUrlPlaceholder": "https://example.com",
+        "language": "Èdè",
+        "languagePlaceholder": "yo"
+      },
+      "robots": {
+        "title": "robots.txt",
+        "description": "Yọ jẹ́ kí àwọn ọlọ́run ìwọ̀kàn ọrọ̀ ń fí kí í sí ní àwọn àtúmọ̀ àìnílàge ìwé rẹ.",
+        "enabled": "Dá robots.txt",
+        "enabledHint": "Níípelú pé ti yẹ kí, robots.txt kò ní tún kí i rọ̀rún.",
+        "rules": "Àwọn òwẹ̀rò robots.txt ti a fi ṣàlàyé",
+        "rulesPlaceholder": "User-agent: *\nAllow: /\nSitemap: https://example.com/sitemap.xml",
+        "defaultRobots": "Meta Roboti Pelu",
+        "defaultRobotsHint": "Ṣe kó ní àwọn ojú-ìwé ti kò ní àwọn àmúlòò roboti fún ojú-ìwé kan."
+      },
+      "sitemap": {
+        "title": "Sitemap",
+        "description": "Yọ ẹ̀tọ́ i kúdọ̀ sitemap XML fún àwọn àtúmọ̀ àìnílàge ọrọ̀.",
+        "enabled": "Dá sitemap.xml",
+        "enabledHint": "Níípelú pé ti yẹ kí, /sitemap.xml yoo àbọ̀ urlset tẹ̀lẹ́.",
+        "maxItems": "Idíì kí í tỹín kẹ́ẹ́rin sitemap",
+        "maxItemsPlaceholder": "50000",
+        "includeTypes": "Hàn eya ọrọ̀",
+        "includeTypesPlaceholder": "post, page",
+        "includeTypesHint": "Àwọn slugs eya ọrọ̀, ti a gba àkọ́kọ́, tí a yoo hàn. Fọ́wọ́ sí láti hàn eya pẹ̀lú àìnílàge.",
+        "changefreq": "Àkọ́kọ̀ Àpẹrẹ Pelu",
+        "priority": "Ìtànjá Pelu",
+        "priorityHint": "0.0 ṣí 1.0"
+      },
+      "og": {
+        "title": "Open Graph",
+        "description": "Yọ jẹ́ kí ìwé rẹ ń wọ̀nyí ní láti sàlàyé kan sí àwọn ìtànjọ̀ àtijọ́ àdáni.",
+        "type": "Àìmọ̀ Open Graph Pelu",
+        "image": "Àwòrán Open Graph Pelu",
+        "imagePlaceholder": "https://example.com/og-image.jpg"
+      },
+      "twitter": {
+        "title": "Àmúlòò Twitter",
+        "card": "Àìmọ̀ Àmúlòò Twitter",
+        "cardHint": "summary pé lówólórí summary_large_image"
+      }
     }
   },
   "notFound": {

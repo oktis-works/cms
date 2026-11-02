@@ -322,6 +322,60 @@
           "remove": "Удалить"
         }
       }
+    },
+    "seo": {
+      "title": "SEO",
+      "description": "Настройте параметры SEO: sitemap, robots.txt, мета-теги и Open Graph.",
+      "back": "← Все настройки",
+      "saved": "Настройки SEO сохранены ✓",
+      "loading": "Загрузка…",
+      "save": "Сохранить изменения",
+      "fields": {
+        "siteTitle": "Заголовок сайта",
+        "siteTitlePlaceholder": "Мой сайт",
+        "siteDescription": "Описание сайта",
+        "siteDescriptionPlaceholder": "Новый сайт на OkCMS",
+        "siteUrl": "URL сайта",
+        "siteUrlPlaceholder": "https://example.com",
+        "language": "Язык",
+        "languagePlaceholder": "ru"
+      },
+      "robots": {
+        "title": "robots.txt",
+        "description": "Управляйте тем, как поисковые роботы получают доступ к вашему сайту.",
+        "enabled": "Включить robots.txt",
+        "enabledHint": "Когда отключен, robots.txt не обслуживается.",
+        "rules": "Пользовательские правила robots.txt",
+        "rulesPlaceholder": "User-agent: *\nAllow: /\nSitemap: https://example.com/sitemap.xml",
+        "defaultRobots": "Мета-роботы по умолчанию",
+        "defaultRobotsHint": "Применяется к страницам, у которых нет переопределения роботов по странице."
+      },
+      "sitemap": {
+        "title": "Карта сайта",
+        "description": "Настройте генерацию XML карты сайта для поисковых систем.",
+        "enabled": "Включить sitemap.xml",
+        "enabledHint": "Когда отключен, /sitemap.xml возвращает пустой urlset.",
+        "maxItems": "Максимум элементов в карте сайта",
+        "maxItemsPlaceholder": "50000",
+        "includeTypes": "Включить типы контента",
+        "includeTypesPlaceholder": "post, page",
+        "includeTypesHint": "Слаги типов контента через запятую для включения. Оставьте пустым, чтобы включить все публичные типы.",
+        "changefreq": "Частота изменения по умолчанию",
+        "priority": "Приоритет по умолчанию",
+        "priorityHint": "0.0 до 1.0"
+      },
+      "og": {
+        "title": "Open Graph",
+        "description": "Управляйте тем, как ваш сайт выглядит при публикации в социальных сетях.",
+        "type": "Тип Open Graph по умолчанию",
+        "image": "Изображение Open Graph по умолчанию",
+        "imagePlaceholder": "https://example.com/og-image.jpg"
+      },
+      "twitter": {
+        "title": "Twitter Cards",
+        "card": "Тип карточки Twitter",
+        "cardHint": "summary или summary_large_image"
+      }
     }
   },
   "notFound": {

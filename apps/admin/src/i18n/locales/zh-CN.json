@@ -322,6 +322,60 @@
           "remove": "移除"
         }
       }
+    },
+    "seo": {
+      "title": "SEO",
+      "description": "配置 SEO 设置：站点地图、robots.txt、元标签和 Open Graph。",
+      "back": "← 所有设置",
+      "saved": "SEO 设置已保存 ✓",
+      "loading": "加载中…",
+      "save": "保存更改",
+      "fields": {
+        "siteTitle": "网站标题",
+        "siteTitlePlaceholder": "我的网站",
+        "siteDescription": "网站描述",
+        "siteDescriptionPlaceholder": "基于 OkCMS 的新网站",
+        "siteUrl": "网站 URL",
+        "siteUrlPlaceholder": "https://example.com",
+        "language": "语言",
+        "languagePlaceholder": "zh-CN"
+      },
+      "robots": {
+        "title": "robots.txt",
+        "description": "控制搜索引擎爬虫如何访问您的网站。",
+        "enabled": "启用 robots.txt",
+        "enabledHint": "禁用时不提供 robots.txt。",
+        "rules": "自定义 robots.txt 规则",
+        "rulesPlaceholder": "User-agent: *\nAllow: /\nSitemap: https://example.com/sitemap.xml",
+        "defaultRobots": "默认元机器人标签",
+        "defaultRobotsHint": "应用于没有每页机器人标签替换的页面。"
+      },
+      "sitemap": {
+        "title": "站点地图",
+        "description": "为搜索引擎配置 XML 站点地图生成。",
+        "enabled": "启用 sitemap.xml",
+        "enabledHint": "禁用时，/sitemap.xml 返回空 urlset。",
+        "maxItems": "每个站点地图的最大项目数",
+        "maxItemsPlaceholder": "50000",
+        "includeTypes": "包含内容类型",
+        "includeTypesPlaceholder": "post, page",
+        "includeTypesHint": "要包含的内容类型别名，用逗号分隔。留空以包含所有公共类型。",
+        "changefreq": "默认变更频率",
+        "priority": "默认优先级",
+        "priorityHint": "0.0 到 1.0"
+      },
+      "og": {
+        "title": "Open Graph",
+        "description": "控制网站在社交媒体上分享时的显示方式。",
+        "type": "默认 Open Graph 类型",
+        "image": "默认 Open Graph 图片",
+        "imagePlaceholder": "https://example.com/og-image.jpg"
+      },
+      "twitter": {
+        "title": "Twitter Cards",
+        "card": "Twitter 卡片类型",
+        "cardHint": "summary 或 summary_large_image"
+      }
     }
   },
   "notFound": {

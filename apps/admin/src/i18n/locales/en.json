@@ -714,6 +714,60 @@
         "remove": "Remove",
         "description": "Each listing page acts as the base URL for a content type (e.g. /blog/ for posts, /projects/ for projects). The page's slug becomes the URL base."
       }
+    },
+    "seo": {
+      "title": "SEO",
+      "description": "Configure search engine optimization settings: sitemap, robots.txt, meta tags and Open Graph.",
+      "back": "← All settings",
+      "saved": "SEO settings saved ✓",
+      "loading": "Loading…",
+      "save": "Save Changes",
+      "fields": {
+        "siteTitle": "Site Title",
+        "siteTitlePlaceholder": "My Site",
+        "siteDescription": "Site Description",
+        "siteDescriptionPlaceholder": "A new site built with OkCMS",
+        "siteUrl": "Site URL",
+        "siteUrlPlaceholder": "https://example.com",
+        "language": "Language",
+        "languagePlaceholder": "pt-BR"
+      },
+      "robots": {
+        "title": "robots.txt",
+        "description": "Control how search engine crawlers access your site.",
+        "enabled": "Enable robots.txt",
+        "enabledHint": "When disabled, no robots.txt is served.",
+        "rules": "Custom robots.txt rules",
+        "rulesPlaceholder": "User-agent: *\nAllow: /\nSitemap: https://example.com/sitemap.xml",
+        "defaultRobots": "Default robots meta",
+        "defaultRobotsHint": "Applied to pages that don't have a per-page robots override."
+      },
+      "sitemap": {
+        "title": "Sitemap",
+        "description": "Configure XML sitemap generation for search engines.",
+        "enabled": "Enable sitemap.xml",
+        "enabledHint": "When disabled, /sitemap.xml returns an empty urlset.",
+        "maxItems": "Max items per sitemap",
+        "maxItemsPlaceholder": "50000",
+        "includeTypes": "Include content types",
+        "includeTypesPlaceholder": "post, page",
+        "includeTypesHint": "Comma-separated content type slugs to include. Leave empty to include all public types.",
+        "changefreq": "Default change frequency",
+        "priority": "Default priority",
+        "priorityHint": "0.0 to 1.0"
+      },
+      "og": {
+        "title": "Open Graph",
+        "description": "Control how your site appears when shared on social media.",
+        "type": "Default Open Graph type",
+        "image": "Default Open Graph image",
+        "imagePlaceholder": "https://example.com/og-image.jpg"
+      },
+      "twitter": {
+        "title": "Twitter Cards",
+        "card": "Twitter card type",
+        "cardHint": "summary or summary_large_image"
+      }
     }
   },
   "menus": {

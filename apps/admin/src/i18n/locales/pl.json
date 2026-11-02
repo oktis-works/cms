@@ -322,6 +322,60 @@
           "remove": "Usuń"
         }
       }
+    },
+    "seo": {
+      "title": "SEO",
+      "description": "Skonfiguruj ustawienia SEO: sitemap, robots.txt, meta tagi i Open Graph.",
+      "back": "← Wszystkie Ustawienia",
+      "saved": "Ustawienia SEO zapisane ✓",
+      "loading": "Ładowanie…",
+      "save": "Zapisz zmiany",
+      "fields": {
+        "siteTitle": "Tytuł Strony",
+        "siteTitlePlaceholder": "Moja Strona",
+        "siteDescription": "Opis Strony",
+        "siteDescriptionPlaceholder": "Nowa strona z OkCMS",
+        "siteUrl": "URL Strony",
+        "siteUrlPlaceholder": "https://example.com",
+        "language": "Język",
+        "languagePlaceholder": "pl"
+      },
+      "robots": {
+        "title": "robots.txt",
+        "description": "Kontroluj, jak roboty wyszukiwarek uzyskują dostęp do Twojej strony.",
+        "enabled": "Włącz robots.txt",
+        "enabledHint": "Kiedy wyłączony, nie serwuje pliku robots.txt.",
+        "rules": "Niestandardowe reguły robots.txt",
+        "rulesPlaceholder": "User-agent: *\nAllow: /\nSitemap: https://example.com/sitemap.xml",
+        "defaultRobots": "Domyślne meta roboty",
+        "defaultRobotsHint": "Stosowane do stron, które nie mają nadpisania robotów na stronę."
+      },
+      "sitemap": {
+        "title": "Mapa Witryny",
+        "description": "Skonfiguruj generowanie mapy witryny XML dla wyszukiwarek.",
+        "enabled": "Włącz sitemap.xml",
+        "enabledHint": "Kiedy wyłączony, /sitemap.xml zwraca pusty urlset.",
+        "maxItems": "Maksymalna liczba elementów na mapę witryny",
+        "maxItemsPlaceholder": "50000",
+        "includeTypes": "Dołącz typy treści",
+        "includeTypesPlaceholder": "post, page",
+        "includeTypesHint": "Slugi typów treści oddzielone przecinkiem do dołączenia. Zostaw puste, aby dołączyć wszystkie typy publiczne.",
+        "changefreq": "Domyślna częstotliwość zmian",
+        "priority": "Domyślny priorytet",
+        "priorityHint": "od 0.0 do 1.0"
+      },
+      "og": {
+        "title": "Open Graph",
+        "description": "Kontroluj, jak Twoja strona wygląda podczas udostępniania w mediach społecznościowych.",
+        "type": "Domyślny typ Open Graph",
+        "image": "Domyślne zdjęcie Open Graph",
+        "imagePlaceholder": "https://example.com/og-image.jpg"
+      },
+      "twitter": {
+        "title": "Twitter Cards",
+        "card": "Typ karty Twitter",
+        "cardHint": "summary lub summary_large_image"
+      }
     }
   },
   "notFound": {

@@ -1,0 +1,35 @@
+name: Create Release PR
+
+on:
+  push:
+    branches:
+      - 'release/**'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  create-pr:
+    name: Create Pull Request to main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Get version
+        id: version
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Create PR to main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr create \
+            --base main \
+            --head "${{ github.ref_name }}" \
+            --title "chore(release): v${{ steps.version.outputs.version }} — release branch ${{ github.ref_name }}" \
+            --body "Auto-created release PR for v${{ steps.version.outputs.version }}.
+
+Merge this PR into main, then create and push tag v${{ steps.version.outputs.version }} to trigger publish." \
+            --label release || true

@@ -322,6 +322,60 @@
           "remove": "Видалити"
         }
       }
+    },
+    "seo": {
+      "title": "SEO",
+      "description": "Налаштуйте параметри SEO: sitemap, robots.txt, мета-теги та Open Graph.",
+      "back": "← Всі налаштування",
+      "saved": "Налаштування SEO збережено ✓",
+      "loading": "Завантаження…",
+      "save": "Зберегти зміни",
+      "fields": {
+        "siteTitle": "Заголовок сайту",
+        "siteTitlePlaceholder": "Мій сайт",
+        "siteDescription": "Опис сайту",
+        "siteDescriptionPlaceholder": "Новий сайт на OkCMS",
+        "siteUrl": "URL сайту",
+        "siteUrlPlaceholder": "https://example.com",
+        "language": "Мова",
+        "languagePlaceholder": "uk"
+      },
+      "robots": {
+        "title": "robots.txt",
+        "description": "Керуйте тим, як пошукові роботи отримують доступ до вашого сайту.",
+        "enabled": "Увімкнути robots.txt",
+        "enabledHint": "Коли вимкнено, robots.txt не обслуговується.",
+        "rules": "Користувацькі правила robots.txt",
+        "rulesPlaceholder": "User-agent: *\nAllow: /\nSitemap: https://example.com/sitemap.xml",
+        "defaultRobots": "Мета-роботи за замовчуванням",
+        "defaultRobotsHint": "Застосовується до сторінок, у яких немає перевизначення роботів за сторінкою."
+      },
+      "sitemap": {
+        "title": "Карта сайту",
+        "description": "Налаштуйте генерацію XML карти сайту для пошукових систем.",
+        "enabled": "Увімкнути sitemap.xml",
+        "enabledHint": "Коли вимкнено, /sitemap.xml повертає порожній urlset.",
+        "maxItems": "Максимум елементів в карті сайту",
+        "maxItemsPlaceholder": "50000",
+        "includeTypes": "Включити типи контенту",
+        "includeTypesPlaceholder": "post, page",
+        "includeTypesHint": "Слаги типів контенту через кому для включення. Залиште порожнім, щоб включити всі публічні типи.",
+        "changefreq": "Частота зміни за замовчуванням",
+        "priority": "Пріоритет за замовчуванням",
+        "priorityHint": "0.0 до 1.0"
+      },
+      "og": {
+        "title": "Open Graph",
+        "description": "Керуйте тим, як ваш сайт виглядає при публікації в соціальних мережах.",
+        "type": "Тип Open Graph за замовчуванням",
+        "image": "Зображення Open Graph за замовчуванням",
+        "imagePlaceholder": "https://example.com/og-image.jpg"
+      },
+      "twitter": {
+        "title": "Twitter Cards",
+        "card": "Тип картки Twitter",
+        "cardHint": "summary або summary_large_image"
+      }
     }
   },
   "notFound": {

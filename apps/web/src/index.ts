@@ -14,6 +14,7 @@ import { webAuthMiddleware } from '@oktis-works/core';
 import { CMS_VERSION, normalizeLogicalValues } from '@oktis-works/validation';
 import { getConnection, createConnection, runWithTenantTransaction } from '@oktis-works/database';
 import { loadConfig } from '@oktis-works/config';
+import { getHookRegistry } from '@oktis-works/plugin-runtime';
 import {
   createRouter,
   wireThemeHooks,
@@ -307,10 +308,73 @@ async function main() {
     }
   });
 
+  // robots.txt — GET /robots.txt
+  // Serve regras de crawling baseadas nas settings de SEO do tenant.
+  // Suporta filtro SEO_ROBOTS_TXT para plugins modificarem o conteúdo.
+  app.get('/robots.txt', async (c) => {
+    try {
+      const sql = getConnection();
+      const tenantId = String(c.get('tenant')['id']);
+
+      const siteUrlRow = await sql`
+        SELECT value FROM settings WHERE key = 'siteUrl'
+        AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid)
+        ORDER BY tenant_id NULLS LAST LIMIT 1
+      `;
+      const siteUrl = siteUrlRow.map((r: any) => r.value)[0] ?? '';
+
+      const robotsEnabledRow = await sql`
+        SELECT value FROM settings WHERE key = 'seo.robotsEnabled'
+        AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid)
+        ORDER BY tenant_id NULLS LAST LIMIT 1
+      `;
+      const robotsEnabled =
+        robotsEnabledRow.length > 0
+          ? robotsEnabledRow.map((r: any) => r.value)[0] === true || robotsEnabledRow.map((r: any) => r.value)[0] === 'true'
+          : true;
+
+      const robotsRulesRow = await sql`
+        SELECT value FROM settings WHERE key = 'seo.robotsRules'
+        AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid)
+        ORDER BY tenant_id NULLS LAST LIMIT 1
+      `;
+      const customRules = robotsRulesRow.length > 0 ? String(robotsRulesRow.map((r: any) => r.value)[0]) : '';
+
+      const defaultRobotsRow = await sql`
+        SELECT value FROM settings WHERE key = 'seo.defaultRobots'
+        AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid)
+        ORDER BY tenant_id NULLS LAST LIMIT 1
+      `;
+      const defaultRobots = defaultRobotsRow.length > 0 ? String(defaultRobotsRow.map((r: any) => r.value)[0]) : 'index,follow';
+
+      let robotsTxt = '';
+
+      if (!robotsEnabled) {
+        robotsTxt = 'User-agent: *\nDisallow:\n';
+      } else if (customRules.trim().length > 0) {
+        robotsTxt = customRules.trim();
+      } else {
+        const disallow = defaultRobots.includes('noindex') ? 'Disallow: /\n' : 'Allow: /\n';
+        const sitemapLine = siteUrl ? `Sitemap: ${siteUrl}/sitemap.xml\n` : '';
+        robotsTxt = `User-agent: *\n${disallow}${sitemapLine}`;
+      }
+
+      // Filtro de plugin para modificar o conteúdo do robots.txt
+      const registry = getHookRegistry();
+      robotsTxt = String(registry.applyFilters('okcms.seo.robots.txt', robotsTxt, { siteUrl, tenantId }));
+
+      return c.text(robotsTxt, 200, { 'Content-Type': 'text/plain; charset=utf-8' });
+    } catch (error) {
+      console.error('[web] robots.txt generation failed:', error);
+      return c.text('User-agent: *\nAllow: /\n', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
+    }
+  });
+
   // Sitemap — GET /sitemap.xml
   // Lista hubs (/{base}/) + itens publicados com paths canônicos completos.
-  // Exclui fontes de redirect (source_path de url_redirects).
-  // Paginação (?page=N) → canonical self (não gera URLs separadas).
+  // Configurável via settings: seo.sitemapEnabled, seo.sitemapMaxItems,
+  // seo.sitemapIncludeTypes, seo.defaultChangefreq, seo.defaultPriority.
+  // Suporta filtro okcms.seo.sitemap.urls para plugins adicionarem/removerem URLs.
   app.get('/sitemap.xml', async (c) => {
     try {
       const sql = getConnection();
@@ -318,9 +382,56 @@ async function main() {
       const siteUrl = (await sql`SELECT value FROM settings WHERE key = 'siteUrl' AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid) ORDER BY tenant_id NULLS LAST LIMIT 1`)
         .map((r: any) => r.value)[0] ?? '';
 
+      // Verifica se o sitemap está habilitado
+      const sitemapEnabledRow = await sql`
+        SELECT value FROM settings WHERE key = 'seo.sitemapEnabled'
+        AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid)
+        ORDER BY tenant_id NULLS LAST LIMIT 1
+      `;
+      const sitemapEnabled =
+        sitemapEnabledRow.length > 0
+          ? sitemapEnabledRow.map((r: any) => r.value)[0] === true || sitemapEnabledRow.map((r: any) => r.value)[0] === 'true'
+          : true;
+
+      if (!sitemapEnabled) {
+        return c.text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>', 200, { 'Content-Type': 'application/xml' });
+      }
+
       if (!siteUrl) {
         return c.text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>', 200, { 'Content-Type': 'application/xml' });
       }
+
+      // Limite de itens
+      const maxItemsRow = await sql`
+        SELECT value FROM settings WHERE key = 'seo.sitemapMaxItems'
+        AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid)
+        ORDER BY tenant_id NULLS LAST LIMIT 1
+      `;
+      const maxItems = maxItemsRow.length > 0 ? Number(maxItemsRow.map((r: any) => r.value)[0]) : 50000;
+
+      // Tipos de conteúdo incluídos (CSV)
+      const includeTypesRow = await sql`
+        SELECT value FROM settings WHERE key = 'seo.sitemapIncludeTypes'
+        AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid)
+        ORDER BY tenant_id NULLS LAST LIMIT 1
+      `;
+      const includeTypesRaw = includeTypesRow.length > 0 ? String(includeTypesRow.map((r: any) => r.value)[0]) : '';
+      const includeTypes = includeTypesRaw.split(',').map((s) => s.trim()).filter(Boolean);
+
+      // Defaults
+      const defaultChangefreqRow = await sql`
+        SELECT value FROM settings WHERE key = 'seo.defaultChangefreq'
+        AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid)
+        ORDER BY tenant_id NULLS LAST LIMIT 1
+      `;
+      const defaultChangefreq = defaultChangefreqRow.length > 0 ? String(defaultChangefreqRow.map((r: any) => r.value)[0]) : 'weekly';
+
+      const defaultPriorityRow = await sql`
+        SELECT value FROM settings WHERE key = 'seo.defaultPriority'
+        AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid)
+        ORDER BY tenant_id NULLS LAST LIMIT 1
+      `;
+      const defaultPriority = defaultPriorityRow.length > 0 ? String(defaultPriorityRow.map((r: any) => r.value)[0]) : '0.5';
 
       // 1) Hub pages (metadata.hub_type)
       const hubRows = await sql`
@@ -335,15 +446,25 @@ async function main() {
       const hubSlugs = hubRows.map((r: any) => r.slug);
       const hubSlugCondition = hubSlugs.length > 0 ? `AND slug NOT IN (${hubSlugs.map(() => '?').join(',')})` : '';
 
+      let typeCondition = '';
+      const typeParams: unknown[] = [tenantId];
+      if (includeTypes.length > 0) {
+        typeCondition = `AND type IN (${includeTypes.map(() => `$${typeParams.length + 1}`).join(',')})`;
+        includeTypes.forEach((t) => typeParams.push(t));
+      } else {
+        typeCondition = `AND type != 'page'`;
+      }
+
       const itemRows = await sql.unsafe(
         `SELECT id, type, slug, published_at, updated_at, parent_id
          FROM content
          WHERE status = 'PUBLISHED'
            AND tenant_id = $1
-           AND type != 'page'
+           ${typeCondition}
            ${hubSlugCondition}
-         ORDER BY published_at DESC NULLS LAST, updated_at DESC`,
-        [tenantId, ...hubSlugs]
+         ORDER BY published_at DESC NULLS LAST, updated_at DESC
+         LIMIT $${typeParams.length + 1}`,
+        [...typeParams, maxItems]
       );
 
       // 3) Redirect sources to exclude
@@ -362,7 +483,7 @@ async function main() {
         const slug = row['slug'] as string;
         const path = `/${slug}/`;
         if (!redirectSources.has(path.replace(/^\//, ''))) {
-          urls.push(`  <url>\n    <loc>${escapeXml(siteUrl + path)}</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.9</priority>\n  </url>`);
+          urls.push(`  <url>\n    <loc>${escapeXml(siteUrl + path)}</loc>\n    <changefreq>${defaultChangefreq}</changefreq>\n    <priority>${defaultPriority}</priority>\n  </url>`);
         }
       }
 
@@ -390,8 +511,15 @@ async function main() {
 
         if (!redirectSources.has(path.replace(/^\//, ''))) {
           const lastmod = (row['published_at'] ?? row['updated_at']) as string | null;
-          urls.push(`  <url>\n    <loc>${escapeXml(siteUrl + path)}</loc>\n    <lastmod>${lastmod ? new Date(lastmod).toISOString().split('T')[0] : now}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.7</priority>\n  </url>`);
+          urls.push(`  <url>\n    <loc>${escapeXml(siteUrl + path)}</loc>\n    <lastmod>${lastmod ? new Date(lastmod).toISOString().split('T')[0] : now}</lastmod>\n    <changefreq>${defaultChangefreq}</changefreq>\n    <priority>${defaultPriority}</priority>\n  </url>`);
         }
+      }
+
+      // Filtro de plugin para adicionar/remover URLs do sitemap
+      const registry = getHookRegistry();
+      const pluginUrls = registry.applyFilters('okcms.seo.sitemap.urls', [], { siteUrl, tenantId, urls }) as string[];
+      if (Array.isArray(pluginUrls)) {
+        urls.push(...pluginUrls);
       }
 
       const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>`;
