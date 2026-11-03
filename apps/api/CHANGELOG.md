@@ -1,5 +1,21 @@
 # @oktis-works/api
 
+## 0.18.1
+
+### Patch Changes
+
+- f2d3d8d: Fix rate-limit store initialization: `getStore()` now guarantees a non-null
+  store by falling back to `MemoryStore` when Redis is unavailable, and
+  `initRedisClient()` is called explicitly in the API boot before rate-limit
+  middleware is registered. This prevents `TypeError: null is not an object
+  (evaluating '(await getStore()).consume')` on `/api/v1/*` routes when Redis
+  is not yet ready.
+- Updated dependencies [f2d3d8d]
+- Updated dependencies [8ee30e4]
+  - @oktis-works/config@0.7.1
+  - @oktis-works/database@0.16.2
+  - @oktis-works/core@0.18.1
+
 ## 0.18.0
 
 ### Minor Changes

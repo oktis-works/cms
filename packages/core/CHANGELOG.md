@@ -1,5 +1,14 @@
 # @oktis-works/core
 
+## 0.18.1
+
+### Patch Changes
+
+- Updated dependencies [f2d3d8d]
+- Updated dependencies [8ee30e4]
+  - @oktis-works/config@0.7.1
+  - @oktis-works/database@0.16.2
+
 ## 0.18.0
 
 ### Minor Changes
