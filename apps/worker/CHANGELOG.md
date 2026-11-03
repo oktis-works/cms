@@ -1,5 +1,18 @@
 # @oktis-works/worker
 
+## 0.8.18
+
+### Patch Changes
+
+- Fix tenant context establishment during bootstrap and rate-limit store initialization
+  
+  - Establish default tenant context in core bootstrap before syncing plugins
+  - Establish default tenant context in API and Worker entry points after bootstrap
+  - Fix rate-limit store to always return valid MemoryStore fallback when Redis unavailable
+  - Replace @ts-ignore with @ts-expect-error in rate-limit middleware
+- Updated dependencies
+  - @oktis-works/core@0.18.2
+
 ## 0.8.17
 
 ### Patch Changes

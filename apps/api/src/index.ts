@@ -123,6 +123,17 @@ export function mountPluginRoutes(app: import('hono').Hono): void {
 async function main() {
   // Initialize application
   const lifecycle = await bootstrap();
+  const _config = loadConfig();
+
+  // Establish default tenant context for platform-level initialization
+  const { resolveTenantId } = await import('@oktis-works/database');
+  const { establishTenantContext } = await import('@oktis-works/core');
+  try {
+    const defaultTenantId = await resolveTenantId('default');
+    await establishTenantContext(defaultTenantId);
+  } catch (error) {
+    console.warn('[api] Failed to establish default tenant context during boot:', error instanceof Error ? error.message : String(error));
+  }
 
   // Ensure Redis client is initialized before rate-limit middleware is registered
   // so getRedisClient() returns a valid client and RedisStore.enabled is true.
