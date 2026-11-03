@@ -1,39 +1,32 @@
-# Infra de dev do monorepo — usada pelo `bun run dev` dos apps, pelos scripts
-# e2e (scripts/e2e-api.mjs) e pela CLI (`docker compose up -d postgres redis`).
-#
-# O deploy real NÃO usa este arquivo: os apps entram em contêiner pelos compose
-# gerados no projeto (docker-compose.infra.yml / docker-compose.app.yml — em
-# infrastructure/compose/ estão os templates que a CLI copia).
-
 services:
-  postgres:
+  db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: okcms
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${DB_NAME:-okcms}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U okcms"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
-      - redis_data:/data
+      - redisdata:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
 volumes:
-  postgres_data:
-  redis_data:
+  pgdata:
+  redisdata:

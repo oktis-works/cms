@@ -467,10 +467,10 @@ export interface InputOptions {
 // ---------------------------------------------------------------------------
 
 export class Prompt {
-  private readonly io: PromptIO;
-  private readonly useClack: boolean;
-  private readonly simpleInput: SimpleInput | null;
-  private closed = false;
+  protected io: PromptIO;
+  protected useClack: boolean;
+  protected simpleInput: SimpleInput | null;
+  protected closed = false;
 
   constructor(io?: Partial<PromptIO>) {
     this.io = { ...defaultIO(), ...io };
@@ -1133,6 +1133,434 @@ export class Prompt {
     }
 
     return result === true;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// WizardPrompt — caixa decorada com ◈ ◇ │ → ● (compatível com Prompt API)
+// ---------------------------------------------------------------------------
+
+/**
+ * WizardPrompt provides the same prompt interface as Prompt but renders
+ * with the wizard's box-drawing style (◈ ◇ │ → ●) for visual consistency
+ * with the main wizard menu.
+ */
+export class WizardPrompt extends Prompt {
+  private readonly boxTop = '┌';
+  private readonly boxBottom = '└';
+  private readonly boxSide = '│';
+  private readonly boxTopLeft = '├';
+  private readonly boxTopRight = '┤';
+  private readonly boxBottomLeft = '└';
+  private readonly boxBottomRight = '┘';
+  private readonly promptPrefix = '→';
+  private readonly selectionMarker = '●';
+  private readonly unselectedMarker = '◇';
+  private readonly boxWidth = 60;
+
+  constructor(io?: Partial<PromptIO>) {
+    // Initialize PromptIO but override the simpleInput creation to always have it
+    const mergedIO = { ...defaultIO(), ...io };
+    super(mergedIO);
+
+    // WizardPrompt forces its own rendering - always create simpleInput for raw mode
+    const inputStream = mergedIO.input as RawStream;
+    this.useClack = false; // Never use clack, use our own rendering
+    this.closed = false;
+
+    this.simpleInput = new SimpleInput(inputStream, (text) => {
+      this.io.output.write(text);
+    });
+  }
+
+  /** Draws a box with the given lines inside. */
+  private drawBox(lines: string[]): void {
+    const width = Math.max(this.boxWidth, ...lines.map(l => visibleLength(l))) + 4;
+    const top = `${this.boxTop}${'─'.repeat(width - 2)}${this.boxTop}`;
+    const bottom = `${this.boxBottom}${'─'.repeat(width - 2)}${this.boxBottom}`;
+
+    this.io.output.write(`\n${style.cyan(top)}\n`);
+    for (const line of lines) {
+      const padded = line.padEnd(width - 4);
+      this.io.output.write(`${style.cyan(this.boxSide)}  ${padded}  ${style.cyan(this.boxSide)}\n`);
+    }
+    this.io.output.write(`${style.cyan(bottom)}\n`);
+  }
+
+  /** Draws a prompt box with title and input area. */
+  private drawPromptBox(title: string, inputLine: string, hint?: string): void {
+    const lines = [style.bold(`◈ ${title}`)];
+    if (hint) {
+      lines.push(style.dim(hint));
+    }
+    lines.push(''); // empty line for input
+    lines.push(`  ${style.cyan(this.promptPrefix)} ${inputLine}`);
+    this.drawBox(lines);
+  }
+
+  /** Renders select options with box-drawing style. */
+  private renderSelectOptions(
+    title: string,
+    choices: Array<SelectChoice<any>>,
+    selectedIndex: number,
+    hint?: string
+  ): void {
+    const lines = [style.bold(`◈ ${title}`)];
+    if (hint) {
+      lines.push(style.dim(hint));
+    }
+    lines.push('');
+
+    for (let i = 0; i < choices.length; i++) {
+      const choice = choices[i]!;
+      const isSelected = i === selectedIndex;
+      const marker = isSelected
+        ? style.green(this.selectionMarker)
+        : style.dim(this.unselectedMarker);
+      const label = isSelected ? style.bold(choice.label) : choice.label;
+      const hintPart = choice.hint ? style.dim(` ${choice.hint}`) : '';
+      lines.push(`  ${marker} ${label}${hintPart}`);
+    }
+
+    this.drawBox(lines);
+  }
+
+  /** Clears the last N lines from terminal output. */
+  private clearLines(count: number): void {
+    for (let i = 0; i < count; i++) {
+      this.io.output.write('\x1b[1A\x1b[2K'); // move up, clear line
+    }
+  }
+
+  /** Select with box-drawing style. */
+  override async select<T>(
+    title: string,
+    choices: Array<SelectChoice<T>>,
+    opts: SelectOptions<T> = {}
+  ): Promise<T> {
+    if (!this.io.isTTY) {
+      // Non-interactive: use parent's fallback
+      return super.select(title, choices, opts);
+    }
+
+    // Use raw mode for arrow key navigation
+    const inputStream = this.io.input as any;
+    if (!inputStream.isTTY || !inputStream.setRawMode) {
+      return super.select(title, choices, opts);
+    }
+
+    let index = 0;
+    const initial = opts.defaultValue;
+    if (initial !== undefined) {
+      const found = choices.findIndex((c) => c.value === initial);
+      if (found >= 0) index = found;
+    }
+
+    const hint = opts.defaultValue !== undefined
+      ? `Default: ${String(opts.defaultValue)} (press Enter)`
+      : 'Use ↑/↓ arrows, Enter to select';
+
+    // Initial render
+    this.renderSelectOptions(title, choices, index, hint);
+
+    // Enable raw mode
+    inputStream.setRawMode(true);
+    this.simpleInput!.raw = true;
+
+    try {
+      while (true) {
+        const key = await this.simpleInput!.readKey();
+
+        if (key === 'eof') {
+          break;
+        }
+
+        if (key === 'up' || key === 'k') {
+          index = (index - 1 + choices.length) % choices.length;
+          // Clear and re-render
+          this.clearLines(choices.length + 4); // box height approx
+          this.renderSelectOptions(title, choices, index, hint);
+          continue;
+        }
+
+        if (key === 'down' || key === 'j') {
+          index = (index + 1) % choices.length;
+          this.clearLines(choices.length + 4);
+          this.renderSelectOptions(title, choices, index, hint);
+          continue;
+        }
+
+        if (key === 'enter' || key === '\r' || key === '\n') {
+          inputStream.setRawMode(false);
+          this.simpleInput!.raw = false;
+          this.io.output.write('\n');
+          return choices[index]!.value;
+        }
+
+        if (key === 'escape' || key === 'ctrl-c') {
+          inputStream.setRawMode(false);
+          this.simpleInput!.raw = false;
+          this.io.output.write('\n');
+          if (opts.cancelValue !== undefined) return opts.cancelValue;
+          throw new CancelError();
+        }
+
+        // Numbered input (1, 2, 3...)
+        const num = Number.parseInt(key, 10);
+        if (!Number.isNaN(num) && num >= 1 && num <= choices.length) {
+          inputStream.setRawMode(false);
+          this.simpleInput!.raw = false;
+          this.io.output.write('\n');
+          return choices[num - 1]!.value;
+        }
+      }
+    } finally {
+      inputStream.setRawMode(false);
+      this.simpleInput!.raw = false;
+    }
+
+    // Fallback to numbered menu
+    this.io.output.write('\n');
+    return super.select(title, choices, opts);
+  }
+
+  /** Text input with box-drawing style. */
+  override async ask(title: string, opts: InputOptions = {}): Promise<string> {
+    if (!this.io.isTTY) {
+      return super.ask(title, opts);
+    }
+
+    const inputStream = this.io.input as any;
+    if (!inputStream.isTTY || !inputStream.setRawMode) {
+      return super.ask(title, opts);
+    }
+
+    const placeholder = opts.placeholder ?? '';
+    const defaultValue = opts.default ?? '';
+    let value = defaultValue;
+    const hint = placeholder ? `Placeholder: ${placeholder}` : (defaultValue ? `Default: ${defaultValue}` : '');
+
+    this.drawPromptBox(title, value, hint);
+
+    inputStream.setRawMode(true);
+    this.simpleInput!.raw = true;
+
+    try {
+      while (true) {
+        const key = await this.simpleInput!.readKey();
+
+        if (key === 'eof') {
+          this.io.output.write('\n');
+          break;
+        }
+
+        if (key === 'enter' || key === '\r' || key === '\n') {
+          inputStream.setRawMode(false);
+          this.simpleInput!.raw = false;
+          this.io.output.write('\n');
+          const trimmed = value.trim();
+          const finalValue = trimmed === '' ? defaultValue : trimmed;
+          const problem = opts.validate?.(finalValue);
+          if (problem) {
+            this.io.output.write(`  ${style.red(symbol.fail)} ${problem}\n`);
+            // Re-draw
+            this.drawPromptBox(title, value, hint);
+            inputStream.setRawMode(true);
+            this.simpleInput!.raw = true;
+            continue;
+          }
+          return finalValue;
+        }
+
+        if (key === 'escape' || key === 'ctrl-c') {
+          inputStream.setRawMode(false);
+          this.simpleInput!.raw = false;
+          this.io.output.write('\n');
+          if (opts.default !== undefined) return opts.default;
+          throw new CancelError();
+        }
+
+        if (key === 'backspace') {
+          if (value.length > 0) {
+            value = value.slice(0, -1);
+            // Re-draw with updated value
+            this.clearLines(6); // approx box height
+            this.drawPromptBox(title, value, hint);
+          }
+          continue;
+        }
+
+        if (key.length === 1 && key >= ' ' && key <= '~') {
+          value += key;
+          this.clearLines(6);
+          this.drawPromptBox(title, value, hint);
+        }
+      }
+    } finally {
+      inputStream.setRawMode(false);
+      this.simpleInput!.raw = false;
+    }
+
+    return super.ask(title, opts);
+  }
+
+  /** Secret input with box-drawing style (masks with *). */
+  override async secret(title: string, opts: InputOptions = {}): Promise<string> {
+    if (!this.io.isTTY) {
+      return super.secret(title, opts);
+    }
+
+    const inputStream = this.io.input as any;
+    if (!inputStream.isTTY || !inputStream.setRawMode) {
+      return super.secret(title, opts);
+    }
+
+    const placeholder = opts.placeholder ?? '';
+    const defaultValue = opts.default ?? '';
+    let value = '';
+    const hint = placeholder ? `Placeholder: ${placeholder}` : (defaultValue ? 'Enter to keep current' : '');
+
+    this.drawPromptBox(title, '', hint);
+
+    inputStream.setRawMode(true);
+    this.simpleInput!.raw = true;
+
+    try {
+      while (true) {
+        const key = await this.simpleInput!.readKey();
+
+        if (key === 'eof') {
+          this.io.output.write('\n');
+          break;
+        }
+
+        if (key === 'enter' || key === '\r' || key === '\n') {
+          inputStream.setRawMode(false);
+          this.simpleInput!.raw = false;
+          this.io.output.write('\n');
+          const trimmed = value.trim();
+          const finalValue = trimmed === '' && defaultValue !== '' ? defaultValue : trimmed;
+          const problem = opts.validate?.(finalValue);
+          if (problem) {
+            this.io.output.write(`  ${style.red(symbol.fail)} ${problem}\n`);
+            this.drawPromptBox(title, '', hint);
+            inputStream.setRawMode(true);
+            this.simpleInput!.raw = true;
+            continue;
+          }
+          return finalValue;
+        }
+
+        if (key === 'escape' || key === 'ctrl-c') {
+          inputStream.setRawMode(false);
+          this.simpleInput!.raw = false;
+          this.io.output.write('\n');
+          if (opts.default !== undefined) return opts.default;
+          throw new CancelError();
+        }
+
+        if (key === 'backspace') {
+          if (value.length > 0) {
+            value = value.slice(0, -1);
+            this.clearLines(6);
+            this.drawPromptBox(title, '*'.repeat(value.length), hint);
+          }
+          continue;
+        }
+
+        if (key.length === 1 && key >= ' ' && key <= '~') {
+          value += key;
+          this.clearLines(6);
+          this.drawPromptBox(title, '*'.repeat(value.length), hint);
+        }
+      }
+    } finally {
+      inputStream.setRawMode(false);
+      this.simpleInput!.raw = false;
+    }
+
+    return super.secret(title, opts);
+  }
+
+  /** Confirm with box-drawing style. */
+  override async confirm(title: string, opts: { defaultValue?: boolean } = {}): Promise<boolean> {
+    if (!this.io.isTTY) {
+      return super.confirm(title, opts);
+    }
+
+    const inputStream = this.io.input as any;
+    if (!inputStream.isTTY || !inputStream.setRawMode) {
+      return super.confirm(title, opts);
+    }
+
+    const defaultValue = opts.defaultValue ?? false;
+    const hint = defaultValue === undefined ? '[y/n]' : defaultValue ? '[Y/n]' : '[y/N]';
+    let value = defaultValue;
+
+    const lines = [
+      style.bold(`◈ ${title}`),
+      style.dim(hint),
+      '',
+      `  ${style.cyan(this.promptPrefix)} ${style.bold(value ? 'Yes' : 'No')}`
+    ];
+    this.drawBox(lines);
+
+    inputStream.setRawMode(true);
+    this.simpleInput!.raw = true;
+
+    try {
+      while (true) {
+        const key = await this.simpleInput!.readKey();
+
+        if (key === 'eof') {
+          this.io.output.write('\n');
+          break;
+        }
+
+        if (key === 'enter' || key === '\r' || key === '\n') {
+          inputStream.setRawMode(false);
+          this.simpleInput!.raw = false;
+          this.io.output.write('\n');
+          return value;
+        }
+
+        if (key === 'escape' || key === 'ctrl-c') {
+          inputStream.setRawMode(false);
+          this.simpleInput!.raw = false;
+          this.io.output.write('\n');
+          if (opts.defaultValue !== undefined) return opts.defaultValue;
+          throw new CancelError();
+        }
+
+        const lower = key.toLowerCase();
+        if (lower === 'y' || lower === 'yes') {
+          value = true;
+          this.clearLines(5);
+          const newLines = [
+            style.bold(`◈ ${title}`),
+            style.dim(hint),
+            '',
+            `  ${style.cyan(this.promptPrefix)} ${style.bold('Yes')}`
+          ];
+          this.drawBox(newLines);
+        } else if (lower === 'n' || lower === 'no') {
+          value = false;
+          this.clearLines(5);
+          const newLines = [
+            style.bold(`◈ ${title}`),
+            style.dim(hint),
+            '',
+            `  ${style.cyan(this.promptPrefix)} ${style.bold('No')}`
+          ];
+          this.drawBox(newLines);
+        }
+      }
+    } finally {
+      inputStream.setRawMode(false);
+      this.simpleInput!.raw = false;
+    }
+
+    return super.confirm(title, opts);
   }
 }
 

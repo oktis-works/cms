@@ -83,3 +83,8 @@ apps/admin/src/**/*.jsx.map
 apps/admin/src/**/*.js
 apps/admin/src/**/*.js.map
 !apps/admin/.astro/types.d.ts
+
+# okcms init
+deploy/nginx/conf.d/default.conf
+.data/
+.deploy/
