@@ -27,6 +27,17 @@ export async function bootstrap(_options: BootstrapOptions = {}): Promise<Applic
   // de registry por tenant. Antes de qualquer carga de plugin.
   installHookRuntimeWiring();
 
+  // Establish default tenant context BEFORE syncing platform plugins
+  // so that plugin operations have access to tenant context.
+  const { resolveTenantId } = await import('@oktis-works/database');
+  const { establishTenantContext } = await import('@oktis-works/core');
+  try {
+    const defaultTenantId = await resolveTenantId('default');
+    await establishTenantContext(defaultTenantId);
+  } catch (error) {
+    console.warn('[bootstrap] Failed to establish default tenant context:', error instanceof Error ? error.message : String(error));
+  }
+
   // Plugins habilitados da plataforma (plugin_tenants/ACTIVATED) entram no
   // registry platform. Internamente nunca lança: plugin quebrado ou banco
   // indisponível não impedem o boot (isolamento de falha). Os plugins por

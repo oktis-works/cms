@@ -3,11 +3,11 @@
 // by `bun run build`. Used as the offline fallback for `okcms init` ranges
 // when the npm registry cannot be reached.
 export const APP_VERSIONS: Record<string, string> = {
-  '@oktis-works/api': '0.18.1',
+  '@oktis-works/api': '0.18.2',
   '@oktis-works/admin': '0.26.0',
   '@oktis-works/web': '0.15.0',
-  '@oktis-works/worker': '0.8.17',
-  '@oktis-works/core': '0.18.1',
+  '@oktis-works/worker': '0.8.18',
+  '@oktis-works/core': '0.18.2',
   '@oktis-works/plugin-runtime': '0.8.1',
-  '@oktis-works/cms': '0.15.3',
+  '@oktis-works/cms': '0.15.4',
 };

@@ -24,6 +24,16 @@ async function main() {
   const lifecycle = await bootstrap();
   const config = loadConfig();
 
+  // Establish default tenant context for platform-level initialization
+  const { resolveTenantId } = await import('@oktis-works/database');
+  const { establishTenantContext } = await import('@oktis-works/core');
+  try {
+    const defaultTenantId = await resolveTenantId('default');
+    await establishTenantContext(defaultTenantId);
+  } catch (error) {
+    console.warn('[worker] Failed to establish default tenant context during boot:', error instanceof Error ? error.message : String(error));
+  }
+
   // Garante que a conexão com o banco está ativa neste processo (o bootstrap
   // do core já chama createConnection, mas reafirmamos aqui para cobrir o caso
   // de cópias duplicadas do módulo @oktis-works/database em workspaces).

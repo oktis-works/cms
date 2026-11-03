@@ -152,7 +152,8 @@ async function getStore(): Promise<RateLimitStore> {
     try {
       const redisStore = new RedisStore();
       await redisStore.init();
-      if (redisStore['enabled']) {
+      // @ts-expect-error - accessing private enabled for check
+      if (redisStore.enabled) {
         store = redisStore;
         console.log('[RateLimit] Using Redis store');
         return store;
@@ -166,7 +167,12 @@ async function getStore(): Promise<RateLimitStore> {
     console.log('[RateLimit] Using in-memory store (Redis unavailable)');
   }
 
-  return store!;
+  // Ensure store is assigned even if initialization is in progress or failed
+  if (!store) {
+    store = new MemoryStore();
+  }
+
+  return store;
 }
 
 export interface RateLimitOptions {
