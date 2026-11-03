@@ -149,6 +149,7 @@
         "okcms": "./dist/index.js",
       },
       "dependencies": {
+        "@clack/prompts": "1.8.1",
         "@oktis-works/auth": "workspace:*",
         "@oktis-works/config": "workspace:*",
         "@oktis-works/core": "workspace:*",
@@ -197,7 +198,7 @@
       "dependencies": {
         "@oktis-works/config": "^0.7.0",
         "@oktis-works/types": "^0.10.0",
-        "mariadb": "^3.4.2",
+        "mariadb": "^3.5.4",
         "mysql2": "^3.14.1",
         "postgres": "3.4.0",
       },
