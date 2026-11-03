@@ -6,11 +6,15 @@ name: Publish to npm
 #     Organization/user: oktis-works | Repository: cms | Workflow filename: publish.yml
 #     e permitir EXPLICITAMENTE a ação "npm publish"
 #     (configs criadas após 03/09/2026 vêm só com "npm stage publish").
-# Disparado pelo CI via repository_dispatch ao passar em tag vX.Y.Z.
+# Disparado por:
+#   • repository_dispatch (publish-release) — CI trigger-publish após tag ou push em main
+#   • push direto na branch main (quando não há tag, usa versão do package.json)
 
 on:
   repository_dispatch:
     types: [publish-release]
+  push:
+    branches: [main]
 
 permissions:
   contents: read
@@ -25,13 +29,29 @@ jobs:
     name: Publish workspaces (OIDC)
     runs-on: ubuntu-latest
     env:
-      # Tag vem do repository_dispatch (CI)
-      RELEASE_TAG: ${{ github.event.client_payload.tag }}
+      # Versão vem do client-payload (tag) ou do package.json (push em main)
+      RELEASE_TAG: ${{ github.event.client_payload.tag || '' }}
+      PACKAGE_VERSION: ${{ github.event.client_payload.tag || '' }}
     steps:
-      # Publica exatamente o código da tag (dispatch sem ref cai no default branch)
-      - uses: actions/checkout@v7
+      - name: Checkout
+        uses: actions/checkout@v7
         with:
-          ref: refs/tags/${{ env.RELEASE_TAG }}
+          ref: ${{ github.event.client_payload.tag && format('refs/tags/{0}', github.event.client_payload.tag) || 'refs/heads/main' }}
+
+      - name: Extract version from package.json
+        id: version
+        run: |
+          echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Determine release tag
+        id: tag
+        run: |
+          TAG="${{ env.RELEASE_TAG }}"
+          if [ -z "$TAG" ]; then
+            TAG="v$(node -p "require('./package.json').version")"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "RELEASE_TAG=$TAG" >> $GITHUB_OUTPUT
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -44,7 +64,8 @@ jobs:
       - name: npm >= 11.5.1 (requisito do Trusted Publishing)
         run: npm install -g npm@latest
 
-      - name: Validar sistema de versionamento
+      - name: Validar sistema de versionamento (quando há tag)
+        if: github.event.client_payload.tag != ''
         run: node scripts/prepare-publish.mjs --check --tag "$RELEASE_TAG"
 
       - name: Install dependencies
@@ -56,7 +77,7 @@ jobs:
 
       # Testes/typecheck/lint rodam só no ci.yml (gate via repository_dispatch)
       - name: Preparar manifests (workspace:* → versão concreta)
-        run: node scripts/prepare-publish.mjs --tag "$RELEASE_TAG"
+        run: node scripts/prepare-publish.mjs --tag "${{ steps.tag.outputs.tag }}"
 
       - name: npm publish (idempotente — pula o que já está no registry)
         run: |

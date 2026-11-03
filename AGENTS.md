@@ -5,6 +5,7 @@ This document defines strict operational rules and workflows that the AI Agent m
 ## 1. Commit Message Standard
 * **Language:** Every commit message must be written in English.
 * **Format:** Use the full Conventional Commits specification. This includes types such as `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`, etc.
+* **CMS_VERSION check before commit:** Before every commit, verify that `CMS_VERSION` is in sync across the three anchors (root `CMS_VERSION` file, `packages/validation/src/compatibility.ts`, and README.md title). Run `bun run sync-version --write` if the root `package.json` version was changed. Never commit without confirming `bun run sync-version` (validate mode) passes.
 
 ## 2. Versioning Model (memorize this — the release gate validates it)
 * **Product version anchor:** the `version` in the ROOT `package.json` (private workspace `okcms`, never published). It carries product semantics and is the ONLY source of truth for releases.
@@ -25,33 +26,38 @@ Before preparing or recommending a push to GitHub, evaluate if the updates trigg
 * On a `v*` tag push with all jobs green, the `trigger-publish` job sends a `repository_dispatch` (`publish-release`) that fires `publish.yml`.
 
 ### Publish chain (`.github/workflows/publish.yml`)
-`tag push → ci.yml (test + typecheck + lint) → trigger-publish → repository_dispatch → publish.yml`:
-1. Checkout the exact tag ref.
-2. `prepare-publish.mjs --check --tag vX.Y.Z` — blocking validation (semver, tag === product version, CMS_VERSION === product version).
-3. `bun install --frozen-lockfile` + `bun run build`.
-4. `prepare-publish.mjs --tag` rewrites `workspace:*` → `^version` (npm does not understand the workspace protocol).
-5. `npm publish --provenance` (OIDC Trusted Publishing — no NPM token) for every non-private package in `. + packages/* + apps/*`, idempotent (skips versions already in the registry).
-6. Final verification: expected version vs `npm view` latest for each package.
+`tag push ou push na main → ci.yml (test + typecheck + lint) → trigger-publish → repository_dispatch → publish.yml`:
+1. Checkout do ref exato (tag `vX.Y.Z` ou branch `main`)
+2. `prepare-publish.mjs --check --tag vX.Y.Z` — validação bloqueante (somente quando há tag; sem tag na main, valida versão do package.json)
+3. `bun install --frozen-lockfile` + `bun run build`
+4. `prepare-publish.mjs --tag` reescreve `workspace:*` → `^version` (npm não entende o protocolo workspace)
+5. `npm publish --provenance` (OIDC Trusted Publishing — sem NPM token) para todo pacote não-privado em `. + packages/* + apps/*`, idempotente (pula versões já no registry)
+6. Verificação final: versão esperada vs `npm view` latest para cada pacote
 
-Pushes to `main` run CI but NEVER publish — publishing requires a tag.
+Pushes de tag `v*` **ou** push na branch `main` disparam o CI e, se verde, disparam o publish automaticamente — **não é mais necessário criar uma tag manualmente** para publicar; basta fazer merge de um PR para `main` com a versão bumpada.
 
-### Release via Branch + Pull Request (alternativa à tag direta)
+Pushes de tag `v*` continuam funcionando como antes (disparam CI + publish). Pushes em `main` disparam CI + publish direto via `prepare-publish.mjs --tag` com a versão do root `package.json`.
+
+**Regras:**
+* Nunca reutilize uma tag queimada (CI falhou). Pule para a próxima versão (patch/minor) — nunca re-pushe a mesma tag.
+* Para publish via `main`, garanta que a versão no root `package.json` esteja correta antes do merge (o changeset e o `version-packages` cuidam disso).
+
+### Release via Branch + Pull Request (fluxo principal)
 
 Quando não se deseja fazer tag direta no `main`, use este fluxo:
 
-1. Crie uma branch de release a partir de `main`: `git checkout -b release/vX.Y.Z && git checkout -b release/vX.Y.Z`
+1. Crie uma branch de release a partir de `main`: `git checkout -b release/vX.Y.Z`
 2. Implemente as mudanças, crie changesets em `.changeset/*.md`, bump a versão no root `package.json` e rode `bun run sync-version --write`.
 3. Commit com mensagem conventional (ex: `chore(release): vX.Y.Z`) e faça push da branch: `git push origin release/vX.Y.Z`.
 4. O workflow `.github/workflows/create-release-pr.yml` abre automaticamente um PR da branch de release para `main`. O CI roda no PR (test, typecheck, lint).
 5. Após revisão e aprovação, faça merge do PR para `main`.
-6. No `main`, crie e push a tag: `git tag vX.Y.Z && git push origin main --tags`.
-7. A tag dispara o `ci.yml` → `trigger-publish` → `repository_dispatch` → `publish.yml` (npm publish).
+6. O publish dispara automaticamente no merge para `main` via `ci.yml` → `trigger-publish` → `repository_dispatch` → `publish.yml` (npm publish). **Não é mais necessário criar uma tag manualmente.**
 
 **Regras:**
 * O CI é disparado em `pull_request` para `main`, `develop` e `release/**` (veja `.github/workflows/ci.yml`).
 * O PR é criado automaticamente pelo workflow `create-release-pr.yml` ao fazer push em qualquer branch `release/**`.
-* A tag `vX.Y.Z` deve exatamente bater com a versão no root `package.json` (validação bloqueante em `prepare-publish.mjs --check --tag`).
-* Nunca reutilize uma tag queimada (CI falhou). Pule para a próxima versão.
+* A versão no root `package.json` deve estar correta antes do merge (o changeset e o `version-packages` cuidam disso).
+* Nunca reutilize uma versão já publicada (CI falhou). Pule para a próxima versão (patch/minor).
 
 ### Release checklist (execute in this exact order)
 1. Ensure a changeset exists for every changed package (`.changeset/*.md`).
@@ -61,8 +67,9 @@ Quando não se deseja fazer tag direta no `main`, use este fluxo:
 5. Pre-validate the gate locally: `node scripts/prepare-publish.mjs --check --tag vX.Y.Z`.
 6. Run `bun run build`, `bun run test:run`, `bun run lint` and `bun run typecheck` (the same CI gates).
 7. Commit with a conventional commit message (English), e.g. `chore(release): v0.16.2`.
-8. Tag and push: `git tag vX.Y.Z && git push origin main --tags`.
-9. Watch the tag CI run; when green, `publish-release` fires and npm publish runs automatically.
+8. Push the release branch: `git push origin release/vX.Y.Z`.
+9. Merge the PR to `main` — the publish fires automatically via `ci.yml` → `trigger-publish` → `publish.yml` (npm publish).
+10. Watch the main CI run; when green, npm publish runs automatically.
 
 ## 4. Custom Field Types via Plugins
 When implementing custom field types via plugins, follow these rules:

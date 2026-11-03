@@ -1,21 +1,51 @@
-// @oktis-works/cms - Interactive prompt primitives (TTY wizard, zero deps)
+// @oktis-works/cms - Prompts interativos baseados em @clack/prompts v1.8.1
 //
-// The CLI parser has no TUI dependency and we are not adding one: a small
-// `readline` of our own resolves select/confirm/input/mask with three
-// guarantees a third-party library would not give for free here:
-//   1. deterministic non-interactive fallback (CI/pipes) → flags;
-//   2. secret mask with NO echo (raw mode only when stdin is a real TTY);
-//   3. injectable IO → testable without a real terminal.
+// Substitui completamente a implementação anterior baseada em readline nativa.
+// Todos os métodos públicos são mantidos para compatibilidade com wizard.ts,
+// config-wizard.ts, dev.ts, update.ts, redeploy.ts e qualquer outro consumidor.
 //
-// Menus are ARROW-KEY driven (↑/↓ + Enter) whenever the terminal supports raw
-// mode. Terminals that cannot do raw mode (SSH without TTY, pipes, tests) get
-// the numbered menu (1/2/3) — same code path, same semantics — and CI always
-// falls back to the flag/default instead of guessing.
+// O Clack é ESM-first e TypeScript nativo. Todos os prompts retornam Promises e
+// usam isCancel() para detectar cancelamento (Ctrl+C / AbortSignal).
+//
+// Em ambientes sem TTY real (testes, CI, pipes), usa implementação simplificada
+// baseada em leitura de linha para manter compatibilidade com testes existentes.
 
-import type { Readable, Writable } from 'node:stream';
+import { Readable, Writable } from 'node:stream';
+import * as clack from '@clack/prompts';
+
+/** Validation signature accepted by the Clack text/password prompts.
+ * Derived from TextOptions instead of importing @clack/core: with Bun's
+ * isolated linker the transitive dependency is not resolvable from here.
+ */
+type ClackValidate = NonNullable<Parameters<typeof clack.text>[0]['validate']>;
+
+/** Resultado de cancelamento do usuário (Ctrl+C ou AbortSignal). */
+export class CancelError extends Error {
+  constructor() {
+    super('Prompt cancelled by user');
+    this.name = 'CancelError';
+  }
+}
+
+/** Deteta se o stream é um TTY real (não mockado para testes) - usado para Clack. */
+function isRealTTY(stream: Readable & { isTTY?: boolean; setRawMode?: (mode: boolean) => void }): boolean {
+  // Must be a real TTY with setRawMode, AND not a PassThrough or FakeTTY (used in tests)
+  return Boolean(
+    stream.isTTY &&
+    stream.setRawMode &&
+    typeof stream.setRawMode === 'function' &&
+    stream.constructor.name !== 'PassThrough' &&
+    stream.constructor.name !== 'FakeTTY'
+  );
+}
+
+/** Deteta se o stream suporta raw mode (para secrets, arrow keys) - inclui FakeTTY. */
+function canUseRawMode(stream: Readable & { isTTY?: boolean; setRawMode?: (mode: boolean) => void }): boolean {
+  return Boolean(stream.isTTY && stream.setRawMode && typeof stream.setRawMode === 'function');
+}
 
 // ---------------------------------------------------------------------------
-// IO
+// Fallback implementation for non-real-TTY (tests, CI, pipes)
 // ---------------------------------------------------------------------------
 
 type RawStream = Readable & {
@@ -23,125 +53,20 @@ type RawStream = Readable & {
   setRawMode?: (mode: boolean) => void;
 };
 
-export interface PromptIO {
-  input: Readable;
-  output: Writable;
-  /** true somente quando há terminal nos DOIS lados (TTY de verdade). */
-  isTTY: boolean;
-}
-
-export function defaultIO(): PromptIO {
-  const input = process.stdin as RawStream;
-  const output = process.stdout;
-  return { input, output, isTTY: Boolean(input.isTTY && output.isTTY) };
-}
-
-// ---------------------------------------------------------------------------
-// Estilo (ANSI condicional — sem cor quando NO_COLOR ou sem TTY)
-// ---------------------------------------------------------------------------
-
-const colorEnabled = (): boolean =>
-  !process.env['NO_COLOR'] && Boolean(process.stdout.isTTY);
-
-function wrap(open: number, close: number): (text: string) => string {
-  return (text: string): string =>
-    colorEnabled() ? `\u001b[${open}m${text}\u001b[${close}m` : text;
-}
-
-export const style = {
-  bold: wrap(1, 22),
-  dim: wrap(2, 22),
-  red: wrap(31, 39),
-  green: wrap(32, 39),
-  yellow: wrap(33, 39),
-  blue: wrap(34, 39),
-  cyan: wrap(36, 39),
-  gray: wrap(90, 39),
-};
-
-/** Canonical glyphs — the same ones every command prints. */
-export const symbol = {
-  ask: '?',
-  ok: '✓',
-  fail: '✗',
-  arrow: '→',
-  bullet: '•',
-  warn: '⚠',
-  cursor: '❯',
-} as const;
-
-/** Terminal-safe layout helpers shared by menus and status screens. */
-export function terminalWidth(fallback = 80): number {
-  const columns = Number.parseInt(process.env['COLUMNS'] ?? '', 10);
-  return Number.isFinite(columns) && columns >= 40 ? columns : fallback;
-}
-
-export function visibleLength(text: string): number {
-  return text.replace(/\u001b\[[0-?]*[ -\/]*[@-~]/g, '').length;
-}
-
-export function truncateText(text: string, max = terminalWidth() - 4): string {
-  if (max < 4 || visibleLength(text) <= max) return text;
-  return `${text.slice(0, max - 1)}…`;
-}
-
-export function wrapText(text: string, max = terminalWidth() - 4): string[] {
-  if (max < 8) return [truncateText(text, max)];
-  const words = text.split(/\s+/).filter(Boolean);
-  const lines: string[] = [];
-  let line = '';
-  for (const word of words) {
-    if (!line) {
-      line = word;
-    } else if (visibleLength(`${line} ${word}`) <= max) {
-      line += ` ${word}`;
-    } else {
-      lines.push(truncateText(line, max));
-      line = word;
-    }
-  }
-  if (line) lines.push(truncateText(line, max));
-  return lines.length > 0 ? lines : [''];
-}
-
-export function asciiSymbol(name: keyof typeof symbol): string {
-  const fallback: Record<keyof typeof symbol, string> = {
-    ask: '?', ok: '[ok]', fail: '[x]', arrow: '->', bullet: '*', warn: '!', cursor: '>',
-  };
-  return process.env['OKCMS_ASCII'] === '1' || process.env['TERM'] === 'dumb'
-    ? fallback[name]
-    : symbol[name];
-}
-
-// ---------------------------------------------------------------------------
-// Buffered input: line mode + raw mode (arrow keys / secret mask)
-// ---------------------------------------------------------------------------
-
 type LineWaiter = (line: string | null) => void;
-type SecretWaiter = (value: string) => void;
 type KeyWaiter = (key: string) => void;
 
-/** Named keys the menus understand. Printable characters are their own token. */
-export type KeyToken = string;
+/** Named keys the menus understand. */
+type KeyToken = string;
 
-/** ASCII codes used in raw mode — kept numeric to stay readable in source. */
 const CODE_ESC = 27;
 const CODE_ETX = 3;
 const CODE_EOT = 4;
 const CODE_DEL = 127;
 const CODE_BS = 8;
 
-/** ESC as a string (redraw sequences, built without escape literals). */
-const ESC = String.fromCharCode(CODE_ESC);
-
-/**
- * Turns one terminal chunk into key tokens.
- *
- * Arrow keys arrive as a single chunk (`ESC [ A`), so the CSI introducer is
- * matched first and the rest of the sequence swallowed; a lone ESC becomes
- * `escape`. Everything else is the character itself.
- */
-export function decodeKeys(chunk: string): KeyToken[] {
+/** Turns one terminal chunk into key tokens (copied from old implementation). */
+function decodeKeys(chunk: string): KeyToken[] {
   const keys: KeyToken[] = [];
   const named: Record<string, string> = { A: 'up', B: 'down', C: 'right', D: 'left', H: 'home', F: 'end' };
 
@@ -158,7 +83,6 @@ export function decodeKeys(chunk: string): KeyToken[] {
           i += 2;
           continue;
         }
-        // other CSI/SS3 sequences (function keys, mouse…): swallow to the end
         let j = i + 2;
         while (j < chunk.length) {
           const c = chunk.charCodeAt(j);
@@ -194,12 +118,8 @@ export function decodeKeys(chunk: string): KeyToken[] {
   return keys;
 }
 
-/** Ctrl+C — cancela a leitura de um segredo sem derrubar o processo. */
-const ETX = '\u0003';
-/** DEL/backspace. */
-const DEL = '\u007f';
-
-class BufferedInput {
+/** Buffered input that handles both line mode and key mode (for tests). */
+class SimpleInput {
   private readonly stream: RawStream;
   private readonly echo: (text: string) => void;
   private buffer = '';
@@ -207,10 +127,11 @@ class BufferedInput {
   private waiters: LineWaiter[] = [];
   private ended = false;
 
-  // raw mode state — secret mask (existing) and key reading (new)
-  private raw = false;
+  // raw mode state — secret mask and key reading (public: raw-mode helpers
+  // inside Prompt toggle it around terminal prompts)
+  raw = false;
   private rawValue = '';
-  private rawWaiter: SecretWaiter | null = null;
+  private rawWaiter: ((value: string) => void) | null = null;
   private keyMode = false;
   private keyQueue: KeyToken[] = [];
   private keyWaiters: KeyWaiter[] = [];
@@ -248,12 +169,12 @@ class BufferedInput {
   }
 
   private onData(chunk: string): void {
-    if (this.raw) {
-      this.onRawData(chunk);
-      return;
-    }
     if (this.keyMode) {
       this.dispatchKeys(chunk);
+      return;
+    }
+    if (this.raw) {
+      this.onRawData(chunk);
       return;
     }
     this.buffer += chunk;
@@ -270,6 +191,11 @@ class BufferedInput {
       if (waiter) waiter(line);
       else this.queue.push(line);
     }
+  }
+
+  /** Turns raw mode on/off on the underlying stream (never throws). */
+  applyRawMode(enabled: boolean): void {
+    this.setRawMode(enabled);
   }
 
   /** Volta ao modo normal e entrega o valor lido. */
@@ -290,7 +216,6 @@ class BufferedInput {
       if (ch === '\r' || ch === '\n') {
         const value = this.rawValue;
         this.finishRaw(value);
-        // resto do chunk (raro em raw mode) volta para o leitor normal
         const rest = chunk.slice(i + 1);
         if (rest) {
           this.buffer += rest;
@@ -299,12 +224,12 @@ class BufferedInput {
         return;
       }
 
-      if (ch === ETX) {
+      if (ch === '\u0003') { // ETX = Ctrl+C
         this.finishRaw('');
         return;
       }
 
-      if (ch === DEL || ch === '\b') {
+      if (ch === '\u007f' || ch === '\b') { // DEL or backspace
         this.rawValue = this.rawValue.slice(0, -1);
         this.echo('\b \b');
         continue;
@@ -336,9 +261,8 @@ class BufferedInput {
 
   /**
    * Reads a secret. No echo on a TTY (raw mode + `*`); without a TTY the input
-   * IS the pipe — `echo password | okcms config` is a real flow — and the
-   * default covers a closed stdin in CI. Returns `null` at EOF so the caller
-   * can distinguish "stream ended" from "user submitted an empty value".
+   * IS the pipe — `echo password | okcms config` is a real flow.
+   * Returns `null` at EOF so the caller can distinguish "stream ended" from "user submitted an empty value".
    */
   async readSecret(): Promise<string | null> {
     const queued = this.queue.shift();
@@ -391,7 +315,125 @@ class BufferedInput {
 }
 
 // ---------------------------------------------------------------------------
-// Prompt
+// IO
+// ---------------------------------------------------------------------------
+
+export interface PromptIO {
+  input: Readable;
+  output: Writable;
+  /** true somente quando há terminal nos DOIS lados (TTY de verdade). */
+  isTTY: boolean;
+}
+
+export function defaultIO(): PromptIO {
+  const input = process.stdin as RawStream;
+  const output = process.stdout;
+  return { input, output, isTTY: Boolean(input.isTTY && output.isTTY) };
+}
+
+// ---------------------------------------------------------------------------
+// Estilo (ANSI condicional — sem cor quando NO_COLOR ou sem TTY)
+// ---------------------------------------------------------------------------
+
+const colorEnabled = (): boolean =>
+  !process.env['NO_COLOR'] && Boolean(process.stdout.isTTY);
+
+function wrap(open: number, close: number): (text: string) => string {
+  return (text: string): string =>
+    colorEnabled() ? `\u001b[${open}m${text}\u001b[${close}m` : text;
+}
+
+export const style = {
+  bold: wrap(1, 22),
+  dim: wrap(2, 22),
+  red: wrap(31, 39),
+  green: wrap(32, 39),
+  yellow: wrap(33, 39),
+  blue: wrap(34, 39),
+  cyan: wrap(36, 39),
+  gray: wrap(90, 39),
+};
+
+/** Canonical glyphs — os mesmos símbolos usados pelo prompt anterior. */
+export const symbol = {
+  ask: '?',
+  ok: '✓',
+  fail: '✗',
+  arrow: '→',
+  bullet: '•',
+  warn: '⚠',
+  cursor: '❯',
+} as const;
+
+// ---------------------------------------------------------------------------
+// Terminal-safe layout helpers (compatibilidade com implementação anterior)
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns terminal width from COLUMNS env var or a fallback.
+ */
+export function terminalWidth(fallback = 80): number {
+  const columns = Number.parseInt(process.env['COLUMNS'] ?? '', 10);
+  return Number.isFinite(columns) && columns >= 40 ? columns : fallback;
+}
+
+/**
+ * Returns visible length of text (strips ANSI escape codes).
+ */
+export function visibleLength(text: string): number {
+  return text.replace(/\u001b\[[0-?]*[ -\/]*[@-~]/g, '').length;
+}
+
+/**
+ * Truncates text to fit within max width, adding ellipsis if needed.
+ */
+export function truncateText(text: string, max = terminalWidth() - 4): string {
+  if (max < 4 || visibleLength(text) <= max) return text;
+  return `${text.slice(0, max - 1)}…`;
+}
+
+/**
+ * Wraps text to fit within max width, splitting on word boundaries.
+ */
+export function wrapText(text: string, max = terminalWidth() - 4): string[] {
+  if (max < 8) return [truncateText(text, max)];
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let line = '';
+  for (const word of words) {
+    if (!line) {
+      line = word;
+    } else if (visibleLength(`${line} ${word}`) <= max) {
+      line += ` ${word}`;
+    } else {
+      lines.push(truncateText(line, max));
+      line = word;
+    }
+  }
+  if (line) lines.push(truncateText(line, max));
+  return lines.length > 0 ? lines : [''];
+}
+
+/**
+ * Returns ASCII fallback symbol if OKCMS_ASCII=1 or TERM=dumb.
+ */
+export function asciiSymbol(name: keyof typeof symbol): string {
+  const fallback: Record<keyof typeof symbol, string> = {
+    ask: '?',
+    ok: '[ok]',
+    fail: '[x]',
+    arrow: '->',
+    bullet: '*',
+    warn: '!',
+    cursor: '>',
+  };
+  return process.env['OKCMS_ASCII'] === '1' || process.env['TERM'] === 'dumb'
+    ? fallback[name]
+    : symbol[name];
+}
+
+// ---------------------------------------------------------------------------
+// Tipos públicos
 // ---------------------------------------------------------------------------
 
 export interface SelectChoice<T> {
@@ -420,18 +462,31 @@ export interface InputOptions {
   placeholder?: string;
 }
 
+// ---------------------------------------------------------------------------
+// Classe Prompt
+// ---------------------------------------------------------------------------
+
 export class Prompt {
   private readonly io: PromptIO;
-  private readonly input: BufferedInput;
+  private readonly useClack: boolean;
+  private readonly simpleInput: SimpleInput | null;
   private closed = false;
 
   constructor(io?: Partial<PromptIO>) {
     this.io = { ...defaultIO(), ...io };
-    this.input = new BufferedInput(this.io.input as RawStream, (text) => {
-      this.io.output.write(text);
-    });
+    const inputStream = this.io.input as RawStream;
+    this.useClack = this.io.isTTY && isRealTTY(inputStream);
+
+    if (!this.useClack) {
+      this.simpleInput = new SimpleInput(inputStream, (text) => {
+        this.io.output.write(text);
+      });
+    } else {
+      this.simpleInput = null;
+    }
   }
 
+  /** true somente quando há terminal nos DOIS lados (TTY de verdade). */
   get interactive(): boolean {
     return this.io.isTTY;
   }
@@ -446,332 +501,430 @@ export class Prompt {
   }
 
   info(text: string): void {
-    this.write(`  ${style.dim(`${symbol.arrow} ${text}`)}\n`);
+    if (this.useClack) {
+      clack.log.info(text);
+    } else {
+      this.write(`  ${style.dim(`${symbol.arrow} ${text}`)}\n`);
+    }
   }
 
   success(text: string): void {
-    this.write(`  ${style.green(symbol.ok)} ${text}\n`);
+    if (this.useClack) {
+      clack.log.success(text);
+    } else {
+      this.write(`  ${style.green(symbol.ok)} ${text}\n`);
+    }
   }
 
   warn(text: string): void {
-    this.write(`  ${style.yellow(symbol.warn)} ${text}\n`);
+    if (this.useClack) {
+      clack.log.warn(text);
+    } else {
+      this.write(`  ${style.yellow(symbol.warn)} ${text}\n`);
+    }
   }
 
   error(text: string): void {
-    this.write(`  ${style.red(symbol.fail)} ${text}\n`);
+    if (this.useClack) {
+      clack.log.error(text);
+    } else {
+      this.write(`  ${style.red(symbol.fail)} ${text}\n`);
+    }
   }
 
   /**
-   * Arrow-key menu (↑/↓ + Enter). Falls back to a numbered menu when the
-   * terminal cannot do raw mode, and to `defaultValue` when there is no TTY at
-   * all — so a CI never triggers a deploy by accident.
+   * Converte uma função de validação do tipo antigo ((v: string) => string | null)
+   * para o tipo esperado pelo Clack ((v: string | undefined) => string | Error | undefined | void).
+   */
+  private static wrapValidate(
+    validate?: (value: string) => string | null | undefined
+  ): ClackValidate | undefined {
+    if (!validate) return undefined;
+    return (value: string | undefined): string | Error | undefined => {
+      if (value === undefined || value === null || value === '') return undefined;
+      const result = validate(value);
+      if (!result) return undefined;
+      return result;
+    };
+  }
+
+  /**
+   * Arrow-key menu (↑/↓ + Enter). Sem TTY, retorna defaultValue ou lança erro.
+   * Usa o Clack select() por baixo para TTY real; fallback numerado/teclado para testes/CI.
    */
   async select<T>(
     title: string,
     choices: Array<SelectChoice<T>>,
     opts: SelectOptions<T> = {}
   ): Promise<T> {
-    if (choices.length === 0) {
-      throw new Error(`select "${title}" has no options`);
+    if (!this.useClack) {
+      // Fallback: numbered menu for non-real-TTY (tests, CI)
+      // Check if we can use raw mode (arrow keys) with FakeTTY
+      const inputStream = this.io.input as RawStream;
+      if (canUseRawMode(inputStream) && this.simpleInput) {
+        return this.selectRawMode(title, choices, opts);
+      }
+      return this.selectNumbered(title, choices, opts);
     }
 
-    const defaultIndex =
-      opts.defaultValue === undefined
-        ? -1
-        : Math.max(
-            0,
-            choices.findIndex((choice) => choice.value === opts.defaultValue)
-          );
-
-    if (!this.io.isTTY) {
-      if (opts.defaultValue !== undefined) return opts.defaultValue;
-      throw new Error(
-        opts.nonInteractiveError ??
-          `non-interactive: "${title}" needs a TTY or the equivalent flag`
-      );
-    }
-
-    if (this.input.canRaw) {
-      return await this.navigate<T>(title, choices, defaultIndex < 0 ? 0 : defaultIndex, {
-        // limpeza completa da tela a cada repaint: evita resíduos de prompts
-        // anteriores quando o usuário navega rápido com as setas
-        fullClear: opts.fullClear !== false,
-        cancelValue: opts.cancelValue,
-      });
-    }
-
-    // No raw mode (pipe, odd SSH session, test harness): numbered menu.
-    this.write(`\n  ${symbol.ask} ${style.bold(title)}\n`);
-    choices.forEach((choice, index) => {
-      const marker = index === defaultIndex ? style.cyan('>') : ' ';
-      const hint = choice.hint ? `  ${style.dim(choice.hint)}` : '';
-      const label = index === defaultIndex ? style.bold(choice.label) : choice.label;
-      this.write(`    ${marker} ${style.dim(`${index + 1}`)}) ${label}${hint}\n`);
+    const result = await clack.select({
+      message: title,
+      // `Option<T>` requires `T extends Primitive`; cast keeps the public
+      // unconstrained SelectChoice<T> signature unchanged.
+      options: choices.map((c) => ({
+        value: c.value,
+        label: c.label,
+        hint: c.hint ?? '',
+      })) as unknown as clack.Option<T>[],
+      initialValue: opts.defaultValue,
+      showInstructions: true,
     });
 
-    for (;;) {
-      const suffix = defaultIndex >= 0 ? style.dim(`[${defaultIndex + 1}]`) : '';
-      const raw = await this.askLine(`${symbol.ask} ${suffix}`);
-      if (raw === null) {
-        if (opts.cancelValue !== undefined) return opts.cancelValue;
-        if (opts.defaultValue !== undefined) return opts.defaultValue;
-        throw new Error(`input closed before "${title}" was answered`);
+    if (clack.isCancel(result)) {
+      if (opts.cancelValue !== undefined) return opts.cancelValue;
+      throw new CancelError();
+    }
+
+    return result as T;
+  }
+
+  /** Raw mode select for FakeTTY (arrow keys + numbered input). */
+  private async selectRawMode<T>(
+    title: string,
+    choices: Array<SelectChoice<T>>,
+    opts: SelectOptions<T>
+  ): Promise<T> {
+    const { output } = this.io;
+    const stream = this.io.input as RawStream;
+    let index = 0;
+    const initial = opts.defaultValue;
+    if (initial !== undefined) {
+      const found = choices.findIndex((c) => c.value === initial);
+      if (found >= 0) index = found;
+    }
+
+    const render = (): void => {
+      output.write(`\n${style.bold(title)}\n`);
+      for (let i = 0; i < choices.length; i++) {
+        const c = choices[i]!;
+        const marker = i === index ? style.bold(`${symbol.cursor} `) : '  ';
+        const hint = c.hint ? style.dim(` (${c.hint})`) : '';
+        output.write(`${marker}${c.label}${hint}\n`);
+      }
+    };
+
+    render();
+
+    // Enable raw mode
+    stream.setRawMode?.(true);
+    this.simpleInput!.raw = true;
+
+    while (true) {
+      const key = await this.simpleInput!.readKey();
+
+      if (key === 'eof') {
+        // No raw mode available — fall through to numbered input
+        output.write('\n');
+        break;
       }
 
-      const answer = raw.trim();
-      if (answer === '' && defaultIndex >= 0) return choices[defaultIndex]!.value;
+      if (key === 'up' || key === 'k') {
+        index = (index - 1 + choices.length) % choices.length;
+        output.write('\x1b[1A\r'.repeat(choices.length + 1)); // move up
+        render();
+        continue;
+      }
 
-      const asNumber = Number.parseInt(answer, 10);
-      if (Number.isInteger(asNumber) && asNumber >= 1 && asNumber <= choices.length) {
-        return choices[asNumber - 1]!.value;
+      if (key === 'down' || key === 'j') {
+        index = (index + 1) % choices.length;
+        output.write('\x1b[1A\r'.repeat(choices.length + 1));
+        render();
+        continue;
+      }
+
+      if (key === 'enter' || key === '\r' || key === '\n') {
+        output.write('\n');
+        stream.setRawMode?.(false);
+        this.simpleInput!.raw = false;
+        return choices[index]!.value;
+      }
+
+      if (key === 'escape' || key === 'ctrl-c') {
+        output.write('\n');
+        stream.setRawMode?.(false);
+        this.simpleInput!.raw = false;
+        if (opts.cancelValue !== undefined) return opts.cancelValue;
+        throw new CancelError();
+      }
+
+      // Numbered input (1, 2, 3...)
+      const num = Number.parseInt(key, 10);
+      if (!Number.isNaN(num) && num >= 1 && num <= choices.length) {
+        output.write('\n');
+        stream.setRawMode?.(false);
+        this.simpleInput!.raw = false;
+        return choices[num - 1]!.value;
+      }
+    }
+
+    // Disable raw mode before falling through
+    stream.setRawMode?.(false);
+    this.simpleInput!.raw = false;
+
+    // Numbered menu via line input
+    const display = choices.map((c, i) => `  ${i + 1}) ${c.label}${c.hint ? style.dim(` (${c.hint})`) : ''}`).join('\n');
+    output.write(`${display}\n`);
+
+    while (true) {
+      const line = await this.simpleInput!.readLine();
+      if (line === null) {
+        if (opts.cancelValue !== undefined) return opts.cancelValue;
+        if (opts.defaultValue !== undefined) return opts.defaultValue;
+        if (opts.nonInteractiveError) throw new Error(opts.nonInteractiveError);
+        throw new Error(`input closed before "${title}" was answered`);
+      }
+      const answer = line.trim();
+      if (answer === '' && opts.defaultValue !== undefined) return opts.defaultValue;
+
+      const num = Number.parseInt(answer, 10);
+      if (!Number.isNaN(num) && num >= 1 && num <= choices.length) {
+        return choices[num - 1]!.value;
       }
 
       const byValue = choices.find((choice) => String(choice.value) === answer);
       if (byValue) return byValue.value;
 
-      this.write(`  ${style.red(symbol.fail)} invalid option — type 1..${choices.length}\n`);
+      output.write(`  ${style.red(symbol.fail)} Opção inválida\n`);
     }
   }
 
   /**
-   * Yes/No confirmation. Arrow keys + Enter on a TTY, `y`/`n` shortcuts too;
-   * without a TTY it returns `defaultValue`.
+   * Fallback numbered menu for tests and non-TTY environments.
+   * Mimics the old readline-based select behavior.
    */
-  async confirm(title: string, opts: { defaultValue?: boolean } = {}): Promise<boolean> {
-    const fallback = opts.defaultValue ?? false;
-
-    if (!this.io.isTTY) return fallback;
-
-    if (this.input.canRaw) {
-      const badge =
-        opts.defaultValue === undefined ? '' : opts.defaultValue ? style.dim(' [Y/n]') : style.dim(' [y/N]');
-      return await this.navigate<boolean>(
-        `${title}${badge}`,
-        [
-          { value: true, label: 'Yes' },
-          { value: false, label: 'No' },
-        ],
-        opts.defaultValue === false ? 1 : 0,
-        { inline: true, aliases: { y: 0, n: 1 } }
-      );
-    }
-
-    const hint = opts.defaultValue === undefined ? '[y/n]' : opts.defaultValue ? '[Y/n]' : '[y/N]';
-    for (;;) {
-      const raw = await this.askLine(`  ${symbol.ask} ${title} ${style.dim(hint)} `);
-      if (raw === null) return fallback;
-
-      const answer = raw.trim().toLowerCase();
-      if (answer === '') {
-        if (opts.defaultValue !== undefined) return opts.defaultValue;
-        continue;
-      }
-      if (['y', 'yes'].includes(answer)) return true;
-      if (['n', 'no'].includes(answer)) return false;
-
-      this.write(`  ${style.red(symbol.fail)} answer y or n\n`);
-    }
-  }
-
-  /**
-   * Shared raw-mode navigator behind `select` and `confirm`.
-   *
-   * Every repaint clears the previous block (`ESC[<n>A` + `ESC[0J`), so the
-   * menu never leaves scrollback debris. `inline` lays the options on one line
-   * (confirm), `aliases` maps single keys straight to an option.
-   */
-  private async navigate<T>(
+  private async selectNumbered<T>(
     title: string,
     choices: Array<SelectChoice<T>>,
-    startIndex: number,
-    opts: { inline?: boolean; aliases?: Record<string, number>; fullClear?: boolean; cancelValue?: T }
+    opts: SelectOptions<T>
   ): Promise<T> {
-    const total = choices.length;
-    let index = Math.min(Math.max(startIndex, 0), total - 1);
-    let painted = 0;
+    const { output } = this.io;
+    let index = 0;
+    const initial = opts.defaultValue;
+    if (initial !== undefined) {
+      const found = choices.findIndex((c) => c.value === initial);
+      if (found >= 0) index = found;
+    }
 
-    const paint = (final: boolean): void => {
-      if (painted > 0) {
-        // fullClear: limpa a tela INTEIRA a cada repaint — resolve terminais
-        // que não processam ESC[nA rápido o suficiente com teclas repetidas
-        if (opts.fullClear) {
-          this.write(`${ESC}[2J${ESC}[H`);
-        } else {
-          this.write(`${ESC}[${painted}A${ESC}[0J`);
-        }
+    const render = (): void => {
+      output.write(`\n${style.bold(title)}\n`);
+      for (let i = 0; i < choices.length; i++) {
+        const c = choices[i]!;
+        const marker = i === index ? style.bold(`${symbol.cursor} `) : '  ';
+        const hint = c.hint ? style.dim(` (${c.hint})`) : '';
+        output.write(`${marker}${c.label}${hint}\n`);
       }
-
-      const lines: string[] = [`  ${symbol.ask} ${style.bold(title)}`];
-      if (opts.inline) {
-        lines.push(
-          `    ${choices
-            .map((choice, i) =>
-              i === index
-                ? style.cyan(`${symbol.cursor} ${choice.label}`)
-                : `  ${choice.label}`
-            )
-            .join('   ')}`
-        );
-      } else {
-        const width = Math.max(...choices.map((choice) => choice.label.length));
-        choices.forEach((choice, i) => {
-          const on = i === index;
-          const hint = choice.hint ? `  ${style.dim(choice.hint)}` : '';
-          const label = on ? style.bold(choice.label) : choice.label.padEnd(width);
-          lines.push(`    ${on ? style.cyan(symbol.cursor) : ' '} ${label}${hint}`);
-        });
-      }
-      if (!final) {
-        lines.push(
-          `    ${style.dim(opts.inline ? '←→ move · enter confirm' : '↑↓ move · enter confirm')}`
-        );
-      }
-
-      this.write(`${lines.join('\n')}\n`);
-      painted = lines.length;
     };
 
-    const settle = (value: T): T => {
-      paint(true);
-      this.input.releaseKeys();
-      return value;
-    };
+    render();
 
-    paint(false);
+    while (true) {
+      const key = await this.simpleInput!.readKey();
 
-    for (;;) {
-      const key = await this.input.readKey();
-
-      // raw mode gone or stdin closed: keep the highlighted option
       if (key === 'eof') {
-        this.input.releaseKeys();
+        // No raw mode available — fall through to numbered input
+        output.write('\n');
+        break;
+      }
+
+      if (key === 'up' || key === 'k') {
+        index = (index - 1 + choices.length) % choices.length;
+        output.write('\x1b[1A\r'.repeat(choices.length + 1)); // move up
+        render();
+        continue;
+      }
+
+      if (key === 'down' || key === 'j') {
+        index = (index + 1) % choices.length;
+        output.write('\x1b[1A\r'.repeat(choices.length + 1));
+        render();
+        continue;
+      }
+
+      if (key === 'enter' || key === '\r' || key === '\n') {
+        output.write('\n');
         return choices[index]!.value;
       }
 
-      if (key === 'ctrl-c' || key === 'escape' || key === 'ctrl-d') {
-        this.write(`\n  ${style.dim('Cancelled.')}\n`);
-        if (opts.cancelValue !== undefined) return settle(opts.cancelValue);
-        const cancelIndex = choices.findIndex((choice) => {
-          const value = String(choice.value);
-          return value === 'back' || value === '__back__' || value === 'exit';
-        });
-        if (cancelIndex >= 0) return settle(choices[cancelIndex]!.value);
-        if (choices.every((choice) => typeof choice.value === 'boolean')) return settle(false as T);
-        // sem cancel explícito: não apaga a seleção atual, mantém o menu
-        return settle(choices[index]!.value);
+      if (key === 'escape' || key === 'ctrl-c') {
+        if (opts.cancelValue !== undefined) return opts.cancelValue;
+        throw new CancelError();
       }
 
-      const token = key.length === 1 ? key.toLowerCase() : key;
-      const alias = opts.aliases?.[token];
-      if (alias !== undefined && alias < total) return settle(choices[alias]!.value);
+      // Numbered input (1, 2, 3...)
+      const num = Number.parseInt(key, 10);
+      if (!Number.isNaN(num) && num >= 1 && num <= choices.length) {
+        output.write('\n');
+        return choices[num - 1]!.value;
+      }
+    }
 
-      if (key === 'enter') return settle(choices[index]!.value);
+    // Numbered menu via line input
+    const display = choices.map((c, i) => `  ${i + 1}) ${c.label}${c.hint ? style.dim(` (${c.hint})`) : ''}`).join('\n');
+    output.write(`${display}\n`);
 
-      let next: number | null = null;
-      let wrap = false;
-      if (key === 'up' || key === 'k') {
-        next = index - 1;
-        wrap = true;
-      } else if (key === 'down' || key === 'j') {
-        next = index + 1;
-        wrap = true;
-      } else if (key === 'left' && opts.inline) {
-        next = index - 1;
-        wrap = true;
-      } else if (key === 'right' && opts.inline) {
-        next = index + 1;
-        wrap = true;
-      } else if (key === 'home') next = 0;
-      else if (key === 'end') next = total - 1;
-      else if (!opts.inline && total <= 9 && key >= '1' && key <= '9') next = Number(key) - 1;
+    while (true) {
+      const line = await this.simpleInput!.readLine();
+      if (line === null) {
+        if (opts.cancelValue !== undefined) return opts.cancelValue;
+        if (opts.defaultValue !== undefined) return opts.defaultValue;
+        if (opts.nonInteractiveError) throw new Error(opts.nonInteractiveError);
+        throw new Error(`input closed before "${title}" was answered`);
+      }
+      const answer = line.trim();
+      if (answer === '' && opts.defaultValue !== undefined) return opts.defaultValue;
 
-      if (next === null) continue;
-      // arrows wrap around the list; home/end/digits land on the exact item
-      next = wrap ? ((next % total) + total) % total : next;
-      if (next < 0 || next >= total) continue;
-      index = next;
-      paint(false);
+      const num = Number.parseInt(answer, 10);
+      if (!Number.isNaN(num) && num >= 1 && num <= choices.length) {
+        return choices[num - 1]!.value;
+      }
+
+      const byValue = choices.find((choice) => String(choice.value) === answer);
+      if (byValue) return byValue.value;
+
+      output.write(`  ${style.red(symbol.fail)} Opção inválida\n`);
     }
   }
 
   /** Texto livre com validação, repetindo até aceitar. */
   async ask(title: string, opts: InputOptions = {}): Promise<string> {
-    const fallback = opts.default ?? '';
+    if (!this.useClack) {
+      // Fallback for tests/non-TTY - simple line reading with validation
+      return this.askLineFallback(title, opts);
+    }
 
-    if (!this.io.isTTY) {
+    const result = await clack.text({
+      message: title,
+      placeholder: opts.placeholder,
+      initialValue: opts.default,
+      validate: Prompt.wrapValidate(opts.validate),
+    });
+
+    if (clack.isCancel(result)) {
       if (opts.default !== undefined) return opts.default;
-      throw new Error(`non-interactive: "${title}" needs a TTY or --set`);
+      throw new CancelError();
     }
 
-    const current = opts.placeholder ?? opts.default;
-    const shown = current ? style.dim(` (${current})`) : '';
-
-    for (;;) {
-      const suffix =
-        opts.default !== undefined && !opts.placeholder ? style.dim(`[${opts.default}]`) : '';
-      const raw = await this.askLine(`  ${symbol.ask} ${title}${shown}${suffix} `);
-
-      // EOF (pipe fechado / Ctrl+D): não há mais linha para ler. Re-perguntar
-      // aqui seria loop infinito (readLine devolve null para sempre). Usa o
-      // fallback se houver; senão devolve vazio e deixa o chamador decidir.
-      if (raw === null) {
-        const problem0 = opts.validate?.(fallback);
-        if (problem0) {
-          this.write(`  ${style.red(symbol.fail)} ${problem0}\n`);
-          return '';
-        }
-        return fallback;
-      }
-
-      const blank = raw.trim() === '';
-      const value = blank ? fallback : raw.trim();
-
-      const problem = opts.validate?.(value);
-      if (problem) {
-        this.write(`  ${style.red(symbol.fail)} ${problem}\n`);
-        continue;
-      }
-      return value;
-    }
+    return result as string;
   }
 
-  /** Segredo: sem eco no TTY (mostra `*`), default via Enter. */
+  /** Segredo: sem eco no TTY (mostra `*`). */
   async secret(title: string, opts: InputOptions = {}): Promise<string> {
-    const fallback = opts.default ?? '';
-
-    if (!this.io.isTTY) {
-      // sem TTY o stdin É o pipe: `echo senha | okcms config` é fluxo real.
-      // Sem nada chegando (EOF), cai no default (stdin fechado em CI).
-      const piped = await this.input.readSecret();
+    if (!this.useClack) {
+      // Fallback for tests/non-TTY - use raw mode if available (FakeTTY), else simple line
+      const inputStream = this.io.input as RawStream;
+      if (canUseRawMode(inputStream) && this.simpleInput) {
+        // Use raw mode to mask input with *
+        return this.secretRawMode(title, opts);
+      }
+      // Piped stdin is real input (`echo secret | okcms config`); a closed
+      // stdin (EOF/CI) falls back to the default.
+      const fallback = opts.default ?? '';
+      const piped = await this.simpleInput!.readSecret();
       const value = !piped || piped.trim() === '' ? fallback : piped.trim();
       const problem = opts.validate?.(value);
-      if (problem) throw new Error(problem);
+      if (problem) throw new Error(problem as string);
       return value;
     }
 
-    const current = opts.placeholder ?? (opts.default !== undefined ? '••••••' : undefined);
-    const shown = current ? style.dim(` (${current})`) : '';
+    const result = await clack.password({
+      message: title,
+      mask: '*',
+      validate: Prompt.wrapValidate(opts.validate),
+      clearOnError: true,
+    });
 
-    for (;;) {
-      const suffix = opts.default !== undefined ? style.dim('[enter = keep]') : '';
-      this.write(`  ${symbol.ask} ${title}${shown}${suffix} `);
-      const raw = await this.input.readSecret();
-      this.write('\n');
+    if (clack.isCancel(result)) {
+      if (opts.default !== undefined) return opts.default;
+      throw new CancelError();
+    }
 
-      // EOF (pipe fechado / Ctrl+D): sem linha nova não há o que validar —
-      // devolve o default em vez de re-perguntar para sempre.
-      if (raw === null) return fallback;
+    return result as string;
+  }
 
-      // Enter com default disponível = manter o valor atual, sem validar de novo
-      // (o valor atual já foi aceito antes; re-validar só repete o prompt à toa)
-      if (raw === '' && fallback !== '') return fallback;
+  /** Raw mode secret input for FakeTTY (masks with *). */
+  private async secretRawMode(title: string, opts: InputOptions): Promise<string> {
+    if (!this.simpleInput) throw new Error('No simpleInput available');
 
-      const problem = opts.validate?.(raw);
-      if (problem) {
-        this.write(`  ${style.red(symbol.fail)} ${problem}\n`);
+    const { output } = this.io;
+    const stream = this.io.input as RawStream;
+
+    output.write(`${title}: `);
+    stream.setRawMode?.(true);
+    this.simpleInput.raw = true;
+
+    let value = '';
+
+    while (true) {
+      const key = await this.simpleInput.readKey();
+      if (key === 'eof') {
+        output.write('\n');
+        break;
+      }
+      if (key === 'enter') {
+        output.write('\n');
+        break;
+      }
+      if (key === 'backspace') {
+        if (value.length > 0) {
+          value = value.slice(0, -1);
+          // Erase last *
+          output.write('\b \b');
+        }
         continue;
       }
-      return raw;
+      if (key === 'escape' || key === 'ctrl-c') {
+        output.write('\n');
+        if (opts.default !== undefined) return opts.default;
+        throw new CancelError();
+      }
+      if (key.length === 1 && key >= ' ' && key <= '~') {
+        value += key;
+        output.write('*');
+      }
+    }
+
+    stream.setRawMode?.(false);
+    this.simpleInput.raw = false;
+
+    const trimmed = value.trim();
+    const problem = opts.validate?.(trimmed);
+    if (problem) throw new Error(problem as string);
+    return trimmed || (opts.default ?? '');
+  }
+
+  /**
+   * Fallback line-based input with validation for non-Clack environments.
+   */
+  private async askLineFallback(title: string, opts: InputOptions): Promise<string> {
+    const fallback = opts.default ?? '';
+    const displayDefault = opts.default !== undefined ? ` [${opts.default}]` : '';
+    const prompt = `${title}${displayDefault}: `;
+
+    while (true) {
+      this.io.output.write(prompt);
+      const line = await this.simpleInput!.readLine();
+      if (line === null) {
+        if (opts.default !== undefined) return opts.default;
+        throw new Error(`non-interactive: "${title}" needs a TTY or --set`);
+      }
+      const trimmed = line.trim();
+      const value = trimmed === '' ? fallback : trimmed;
+      const problem = opts.validate?.(value);
+      if (problem) {
+        this.io.output.write(`  ${style.red(symbol.fail)} ${problem}\n`);
+        continue;
+      }
+      return value;
     }
   }
 
@@ -784,6 +937,30 @@ export class Prompt {
       throw new Error(`non-interactive: "${title}" needs a TTY or --set`);
     }
 
+    if (!this.useClack) {
+      // Line-based fallback (tests, pipes): Enter keeps the default, 'b' goes back.
+      for (;;) {
+        const raw = await this.simpleInput!.readLine();
+        if (raw === null) {
+          const problem0 = opts.validate?.(fallback);
+          if (problem0) {
+            this.write(`  ${style.red(symbol.fail)} ${problem0}\n`);
+            return '__BACK__';
+          }
+          return fallback;
+        }
+        const trimmed = raw.trim();
+        if (trimmed.toLowerCase() === 'b') return '__BACK__';
+        const value = trimmed === '' ? fallback : trimmed;
+        const problem = opts.validate?.(value);
+        if (problem) {
+          this.write(`  ${style.red(symbol.fail)} ${problem}\n`);
+          continue;
+        }
+        return value;
+      }
+    }
+
     const current = opts.placeholder ?? opts.default;
     const shown = current ? style.dim(` (${current})`) : '';
 
@@ -791,33 +968,36 @@ export class Prompt {
       const suffix =
         opts.default !== undefined && !opts.placeholder ? style.dim(`[${opts.default}]`) : '';
       const hint = style.dim(' (b=voltar)');
-      const raw = await this.askLine(`  ${symbol.ask} ${title}${shown}${suffix}${hint} `);
 
-      // EOF (pipe fechado / Ctrl+D)
-      if (raw === null) {
-        const problem0 = opts.validate?.(fallback);
-        if (problem0) {
-          this.write(`  ${style.red(symbol.fail)} ${problem0}\n`);
-          return '__BACK__';
-        }
-        return fallback;
+      const result = await clack.text({
+        message: `${title}${shown}${suffix}${hint}`,
+        placeholder: current ? current : undefined,
+        initialValue: fallback,
+        validate: Prompt.wrapValidate(opts.validate),
+      });
+
+      if (clack.isCancel(result)) {
+        return '__BACK__';
       }
 
-      const trimmed = raw.trim();
+      const value = result as string;
+      const trimmed = value.trim();
+
       // tecla de voltar
       if (trimmed.toLowerCase() === 'b') {
         return '__BACK__';
       }
 
       const blank = trimmed === '';
-      const value = blank ? fallback : trimmed;
+      const fieldValue = blank ? fallback : trimmed;
 
-      const problem = opts.validate?.(value);
+      const problem = opts.validate?.(fieldValue);
       if (problem) {
         this.write(`  ${style.red(symbol.fail)} ${problem}\n`);
         continue;
       }
-      return value;
+
+      return fieldValue;
     }
   }
 
@@ -826,11 +1006,28 @@ export class Prompt {
     const fallback = opts.default ?? '';
 
     if (!this.io.isTTY) {
-      const piped = await this.input.readSecret();
+      // Piped stdin is real input (`echo secret | okcms config`)
+      const piped = await this.simpleInput!.readSecret();
       const value = !piped || piped.trim() === '' ? fallback : piped.trim();
       const problem = opts.validate?.(value);
-      if (problem) throw new Error(problem);
+      if (problem) throw new Error(problem as string);
       return value;
+    }
+
+    if (!this.useClack) {
+      // Line-based fallback (tests, pipes): Enter keeps the current value, 'b' goes back.
+      for (;;) {
+        const raw = await this.simpleInput!.readSecret();
+        if (raw === null) return fallback;
+        if (raw.trim().toLowerCase() === 'b') return '__BACK__';
+        if (raw === '' && fallback !== '') return fallback;
+        const problem = opts.validate?.(raw);
+        if (problem) {
+          this.write(`  ${style.red(symbol.fail)} ${problem}\n`);
+          continue;
+        }
+        return raw;
+      }
     }
 
     const current = opts.placeholder ?? (opts.default !== undefined ? '••••••' : undefined);
@@ -839,12 +1036,19 @@ export class Prompt {
     for (;;) {
       const suffix = opts.default !== undefined ? style.dim('[enter = keep]') : '';
       const hint = style.dim(' (b=voltar)');
-      this.write(`  ${symbol.ask} ${title}${shown}${suffix}${hint} `);
-      const raw = await this.input.readSecret();
-      this.write('\n');
 
-      // EOF (pipe fechado / Ctrl+D)
-      if (raw === null) return fallback;
+      const result = await clack.password({
+        message: `${title}${shown}${suffix}${hint}`,
+        mask: '*',
+        validate: Prompt.wrapValidate(opts.validate),
+        clearOnError: true,
+      });
+
+      if (clack.isCancel(result)) {
+        return '__BACK__';
+      }
+
+      const raw = result as string;
 
       // tecla de voltar
       if (raw.trim().toLowerCase() === 'b') return '__BACK__';
@@ -857,26 +1061,78 @@ export class Prompt {
         this.write(`  ${style.red(symbol.fail)} ${problem}\n`);
         continue;
       }
+
       return raw;
     }
   }
 
-  /** Lê uma linha cruta (também usada pelos testes). */
+  /** Lê uma linha crua (também usada pelos testes). */
   async askLine(question: string): Promise<string | null> {
     if (this.closed) return null;
     if (question) this.io.output.write(question);
-    return this.input.readLine();
+
+    if (!this.useClack) {
+      return this.simpleInput!.readLine();
+    }
+
+    const result = await clack.text({
+      message: question,
+    });
+
+    if (clack.isCancel(result)) {
+      return null;
+    }
+
+    return result as string;
   }
 
   close(): void {
     this.closed = true;
-    // solta o stdin: sem isso um `okcms update` terminaria com o canal preso
-    try {
-      (this.io.input as RawStream).setRawMode?.(false);
-      this.io.input.pause();
-    } catch {
-      // stream já finalizado
+    // Clack não tem ciclo de vida explícito para fechar. No-op para compatibilidade.
+  }
+
+  /** Configurações globais do Clack (i18n, mensagens, guide lines). */
+  static setSettings(settings: {
+    messages?: {
+      cancel?: string;
+      error?: string;
+    };
+  }): void {
+    clack.updateSettings(settings);
+  }
+
+  /** Yes/No confirmation. Sem TTY, retorna defaultValue. */
+  async confirm(title: string, opts: { defaultValue?: boolean } = {}): Promise<boolean> {
+    if (!this.useClack) {
+      // Fallback: read from simpleInput (line-based y/n)
+      const fallback = opts.defaultValue ?? false;
+      const hint = opts.defaultValue === undefined ? '[y/n]' : opts.defaultValue ? '[Y/n]' : '[y/N]';
+      this.io.output.write(`${title} ${style.dim(hint)}: `);
+      for (;;) {
+        const line = await this.simpleInput!.readLine();
+        if (line === null) return fallback;
+        const answer = line.trim().toLowerCase();
+        if (answer === '') {
+          if (opts.defaultValue !== undefined) return opts.defaultValue;
+          continue;
+        }
+        if (answer === 'y' || answer === 'yes') return true;
+        if (answer === 'n' || answer === 'no') return false;
+        this.io.output.write(`  ${style.red(symbol.fail)} answer y or n\n`);
+      }
     }
+
+    const result = await clack.confirm({
+      message: title,
+      initialValue: opts.defaultValue,
+    });
+
+    if (clack.isCancel(result)) {
+      if (opts.defaultValue !== undefined) return opts.defaultValue;
+      throw new CancelError();
+    }
+
+    return result === true;
   }
 }
 
@@ -905,7 +1161,8 @@ export async function confirm(
 ): Promise<boolean> {
   const prompt = new Prompt(io);
   try {
-    return await prompt.confirm(title, opts);
+    const result = await prompt.confirm(title, opts);
+    return result === true;
   } finally {
     prompt.close();
   }

@@ -22,6 +22,7 @@
     "wp:validate": "node --loader ts-node/esm src/wp-migrate/index.ts validate"
   },
   "dependencies": {
+    "@clack/prompts": "1.8.1",
     "@oktis-works/auth": "workspace:*",
     "@oktis-works/config": "workspace:*",
     "@oktis-works/core": "workspace:*",
