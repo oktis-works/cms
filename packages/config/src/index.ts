@@ -2,6 +2,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { generateKeyPairSync } from 'node:crypto';
 
 export type DatabaseDriver = 'postgres' | 'mysql' | 'mariadb';
 
@@ -410,13 +411,17 @@ function loadJwtKeys(): AuthConfig['jwtKeys'] {
 }
 
 function generateRsaKeyPairSync(): { privateKey: string; publicKey: string } {
-  // For sync generation in config loading, we use a deterministic approach
-  // In production, keys should be pre-generated and stored in JWT_KEYS env
-  const seed = process.env['JWT_SECRET'] ?? 'dev-secret-change-in-production';
-  // This is a fallback - real keys should be generated async and stored
+  // Generate real RSA key pair for development when JWT_KEYS is not set.
+  // Private key is PKCS#8 DER, public key is SPKI DER — both base64url-encoded
+  // so they can be imported by crypto.subtle.importKey('pkcs8'/'spki').
+  const { privateKey, publicKey } = generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    publicKeyEncoding: { type: 'spki', format: 'der' },
+    privateKeyEncoding: { type: 'pkcs8', format: 'der' },
+  });
   return {
-    privateKey: Buffer.from(seed).toString('base64').slice(0, 256),
-    publicKey: Buffer.from(seed).toString('base64').slice(0, 256),
+    privateKey: Buffer.from(privateKey as Buffer).toString('base64url'),
+    publicKey: Buffer.from(publicKey as Buffer).toString('base64url'),
   };
 }
 

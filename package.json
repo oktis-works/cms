@@ -1,6 +1,6 @@
 {
   "name": "okcms",
-  "version": "0.40.2",
+  "version": "0.40.3",
   "private": true,
   "license": "GPL-2.0-or-later",
   "description": "Hybrid, modular, API-first CMS",
