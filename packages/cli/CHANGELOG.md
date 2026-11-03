@@ -1,5 +1,19 @@
 # @oktis-works/cms
 
+## 0.17.0
+
+### Minor Changes
+
+- feat(cli): add WizardPrompt with box-drawing UI (◈ ◇ │ → ●) for init command
+
+## 0.16.0
+
+### Minor Changes
+
+- feat(cli): add WizardPrompt with box-drawing UI for init command
+  
+  The init command now uses WizardPrompt with custom box-drawing UI (◈ ◇ │ → ●) matching the wizard menu visual style instead of @clack/prompts default visual.
+
 ## 0.15.4
 
 ### Patch Changes

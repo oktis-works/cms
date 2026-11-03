@@ -121,9 +121,10 @@ Run 'okcms wp import --help' or 'okcms wp validate --help' for subcommand option
     handler: async (args, options) => {
       const { scaffoldProject } = await import('./scaffold.js');
       const { DEFAULT_DOCS_LANG, parseDocsLang } = await import('./scaffold-docs.js');
-      const { Prompt } = await import('./prompt.js');
+      // Use WizardPrompt for the box-drawing style UI
+      const { WizardPrompt } = await import('./prompt.js');
 
-      const prompt = new Prompt();
+      const prompt = new WizardPrompt();
 
       // Language of the generated docs (.md only — the code never changes
       // language). `--lang en|pt` decides without a TTY (CI/script); with a TTY
