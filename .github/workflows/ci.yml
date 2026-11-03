@@ -3,6 +3,7 @@ name: CI/CD Pipeline
 on:
   push:
     tags: ['v*']
+    branches: [main]
   pull_request:
     branches: [main, develop, 'release/**']
 
@@ -117,19 +118,26 @@ jobs:
         run: bun audit --audit-level=high
 
   # ============================================================
-  # Step 5: Trigger Publish on tag push success
+  # Step 5: Trigger Publish on tag push or push to main
   # ============================================================
   trigger-publish:
     name: Trigger Publish
     runs-on: ubuntu-latest
     needs: [test, typecheck, lint, audit]
-    if: github.event_name == 'push' && github.ref_type == 'tag'
+    if: github.event_name == 'push' && (github.ref_type == 'tag' || github.ref == 'refs/heads/main')
     permissions:
       contents: write # repository-dispatch exige write
     steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Extract version from package.json
+        id: version
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
       - name: Trigger publish workflow
         uses: peter-evans/repository-dispatch@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           event-type: publish-release
-          client-payload: '{"tag": "${{ github.ref_name }}", "sha": "${{ github.sha }}"}'
+          client-payload: '{"tag": "v${{ steps.version.outputs.version }}", "sha": "${{ github.sha }}"}'
