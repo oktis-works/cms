@@ -1,5 +1,13 @@
 # @oktis-works/database
 
+## 0.16.2
+
+### Patch Changes
+
+- 8ee30e4: Fix MariaDB 11.x compatibility by upgrading the `mariadb` driver from `^3.4.2` to `^3.6.0`.
+- Updated dependencies [f2d3d8d]
+  - @oktis-works/config@0.7.1
+
 ## 0.16.1
 
 ### Patch Changes
