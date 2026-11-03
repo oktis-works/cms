@@ -147,15 +147,23 @@ async function getStore(): Promise<RateLimitStore> {
 
   if (!storeInitialized) {
     storeInitialized = true;
-    const redisStore = new RedisStore();
-    await redisStore.init();
-    if (redisStore['enabled']) {
-      store = redisStore;
-      console.log('[RateLimit] Using Redis store');
-    } else {
-      store = new MemoryStore();
-      console.log('[RateLimit] Using in-memory store (Redis unavailable)');
+
+    // Try Redis first
+    try {
+      const redisStore = new RedisStore();
+      await redisStore.init();
+      if (redisStore['enabled'] && redisStore.client) {
+        store = redisStore;
+        console.log('[RateLimit] Using Redis store');
+        return store;
+      }
+    } catch {
+      // Fall through to in-memory store
     }
+
+    // Fallback to in-memory store (never null)
+    store = new MemoryStore();
+    console.log('[RateLimit] Using in-memory store (Redis unavailable)');
   }
 
   return store!;

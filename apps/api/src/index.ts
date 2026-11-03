@@ -6,7 +6,7 @@ import { logger } from 'hono/logger';
 import { cors } from 'hono/cors';
 import { prettyJSON } from 'hono/pretty-json';
 import { serve } from '@hono/node-server';
-import { bootstrap, getEventBus, registerEventAuditLog, getRegisteredPluginRoutes } from '@oktis-works/core';
+import { bootstrap, getEventBus, registerEventAuditLog, getRegisteredPluginRoutes, initRedisClient } from '@oktis-works/core';
 import { pluginRateLimitMiddleware } from './middleware/rate-limit.js';
 import { CMS_VERSION } from '@oktis-works/validation';
 import { loadConfig } from '@oktis-works/config';
@@ -123,6 +123,10 @@ export function mountPluginRoutes(app: import('hono').Hono): void {
 async function main() {
   // Initialize application
   const lifecycle = await bootstrap();
+
+  // Ensure Redis client is initialized before rate-limit middleware is registered
+  // so getRedisClient() returns a valid client and RedisStore.enabled is true.
+  await initRedisClient();
 
   const app = new Hono();
 
