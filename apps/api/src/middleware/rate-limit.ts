@@ -152,7 +152,7 @@ async function getStore(): Promise<RateLimitStore> {
     try {
       const redisStore = new RedisStore();
       await redisStore.init();
-      if (redisStore['enabled'] && redisStore.client) {
+      if (redisStore['enabled']) {
         store = redisStore;
         console.log('[RateLimit] Using Redis store');
         return store;
