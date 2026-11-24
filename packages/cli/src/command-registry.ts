@@ -19,7 +19,7 @@ export const COMMAND_GROUPS: ReadonlyArray<readonly [string, readonly string[]]>
   ['Project', ['init', 'menu', 'start', 'stop', 'status', 'dev', 'doctor', 'config']],
   ['Database', ['db:migrate', 'db:rollback', 'db:status', 'db:inventory', 'db:backup', 'db:restore', 'seed', 'user:create']],
   ['Migration', ['wp']],
-  ['Extensions', ['plugin:create', 'plugin:install', 'plugin:list', 'plugin:search', 'plugin:manage', 'theme:create', 'theme:install', 'theme:list', 'theme:search', 'theme:manage', 'theme:build']],
+  ['Extensions', ['plugin:create', 'plugin:install', 'plugin:list', 'plugin:search', 'plugin:manage', 'theme:create', 'theme:install', 'theme:list', 'theme:search', 'theme:manage', 'theme:build', 'theme:dev']],
   ['Deploy', ['build', 'update', 'redeploy', 'rollback', 'deploy']],
   ['System', ['media:migrate', 'system:status', 'i18n:extract']],
 ];
@@ -39,7 +39,7 @@ const PROJECT_REQUIRED = new Set([
   'start', 'stop', 'status', 'dev', 'config', 'update', 'redeploy', 'deploy', 'rollback',
   'db:migrate', 'db:rollback', 'db:status', 'db:backup', 'db:restore', 'seed', 'user:create',
   'plugin:install', 'plugin:list', 'plugin:manage', 'theme:install', 'theme:list', 'theme:manage',
-  'theme:build', 'build', 'media:migrate', 'system:status', 'i18n:extract',
+  'theme:build', 'theme:dev', 'build', 'media:migrate', 'system:status', 'i18n:extract',
   'wp',
 ]);
 

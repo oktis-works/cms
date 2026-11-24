@@ -1,11 +1,53 @@
 # @oktis-works/web
 
+## 0.17.0
+
+### Minor Changes
+
+- Complete the compiled-theme addenda.
+  
+  Expose engine/build status in the Admin Themes screen, add hydration payloads
+  and client-asset validation, cache artifacts by mtime, cover the React/Solid
+  route matrix and golden template HTML, and start theme watchers in the
+  monorepo `bun run dev`.
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/theme-sdk@0.10.0
+  - @oktis-works/theme-runtime@0.14.0
+  - @oktis-works/core@0.20.0
+
+## 0.16.0
+
+### Minor Changes
+
+- Add compiled React and Solid theme render engines.
+
+  Themes can now declare `render.engine: "react" | "solid"` and export a
+  server bundle that is built on the host by `okcms theme:build` (Vite SSR,
+  `dist/theme-build.json` + `dist/server/entry.js`). Template themes keep the
+  existing string-template path unchanged. `okcms dev` watches compiled themes
+  and rebuilds them on save, while production deploys the host-built artifact.
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/types@0.11.0
+  - @oktis-works/validation@0.9.0
+  - @oktis-works/theme-sdk@0.9.0
+  - @oktis-works/theme-runtime@0.13.0
+  - @oktis-works/core@0.19.0
+  - @oktis-works/config@0.7.2
+  - @oktis-works/database@0.16.3
+  - @oktis-works/plugin-runtime@0.8.2
+
 ## 0.15.0
 
 ### Minor Changes
 
 - Security remediation (audit items 1-7, 9-14):
-  
+
   - JWT: migrate signing to RS256 with `kid` + JWKS endpoint (`/.well-known/jwks.json`), key rotation with grace period, and dev/test ephemeral key fallback; add `validateProductionConfig()` to reject default `JWT_SECRET`, missing DB SSL, and insecure cookies in production.
   - Rate limiting: replace in-memory Map with Redis sorted sets (`ratelimit:{key}`, TTL = window + 30s) and keep an in-memory fallback only when Redis is unavailable.
   - Plugin admin components: sandbox rendering through a Web Worker + Comlink host (`PluginWorkerHost`) instead of trusting plugin JSX in the main thread.
@@ -29,28 +71,28 @@
 ### Minor Changes
 
 - Add generic plugin infrastructure for vertical plugins (ecommerce, marketplace, LMS, etc.):
-  
+
   **@oktis-works/core:**
   - New `web-auth` module with `webAuthMiddleware` for resolving authenticated users on public web app (themes SSR)
   - `runWithUserContext` / `getCurrentUserIdSync()` / `getCurrentUserRolesSync()` / `getCurrentUserTenantIdSync()` for sync access to user context
   - Middleware integrates with existing tenant resolution, sets both `app.current_tenant_id` and `app.current_user_id` in Postgres via `runWithTenantTransaction`
-  
+
   **@oktis-works/database:**
   - `runWithTenantTransaction` now accepts optional `userId` parameter to set `app.current_user_id` for RLS
   - New `rls-helpers.ts` with `createUserRlsPolicy()` and `createTenantUserRlsPolicy()` for plugin migrations
   - Migration `V028__core__user_rls_support.sql` adds `current_user_id()` SQL function
-  
+
   **@oktis-works/web:**
   - Integrated `webAuthMiddleware` after tenant resolution (optional, non-blocking)
   - Request context now includes `userId`, `userEmail`, `tenantId`, `userRoles`
-  
+
   **Plugin SDK (documented in PLUGIN.md):**
   - `api.addRoute()` with `requireAuth` and `requiredPermissions` for public/authenticated plugin routes
   - `api.addThemeDataProvider()` for injecting user data (orders, cart, etc.) into theme templates
   - `theme:data:user` hook for render-time data injection
   - RLS helpers for per-user data isolation in plugin tables
   - New permissions: `routes:register`, `theme-data:provide`
-  
+
   This is a minor version bump (0.38.0 → 0.39.0) as it adds new APIs without breaking changes.
 
 ### Patch Changes
@@ -84,11 +126,11 @@
 ### Patch Changes
 
 - Fix theme styling: add data-theme attribute to HTML
-  
+
   The default theme's CSS uses `[data-theme="default"]` scoped selectors, but
   the rendered HTML never included the `data-theme` attribute, so no styles
   were applied and the site appeared unstyled.
-  
+
   `wrapDocument` now sets `data-theme` on the `<html>` element using the
   active theme name, so all theme CSS selectors match and the site renders
   with its intended design.
@@ -98,12 +140,12 @@
 ### Patch Changes
 
 - Fix theme styling: add data-theme attribute to HTML
-  
+
   The default theme's CSS uses `[data-theme="default"]` scoped selectors, but
   the rendered HTML never included the `data-theme` attribute, so no styles
   were applied and the site appeared unstyled (broken layout, no colors,
   no spacing).
-  
+
   `wrapDocument` now sets `data-theme` on the `<html>` element using the
   active theme name, so all theme CSS selectors match and the site renders
   with its intended design.
@@ -188,19 +230,19 @@
 ### Minor Changes
 
 - ### Features
-  
+
   - **Theme Customizer Phase 3**: Advanced UI/UX features for theme customization
     - **Conditional Logic**: Fields now show/hide based on `conditionalLogic` in manifest (reuses `isFieldVisible` from FieldRenderer)
     - **Tabs/Accordion Groups**: Fields with `group` property render as tabs (multiple groups) or accordion (single group/ungrouped)
     - **Parent/Child Theme Inheritance**: `buildThemeSettings` now accepts `parentManifest` for deep merge (parent defaults → child defaults → child config)
     - **Group Ordering**: Groups sorted by `groupOrder`, fields by `sort_order`
-  
+
   - **Web Runtime**: Updated `buildThemeSettings` to accept optional `parentManifest` for deep merge inheritance
   - **Web Server**: Fetches parent theme manifest and passes to `buildThemeSettings`
   - **CLI**: `theme:create` generates example settings with `group` and `groupOrder`
-  
+
   ### Related
-  
+
   - Theme Customizer now supports complex field layouts with conditional visibility
   - Parent/child theme inheritance works for settings (child inherits parent defaults, overrides with own)
   - Theme customizer UI adapts to field group structure automatically
@@ -230,7 +272,7 @@
 ### Minor Changes
 
 - Fetch posts for the static front page and listing pages
-  
+
   The catch-all renderer now fetches recent items for the static front page
   (`isFrontPage`) the same way it already did for `page_for_posts`, so theme
   sections like "Latest posts" render real content on the configured homepage.
@@ -251,7 +293,7 @@
 ### Patch Changes
 
 - Normalize content body before theme rendering
-  
+
   `createContentLookup().findByPath/findById` now normalize the `body` column
   through a defensive `normalizeBody` helper: when the column holds the JSON
   text as a string (legacy double-encoded rows), it is parsed into the fields
@@ -378,12 +420,12 @@
 ### Minor Changes
 
 - feat(web): assinatura do produto no site público — `<meta name="generator">` + `X-Powered-By`
-  
+
   O site público agora se identifica explicitamente como OkCMS (padrão de
   mercado: WordPress/Ghost/Hugo emitem o mesmo meta) — é o que permite que
   detectores (Wappalyzer, BuiltWith, Netcraft) reconheçam um site feito com
   OkCMS de forma determinística, em vez de heurística.
-  
+
   - `wrapDocument` injeta `<meta name="generator" content="OkCMS <CMS_VERSION>">`
     em todo documento gerado (fonte única: o símbolo, sem literal).
   - Middleware emite `X-Powered-By: OkCMS/<CMS_VERSION>` em toda resposta —
@@ -404,29 +446,29 @@
 ### Minor Changes
 
 - refactor(themes): descoberta de templates do projeto unificada no theme-runtime
-  
+
   O `apps/web` reimplementava a cadeia de templates (tema ativo → `_shared` →
   `default`) e a leitura de arquivo em `rendering.ts`, duplicando a lógica já
   testada do pacote — duas fontes de verdade para a mesma regra (risco de drift).
-  
+
   Agora `createProjectTemplateResolver` vive no `@oktis-works/theme-runtime` e é
   a fonte única: saneamento do nome de tema, guard contra `..`/path absoluto e a
   cadeia de fallback. O app web consome via `createTemplateChecker`/
   `loadTemplateSource` (adapters finos, mesma API pública de antes).
-  
+
   Bônus de segurança: templates com nome hostil (`../fora`, `/etc/passwd`) são
   negados pelo guard do pacote em vez de cair em `join()` cru.
 
 ### Patch Changes
 
 - feat(themes): isolamento CSS `isolation: "manual"` + tema default já escopado (BUSI-040)
-  
+
   Formaliza a exceção de isolamento para temas `engine: css`: o manifest pode
   declarar `stylesConfig.isolation: "manual"`, significando que o AUTOR entrega o
   CSS já isolado (o pipeline de build não escopa de novo). `'manual'` é válido
   apenas com `engine: css` — em engines com build (scss/tailwind) é rejeitado na
   validação, pois o build sempre escopa.
-  
+
   - `theme-sdk`: `ThemeStyleConfig.isolation` aceita `true | 'manual'`.
   - `theme-runtime`: `validateStyleManifest`/`resolveStyleEngine`/`buildThemeStyles`
     entendem `'manual'` (não escopa; `false` continua proibido).
@@ -434,13 +476,13 @@
     e `theme.json` com `isolation: "manual"` — o site fica isolado sem build.
   - docs EN/pt-BR, THEMES.md e scaffold-docs atualizados.
 - fix(extensions): `THEMES_DIR` e `OKCMS_THEMES_DIR` apontam para o mesmo diretório
-  
+
   O web runtime resolvia o diretório de temas com `THEMES_DIR ?? ./themes` (cwd),
   enquanto o core/API usava `OKCMS_THEMES_DIR ?? okcms.config.json ?? ./themes`.
   Dois nomes de env para a mesma coisa, sem ninguém definir o segundo — em apps
   com cwd diferente (worker/e2e) a API olhava um diretório vazio e o `sync`
   "não descobria" nenhum tema.
-  
+
   Agora o web consome `resolveExtensionDirectory('theme')` do core (fonte única)
   e a função aceita `THEMES_DIR` como alias documentado do canônico
   `OKCMS_THEMES_DIR`. Contrato novo coberto por `project-directories.test.ts`.
@@ -458,7 +500,7 @@
 ### Patch Changes
 
 - Correções do sistema de temas (ativação, descoberta, scaffold e customizador):
-  
+
   - **`updated_at` no banco (crítico)**: a tabela `themes` ganhou `updated_at` (schema + migração `V010__core__harden_themes_lifecycle.sql`), índices `UNIQUE(name)` e o índice parcial de **um único tema ativo por tenant** — as rotas de ativar/desativar/instalar sempre falhavam por coluna inexistente, e `deactivate` referenciava também `deactivated_at`, que nunca existiu.
   - **Fonte única de ativação (crítico)**: o app web resolve o tema ativo **por request** lendo `status = 'ACTIVE'` do banco (fallback para `ACTIVE_THEME`), em vez de uma leitura única no boot — ativar pela tela Temas agora reflete no site sem restart. `ThemeService.activate` desativa os demais numa única sequência, `getActive` ordena por `activated_at DESC`, e a CLI `theme:manage --set-active` grava config **e** banco (mesma verdade).
   - **Fallback `manifest.json` (crítico)**: `syncFromDirectory` e o `ThemeLoader` aceitam `theme.json` **ou** `manifest.json` (o formato legado que o tema default distribuído usa); `theme:manage --info` também. O manifesto do tema default agora declara `type: "theme"`.

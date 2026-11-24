@@ -1,16 +1,14 @@
-// @oktis-works/cms - Build de estilo de tema (compartilhado por theme:build e redeploy)
+// @oktis-works/cms - Build de tema (estilos + artefato compilado)
 //
-// `themes/<n>/dist/theme.css` é lido PRONTO pelo web (`/themes/<tema>/dist/
-// theme.css`) — ninguém compila SCSS/Tailwind dentro do container. Então o
-// build roda no host, e o artefato só chega na imagem no rebuild. É exatamente
-// isso que o `okcms redeploy` orquestra; este módulo é a parte "compilar um
-// tema", usada pelo comando avulso e pelo redeploy, para não existirem dois
-// caminhos ligeiramente diferentes do mesmo pipeline.
+// `themes/<n>/dist/` é lido PRONTO pelo web — nada compila dentro do
+// container. Este módulo orquestra o build no host: estilos (SCSS/Tailwind/
+// CSS) e, para temas React/Solid, o bundle SSR + `dist/theme-build.json`.
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join } from 'node:path';
 
 import { buildThemeStyles, resolveStyleEngine } from '@oktis-works/theme-runtime';
+import { buildTheme, type ThemeBuildResult } from '@oktis-works/theme-builder';
 
 /** Manifesto cru: quem valida de verdade é o theme-runtime. */
 export function readThemeManifest(path: string): any | null {
@@ -128,5 +126,27 @@ export async function buildThemeStylesOnDisk(
     entry: report.entry,
     warnings: report.warnings,
     skipped: false,
+  };
+}
+
+export interface ThemeBuildBundleOutcome {
+  styles: ThemeBuildOutcome;
+  /** Present for react/solid themes; `null` for template themes. */
+  render: ThemeBuildResult | null;
+}
+
+/**
+ * Full host build: CSS pipeline + compiled server artifact.
+ * Template themes keep the legacy style-only behavior.
+ */
+export async function buildThemeOnDisk(
+  themesDir: string,
+  themeName: string
+): Promise<ThemeBuildBundleOutcome> {
+  const styles = await buildThemeStylesOnDisk(themesDir, themeName);
+  const render = await buildTheme({ themesRoot: themesDir, themeName, mode: 'js' });
+  return {
+    styles,
+    render: render.engine === 'template' ? null : render,
   };
 }

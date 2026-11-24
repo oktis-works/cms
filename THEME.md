@@ -8,6 +8,57 @@ another one.
 > install). With the global CLI (`bun add -g @oktis-works/cms`), run
 > `okcms ...` directly.
 
+## Render engines: template, React or Solid
+
+A theme declares **exactly one** render engine in `theme.json`:
+
+```json
+"render": { "engine": "react", "apiVersion": 1, "hydration": "none" }
+```
+
+| `render.engine` | Source | Build | Runtime |
+|---|---|---|---|
+| `template` (default) | root `*.astro` string templates | CSS only | `ThemeRenderer` (current engine) |
+| `react` | root `*.tsx` + `src/entry-server.tsx` | Vite SSR + `dist/theme-build.json` | imports the server bundle |
+| `solid` | root `*.tsx` + `src/entry-server.tsx` | Vite SSR + `dist/theme-build.json` | imports the server bundle |
+
+- **Never mix engines in one theme.** React and Solid are alternatives.
+- All engines share the same hierarchy (`home`, `index`, `single`, `page`,
+  `archive`, `404`, `{type}-{slug}`), the same `ThemePageData` contract and
+  the same `[data-theme]` CSS isolation.
+- React/Solid themes are built on the host: `okcms theme:build --name my-theme`
+  emits `dist/server/entry.js` + `dist/theme-build.json`. The container never
+  compiles theme code.
+- **Development:** `okcms dev` starts a watcher for every React/Solid theme and
+  rebuilds its artifact on each save (the web runtime picks up the new
+  `buildId` on the next request, no restart). Run a single theme with
+  `okcms theme:dev --name my-react-theme`. `okcms theme:build` remains the
+  one-shot production/pre-deploy command.
+- A compiled theme needs its artifact before activation; `okcms theme:manage
+  --set-active` and the web runtime fail with an actionable error when it is
+  missing or stale.
+- Template inheritance works only between themes with the same engine. A
+  parent with another engine contributes settings, styles and assets, never
+  templates.
+- Hydration (`render.hydration: "islands"`) is opt-in and requires
+  `src/entry-client.tsx`; the default is server-only (`"none"`).
+- **Islands contract:** the web emits a non-executable
+  `<script type="application/json" id="okcms-theme-hydration">` with
+  `{ buildId, templateKey, data }`, followed by the theme's external module
+  script. The client entry reads it with `readThemeHydrationPayload()` from
+  `@oktis-works/theme-sdk` and hydrates the matching root. CSP stays
+  `script-src 'self'` — no inline executable script is generated.
+
+```bash
+okcms theme:create --name my-react-theme --engine react --style tailwind
+okcms theme:build --name my-react-theme   # production / pre-deploy
+okcms theme:dev   --name my-react-theme   # watch + rebuild (dev)
+```
+
+> The legacy examples below describe the `template` engine. They are **not**
+> JSX/Astro component execution: `*.astro` files are string templates parsed
+> by the OkCMS renderer.
+
 ## Generated structure
 
 ```bash

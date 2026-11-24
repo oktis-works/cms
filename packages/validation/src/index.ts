@@ -38,6 +38,16 @@ export type {
   LogicalValueSources,
 } from './field-values.js';
 export {
+  validateThemeRenderConfig,
+  validateThemeManifestRender,
+  isSafeThemeRenderEntry,
+} from './theme-manifest.js';
+export type {
+  ThemeRenderEngine,
+  ThemeRenderConfigLike,
+  ThemeRenderManifestLike,
+} from './theme-manifest.js';
+export {
   PLUGIN_PERMISSIONS,
   PLUGIN_PERMISSION_DEFAULT,
   isKnownPluginPermission,

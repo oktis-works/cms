@@ -4,10 +4,48 @@ import { readdir, readFile, rm } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import { getConnection, runInTransaction } from '@oktis-works/database';
 import type { Theme, ThemeSettingField } from '@oktis-works/types';
-import { checkExtensionCompatibility } from '@oktis-works/validation';
+import { checkExtensionCompatibility, validateThemeManifestRender } from '@oktis-works/validation';
+import { readThemeBuild, validateThemeBuild } from '@oktis-works/theme-runtime';
 import { resolveExtensionDirectory } from '../extensions/project-directories.js';
 
 const SAFE_NAME_RE = /^[a-z0-9][a-z0-9_-]*$/i;
+
+export interface ThemeBuildStatus {
+  engine: 'template' | 'react' | 'solid';
+  status: 'not-applicable' | 'ok' | 'missing' | 'invalid';
+  buildId?: string;
+  problems: string[];
+}
+
+/**
+ * Read-only build status for the Admin Themes screen. The artifact is the
+ * activation contract, so the API exposes exactly what the runtime checks.
+ */
+export function describeThemeBuild(theme: {
+  name: string;
+  manifest?: unknown;
+}): ThemeBuildStatus {
+  const manifest = theme.manifest as { render?: { engine?: string } } | null | undefined;
+  const engine = manifest?.render?.engine;
+  if (engine !== 'react' && engine !== 'solid') {
+    return { engine: 'template', status: 'not-applicable', problems: [] };
+  }
+
+  const themeDir = join(resolveExtensionDirectory('theme'), theme.name);
+  const build = readThemeBuild(themeDir);
+  if (!build) {
+    return {
+      engine,
+      status: 'missing',
+      problems: ['dist/theme-build.json is missing'],
+    };
+  }
+  const issues = validateThemeBuild(themeDir, build, engine);
+  if (issues.length > 0) {
+    return { engine, status: 'invalid', buildId: build.buildId, problems: issues };
+  }
+  return { engine, status: 'ok', buildId: build.buildId, problems: [] };
+}
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -401,6 +439,14 @@ export class ThemeService {
       const compatibilityIssues = checkExtensionCompatibility('theme', { ...manifest, name, version });
       if (compatibilityIssues.length > 0) continue;
 
+      // Invalid render config must not silently enter the registry: the web
+      // would fail later with a less actionable error.
+      const renderIssues = validateThemeManifestRender({ ...manifest, name, version });
+      if (renderIssues.length > 0) {
+        console.warn(`[ThemeService] ${name}: ${renderIssues.join('; ')}`);
+        continue;
+      }
+
       const existing = await this.getByName(name);
       if (existing) {
         const status = existing.status === 'INACTIVE' || existing.status === 'ACTIVE' ? existing.status : 'INSTALLED';
@@ -478,6 +524,11 @@ export class ThemeService {
       throw new Error(`Invalid theme manifest: ${issues.map((issue) => issue.message).join('; ')}`);
     }
 
+    const renderIssues = validateThemeManifestRender({ ...input.manifest, name, version });
+    if (renderIssues.length > 0) {
+      throw new Error(`Invalid theme manifest: ${renderIssues.join('; ')}`);
+    }
+
     const installConfig = input.config ?? {};
     if (!isPlainObject(installConfig)) throw new Error('Theme config must be an object');
     const configValidation = validateThemeConfig(
@@ -519,6 +570,25 @@ export class ThemeService {
       const themeDir = join(resolveExtensionDirectory('theme'), existing.name);
       if (!existsSync(join(themeDir, 'theme.json'))) {
         throw new Error(`Theme files are missing for "${existing.name}"`);
+      }
+
+      // Compiled themes are inert without a valid artifact. Refuse activation
+      // here (admin/API path) with the same actionable message as the CLI.
+      const manifest = existing.manifest as { render?: { engine?: string } } | null;
+      const engine = manifest?.render?.engine;
+      if (engine === 'react' || engine === 'solid') {
+        const build = readThemeBuild(themeDir);
+        if (!build) {
+          throw new Error(
+            `Theme "${existing.name}" is not built: dist/theme-build.json is missing. Run \`okcms theme:build --name ${existing.name}\`.`
+          );
+        }
+        const issues = validateThemeBuild(themeDir, build, engine);
+        if (issues.length > 0) {
+          throw new Error(
+            `Theme "${existing.name}" has an invalid build: ${issues.join('; ')}. Run \`okcms theme:build --name ${existing.name}\`.`
+          );
+        }
       }
 
       await sql.unsafe(

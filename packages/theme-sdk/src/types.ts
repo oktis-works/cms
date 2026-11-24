@@ -1,7 +1,10 @@
 import type {
   ThemeManifest as CanonicalThemeManifest,
   ThemeSettingField as CanonicalThemeSettingField,
+  ThemeRenderConfig as CanonicalThemeRenderConfig,
+  ThemeRenderEngine as CanonicalThemeRenderEngine,
 } from '@oktis-works/types';
+import type { ThemeRenderData } from './data.js';
 
 export type ComponentType = 'layout' | 'component' | 'page' | 'partial';
 
@@ -42,6 +45,87 @@ export interface ThemeProvides {
 }
 
 export type ThemeManifest = CanonicalThemeManifest;
+
+export type ThemeRenderEngine = CanonicalThemeRenderEngine;
+export type ThemeRenderConfig = CanonicalThemeRenderConfig;
+
+/**
+ * Normalized data passed to compiled themes (React/Solid).
+ * Mirrors the context exposed to string templates so both engines share the
+ * same public contract.
+ */
+export interface ThemePageData {
+  site: {
+    title: string;
+    description: string;
+    theme: string;
+    url?: string;
+    language?: string;
+  };
+  page: {
+    title: string;
+    description: string;
+    template: string;
+    type: string;
+    slug: string;
+    url: string;
+    hubBase: string;
+    itemPath: string;
+    canonicalPath: string;
+    isPageForPosts: boolean;
+    isFrontPage: boolean;
+  };
+  content: Record<string, unknown>;
+  fields: Record<string, unknown>;
+  record: Record<string, unknown>;
+  items: Array<Record<string, unknown>>;
+  pagination: {
+    page: number;
+    perPage: number;
+    total: number;
+    pages: number;
+    previousPage?: number;
+    nextPage?: number;
+    hasPrevious: boolean;
+    hasNext: boolean;
+  };
+  menus: ThemeRenderData['menus'];
+  contentTypes: ThemeRenderData['contentTypes'];
+  taxonomies: ThemeRenderData['taxonomies'];
+  terms: ThemeRenderData['terms'];
+  settings: Record<string, unknown>;
+  themeData: ThemeRenderData;
+  /** Route-provided extension values (jsonLd, prevPost/nextPost, ...). */
+  [key: string]: unknown;
+}
+
+export interface ThemeRenderContext {
+  url: string;
+  params: Record<string, string>;
+  tenant: string;
+  templateKey: string;
+  buildId: string;
+}
+
+export interface ThemeRenderOutput {
+  html: string;
+  /** Extra trusted markup for <head>. */
+  head?: string;
+  /** Extra stylesheets, relative to the theme root. */
+  styles?: string[];
+  /** Module scripts, relative to the theme root (hydration phase). */
+  scripts?: string[];
+}
+
+/** Contract implemented by `dist/server/entry.js` of compiled themes. */
+export interface ThemeServerModule {
+  render(
+    templateKey: string,
+    data: ThemePageData,
+    ctx: ThemeRenderContext
+  ): ThemeRenderOutput | Promise<ThemeRenderOutput>;
+  templates?: string[];
+}
 
 export interface RenderContext {
   content: string;

@@ -1,11 +1,40 @@
 # @oktis-works/api
 
+## 0.19.0
+
+### Minor Changes
+
+- Complete the compiled-theme addenda.
+  
+  Expose engine/build status in the Admin Themes screen, add hydration payloads
+  and client-asset validation, cache artifacts by mtime, cover the React/Solid
+  route matrix and golden template HTML, and start theme watchers in the
+  monorepo `bun run dev`.
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/core@0.20.0
+  - @oktis-works/auth@0.9.2
+
+## 0.18.3
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/types@0.11.0
+  - @oktis-works/validation@0.9.0
+  - @oktis-works/core@0.19.0
+  - @oktis-works/auth@0.9.1
+  - @oktis-works/config@0.7.2
+  - @oktis-works/database@0.16.3
+
 ## 0.18.2
 
 ### Patch Changes
 
 - Fix tenant context establishment during bootstrap and rate-limit store initialization
-  
+
   - Establish default tenant context in core bootstrap before syncing plugins
   - Establish default tenant context in API and Worker entry points after bootstrap
   - Fix rate-limit store to always return valid MemoryStore fallback when Redis unavailable
@@ -34,7 +63,7 @@
 ### Minor Changes
 
 - Security remediation (audit items 1-7, 9-14):
-  
+
   - JWT: migrate signing to RS256 with `kid` + JWKS endpoint (`/.well-known/jwks.json`), key rotation with grace period, and dev/test ephemeral key fallback; add `validateProductionConfig()` to reject default `JWT_SECRET`, missing DB SSL, and insecure cookies in production.
   - Rate limiting: replace in-memory Map with Redis sorted sets (`ratelimit:{key}`, TTL = window + 30s) and keep an in-memory fallback only when Redis is unavailable.
   - Plugin admin components: sandbox rendering through a Web Worker + Comlink host (`PluginWorkerHost`) instead of trusting plugin JSX in the main thread.
@@ -107,45 +136,45 @@
 ### Minor Changes
 
 - # Dynamic URL Hierarchy (v0.37.0)
-  
+
   ## Features
-  
+
   ### Phase 1: Dynamic URL Hierarchy
   - **Hub pages per content type**: Any published page can be designated as a listing hub for any content type with `hasArchive` (via `metadata.hub_type`). The page's slug becomes the URL base (e.g., `/blog/`, `/projects/`).
   - **Hierarchical URLs**: Content items support `parent_id` for nested URLs (e.g., `/projects/cliente-a/projeto-1`). Walk-up validation ensures parent chain matches URL segments.
   - **Persistent redirects**: `url_redirects` table stores exact and prefix redirects for slug changes, parent changes, and hub page renames (prefix: `/old-base/*` → `/new-base/*`).
   - **Legacy compatibility**: `postsPage`/`page_for_posts` still work for type `post`; dynamic hubs take precedence.
-  
+
   ### Phase 2: Head SEO
   - `<link rel="canonical">` and `<meta property="og:url">` emitted from `resolution.canonicalPath`.
   - Meta description fix: now uses `page.seo_description` → `page.excerpt` → `siteDescription` (was global only).
-  
+
   ### Phase 3: Sitemap
   - `GET /sitemap.xml` lists hub pages + published items with canonical URLs.
   - Excludes redirect sources; pagination (`?page=N`) uses canonical self.
-  
+
   ### Phase 4: JSON-LD + Breadcrumbs
   - Schema.org entities: `BlogPosting` (post), `WebPage` (page), `CreativeWork` (custom).
   - `BreadcrumbList` from hub base + parent chain: `Home → Hub → Parent1 → Item`.
   - Injected via `<script type="application/ld+json">` in `single.astro` and `page.astro`.
-  
+
   ### Phase 5: RSS/Atom Feeds
   - `GET /{hubBase}/feed` (RSS 2.0 default, `?format=atom` for Atom 1.0).
   - Auto-discovers hub type via `metadata.hub_type`, lists published items ordered by `published_at DESC`.
-  
+
   ## Admin UI
   - **Reading Settings**: Hub pages table (add/remove type + page) with prefix redirect on page rename.
   - **Content Editor**: Parent select dropdown (same type, published, excludes self/descendants, max depth 5).
   - i18n keys for hub pages and parent select.
-  
+
   ## Templates
   - All default templates use `{{url}}` for canonical links (no hardcoded `/blog/`).
   - `single.astro` and `page.astro` inject JSON-LD.
   - CLI `okcms init` produces byte-identical theme.
-  
+
   ## Migrations
   - `V027__core__content_parent_and_hub.sql` (Postgres/MySQL/MariaDB): `parent_id` + `url_redirects` table.
-  
+
   ## Documentation
   All packages updated with READMEs covering Phase 1-5 integration.
 
@@ -255,7 +284,7 @@
 ### Minor Changes
 
 - ### Features
-  
+
   - **Phase 5 - Polish, Tests & Documentation**
     - **Unit Tests**: ThemeService coverage >90% (validation, inheritance, export/import)
     - **API Integration Tests**: Config validation, export/import, history, restore
@@ -264,16 +293,16 @@
     - **Documentation**: Complete `THEME.md` with manifest.settings schema, all 21 field types, inheritance, conditional logic, tabs/groups, API endpoints, CLI
     - **Migration Guide**: `docs/THEME_MIGRATION.md` for legacy theme migration
     - **CHANGELOG**: Updated with all changes
-  
+
   ### Testing
-  
+
   - Unit tests for ThemeService validation, inheritance, export/import
   - API integration tests for config endpoints
   - Playwright E2E tests for full customizer flow
   - Visual regression tests with Chromatic/pixelmatch
-  
+
   ### Documentation
-  
+
   - `THEME.md` - Complete theme development guide
   - `docs/THEME_MIGRATION.md` - Legacy theme migration guide
   - Updated `CHANGELOG.md`
@@ -289,27 +318,27 @@
 ### Minor Changes
 
 - ### Features
-  
+
   - **Theme Config Export/Import**: Export theme config as JSON file, import with validation (merge/replace modes)
   - **Config History/Versioning**: Automatic history tracking via `theme_config_versions` table, with REST API for history and restore
   - **Permission `theme:customize`**: New granular permission for theme config operations (separate from `theme:update`)
   - **Audit Log**: Automatic history entries on config changes with user tracking
   - **Restore Defaults**: One-click reset to manifest defaults
-  
+
   ### Database
-  
+
   - New migration `V022__core__theme_config_history.sql` creates `theme_config_versions` table with RLS
-  
+
   ### API
-  
+
   - `GET /themes/:id/config/export` - Export config as downloadable JSON
   - `POST /themes/:id/config/import` - Import config with merge/replace modes
   - `GET /themes/:id/config/history` - Paginated config history
   - `POST /themes/:id/config/restore` - Restore specific version
   - `POST /themes/:id/config/restore-defaults` - Reset to manifest defaults
-  
+
   ### Permissions
-  
+
   - New `theme:customize` permission added to TENANT_ADMIN role
   - Config routes (`PATCH/GET/POST /themes/:id/config/*`) now require `theme:customize` instead of `theme:update`
 
@@ -460,13 +489,13 @@
 ### Minor Changes
 
 - feat: add custom field types via plugins
-  
+
   - Core: field_type_extensions table, dynamic type registry
   - Plugin Runtime: addFieldType API, manifest fieldTypes[]
   - Admin: dynamic component loading for field config/render
   - Docs: plugin-development.md, PLUGIN.md
   - Example plugin: mermaid-field
-  
+
   BREAKING CHANGE: none
 
 ### Patch Changes
@@ -520,13 +549,13 @@
 ### Minor Changes
 
 - 3da0733: fix(rate-limit): 429 em rajada e "logout" falso no admin
-  
+
   O admin estourava o rate limit carregando o dashboard (~21 requisições por
   página, com N+1 e /auth/me triplicado) e todos os clientes dividiam um único
   balde `platform:unknown` — a chave vinha de X-Forwarded-For forjável ou
   retornava literalmente "unknown". O guarda de sessão trataba qualquer erro
   (inclusive 429) como "usuário deslogado" e redirecionava para /login.
-  
+
   API:
   - rate limiting por classe: anônimo por IP real (socket, ou XFF apenas
     quando o par é proxy de confiança; `TRUST_PROXY`/`TRUSTED_PROXIES`),
@@ -540,7 +569,7 @@
     `/auth/me` devolve `locale` (sessão + idioma em uma chamada);
   - `GET /content?include=author` expande autores em uma query (anti N+1);
   - nginx: X-Real-IP/X-Forwarded-For também em `/storage/` e `/themes/`.
-  
+
   Admin:
   - `ApiError` tipado e `checkSession()` tri-estado: só um 401 definitivo
     redireciona; 429/5xx/rede viram `unavailable` (sem logout falso);
@@ -551,7 +580,7 @@
     com TTL de 10s que travava abas órfãs);
   - sessão e idioma resolvidos no SSR (uma chamada server-side; o login
     não gasta nenhuma), CSRF em memória por 60s, proxy injeta o IP real.
-  
+
   Config/CLI:
   - `RATE_LIMIT_DEFAULTS` em `@oktis-works/config` como fonte única; o wizard
     grava os mesmos defaults que a API lê (antes: wizard escrevia 100/60s e o
@@ -587,41 +616,41 @@
 ### Minor Changes
 
 - feat(themes): `GET /api/v1/themes` vira leitura pura; sincronização explícita em `POST /sync`
-  
+
   `GET /api/v1/themes` disparava `syncFromDirectory()` — uma **escrita** no banco
   a cada listagem (upsert + `updated_at`), colidindo com o contrato de uma
   opação de leitura e fazendo I/O de disco à cada request.
-  
+
   - `GET /api/v1/themes`: só `themeService.list()` (sem side-effect).
   - `POST /api/v1/themes/sync`: novo, com `requirePermission('create', 'theme')`,
     devolve o estado completo após o upsert.
   - Admin (`ThemeManager`): `loadThemes()` chama `syncThemes()` e degrada para a
     listagem pura se o sync falhar (ex.: usuário sem permissão de criação).
-  
+
   Compatível com o fluxo existente do admin (abrir a tela Temas continua
   sincronizando), apenas com o side-effect movido para a operação explícita.
 
 ### Patch Changes
 
 - fix(lint): remove imports/vars não usados que quebravam `bun run lint` no CI
-  
+
   `eslint .` falhava com 7 erros de `no-unused-vars` em arquivos committados
   (`apps/api/src/index.ts`, `packages/core/src/plugin/load.ts`,
   `packages/plugin-runtime/src/plugin-api-rls.test.ts`) — o gate de lint do CI
   ficava vermelho em qualquer tag. Removidos os símbolos sem uso, sem mudança
   de comportamento.
-  
+
   Inclui também a limpeza do `apps/web/src/rendering.ts`: `getScopedContainer` e
   `buildTheme` eram helpers exportados porém **nunca consumidos** pelo app
   (duplicavam o style-engine do pacote) — removidos junto com os imports órfãos.
 - feat(themes): isolamento CSS `isolation: "manual"` + tema default já escopado (BUSI-040)
-  
+
   Formaliza a exceção de isolamento para temas `engine: css`: o manifest pode
   declarar `stylesConfig.isolation: "manual"`, significando que o AUTOR entrega o
   CSS já isolado (o pipeline de build não escopa de novo). `'manual'` é válido
   apenas com `engine: css` — em engines com build (scss/tailwind) é rejeitado na
   validação, pois o build sempre escopa.
-  
+
   - `theme-sdk`: `ThemeStyleConfig.isolation` aceita `true | 'manual'`.
   - `theme-runtime`: `validateStyleManifest`/`resolveStyleEngine`/`buildThemeStyles`
     entendem `'manual'` (não escopa; `false` continua proibido).
@@ -656,7 +685,7 @@
 ### Patch Changes
 
 - Correções do sistema de temas (ativação, descoberta, scaffold e customizador):
-  
+
   - **`updated_at` no banco (crítico)**: a tabela `themes` ganhou `updated_at` (schema + migração `V010__core__harden_themes_lifecycle.sql`), índices `UNIQUE(name)` e o índice parcial de **um único tema ativo por tenant** — as rotas de ativar/desativar/instalar sempre falhavam por coluna inexistente, e `deactivate` referenciava também `deactivated_at`, que nunca existiu.
   - **Fonte única de ativação (crítico)**: o app web resolve o tema ativo **por request** lendo `status = 'ACTIVE'` do banco (fallback para `ACTIVE_THEME`), em vez de uma leitura única no boot — ativar pela tela Temas agora reflete no site sem restart. `ThemeService.activate` desativa os demais numa única sequência, `getActive` ordena por `activated_at DESC`, e a CLI `theme:manage --set-active` grava config **e** banco (mesma verdade).
   - **Fallback `manifest.json` (crítico)**: `syncFromDirectory` e o `ThemeLoader` aceitam `theme.json` **ou** `manifest.json` (o formato legado que o tema default distribuído usa); `theme:manage --info` também. O manifesto do tema default agora declara `type: "theme"`.
@@ -748,7 +777,7 @@
 ### Patch Changes
 
 - Segurança: tokens em cookies HttpOnly (não localStorage) + CSRF double-submit
-  
+
   - Login/register/logout movidos para cookies HttpOnly + Secure + SameSite (configurável via AUTH_COOKIE_SAMESITE: strict|lax|none)
   - Cookie CSRF legível pelo JS (httpOnly: false) — double-submit header X-CSRF-Token === cookie
   - CSRF: clientes Bearer (API-first) isentos; sem Origin/Referer (curl/SDK/CI) isento; cross-port via TRUSTED_ORIGINS
@@ -770,7 +799,7 @@
 ### Patch Changes
 
 - F1–F10: Admin panel completo
-  
+
   - F1 RBAC: seed 5 roles (SUPER_ADMIN, TENANT_ADMIN, EDITOR, AUTHOR, VIEWER); register atribui TENANT_ADMIN ao 1º usuário; login resolve slug→UUID e devolve tenantId no JWT
   - F2 Media: upload local-disk (UPLOAD_DIR), layout tenant/uuid.ext, GET /file público (cache imutável), 25MB, traversal bloqueado
   - F3 Settings: seed 4 configurações (siteTitle, siteDescription, language, timezone) grupo general

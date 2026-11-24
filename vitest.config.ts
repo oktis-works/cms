@@ -98,6 +98,7 @@ export default defineConfig({
       '@oktis-works/theme-sdk': path.resolve(__dirname, 'packages/theme-sdk/src'),
       '@oktis-works/plugin-runtime': path.resolve(__dirname, 'packages/plugin-runtime/src'),
       '@oktis-works/theme-runtime': path.resolve(__dirname, 'packages/theme-runtime/src'),
+      '@oktis-works/theme-builder': path.resolve(__dirname, 'packages/theme-builder/src'),
       '@oktis-works/api-client': path.resolve(__dirname, 'packages/api-client/src'),
       '@oktis-works/cms': path.resolve(__dirname, 'packages/cli/src'),
       '@oktis-works/ui': path.resolve(__dirname, 'packages/ui/src'),

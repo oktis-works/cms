@@ -381,16 +381,18 @@ Run 'okcms wp import --help' or 'okcms wp validate --help' for subcommand option
   },
   {
     name: 'theme:create',
-    description: 'Scaffold a minimal compatible theme (--name --style css|scss|tailwind)',
+    description: 'Scaffold a compatible theme (--engine template|react|solid --style css|scss|tailwind)',
     options: [
       { name: 'name', alias: 'n', description: 'Theme name', required: true },
       { name: 'dir', alias: 'd', description: 'Base directory (default: ./themes)', required: false },
       { name: 'style', alias: 's', description: 'Style engine: css|scss|tailwind', required: false, valueKind: 'enum', choices: ['css', 'scss', 'tailwind'] },
+      { name: 'engine', alias: 'e', description: 'Render engine: template|react|solid', required: false, valueKind: 'enum', choices: ['template', 'react', 'solid'] },
     ],
     handler: async (_args, options) => {
       const { scaffoldTheme } = await import('./extension-scaffold.js');
       const name = options['name'];
       const style = (options['style'] ?? 'css') as 'css' | 'scss' | 'tailwind';
+      const engine = (options['engine'] ?? 'template') as 'template' | 'react' | 'solid';
       if (!name) {
         console.error('Theme name is required (--name)');
         process.exit(1);
@@ -399,9 +401,13 @@ Run 'okcms wp import --help' or 'okcms wp validate --help' for subcommand option
         console.error('--style must be css|scss|tailwind');
         process.exit(1);
       }
+      if (!['template', 'react', 'solid'].includes(engine)) {
+        console.error('--engine must be template|react|solid');
+        process.exit(1);
+      }
       try {
-        const result = scaffoldTheme(name, options['dir'], style);
-        console.log(`Theme created at ${result.dir} (engine: ${style})`);
+        const result = scaffoldTheme(name, options['dir'], style, engine);
+        console.log(`Theme created at ${result.dir} (engine: ${engine}, style: ${style})`);
       } catch (error) {
         console.error(error instanceof Error ? error.message : String(error));
         process.exit(1);
@@ -410,7 +416,7 @@ Run 'okcms wp import --help' or 'okcms wp validate --help' for subcommand option
   },
   {
     name: 'theme:build',
-    description: 'Compile theme styles (SCSS/Tailwind -> dist/theme.css with [data-theme] isolation)',
+    description: 'Build a theme (styles + React/Solid SSR artifact)',
     options: [
       { name: 'name', alias: 'n', description: 'Theme name', required: true },
       { name: 'themes-dir', alias: 'd', description: 'Themes directory (default: ./themes)', required: false },
@@ -424,24 +430,77 @@ Run 'okcms wp import --help' or 'okcms wp validate --help' for subcommand option
       }
       const themesDir = options['themes-dir'] ?? join(process.cwd(), 'themes');
       try {
-        const { buildThemeStylesOnDisk } = await import('./theme-build.js');
+        const { buildThemeOnDisk } = await import('./theme-build.js');
         const { migrateThemeManifests } = await import('./theme-migrate.js');
         // Unificação theme.json: migra manifesto legado antes do build (o
         // themeManifestPath só lê o nome canônico).
         for (const migrated of migrateThemeManifests(themesDir)) {
           console.log(`migrated theme manifest: ${migrated} -> theme.json`);
         }
-        const outcome = await buildThemeStylesOnDisk(themesDir, name);
-        for (const warning of outcome.warnings) console.warn(`warn: ${warning}`);
-        if (outcome.skipped) {
+        const { styles, render } = await buildThemeOnDisk(themesDir, name);
+        for (const warning of styles.warnings) console.warn(`warn: ${warning}`);
+        if (styles.skipped) {
           console.log(
-            `[${name}] no style entry (${outcome.engine}) — nothing compiled, dist/theme.css left untouched`
+            `[${name}] no style entry (${styles.engine}) — nothing compiled, dist/theme.css left untouched`
           );
         } else {
           console.log(
-            `[${name}] ${outcome.engine} -> ${outcome.output} (${outcome.bytes} bytes) isolated=${outcome.isolated}`
+            `[${name}] ${styles.engine} -> ${styles.output} (${styles.bytes} bytes) isolated=${styles.isolated}`
           );
         }
+        if (render) {
+          for (const warning of render.warnings) console.warn(`warn: ${warning}`);
+          console.log(
+            `[${name}] ${render.engine} ssr -> ${render.entry} (buildId ${render.buildId}) templates=${render.templates.join(',')}`
+          );
+          console.log(`[${name}] artifact -> dist/theme-build.json`);
+        }
+      } catch (e) {
+        console.error(e instanceof Error ? e.message : String(e));
+        process.exit(1);
+      }
+    },
+  },
+  {
+    name: 'theme:dev',
+    description: 'Watch a React/Solid theme and rebuild its artifact on change (dev)',
+    options: [
+      { name: 'name', alias: 'n', description: 'Theme name', required: true },
+      { name: 'themes-dir', alias: 'd', description: 'Themes directory (default: ./themes)', required: false },
+    ],
+    handler: async (_args, options) => {
+      const { join } = await import('node:path');
+      const name = options['name'];
+      if (!name) {
+        console.error('--name required');
+        process.exit(1);
+      }
+      const themesDir = options['themes-dir'] ?? join(process.cwd(), 'themes');
+      try {
+        const { migrateThemeManifests } = await import('./theme-migrate.js');
+        for (const migrated of migrateThemeManifests(themesDir)) {
+          console.log(`migrated theme manifest: ${migrated} -> theme.json`);
+        }
+        const { watchTheme } = await import('@oktis-works/theme-builder');
+        const stop = await watchTheme({ themesRoot: themesDir, themeName: name }, (event) => {
+          if (event.type === 'error') {
+            console.error(`[${name}] build failed: ${event.error?.message ?? 'unknown error'}`);
+            return;
+          }
+          const result = event.result;
+          if (!result) return;
+          console.log(
+            `[${name}] ${result.engine} rebuilt (buildId ${result.buildId ?? 'n/a'}) templates=${result.templates.join(',')}`
+          );
+        });
+        console.log(`[${name}] watching for changes — Ctrl+C to stop`);
+        const shutdown = (): void => {
+          stop();
+          process.exit(0);
+        };
+        process.once('SIGINT', shutdown);
+        process.once('SIGTERM', shutdown);
+        await new Promise(() => {});
       } catch (e) {
         console.error(e instanceof Error ? e.message : String(e));
         process.exit(1);
@@ -1068,6 +1127,7 @@ Run 'okcms wp import --help' or 'okcms wp validate --help' for subcommand option
       const { join } = await import('node:path');
       const { loadProjectConfig, DEFAULT_CONFIG_FILENAME } = await import('./project-config.js');
       const { setEnabled, loadExtensionsState } = await import('./extensions-state.js');
+      const projectConfig = loadProjectConfig();
 
       const name = options['name'];
       if (!name) {
@@ -1079,7 +1139,8 @@ Run 'okcms wp import --help' or 'okcms wp validate --help' for subcommand option
       // qualquer leitura — --info, --set-active (syncFromDirectory) e o
       // ThemeService só enxergam o nome canônico.
       const { migrateThemeManifests } = await import('./theme-migrate.js');
-      migrateThemeManifests(join(process.cwd(), loadProjectConfig().themesDir));
+      const themesDir = join(process.cwd(), projectConfig.themesDir);
+      migrateThemeManifests(themesDir);
 
       if (options['uninstall'] !== undefined) {
         const { uninstallExtension } = await import('./extensions-state.js');
@@ -1110,6 +1171,38 @@ Run 'okcms wp import --help' or 'okcms wp validate --help' for subcommand option
         if (!existsSync(configPath)) {
           console.error(`${DEFAULT_CONFIG_FILENAME} not found; run \`okcms init\` first.`);
           process.exit(1);
+        }
+
+        // Compiled themes must have a current artifact before activation; a
+        // missing/stale build would only fail later on the first request.
+        const manifestPath = join(themesDir, name, 'theme.json');
+        if (existsSync(manifestPath)) {
+          const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8')) as {
+            render?: { engine?: string };
+          };
+          const engine = manifest?.render?.engine;
+          if (engine === 'react' || engine === 'solid') {
+            const themeDir = join(themesDir, name);
+            const { readThemeBuild, validateThemeBuild } = await import('@oktis-works/theme-runtime');
+            const build = readThemeBuild(themeDir);
+            const issues = build
+              ? validateThemeBuild(themeDir, build, engine)
+              : ['dist/theme-build.json is missing'];
+            if (issues.length > 0) {
+              console.error(`Theme "${name}" cannot be activated: ${issues.join('; ')}`);
+              console.error(`Run: okcms theme:build --name ${name}`);
+              process.exit(1);
+            }
+            const { verifyThemeBuild } = await import('@oktis-works/theme-builder');
+            const stale = verifyThemeBuild(themeDir, manifest as never);
+            if (!stale.ok) {
+              console.error(
+                `Theme "${name}" has a stale build (artifact ${stale.actual ?? 'unknown'}, sources ${stale.expected ?? 'unknown'}).`
+              );
+              console.error(`Run: okcms theme:build --name ${name}`);
+              process.exit(1);
+            }
+          }
         }
 
         const raw = JSON.parse(readFileSync(configPath, 'utf-8')) as Record<string, unknown>;
