@@ -8,13 +8,11 @@ name: Publish to npm
 #     (configs criadas após 03/09/2026 vêm só com "npm stage publish").
 # Disparado por:
 #   • repository_dispatch (publish-release) — CI trigger-publish após tag ou push em main
-#   • push direto na branch main (quando não há tag, usa versão do package.json)
+#   NÃO use push:branches[main] — causaria publish duplicado no merge de PR
 
 on:
   repository_dispatch:
     types: [publish-release]
-  push:
-    branches: [main]
 
 permissions:
   contents: read
