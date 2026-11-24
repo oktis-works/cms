@@ -86,6 +86,8 @@ export interface DevHooks {
   createUser: (input: DevUserInput) => Promise<void>;
   /** Sobe api · admin · web · worker (bloqueia — é o processo do dev). */
   startApps: () => Promise<void>;
+  /** Rebuild contínuo dos temas React/Solid (dev). Opcional em testes. */
+  startThemeWatchers?: () => Promise<void> | void;
 }
 
 export interface DevOptions {
@@ -307,6 +309,10 @@ async function defaultHooks(log: (message: string) => void): Promise<DevHooks> {
     startApps: async () => {
       const { startProject } = await import('./start.js');
       await startProject({});
+    },
+    startThemeWatchers: async () => {
+      const { startProjectThemeWatchers } = await import('./theme-dev.js');
+      await startProjectThemeWatchers();
     },
   };
 }
@@ -534,6 +540,7 @@ export async function runDev(opts: DevOptions = {}): Promise<number> {
     stopAll('SIGTERM', cwd);
   }
 
+  await hooks.startThemeWatchers?.();
   await hooks.startApps();
   prompt.success('all apps started');
   for (const url of urls) prompt.info(`  ${url}`);

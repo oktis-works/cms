@@ -30,10 +30,25 @@ export interface TemplateContext {
 export interface ResolvedTemplate {
   /** Nome canônico do template na hierarquia. */
   name: string;
+  /** Logical engine-agnostic key (e.g. `single`, `page-about`). */
+  key?: string;
   /** Arquivo .astro resolvido (relativo ao tema). */
   file: string;
   /** Próximo fallback da cadeia (para debug/diagnóstico). */
   triedChain: string[];
+}
+
+/** `home.astro` → `home`; leaves keys without an extension untouched. */
+export function templateKeyFromFile(file: string): string {
+  return file.replace(/\.(?:astro|tsx|jsx|js|mjs)$/i, '');
+}
+
+/**
+ * Hierarchy as engine-agnostic keys. Template themes map a key to
+ * `${key}.astro`; compiled themes map it to a component export.
+ */
+export function buildTemplateKeyChain(context: TemplateContext): string[] {
+  return buildTemplateChain(context).map(templateKeyFromFile);
 }
 
 /**
@@ -199,6 +214,7 @@ export class TemplateHierarchyResolver {
       if (await this.fileChecker.exists(candidate)) {
         return {
           name: candidate.replace(/\.astro$/, ''),
+          key: templateKeyFromFile(candidate),
           file: candidate,
           triedChain: chain.slice(0, chain.indexOf(candidate) + 1),
         };
@@ -207,6 +223,7 @@ export class TemplateHierarchyResolver {
 
     return {
       name: '404',
+      key: '404',
       file: '404.astro',
       triedChain: chain,
     };

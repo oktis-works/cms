@@ -22,6 +22,7 @@ vi.mock('@oktis-works/database', () => ({
 
 vi.mock('@oktis-works/validation', () => ({
   CMS_VERSION: '0.36.0',
+  validateThemeManifestRender: vi.fn(() => []),
   checkExtensionCompatibility: vi.fn((type, manifest) => {
     const issues: Array<{ message: string }> = [];
     if (!manifest.type) issues.push({ message: 'Missing type' });

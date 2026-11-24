@@ -79,7 +79,7 @@ When implementing custom field types via plugins, follow these rules:
 - **Plugin API:** Plugins register field types via `api.addFieldType(definition)` in their `register()` function.
 - **Manifest:** Field types are declared in `manifest.json` under `fieldTypes[]` array.
 - **Permissions:** Require `field-types:register` permission in manifest.
-- **Build Order:** Packages must be built in dependency order (validation → types → config → database → auth → plugin-sdk → plugin-runtime → core → theme-sdk → theme-runtime → api-client → ui → cli).
+- **Build Order:** Packages must be built in dependency order (validation → types → config → database → auth → plugin-sdk → plugin-runtime → theme-sdk → theme-runtime → core → api-client → ui → cli).
 
 ### Admin Frontend
 - **FieldTypePicker:** Automatically loads plugin field types from `/api/v1/field-types`.
@@ -180,7 +180,7 @@ The field type system is the contract between core, plugins, and admin UI.
 ## 15. Build & Deployment Invariants
 These invariants must hold for every release.
 
-* **`bun run build` must succeed on fresh checkout:** No pre-existing `dist/` or `node_modules/`. The build order (validation → types → config → database → auth → plugin-sdk → plugin-runtime → core → theme-sdk → theme-runtime → api-client → ui → cli) is enforced by the root `build.mjs`.
+* **`bun run build` must succeed on fresh checkout:** No pre-existing `dist/` or `node_modules/`. The build order (validation → types → config → database → auth → plugin-sdk → plugin-runtime → theme-sdk → theme-runtime → core → api-client → ui → cli) is enforced by the root `build.mjs`.
 * **Typecheck runs on all packages EXCEPT plugins:** `tsc --noEmit -p tsconfig.typecheck.json` excludes `plugins/**` (they have their own tsconfig).
 * **CLI scaffold test is lint-ignored:** `packages/cli/src/scaffold.test.js` uses dynamic patterns that ESLint cannot parse — it is explicitly ignored in `.eslintrc.json`.
 * **Worker process is a separate entry point:** `apps/worker` runs the job queue. It shares the same codebase but has its own `package.json` and build output. Changes to `core` events/queues require worker rebuild.

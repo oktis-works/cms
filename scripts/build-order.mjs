@@ -10,9 +10,9 @@
  * 5. auth (depends on types, config, database)
  * 6. plugin-sdk (depends on types)
  * 7. plugin-runtime (depends on types, validation, plugin-sdk)
- * 8. core (depends on types, config, database, auth, validation, plugin-runtime)
- * 9. theme-sdk (depends on types)
- * 10. theme-runtime (depends on types, theme-sdk)
+ * 8. theme-sdk (depends on types)
+ * 9. theme-runtime (depends on types, theme-sdk)
+ * 10. core (depends on types, config, database, auth, validation, plugin-runtime, theme-runtime)
  * 11. api-client (depends on types)
  * 12. ui (depends on types, validation)
  * 13. cli (depends on types, config, validation, core)
@@ -41,15 +41,18 @@ const packages = [
   'plugin-sdk',
   // Level 6: Depends on types, validation, plugin-sdk
   'plugin-runtime',
-  // Level 7: Depends on types, config, database, auth, validation, plugin-runtime
-  'core',
   // Level 3/4: Depends on types
   'theme-sdk',
+  // Level 4/5: Depends on types, theme-sdk
+  'theme-runtime',
+  // Level 7: Depends on types, config, database, auth, validation,
+  // plugin-runtime and theme-runtime (build status reads the artifact)
+  'core',
   'api-client',
   'ui',
-  // Level 4/5: Depends on multiple
-  'theme-runtime',
-  // Level 5: Depends on theme-runtime
+  // Level 5: Depends on theme-runtime (Vite builds for compiled themes)
+  'theme-builder',
+  // Level 6: Depends on theme-runtime + theme-builder
   'cli',
 ];
 

@@ -3,6 +3,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import type { ThemeManifest } from '@oktis-works/theme-sdk';
+import { validateThemeManifestRender } from '@oktis-works/theme-sdk';
 import { validateStyleManifest } from './style-engine.js';
 
 export interface DiscoveredTheme {
@@ -87,6 +88,11 @@ export class ThemeLoader {
       const errors = validateStyleManifest(manifest as ThemeManifest, themePath);
       if (errors.length) {
         console.warn(`[ThemeLoader] ${manifest.name}: ${errors.join('; ')}`);
+      }
+
+      const renderErrors = validateThemeManifestRender(manifest);
+      if (renderErrors.length) {
+        console.warn(`[ThemeLoader] ${manifest.name}: ${renderErrors.join('; ')}`);
       }
 
       return manifest as ThemeManifest;
