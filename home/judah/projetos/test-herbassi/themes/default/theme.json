@@ -1,0 +1,57 @@
+{
+  "name": "default",
+  "version": "0.36.2",
+  "description": "Default OkCMS theme — hierarchical templates with real content interpolation + Static Front Page",
+  "type": "theme",
+  "author": "Oktis Works",
+  "compatibility": {
+    "okcms": "^0.40.0"
+  },
+  "screenshots": [
+    "screenshot.png"
+  ],
+  "provides": {
+    "layouts": [
+      "page-home",
+      "page-about",
+      "page-contact",
+      "page-blog",
+      "post-first-post",
+      "post-second-post",
+      "page",
+      "single",
+      "archive",
+      "index",
+      "404"
+    ],
+    "assets": [
+      "dist/theme.css"
+    ]
+  },
+  "stylesConfig": {
+    "engine": "css",
+    "isolation": "manual",
+    "entry": "src/theme.css",
+    "output": "dist/theme.css"
+  },
+  "settings": [
+    {
+      "name": "siteTitle",
+      "type": "text",
+      "label": "Site title",
+      "default": "OkCMS"
+    },
+    {
+      "name": "siteDescription",
+      "type": "text",
+      "label": "Site description",
+      "default": ""
+    },
+    {
+      "name": "contactText",
+      "type": "textarea",
+      "label": "Contact section text",
+      "default": "Fill out the form or send us an email at hello@example.com"
+    }
+  ]
+}

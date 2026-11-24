@@ -1,0 +1,51 @@
+<article data-template="post-second-post" data-type="post" class="post post-single">
+  <header class="post-header">
+    <div class="container">
+      <h1 class="post-title">{{field "title"}}</h1>
+      <div class="post-meta">
+        <time datetime="{{content.published_at}}" class="post-date">
+          {{#if content.published_at}}
+          {{formatDate content.published_at}}
+          {{/if}}
+        </time>
+      </div>
+    </div>
+  </header>
+
+  <div class="post-body container">
+    {{#if (field "content")}}
+    <div class="entry-content">{{{field "content"}}}</div>
+    {{else if (field "blocks")}}
+    <div class="entry-content">
+      {{#each fields.blocks}}
+        {{#if (eq type 'heading')}}
+        <h{{level}}>{{content}}</h{{level}}>
+        {{else if (eq type 'paragraph')}}
+        <p>{{content}}</p>
+        {{else if (eq type 'image')}}
+        <figure><img src="{{content.url}}" alt="{{content.alt}}" /></figure>
+        {{/if}}
+      {{/each}}
+    </div>
+    {{/if}}
+  </div>
+
+  <footer class="post-footer">
+    <div class="container">
+      <nav class="post-nav" aria-label="Post navigation">
+        {{#if prevPost}}
+        <a href="/{{page.type}}/{{prevPost.slug}}" class="post-nav__prev" rel="prev">
+          <span class="post-nav__label">Previous article</span>
+          <span class="post-nav__title">{{prevPost.title}}</span>
+        </a>
+        {{/if}}
+        {{#if nextPost}}
+        <a href="/{{page.type}}/{{nextPost.slug}}" class="post-nav__next" rel="next">
+          <span class="post-nav__label">Next article</span>
+          <span class="post-nav__title">{{nextPost.title}}</span>
+        </a>
+        {{/if}}
+      </nav>
+    </div>
+  </footer>
+</article>

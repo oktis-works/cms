@@ -1,0 +1,8 @@
+# OkCMS
+.env
+node_modules/
+dist/
+deploy/nginx/conf.d/default.conf
+docker-compose.override.yml
+.data/
+.deploy/
