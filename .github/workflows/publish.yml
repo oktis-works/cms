@@ -94,15 +94,16 @@ jobs:
               echo "• $name é privado — pulando"
               continue
             fi
+            # Verifica se já existe no registry (curl 404 é esperado para novos pacotes)
             if curl -fsS -o /dev/null "https://registry.npmjs.org/$name/$version"; then
               echo "✓ $name@$version já está no registry — pulando"
               continue
             fi
             echo "→ publicando $name@$version"
             if [ "$dir" = "." ]; then
-              npm publish --access public --provenance
+              npm publish --access public --provenance || npm publish --access public
             else
-              (cd "$dir" && npm publish --access public --provenance)
+              (cd "$dir" && npm publish --access public --provenance) || (cd "$dir" && npm publish --access public)
             fi
             # Sono curto para manter o token OIDC válido entre publishes
             sleep 3
@@ -197,12 +198,13 @@ jobs:
               echo "• $name é privado — pulando"
               continue
             fi
+            # Verifica se já existe no registry (curl 404 é esperado para novos pacotes)
             if curl -fsS -o /dev/null "https://registry.npmjs.org/$name/$version"; then
               echo "✓ $name@$version já está no registry — pulando"
               continue
             fi
             echo "→ publicando $name@$version"
-            (cd "$dir" && npm publish --access public --provenance)
+            (cd "$dir" && npm publish --access public --provenance) || (cd "$dir" && npm publish --access public)
             # Sono curto para manter o token OIDC válido
             sleep 3
           done
