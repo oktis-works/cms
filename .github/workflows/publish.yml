@@ -8,13 +8,11 @@ name: Publish to npm
 #     (configs criadas após 03/09/2026 vêm só com "npm stage publish").
 # Disparado por:
 #   • repository_dispatch (publish-release) — CI trigger-publish após tag ou push em main
-#   • push direto na branch main (quando não há tag, usa versão do package.json)
+#   NÃO use push:branches[main] — causaria publish duplicado no merge de PR
 
 on:
   repository_dispatch:
     types: [publish-release]
-  push:
-    branches: [main]
 
 permissions:
   contents: read
@@ -96,15 +94,16 @@ jobs:
               echo "• $name é privado — pulando"
               continue
             fi
+            # Verifica se já existe no registry (curl 404 é esperado para novos pacotes)
             if curl -fsS -o /dev/null "https://registry.npmjs.org/$name/$version"; then
               echo "✓ $name@$version já está no registry — pulando"
               continue
             fi
             echo "→ publicando $name@$version"
             if [ "$dir" = "." ]; then
-              npm publish --access public --provenance
+              npm publish --access public --provenance || npm publish --access public
             else
-              (cd "$dir" && npm publish --access public --provenance)
+              (cd "$dir" && npm publish --access public --provenance) || (cd "$dir" && npm publish --access public)
             fi
             # Sono curto para manter o token OIDC válido entre publishes
             sleep 3
@@ -199,12 +198,13 @@ jobs:
               echo "• $name é privado — pulando"
               continue
             fi
+            # Verifica se já existe no registry (curl 404 é esperado para novos pacotes)
             if curl -fsS -o /dev/null "https://registry.npmjs.org/$name/$version"; then
               echo "✓ $name@$version já está no registry — pulando"
               continue
             fi
             echo "→ publicando $name@$version"
-            (cd "$dir" && npm publish --access public --provenance)
+            (cd "$dir" && npm publish --access public --provenance) || (cd "$dir" && npm publish --access public)
             # Sono curto para manter o token OIDC válido
             sleep 3
           done
