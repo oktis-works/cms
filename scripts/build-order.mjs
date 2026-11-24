@@ -49,7 +49,9 @@ const packages = [
   'ui',
   // Level 4/5: Depends on multiple
   'theme-runtime',
-  // Level 5: Depends on theme-runtime
+  // Level 5: Depends on theme-runtime (Vite builds for compiled themes)
+  'theme-builder',
+  // Level 6: Depends on theme-runtime + theme-builder
   'cli',
 ];
 

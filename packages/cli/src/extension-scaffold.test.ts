@@ -94,4 +94,50 @@ describe('scaffoldTheme (runtime web format)', () => {
     scaffoldTheme('duplicado', baseDir);
     expect(() => scaffoldTheme('duplicado', baseDir)).toThrow(/already exists/);
   });
+
+  it('react engine writes render config + root TSX templates + build config', () => {
+    const { dir, manifest } = scaffoldTheme('react-tema', baseDir, 'css', 'react');
+
+    expect(manifest['render']).toEqual({
+      engine: 'react',
+      apiVersion: 1,
+      hydration: 'none',
+      entry: 'src/entry-server.tsx',
+    });
+    for (const file of [
+      'home.tsx',
+      'index.tsx',
+      'single.tsx',
+      'page.tsx',
+      'archive.tsx',
+      '404.tsx',
+      'src/entry-server.tsx',
+      'vite.config.ts',
+      'tsconfig.json',
+      'package.json',
+      'dist/theme.css',
+    ]) {
+      expect(existsSync(join(dir, file)), file).toBe(true);
+    }
+    expect(existsSync(join(dir, 'home.astro'))).toBe(false);
+
+    const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf-8')) as {
+      dependencies?: Record<string, string>;
+    };
+    expect(pkg.dependencies?.['react']).toBeTruthy();
+    expect(pkg.dependencies?.['react-dom']).toBeTruthy();
+  });
+
+  it('solid engine writes render config + Solid templates', () => {
+    const { dir, manifest } = scaffoldTheme('solid-tema', baseDir, 'css', 'solid');
+
+    expect((manifest['render'] as Record<string, unknown>)['engine']).toBe('solid');
+    expect(existsSync(join(dir, 'src', 'entry-server.tsx'))).toBe(true);
+    expect(readFileSync(join(dir, 'src', 'entry-server.tsx'), 'utf-8')).toContain("solid-js/web");
+
+    const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf-8')) as {
+      dependencies?: Record<string, string>;
+    };
+    expect(pkg.dependencies?.['solid-js']).toBeTruthy();
+  });
 });

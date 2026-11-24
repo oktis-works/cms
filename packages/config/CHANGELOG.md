@@ -1,5 +1,12 @@
 # @oktis-works/config
 
+## 0.7.2
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/types@0.11.0
+
 ## 0.7.1
 
 ### Patch Changes
@@ -17,7 +24,7 @@
 ### Minor Changes
 
 - Security remediation (audit items 1-7, 9-14):
-  
+
   - JWT: migrate signing to RS256 with `kid` + JWKS endpoint (`/.well-known/jwks.json`), key rotation with grace period, and dev/test ephemeral key fallback; add `validateProductionConfig()` to reject default `JWT_SECRET`, missing DB SSL, and insecure cookies in production.
   - Rate limiting: replace in-memory Map with Redis sorted sets (`ratelimit:{key}`, TTL = window + 30s) and keep an in-memory fallback only when Redis is unavailable.
   - Plugin admin components: sandbox rendering through a Web Worker + Comlink host (`PluginWorkerHost`) instead of trusting plugin JSX in the main thread.
@@ -32,45 +39,45 @@
 ### Patch Changes
 
 - # Dynamic URL Hierarchy (v0.37.0)
-  
+
   ## Features
-  
+
   ### Phase 1: Dynamic URL Hierarchy
   - **Hub pages per content type**: Any published page can be designated as a listing hub for any content type with `hasArchive` (via `metadata.hub_type`). The page's slug becomes the URL base (e.g., `/blog/`, `/projects/`).
   - **Hierarchical URLs**: Content items support `parent_id` for nested URLs (e.g., `/projects/cliente-a/projeto-1`). Walk-up validation ensures parent chain matches URL segments.
   - **Persistent redirects**: `url_redirects` table stores exact and prefix redirects for slug changes, parent changes, and hub page renames (prefix: `/old-base/*` → `/new-base/*`).
   - **Legacy compatibility**: `postsPage`/`page_for_posts` still work for type `post`; dynamic hubs take precedence.
-  
+
   ### Phase 2: Head SEO
   - `<link rel="canonical">` and `<meta property="og:url">` emitted from `resolution.canonicalPath`.
   - Meta description fix: now uses `page.seo_description` → `page.excerpt` → `siteDescription` (was global only).
-  
+
   ### Phase 3: Sitemap
   - `GET /sitemap.xml` lists hub pages + published items with canonical URLs.
   - Excludes redirect sources; pagination (`?page=N`) uses canonical self.
-  
+
   ### Phase 4: JSON-LD + Breadcrumbs
   - Schema.org entities: `BlogPosting` (post), `WebPage` (page), `CreativeWork` (custom).
   - `BreadcrumbList` from hub base + parent chain: `Home → Hub → Parent1 → Item`.
   - Injected via `<script type="application/ld+json">` in `single.astro` and `page.astro`.
-  
+
   ### Phase 5: RSS/Atom Feeds
   - `GET /{hubBase}/feed` (RSS 2.0 default, `?format=atom` for Atom 1.0).
   - Auto-discovers hub type via `metadata.hub_type`, lists published items ordered by `published_at DESC`.
-  
+
   ## Admin UI
   - **Reading Settings**: Hub pages table (add/remove type + page) with prefix redirect on page rename.
   - **Content Editor**: Parent select dropdown (same type, published, excludes self/descendants, max depth 5).
   - i18n keys for hub pages and parent select.
-  
+
   ## Templates
   - All default templates use `{{url}}` for canonical links (no hardcoded `/blog/`).
   - `single.astro` and `page.astro` inject JSON-LD.
   - CLI `okcms init` produces byte-identical theme.
-  
+
   ## Migrations
   - `V027__core__content_parent_and_hub.sql` (Postgres/MySQL/MariaDB): `parent_id` + `url_redirects` table.
-  
+
   ## Documentation
   All packages updated with READMEs covering Phase 1-5 integration.
 - Updated dependencies
@@ -117,13 +124,13 @@
 ### Minor Changes
 
 - 3da0733: fix(rate-limit): 429 em rajada e "logout" falso no admin
-  
+
   O admin estourava o rate limit carregando o dashboard (~21 requisições por
   página, com N+1 e /auth/me triplicado) e todos os clientes dividiam um único
   balde `platform:unknown` — a chave vinha de X-Forwarded-For forjável ou
   retornava literalmente "unknown". O guarda de sessão trataba qualquer erro
   (inclusive 429) como "usuário deslogado" e redirecionava para /login.
-  
+
   API:
   - rate limiting por classe: anônimo por IP real (socket, ou XFF apenas
     quando o par é proxy de confiança; `TRUST_PROXY`/`TRUSTED_PROXIES`),
@@ -137,7 +144,7 @@
     `/auth/me` devolve `locale` (sessão + idioma em uma chamada);
   - `GET /content?include=author` expande autores em uma query (anti N+1);
   - nginx: X-Real-IP/X-Forwarded-For também em `/storage/` e `/themes/`.
-  
+
   Admin:
   - `ApiError` tipado e `checkSession()` tri-estado: só um 401 definitivo
     redireciona; 429/5xx/rede viram `unavailable` (sem logout falso);
@@ -148,7 +155,7 @@
     com TTL de 10s que travava abas órfãs);
   - sessão e idioma resolvidos no SSR (uma chamada server-side; o login
     não gasta nenhuma), CSRF em memória por 60s, proxy injeta o IP real.
-  
+
   Config/CLI:
   - `RATE_LIMIT_DEFAULTS` em `@oktis-works/config` como fonte única; o wizard
     grava os mesmos defaults que a API lê (antes: wizard escrevia 100/60s e o
@@ -159,13 +166,13 @@
 ### Patch Changes
 
 - Fix "Missing refresh token" error on login in local development
-  
+
   ## Problem
   When running OkCMS locally with `okcms start`, the admin (port 3011) and API (port 3000) run on different ports. The auth cookies (including refresh_token) were set with `SameSite=lax`, which blocks cookies on cross-origin fetch requests. This caused the refresh token to not be sent when the admin made API calls, resulting in "Missing refresh token" errors.
-  
+
   ## Solution
   1. **Added Vite proxy to admin** (`apps/admin/astro.config.mjs`): In development, the admin now proxies `/api/*` requests to the API server. This makes admin and API same-origin (both on port 3011), allowing cookies to work with `SameSite=lax`.
-  
+
   2. **Updated scaffold** (`packages/cli/src/scaffold.ts`): New projects now get a complete `.env` with all auth configuration variables:
      - `AUTH_COOKIE_DOMAIN`, `AUTH_COOKIE_SAMESITE`, `AUTH_COOKIE_SECURE`
      - `AUTH_COOKIE_ACCESS_MAXAGE`, `AUTH_COOKIE_REFRESH_MAXAGE`
@@ -173,11 +180,11 @@
      - `BCRYPT_ROUNDS`, `AUTH_CSRF_*` settings
      - `ADMIN_API_PROXY_TARGET` for the Vite proxy
      - `PUBLIC_API_URL=/api` to use relative URLs via proxy
-  
+
   3. **Fixed JWT expiry confusion** in template `env.example`: Was `JWT_EXPIRES_IN=7d` (wrong for access token), now correctly `JWT_EXPIRES_IN=15m` and `REFRESH_TOKEN_EXPIRES_IN=7d`.
-  
+
   4. **Updated admin API client** (`apps/admin/src/lib/api.ts`): Supports relative `PUBLIC_API_URL` (e.g., `/api`) for proxy usage.
-  
+
   ## For existing projects
   Add to `.env`:
   ```bash
@@ -244,7 +251,7 @@
 ### Patch Changes
 
 - Segurança: tokens em cookies HttpOnly (não localStorage) + CSRF double-submit
-  
+
   - Login/register/logout movidos para cookies HttpOnly + Secure + SameSite (configurável via AUTH_COOKIE_SAMESITE: strict|lax|none)
   - Cookie CSRF legível pelo JS (httpOnly: false) — double-submit header X-CSRF-Token === cookie
   - CSRF: clientes Bearer (API-first) isentos; sem Origin/Referer (curl/SDK/CI) isento; cross-port via TRUSTED_ORIGINS

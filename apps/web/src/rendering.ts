@@ -16,11 +16,15 @@ import {
   ThemeRenderer,
   createProjectTemplateResolver,
   resolveProjectThemeChain,
+  loadThemeCatalog,
+  findTemplateProvider,
+  templateKeyFromFile,
+  renderCompiledTheme,
   type ContentLookup,
   type ProjectTemplateResolver,
   type TemplateFileChecker,
 } from '@oktis-works/theme-runtime';
-import type { ThemeRenderData } from '@oktis-works/theme-sdk';
+import type { ThemePageData, ThemeRenderData } from '@oktis-works/theme-sdk';
 import { CMS_VERSION } from '@oktis-works/validation';
 
 /**
@@ -199,6 +203,8 @@ export function buildThemeSettings(
 }
 
 export interface ContentPageRenderInput {
+  /** Current tenant (used by compiled theme context). */
+  tenantId?: string;
   resolution: {
     template?: string;
     contentType?: string;
@@ -231,14 +237,23 @@ export interface ContentPageRenderInput {
  *   page.title / page.description      — título da página (SEO) e meta description
  *   settings                           — settings cruas (avançado)
  */
-export function renderContentPage(input: ContentPageRenderInput): string {
-  const file = input.resolution.template ?? 'index.astro';
-  const template = loadTemplateSource(input.themesRoot, input.activeTheme, file);
+interface PreparedContentPage {
+  file: string;
+  row: Record<string, unknown>;
+  logicalRecord: Record<string, unknown>;
+  title: string;
+  registry: ReturnType<typeof getHookRegistry>;
+  hookContext: Record<string, unknown>;
+  renderData: Record<string, unknown>;
+  themeRecord: Record<string, unknown>;
+  context: Record<string, unknown>;
+}
 
-  if (!template) {
-    return renderFallbackPage(input, input.pluginAssets);
-  }
-
+/**
+ * Builds the engine-agnostic render data once, so template and compiled
+ * themes receive exactly the same contract and hooks.
+ */
+function prepareContentPage(input: ContentPageRenderInput, file: string): PreparedContentPage {
   const row = input.contentRow ?? {};
   const logicalRecord = normalizeLogicalValues({ body: row['body'], data: row['data'], native: row });
   const title = toText(row['title']) || input.settings.siteTitle;
@@ -251,7 +266,7 @@ export function renderContentPage(input: ContentPageRenderInput): string {
   // `theme:after:render` filters the final document (post-processing, e.g.
   // hydration scripts or placeholder replacement).
   const registry = getHookRegistry();
-  const hookContext = {
+  const hookContext: Record<string, unknown> = {
     template: file,
     contentType: input.resolution.contentType ?? '',
     slug: input.resolution.slug ?? '',
@@ -275,6 +290,8 @@ export function renderContentPage(input: ContentPageRenderInput): string {
       title: input.settings.siteTitle,
       description: input.settings.siteDescription,
       theme: input.activeTheme,
+      url: input.settings.siteUrl,
+      language: input.settings.language,
     },
     page: {
       title,
@@ -302,11 +319,17 @@ export function renderContentPage(input: ContentPageRenderInput): string {
     themeData: input.themeData ?? { menus: { all: [], bySlug: {} }, contentTypes: [], taxonomies: [], terms: {}, settings: input.settings },
   };
 
-  const body = themeRenderer.wrapWithThemeScope(
-    themeRenderer.renderString(template, context, { ...row, ...themeRecord }),
-    input.activeTheme
-  );
-  const stylesheet = resolveThemeStylesheet(input.themesRoot, input.activeTheme);
+  return { file, row, logicalRecord, title, registry, hookContext, renderData, themeRecord, context };
+}
+
+/** Wraps a rendered body in the document and runs the post-render hook. */
+function finalizeContentPage(
+  input: ContentPageRenderInput,
+  prepared: PreparedContentPage,
+  body: string,
+  themeAssets?: ThemeDocumentAssets
+): string {
+  const stylesheet = themeAssets?.themeName ?? resolveThemeStylesheet(input.themesRoot, input.activeTheme);
 
   // Build canonical URL for SEO
   const canonicalPath = input.resolution.canonicalPath ?? '';
@@ -323,22 +346,108 @@ export function renderContentPage(input: ContentPageRenderInput): string {
   const pageCanonical = (input.contentRow?.['seo_canonical_url'] as string) ?? undefined;
   const pageOgImage = (input.contentRow?.['seo_og_image'] as string) ?? undefined;
 
-  const html = wrapDocument(body, title, input.settings, input.activeTheme, stylesheet, input.pluginAssets, {
-    canonicalUrl: pageCanonical ?? canonicalUrl,
-    pageDescription,
-    ogTitle: title,
-    ogDescription: pageDescription,
-    ogImage: pageOgImage ?? undefined,
-    ogType: (input.settings['ogType'] as string) ?? 'website',
-    ogSiteName: input.settings.siteTitle,
-    ogLocale: input.settings.language ?? 'pt-BR',
-    twitterCard: (input.settings['twitterCard'] as string) ?? 'summary_large_image',
-    twitterTitle: title,
-    twitterDescription: pageDescription,
-    twitterImage: pageOgImage ?? undefined,
-    robots: pageRobots ?? (input.settings['defaultRobots'] as string) ?? 'index,follow',
+  const html = wrapDocument(
+    body,
+    prepared.title,
+    input.settings,
+    input.activeTheme,
+    stylesheet,
+    input.pluginAssets,
+    {
+      canonicalUrl: pageCanonical ?? canonicalUrl,
+      pageDescription,
+      ogTitle: prepared.title,
+      ogDescription: pageDescription,
+      ogImage: pageOgImage ?? undefined,
+      ogType: (input.settings['ogType'] as string) ?? 'website',
+      ogSiteName: input.settings.siteTitle,
+      ogLocale: input.settings.language ?? 'pt-BR',
+      twitterCard: (input.settings['twitterCard'] as string) ?? 'summary_large_image',
+      twitterTitle: prepared.title,
+      twitterDescription: pageDescription,
+      twitterImage: pageOgImage ?? undefined,
+      robots: pageRobots ?? (input.settings['defaultRobots'] as string) ?? 'index,follow',
+    },
+    themeAssets
+  );
+  return prepared.registry.applyFilters(HOOK_POINTS.THEME_AFTER_RENDER, html, prepared.hookContext) as string;
+}
+
+export function renderContentPage(input: ContentPageRenderInput): string {
+  const file = input.resolution.template ?? 'index.astro';
+  const template = loadTemplateSource(input.themesRoot, input.activeTheme, file);
+
+  if (!template) {
+    return renderFallbackPage(input, input.pluginAssets);
+  }
+
+  const prepared = prepareContentPage(input, file);
+  const body = themeRenderer.wrapWithThemeScope(
+    themeRenderer.renderString(template, prepared.context, { ...prepared.row, ...prepared.themeRecord }),
+    input.activeTheme
+  );
+  return finalizeContentPage(input, prepared, body);
+}
+
+/**
+ * Engine-aware render entry point. Template themes keep the synchronous
+ * implementation above; React/Solid themes are imported from their build
+ * artifact and rendered through the compiled adapter.
+ */
+export async function renderContentPageAsync(input: ContentPageRenderInput): Promise<string> {
+  const catalog = loadThemeCatalog(input.themesRoot, input.activeTheme);
+  const active = catalog.entries[0] ?? null;
+
+  // No manifest or legacy template theme: preserve the existing path exactly.
+  if (!active || active.engine === 'template') {
+    return renderContentPage(input);
+  }
+
+  if (active.problems.length > 0) {
+    throw new Error(`Theme "${active.name}" cannot render: ${active.problems.join('; ')}`);
+  }
+
+  const file = input.resolution.template ?? 'index.astro';
+  const requestedKey = templateKeyFromFile(file);
+  const provider =
+    findTemplateProvider(catalog, requestedKey, active.engine) ??
+    findTemplateProvider(catalog, '404', active.engine);
+
+  if (!provider?.build) {
+    return renderFallbackPage(input, input.pluginAssets);
+  }
+
+  const templateKey = provider.build.templates.includes(requestedKey) ? requestedKey : '404';
+  const prepared = prepareContentPage(input, file);
+  const output = await renderCompiledTheme({
+    themeDir: provider.dir,
+    build: provider.build,
+    templateKey,
+    data: prepared.context as unknown as ThemePageData,
+    record: { ...prepared.row, ...prepared.themeRecord },
+    context: {
+      url: input.resolution.canonicalPath ?? '',
+      params: {},
+      tenant: input.tenantId ?? '',
+      templateKey,
+      buildId: provider.build.buildId,
+    },
   });
-  return registry.applyFilters(HOOK_POINTS.THEME_AFTER_RENDER, html, hookContext) as string;
+
+  const body = themeRenderer.wrapWithThemeScope(output.html, provider.name);
+  const outputScripts = output.scripts ?? [];
+  const scripts =
+    outputScripts.length > 0
+      ? outputScripts
+      : provider.build.hydration === 'islands'
+        ? Object.values(provider.build.client)
+        : [];
+  return finalizeContentPage(input, prepared, body, {
+    themeName: provider.name,
+    styles: output.styles,
+    head: output.head,
+    scripts,
+  });
 }
 
 /**
@@ -524,6 +633,17 @@ export function resolveThemeStylesheet(themesRoot: string, activeTheme: string):
  * das settings + CSS do tema + injeções de plugins via hook `theme:head`.
  * Template que já emite documento completo passa intocado (temas headless/full-control).
  */
+export interface ThemeDocumentAssets {
+  /** Theme that owns the extra styles/scripts. */
+  themeName: string;
+  /** Paths relative to the theme root (e.g. dist/theme.css). */
+  styles?: string[];
+  /** Trusted extra <head> markup emitted by a compiled theme. */
+  head?: string;
+  /** Module scripts relative to the theme root (hydration phase). */
+  scripts?: string[];
+}
+
 export interface SeoMeta {
   /** URL canônica da página */
   canonicalUrl?: string;
@@ -560,7 +680,8 @@ export function wrapDocument(
   activeTheme: string,
   stylesheetTheme: string | null = null,
   pluginAssets?: { head: string; footer: string },
-  seo?: SeoMeta
+  seo?: SeoMeta,
+  themeAssets?: ThemeDocumentAssets
 ): string {
   if (body.includes('<html') || body.includes('<!DOCTYPE')) {
     return body;
@@ -570,6 +691,26 @@ export function wrapDocument(
   const lang = escapeHtml(settings.language || 'pt-BR');
   const stylesheet = stylesheetTheme
     ? `  <link rel="stylesheet" href="/themes/${escapeHtml(stylesheetTheme)}/dist/theme.css" data-theme-style="${escapeHtml(stylesheetTheme)}" />\n`
+    : '';
+
+  // Compiled themes may emit extra styles/scripts/head from their artifact.
+  const extraStyles = themeAssets
+    ? (themeAssets.styles ?? [])
+        .filter((style) => style !== 'dist/theme.css')
+        .map(
+          (style) =>
+            `  <link rel="stylesheet" href="/themes/${escapeHtml(themeAssets.themeName)}/${escapeHtml(style)}" data-theme-style="${escapeHtml(themeAssets.themeName)}" />`
+        )
+        .join('\n')
+    : '';
+  const themeHead = themeAssets?.head ? `${themeAssets.head}\n` : '';
+  const themeScripts = themeAssets
+    ? (themeAssets.scripts ?? [])
+        .map(
+          (script) =>
+            `<script type="module" src="/themes/${escapeHtml(themeAssets.themeName)}/${escapeHtml(script)}"></script>`
+        )
+        .join('\n')
     : '';
 
   // WP6: ponto de extensão theme:head — plugins injetam tags no <head>
@@ -646,9 +787,9 @@ export function wrapDocument(
 ${canonicalTag}
 ${ogTags.join('\n')}
 ${twitterTags.join('\n')}
-${seoMetaTags}${stylesheet}${headInjections}${assetHead}</head>
+${seoMetaTags}${stylesheet}${extraStyles ? `${extraStyles}\n` : ''}${themeHead}${headInjections}${assetHead}</head>
 <body>
-${body}${assetFooter}
+${body}${assetFooter}${themeScripts ? `\n${themeScripts}` : ''}
 </body>
 </html>`;
 }

@@ -11,7 +11,19 @@ export type {
   PageProps,
   StyleEngine,
   ThemeStyleConfig,
+  ThemeRenderEngine,
+  ThemeRenderConfig,
+  ThemePageData,
+  ThemeRenderContext,
+  ThemeRenderOutput,
+  ThemeServerModule,
 } from "./types.js";
+
+export {
+  validateThemeRenderConfig,
+  validateThemeManifestRender,
+  isSafeThemeRenderEntry,
+} from './manifest.js';
 
 export {
   getFields,

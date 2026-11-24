@@ -1,11 +1,21 @@
 # @oktis-works/auth
 
+## 0.9.1
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/types@0.11.0
+  - @oktis-works/core@0.19.0
+  - @oktis-works/config@0.7.2
+  - @oktis-works/database@0.16.3
+
 ## 0.9.0
 
 ### Minor Changes
 
 - Security remediation (audit items 1-7, 9-14):
-  
+
   - JWT: migrate signing to RS256 with `kid` + JWKS endpoint (`/.well-known/jwks.json`), key rotation with grace period, and dev/test ephemeral key fallback; add `validateProductionConfig()` to reject default `JWT_SECRET`, missing DB SSL, and insecure cookies in production.
   - Rate limiting: replace in-memory Map with Redis sorted sets (`ratelimit:{key}`, TTL = window + 30s) and keep an in-memory fallback only when Redis is unavailable.
   - Plugin admin components: sandbox rendering through a Web Worker + Comlink host (`PluginWorkerHost`) instead of trusting plugin JSX in the main thread.
@@ -36,45 +46,45 @@
 ### Patch Changes
 
 - # Dynamic URL Hierarchy (v0.37.0)
-  
+
   ## Features
-  
+
   ### Phase 1: Dynamic URL Hierarchy
   - **Hub pages per content type**: Any published page can be designated as a listing hub for any content type with `hasArchive` (via `metadata.hub_type`). The page's slug becomes the URL base (e.g., `/blog/`, `/projects/`).
   - **Hierarchical URLs**: Content items support `parent_id` for nested URLs (e.g., `/projects/cliente-a/projeto-1`). Walk-up validation ensures parent chain matches URL segments.
   - **Persistent redirects**: `url_redirects` table stores exact and prefix redirects for slug changes, parent changes, and hub page renames (prefix: `/old-base/*` → `/new-base/*`).
   - **Legacy compatibility**: `postsPage`/`page_for_posts` still work for type `post`; dynamic hubs take precedence.
-  
+
   ### Phase 2: Head SEO
   - `<link rel="canonical">` and `<meta property="og:url">` emitted from `resolution.canonicalPath`.
   - Meta description fix: now uses `page.seo_description` → `page.excerpt` → `siteDescription` (was global only).
-  
+
   ### Phase 3: Sitemap
   - `GET /sitemap.xml` lists hub pages + published items with canonical URLs.
   - Excludes redirect sources; pagination (`?page=N`) uses canonical self.
-  
+
   ### Phase 4: JSON-LD + Breadcrumbs
   - Schema.org entities: `BlogPosting` (post), `WebPage` (page), `CreativeWork` (custom).
   - `BreadcrumbList` from hub base + parent chain: `Home → Hub → Parent1 → Item`.
   - Injected via `<script type="application/ld+json">` in `single.astro` and `page.astro`.
-  
+
   ### Phase 5: RSS/Atom Feeds
   - `GET /{hubBase}/feed` (RSS 2.0 default, `?format=atom` for Atom 1.0).
   - Auto-discovers hub type via `metadata.hub_type`, lists published items ordered by `published_at DESC`.
-  
+
   ## Admin UI
   - **Reading Settings**: Hub pages table (add/remove type + page) with prefix redirect on page rename.
   - **Content Editor**: Parent select dropdown (same type, published, excludes self/descendants, max depth 5).
   - i18n keys for hub pages and parent select.
-  
+
   ## Templates
   - All default templates use `{{url}}` for canonical links (no hardcoded `/blog/`).
   - `single.astro` and `page.astro` inject JSON-LD.
   - CLI `okcms init` produces byte-identical theme.
-  
+
   ## Migrations
   - `V027__core__content_parent_and_hub.sql` (Postgres/MySQL/MariaDB): `parent_id` + `url_redirects` table.
-  
+
   ## Documentation
   All packages updated with READMEs covering Phase 1-5 integration.
 - Updated dependencies
@@ -88,7 +98,7 @@
 ### Patch Changes
 
 - Standardize password hashing on bcrypt only
-  
+
   Replaced PBKDF2 (`$pbkdf2-sha256$`) with bcrypt (`$2b$`) as the sole
   password hashing algorithm in `@oktis-works/auth`. The CLI already used
   bcrypt for user creation; now both sides match so login works after
@@ -126,27 +136,27 @@
 ### Minor Changes
 
 - ### Features
-  
+
   - **Theme Config Export/Import**: Export theme config as JSON file, import with validation (merge/replace modes)
   - **Config History/Versioning**: Automatic history tracking via `theme_config_versions` table, with REST API for history and restore
   - **Permission `theme:customize`**: New granular permission for theme config operations (separate from `theme:update`)
   - **Audit Log**: Automatic history entries on config changes with user tracking
   - **Restore Defaults**: One-click reset to manifest defaults
-  
+
   ### Database
-  
+
   - New migration `V022__core__theme_config_history.sql` creates `theme_config_versions` table with RLS
-  
+
   ### API
-  
+
   - `GET /themes/:id/config/export` - Export config as downloadable JSON
   - `POST /themes/:id/config/import` - Import config with merge/replace modes
   - `GET /themes/:id/config/history` - Paginated config history
   - `POST /themes/:id/config/restore` - Restore specific version
   - `POST /themes/:id/config/restore-defaults` - Reset to manifest defaults
-  
+
   ### Permissions
-  
+
   - New `theme:customize` permission added to TENANT_ADMIN role
   - Config routes (`PATCH/GET/POST /themes/:id/config/*`) now require `theme:customize` instead of `theme:update`
 
@@ -350,7 +360,7 @@
 ### Patch Changes
 
 - Segurança: tokens em cookies HttpOnly (não localStorage) + CSRF double-submit
-  
+
   - Login/register/logout movidos para cookies HttpOnly + Secure + SameSite (configurável via AUTH_COOKIE_SAMESITE: strict|lax|none)
   - Cookie CSRF legível pelo JS (httpOnly: false) — double-submit header X-CSRF-Token === cookie
   - CSRF: clientes Bearer (API-first) isentos; sem Origin/Referer (curl/SDK/CI) isento; cross-port via TRUSTED_ORIGINS
@@ -371,7 +381,7 @@
 ### Patch Changes
 
 - F1–F10: Admin panel completo
-  
+
   - F1 RBAC: seed 5 roles (SUPER_ADMIN, TENANT_ADMIN, EDITOR, AUTHOR, VIEWER); register atribui TENANT_ADMIN ao 1º usuário; login resolve slug→UUID e devolve tenantId no JWT
   - F2 Media: upload local-disk (UPLOAD_DIR), layout tenant/uuid.ext, GET /file público (cache imutável), 25MB, traversal bloqueado
   - F3 Settings: seed 4 configurações (siteTitle, siteDescription, language, timezone) grupo general

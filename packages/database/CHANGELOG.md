@@ -1,5 +1,13 @@
 # @oktis-works/database
 
+## 0.16.3
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/types@0.11.0
+  - @oktis-works/config@0.7.2
+
 ## 0.16.2
 
 ### Patch Changes
@@ -13,7 +21,7 @@
 ### Patch Changes
 
 - Security remediation follow-up fixes:
-  
+
   - database: confirm `ON DUPLICATE KEY UPDATE` upserts on MySQL/MariaDB by re-selecting the affected row and returning real affected counts.
   - plugin-runtime: export `validateManifestV2` so the web renderer can validate parent theme manifests.
   - worker: upgrade sharp to `^0.35.5` (libvips/libheif/librsvg CVEs) and handle sharp >= 0.35 reporting AVIF inputs as `heif` (guarded by `mediaType`).
@@ -26,28 +34,28 @@
 ### Minor Changes
 
 - Add generic plugin infrastructure for vertical plugins (ecommerce, marketplace, LMS, etc.):
-  
+
   **@oktis-works/core:**
   - New `web-auth` module with `webAuthMiddleware` for resolving authenticated users on public web app (themes SSR)
   - `runWithUserContext` / `getCurrentUserIdSync()` / `getCurrentUserRolesSync()` / `getCurrentUserTenantIdSync()` for sync access to user context
   - Middleware integrates with existing tenant resolution, sets both `app.current_tenant_id` and `app.current_user_id` in Postgres via `runWithTenantTransaction`
-  
+
   **@oktis-works/database:**
   - `runWithTenantTransaction` now accepts optional `userId` parameter to set `app.current_user_id` for RLS
   - New `rls-helpers.ts` with `createUserRlsPolicy()` and `createTenantUserRlsPolicy()` for plugin migrations
   - Migration `V028__core__user_rls_support.sql` adds `current_user_id()` SQL function
-  
+
   **@oktis-works/web:**
   - Integrated `webAuthMiddleware` after tenant resolution (optional, non-blocking)
   - Request context now includes `userId`, `userEmail`, `tenantId`, `userRoles`
-  
+
   **Plugin SDK (documented in PLUGIN.md):**
   - `api.addRoute()` with `requireAuth` and `requiredPermissions` for public/authenticated plugin routes
   - `api.addThemeDataProvider()` for injecting user data (orders, cart, etc.) into theme templates
   - `theme:data:user` hook for render-time data injection
   - RLS helpers for per-user data isolation in plugin tables
   - New permissions: `routes:register`, `theme-data:provide`
-  
+
   This is a minor version bump (0.38.0 → 0.39.0) as it adds new APIs without breaking changes.
 
 ## 0.15.5
@@ -91,45 +99,45 @@
 ### Minor Changes
 
 - # Dynamic URL Hierarchy (v0.37.0)
-  
+
   ## Features
-  
+
   ### Phase 1: Dynamic URL Hierarchy
   - **Hub pages per content type**: Any published page can be designated as a listing hub for any content type with `hasArchive` (via `metadata.hub_type`). The page's slug becomes the URL base (e.g., `/blog/`, `/projects/`).
   - **Hierarchical URLs**: Content items support `parent_id` for nested URLs (e.g., `/projects/cliente-a/projeto-1`). Walk-up validation ensures parent chain matches URL segments.
   - **Persistent redirects**: `url_redirects` table stores exact and prefix redirects for slug changes, parent changes, and hub page renames (prefix: `/old-base/*` → `/new-base/*`).
   - **Legacy compatibility**: `postsPage`/`page_for_posts` still work for type `post`; dynamic hubs take precedence.
-  
+
   ### Phase 2: Head SEO
   - `<link rel="canonical">` and `<meta property="og:url">` emitted from `resolution.canonicalPath`.
   - Meta description fix: now uses `page.seo_description` → `page.excerpt` → `siteDescription` (was global only).
-  
+
   ### Phase 3: Sitemap
   - `GET /sitemap.xml` lists hub pages + published items with canonical URLs.
   - Excludes redirect sources; pagination (`?page=N`) uses canonical self.
-  
+
   ### Phase 4: JSON-LD + Breadcrumbs
   - Schema.org entities: `BlogPosting` (post), `WebPage` (page), `CreativeWork` (custom).
   - `BreadcrumbList` from hub base + parent chain: `Home → Hub → Parent1 → Item`.
   - Injected via `<script type="application/ld+json">` in `single.astro` and `page.astro`.
-  
+
   ### Phase 5: RSS/Atom Feeds
   - `GET /{hubBase}/feed` (RSS 2.0 default, `?format=atom` for Atom 1.0).
   - Auto-discovers hub type via `metadata.hub_type`, lists published items ordered by `published_at DESC`.
-  
+
   ## Admin UI
   - **Reading Settings**: Hub pages table (add/remove type + page) with prefix redirect on page rename.
   - **Content Editor**: Parent select dropdown (same type, published, excludes self/descendants, max depth 5).
   - i18n keys for hub pages and parent select.
-  
+
   ## Templates
   - All default templates use `{{url}}` for canonical links (no hardcoded `/blog/`).
   - `single.astro` and `page.astro` inject JSON-LD.
   - CLI `okcms init` produces byte-identical theme.
-  
+
   ## Migrations
   - `V027__core__content_parent_and_hub.sql` (Postgres/MySQL/MariaDB): `parent_id` + `url_redirects` table.
-  
+
   ## Documentation
   All packages updated with READMEs covering Phase 1-5 integration.
 
@@ -144,13 +152,13 @@
 ### Patch Changes
 
 - Fix migration runner: sync schema_version against both this-run and ledger applied migrations
-  
+
   The migration runner only considered migrations already in the ledger
   (appliedVersions, read before applying migrations) when advancing
   schema_bootstrap.schema_version. Migrations applied in the current run
   (result.applied) were not counted, so after applying V019→V026 the baseline
   stayed at V018 and the same migrations were re-applied on the next run.
-  
+
   Now the runner syncs schema_version against both result.applied (this run)
   and appliedVersions (prior ledger state), so the baseline always advances
   to the highest core_schema version actually applied.
@@ -160,13 +168,13 @@
 ### Patch Changes
 
 - Fix migration runner: always sync schema_bootstrap.schema_version against applied ledger
-  
+
   The migration runner only updated `schema_bootstrap.schema_version` when migrations
   were applied in the current run (`result.applied.length > 0`). If a `core_schema`
   migration was applied in a previous run but the baseline bump was missed (e.g. empty
   tenant context), the schema_version stayed behind. On the next run, `baselineVersion`
   was still the old value, so the same migration was applied again.
-  
+
   Now the runner syncs `schema_version` against ALL applied `core_schema` migrations in
   the ledger (not just this run's), so a previously-applied migration correctly advances
   the baseline and prevents re-application. The `content_types_source_admin` migration
@@ -178,7 +186,7 @@
 ### Patch Changes
 
 - Fix postgres upgrade acceptance script version expectation to V026
-  
+
   The `postgres-upgrade-acceptance.mjs` script expected `schema_version = 'V025'` but the new migration `V026__core__content_types_source_admin.sql` advances the schema to V026. Updated the acceptance script to expect V026 so CI passes.
 
 ## 0.14.5
@@ -186,11 +194,11 @@
 ### Patch Changes
 
 - Fix content_types source CHECK constraint to accept 'ADMIN'
-  
+
   The `content_types` table CHECK constraint only accepted `'CORE'` and `'PLUGIN'`,
   but the API creates admin-defined content types with `source = 'ADMIN'`, causing
   `new row for relation "content_types" violates check constraint "content_types_source_check"`.
-  
+
   - Updated `schema.sql`, `schema.mysql.sql`, `schema.mariadb.sql` to include `'ADMIN'` in the CHECK constraint
   - Added migration `V026__core__content_types_source_admin.sql` to drop and recreate the constraint on existing databases
 
@@ -199,31 +207,31 @@
 ### Patch Changes
 
 - Fix PostgreSQL upgrade acceptance hang and three related bugs
-  
+
   - **connection.ts**: `postgresConnection` now passes `max: config.maxConnections ?? 10`
     instead of `max: undefined` to postgres.js. When `maxConnections` is not set,
     postgres.js treated `max: undefined` as a single-connection pool, causing
     `reserve()` to deadlock against `assertSupportedServerVersion()` (which uses the
     same pool) — the process would hang indefinitely with no Postgres activity.
-  
+
   - **connection.ts**: `wrapReservedConnection` adds a `.begin()` shim to the object
     returned by `pool.reserve()`. The postgres.js reserved connection does not expose
     `.begin()`, but the migration runner calls `sql.begin()` on the connection it
     receives (including the reserved one used for the session-level advisory lock).
     The shim implements `BEGIN` / `COMMIT` / `ROLLBACK` on the same session.
-  
+
   - **preflight.ts**: The regex that extracts affected table names from migration SQL
     (`/\b(?:UPDATE|DELETE\s+FROM)\s+([a-z_][a-z0-9_]*)/gi`) matched `DO UPDATE SET`
     inside `ON CONFLICT ... DO UPDATE SET`, capturing `set` as a table name. The
     runner then executed `SELECT COUNT(*) FROM set`, which Postgres rejects with
     `relation "set" does not exist`. Fixed by filtering out matches where the
     captured name is `set`.
-  
+
   - **runner.ts**: After applying `core_schema` migrations, `schema_bootstrap.schema_version`
     is now advanced to the highest applied core version. Previously, a database
     starting at V018 would reach V025 via migrations but still report V018 in
     `schema_bootstrap`, causing the acceptance script assertion to fail.
-  
+
   - **postgres-upgrade-acceptance.mjs**: Moved `closeConnection()` into the `finally`
     block so it always runs (including on assertion failure), and removed the
     non-existent `status` column from the `UPDATE schema_bootstrap` statement.
@@ -257,13 +265,13 @@
 ### Minor Changes
 
 - ### Fixes
-  
+
   - **seedDemoContent**: Updated `makeBody()` to include `content` key (mirroring `html`) so classic editor reads content back; fixed body insertion to use `JSON.stringify(body)` with `$5::jsonb` cast (correctly parses to jsonb object, avoiding double-encoding)
   - **seedCoreData**: Added `seedDefaultFieldGroups()` call in CLI's `prepareDb` so fresh installs get core-fields-post and core-fields-page groups (title, slug, content, excerpt, featured_image, seo_title, seo_description, status, author) without requiring migrations directory
   - **Exports**: Exported `seedDefaultFieldGroups` from package entry point
-  
+
   ### Related
-  
+
   - Fresh `bunx @oktis-works/cms init` projects now have field groups populated → custom fields section appears in admin
   - Demo content body no longer double-encoded in fresh installs
 
@@ -272,17 +280,17 @@
 ### Patch Changes
 
 - Fix seeded menus landing with swapped name/slug
-  
+
   The demo seed's menu INSERT declared the columns as `(name, slug)` but bound
   the parameters in `(slug, name)` order, so every seeded menu landed with
   `slug='Main Menu'`/`'Footer'` and `name='header'`/`'footer'`. The theme's
   `menus.header` lookup found nothing and the header/footer navigation
   rendered without any links.
-  
+
   - The INSERT now binds `name` → name column and `slug` → slug column.
   - The seed cleanup also deletes the broken legacy rows (swapped slug/name),
     so re-running the seed repairs existing projects.
-  
+
   Regression test asserts the INSERT binding and the extended cleanup.
 
 ## 0.13.0
@@ -290,12 +298,12 @@
 ### Minor Changes
 
 - English demo seed aligned with the redesigned default theme
-  
+
   All seeded demo content is now English-only (repo language standard):
   settings (siteTitle "My Site", description, `language: en`, `timezone: UTC`),
   pages (Home, About, Blog), posts (My First Blog Post, Getting Started with
   OkCMS), menus (Main Menu, Footer) and role display names.
-  
+
   - The seeded homepage body now uses the redesigned theme's section classes
     (hero with CTAs, about preview, contact) and no longer includes a static
     "latest posts" placeholder — the front-page template renders real posts.
@@ -309,12 +317,12 @@
 ### Patch Changes
 
 - Fix double-encoded demo content bodies and repair existing rows
-  
+
   The demo seed inserted `content.body` with `to_jsonb($5::text)` after
   `JSON.stringify`, which stores the document as a jsonb STRING (the JSON text
   becomes the string value) instead of a jsonb object. The site renderer then
   received the raw JSON text and rendered pages with an empty body.
-  
+
   - Seed upserts (pages and posts) now use the `$5::jsonb` cast, which parses
     the serialized document into a real jsonb object.
   - New migration `V021__core__fix_double_encoded_content_body` converts
@@ -326,7 +334,7 @@
 ### Minor Changes
 
 - Fix demo content seed issues and add theme activation
-  
+
   - Added unique constraint for menus (tenant_id, slug) - V020 migration
   - Fixed demo content seed to use CTE-based upserts instead of ON CONFLICT to avoid constraint caching issues with connection pooling
   - Fixed pages, posts, menus, and settings inserts to use CTE-based upserts (WITH upsert AS UPDATE ... INSERT ... WHERE NOT EXISTS)
@@ -342,7 +350,7 @@
 ### Minor Changes
 
 - 641e556: Fix demo content seed issues
-  
+
   - Add unique constraint for menus (tenant_id, slug) - V020 migration
   - Fix demo content seed to use CTE-based upserts instead of ON CONFLICT to avoid constraint caching issues with connection pooling
   - Fix pages, posts, menus, and settings inserts to use CTE-based upserts (WITH upsert AS UPDATE ... INSERT ... WHERE NOT EXISTS)
@@ -356,7 +364,7 @@
 ### Patch Changes
 
 - 7df7caa: Fix demo content seed issues
-  
+
   - Add unique constraint for content (tenant_id, type, slug) - V019 migration
   - Fix seed demo content ON CONFLICT for users email and tenant_users
   - Fix seed demo content ON CONFLICT for content (tenant_id, type, slug)
@@ -368,7 +376,7 @@
 ### Patch Changes
 
 - Fix unique constraint for content slug (tenant_id, type, slug)
-  
+
   Required for demo content seed to work with ON CONFLICT specification.
   The schema now has a unique index on (tenant_id, type, slug) which allows the seed to work properly.
 
@@ -377,7 +385,7 @@
 ### Minor Changes
 
 - Add WordPress-style timezone system (OK CMS nomenclature)
-  
+
   - **Core (timezone service)**: New `okForceUtcRuntime()`, `okDate()`, `okCurrentTime()`, `okGetTimezoneOffset()`, `okConvertToGmt()`, `okConvertFromGmt()`, `okGetTimezoneAbbreviation()`, `okIsDstActive()`, `okGetCommonTimezones()`, `okGetManualOffsets()`
   - **Bootstrap integration**: Forces UTC runtime on startup (equivalent to WP's `date_default_timezone_set('UTC')`)
   - **Database**: Migration V018 adds `published_at_gmt` column to content table for dual date storage (local + GMT)
@@ -385,7 +393,7 @@
   - **Settings**: `timezone_string` (IANA) and `gmt_offset` (manual) with priority: timezone_string > gmt_offset
   - **Cache**: Config loaded from settings with in-memory cache
   - **Tests**: 21 new timezone service tests covering DST, offsets, conversions, formatting
-  
+
   Breaking: Requires running migration V018. Default timezone is America/Sao_Paulo.
 
 ## 0.9.0
@@ -393,7 +401,7 @@
 ### Minor Changes
 
 - Implement Static Front Page (WP-style), demo content seed, and redesigned default theme
-  
+
   - **Theme Runtime (core):** Added Static Front Page logic — `resolve('/')` now checks settings `static_front_page` (UUID of a page) and `page_for_posts` (UUID of a page). Falls back to posts archive if unconfigured. Removed hardcoded `isHome: true` priority.
   - **Database (seed):** New `seedDemoContent()` creates 3 pages (home, sobre, blog), 2 posts (primeiro-post, segundo-post), 2 menus (header, footer), and configures reading settings (`static_front_page` + `page_for_posts`). Idempotent via ON CONFLICT.
   - **CLI:** `prepareDb()` and `seed` command now call `seedDemoContent()` automatically — `okcms init` + `okcms start` yields a working site with Home, About, Blog listing, and 2 demo posts.
@@ -470,7 +478,7 @@
 ### Patch Changes
 
 - Corrige o schema bootstrap defasado em relação ao sistema de plugins por tenant.
-  
+
   O `schema.sql` e o `rls/index.ts` publicados em `0.5.6` não continham a tabela
   `plugin_tenants` (nem a policy RLS correspondente nem os status `MISSING` /
   `LOAD_FAILED` em `plugins`), enquanto `@oktis-works/core@>=0.5.10` já consultava
@@ -478,7 +486,7 @@
   instalações novas isso quebrava o admin com
   `PostgresError: relation "plugin_tenants" does not exist` até que a migration
   `V011__core__plugin_tenants.sql` fosse aplicada.
-  
+
   Com este patch o schema inicial passa a criar `plugin_tenants` (com índices,
   `UNIQUE (plugin_id, tenant_id)`, FKs e RLS `tenant_isolation_plugin_tenants`)
   e a habilitar `FORCE ROW LEVEL SECURITY` em `plugins` e `themes`, alinhando o
@@ -489,7 +497,7 @@
 ### Patch Changes
 
 - Correções do sistema de temas (ativação, descoberta, scaffold e customizador):
-  
+
   - **`updated_at` no banco (crítico)**: a tabela `themes` ganhou `updated_at` (schema + migração `V010__core__harden_themes_lifecycle.sql`), índices `UNIQUE(name)` e o índice parcial de **um único tema ativo por tenant** — as rotas de ativar/desativar/instalar sempre falhavam por coluna inexistente, e `deactivate` referenciava também `deactivated_at`, que nunca existiu.
   - **Fonte única de ativação (crítico)**: o app web resolve o tema ativo **por request** lendo `status = 'ACTIVE'` do banco (fallback para `ACTIVE_THEME`), em vez de uma leitura única no boot — ativar pela tela Temas agora reflete no site sem restart. `ThemeService.activate` desativa os demais numa única sequência, `getActive` ordena por `activated_at DESC`, e a CLI `theme:manage --set-active` grava config **e** banco (mesma verdade).
   - **Fallback `manifest.json` (crítico)**: `syncFromDirectory` e o `ThemeLoader` aceitam `theme.json` **ou** `manifest.json` (o formato legado que o tema default distribuído usa); `theme:manage --info` também. O manifesto do tema default agora declara `type: "theme"`.
@@ -569,7 +577,7 @@
 ### Patch Changes
 
 - F1–F10: Admin panel completo
-  
+
   - F1 RBAC: seed 5 roles (SUPER_ADMIN, TENANT_ADMIN, EDITOR, AUTHOR, VIEWER); register atribui TENANT_ADMIN ao 1º usuário; login resolve slug→UUID e devolve tenantId no JWT
   - F2 Media: upload local-disk (UPLOAD_DIR), layout tenant/uuid.ext, GET /file público (cache imutável), 25MB, traversal bloqueado
   - F3 Settings: seed 4 configurações (siteTitle, siteDescription, language, timezone) grupo general
@@ -609,7 +617,7 @@
 ### Patch Changes
 
 - Corrige `okcms db:migrate` em banco fresco (erro `relation "migrations" does not exist`):
-  
+
   - `ensureCoreSchema` (novo em `@oktis-works/database`): aplica o schema core **uma única vez**, detectado via `to_regclass` — o schema tem `CREATE POLICY` (não idempotente) e a tabela `migrations` tem FK para `tenants`, ou seja, num banco novo nada existia;
   - `resolveTenantId` (novo): traduz o `--tenant` (slug) para o UUID real de `tenants.slug`, criando o tenant `default` na primeira vez — antes o runner recebia a string `"default"` e quebraria com `invalid input syntax for type uuid`;
   - CLI: novo `prepareDb` (init + schema + tenant) nos comandos `db:migrate`, `db:rollback` e `db:status`;

@@ -1,11 +1,21 @@
 # @oktis-works/worker
 
+## 0.8.19
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/types@0.11.0
+  - @oktis-works/core@0.19.0
+  - @oktis-works/config@0.7.2
+  - @oktis-works/database@0.16.3
+
 ## 0.8.18
 
 ### Patch Changes
 
 - Fix tenant context establishment during bootstrap and rate-limit store initialization
-  
+
   - Establish default tenant context in core bootstrap before syncing plugins
   - Establish default tenant context in API and Worker entry points after bootstrap
   - Fix rate-limit store to always return valid MemoryStore fallback when Redis unavailable
@@ -18,7 +28,7 @@
 ### Patch Changes
 
 - Security remediation follow-up fixes:
-  
+
   - database: confirm `ON DUPLICATE KEY UPDATE` upserts on MySQL/MariaDB by re-selecting the affected row and returning real affected counts.
   - plugin-runtime: export `validateManifestV2` so the web renderer can validate parent theme manifests.
   - worker: upgrade sharp to `^0.35.5` (libvips/libheif/librsvg CVEs) and handle sharp >= 0.35 reporting AVIF inputs as `heif` (guarded by `mediaType`).
@@ -52,13 +62,13 @@
 ### Patch Changes
 
 - Fix worker jobs failing with "Database connection not initialized"
-  
+
   The worker process relied solely on `@oktis-works/core` bootstrap to initialize
   the database connection via `createConnection()`. When the worker was launched
   via `bunx` (as `okcms start` does), nested `node_modules` could create a
   separate copy of `@oktis-works/database`, so `getConnection()` in job handlers
   saw `_sql === null` and threw `invalid input syntax for type uuid: """`.
-  
+
   The worker now calls `createConnection(config.database)` explicitly after
   bootstrap, ensuring the DB connection is active before any job handler runs.
 
@@ -290,7 +300,7 @@
 ### Patch Changes
 
 - F1–F10: Admin panel completo
-  
+
   - F1 RBAC: seed 5 roles (SUPER_ADMIN, TENANT_ADMIN, EDITOR, AUTHOR, VIEWER); register atribui TENANT_ADMIN ao 1º usuário; login resolve slug→UUID e devolve tenantId no JWT
   - F2 Media: upload local-disk (UPLOAD_DIR), layout tenant/uuid.ext, GET /file público (cache imutável), 25MB, traversal bloqueado
   - F3 Settings: seed 4 configurações (siteTitle, siteDescription, language, timezone) grupo general

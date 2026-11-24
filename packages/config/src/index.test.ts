@@ -74,10 +74,25 @@ describe('Config', () => {
   });
 
   it('accepts MySQL and MariaDB URLs with their provider identity', () => {
-    process.env['DATABASE_URL'] = 'mysql://root:pw@mysql.local/mydb';
-    expect(loadConfig().database).toMatchObject({ driver: 'mysql', host: 'mysql.local', port: 3306, database: 'mydb' });
-    process.env['DATABASE_URL'] = 'mariadb://root:pw@maria.local/mydb';
-    expect(loadConfig().database.driver).toBe('mariadb');
+    // A local .env may define DB_ENGINE/DB_DRIVER; the URL form is the
+    // precedence case under test, so do not let the ambient file conflict.
+    const previousEngine = process.env['DB_ENGINE'];
+    const previousDriver = process.env['DB_DRIVER'];
+    // Empty (not deleted): loadProjectEnv() would repopulate a deleted key
+    // from a local .env and reintroduce the conflict.
+    process.env['DB_ENGINE'] = '';
+    process.env['DB_DRIVER'] = '';
+    try {
+      process.env['DATABASE_URL'] = 'mysql://root:pw@mysql.local/mydb';
+      expect(loadConfig().database).toMatchObject({ driver: 'mysql', host: 'mysql.local', port: 3306, database: 'mydb' });
+      process.env['DATABASE_URL'] = 'mariadb://root:pw@maria.local/mydb';
+      expect(loadConfig().database.driver).toBe('mariadb');
+    } finally {
+      if (previousEngine === undefined) delete process.env['DB_ENGINE'];
+      else process.env['DB_ENGINE'] = previousEngine;
+      if (previousDriver === undefined) delete process.env['DB_DRIVER'];
+      else process.env['DB_DRIVER'] = previousDriver;
+    }
   });
 
   it('DATABASE_URL inválida lança erro claro (falha barulhenta)', () => {

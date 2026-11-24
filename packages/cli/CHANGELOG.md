@@ -1,5 +1,28 @@
 # @oktis-works/cms
 
+## 0.18.0
+
+### Minor Changes
+
+- Add compiled React and Solid theme render engines.
+
+  Themes can now declare `render.engine: "react" | "solid"` and export a
+  server bundle that is built on the host by `okcms theme:build` (Vite SSR,
+  `dist/theme-build.json` + `dist/server/entry.js`). Template themes keep the
+  existing string-template path unchanged. `okcms dev` watches compiled themes
+  and rebuilds them on save, while production deploys the host-built artifact.
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/validation@0.9.0
+  - @oktis-works/theme-runtime@0.13.0
+  - @oktis-works/theme-builder@0.2.0
+  - @oktis-works/core@0.19.0
+  - @oktis-works/auth@0.9.1
+  - @oktis-works/config@0.7.2
+  - @oktis-works/database@0.16.3
+
 ## 0.17.0
 
 ### Minor Changes
@@ -11,7 +34,7 @@
 ### Minor Changes
 
 - feat(cli): add WizardPrompt with box-drawing UI for init command
-  
+
   The init command now uses WizardPrompt with custom box-drawing UI (◈ ◇ │ → ●) matching the wizard menu visual style instead of @clack/prompts default visual.
 
 ## 0.15.4
@@ -56,13 +79,13 @@
 ### Minor Changes
 
 - Add WordPress migration functionality and fix pre-existing test failures
-  
+
   ### Features
   - Add `wp` command group for WordPress migration (import, validate)
   - Add `okcms wp import` and `okcms wp validate` subcommands
   - Implement WordPress database schema readers and mappers (users, content, taxonomies, menus, media, comments, etc.)
   - Add CLI wizard integration for `wp` command
-  
+
   ### Bug Fixes
   - Fix CLI parser test failures by registering `wp` command in command catalog
   - Fix wizard test failure due to new command group shifting indices
@@ -114,45 +137,45 @@
 ### Minor Changes
 
 - # Dynamic URL Hierarchy (v0.37.0)
-  
+
   ## Features
-  
+
   ### Phase 1: Dynamic URL Hierarchy
   - **Hub pages per content type**: Any published page can be designated as a listing hub for any content type with `hasArchive` (via `metadata.hub_type`). The page's slug becomes the URL base (e.g., `/blog/`, `/projects/`).
   - **Hierarchical URLs**: Content items support `parent_id` for nested URLs (e.g., `/projects/cliente-a/projeto-1`). Walk-up validation ensures parent chain matches URL segments.
   - **Persistent redirects**: `url_redirects` table stores exact and prefix redirects for slug changes, parent changes, and hub page renames (prefix: `/old-base/*` → `/new-base/*`).
   - **Legacy compatibility**: `postsPage`/`page_for_posts` still work for type `post`; dynamic hubs take precedence.
-  
+
   ### Phase 2: Head SEO
   - `<link rel="canonical">` and `<meta property="og:url">` emitted from `resolution.canonicalPath`.
   - Meta description fix: now uses `page.seo_description` → `page.excerpt` → `siteDescription` (was global only).
-  
+
   ### Phase 3: Sitemap
   - `GET /sitemap.xml` lists hub pages + published items with canonical URLs.
   - Excludes redirect sources; pagination (`?page=N`) uses canonical self.
-  
+
   ### Phase 4: JSON-LD + Breadcrumbs
   - Schema.org entities: `BlogPosting` (post), `WebPage` (page), `CreativeWork` (custom).
   - `BreadcrumbList` from hub base + parent chain: `Home → Hub → Parent1 → Item`.
   - Injected via `<script type="application/ld+json">` in `single.astro` and `page.astro`.
-  
+
   ### Phase 5: RSS/Atom Feeds
   - `GET /{hubBase}/feed` (RSS 2.0 default, `?format=atom` for Atom 1.0).
   - Auto-discovers hub type via `metadata.hub_type`, lists published items ordered by `published_at DESC`.
-  
+
   ## Admin UI
   - **Reading Settings**: Hub pages table (add/remove type + page) with prefix redirect on page rename.
   - **Content Editor**: Parent select dropdown (same type, published, excludes self/descendants, max depth 5).
   - i18n keys for hub pages and parent select.
-  
+
   ## Templates
   - All default templates use `{{url}}` for canonical links (no hardcoded `/blog/`).
   - `single.astro` and `page.astro` inject JSON-LD.
   - CLI `okcms init` produces byte-identical theme.
-  
+
   ## Migrations
   - `V027__core__content_parent_and_hub.sql` (Postgres/MySQL/MariaDB): `parent_id` + `url_redirects` table.
-  
+
   ## Documentation
   All packages updated with READMEs covering Phase 1-5 integration.
 
@@ -171,9 +194,9 @@
 ### Patch Changes
 
 - Fix scaffolded default theme: generate the embedded theme from `themes/default/` at build time and translate its UI copy to English.
-  
+
   The embedded fallback theme was a hand-maintained fork of `themes/default/` that drifted silently (missing `page-home.astro`, `page-blog.astro` and `src/theme.css`; stale `theme.json` and `dist/theme.css`), so `okcms init` scaffolded a theme that no longer existed in the repository. A new generator (`scripts/generate-theme-assets.mjs`) now rebuilds `src/generated/theme-assets.ts` from `themes/default/` during `build`/`prepack`, and a byte-parity test fails CI on any drift.
-  
+
   `getThemeAssetDir()` also probes the published layout (`dist/themes/default`), so `bunx`-installed CLIs resolve the bundled copy instead of always falling back to embedded strings. Remaining Portuguese UI strings in `404.astro`, `archive.astro`, `page-blog.astro` and `single.astro` are now English.
 
 ## 0.13.24
@@ -181,7 +204,7 @@
 ### Patch Changes
 
 - fix(cli): copy real theme files from package instead of hardcoded strings
-  
+
   `okcms init` now reads theme files from `dist/themes/default/` bundled into
   the package (and falls back to the monorepo root during development) so
   fresh projects get an identical copy of `themes/default/` — including
@@ -199,7 +222,7 @@
   did not use .container padding, so its content stretched edge-to-edge
   while About, Latest Posts and Contact sections were inset by the
   container's side padding. This made section margins appear misaligned.
-  
+
   Both themes/default/src/theme.css (source) and themes/default/dist/theme.css
   (production) now give .hero-content the same max-width, padding and
   box-sizing as .container, so all sections share identical left/right
@@ -235,17 +258,17 @@
 ### Patch Changes
 
 - Fix default theme CSS: cover all embedded template classes
-  
+
   The embedded default theme CSS (`DEFAULT_THEME_CSS`) didn't cover classes used
   by the English page templates (`page-about.astro`, `page-contact.astro`,
   `post-first-post.astro`, `post-second-post.astro`, updated `page-home.astro`),
   so sections appeared unstyled (no container width, no spacing, no colors).
-  
+
   Rewrote `DEFAULT_THEME_CSS` to cover every class used by the bundled templates:
   container, header/nav, hero, buttons, generic section wrapper, about-preview,
   contact, posts-grid, post-card, entry, cards/listing, archive, empty, 404,
   footer, pagination — all scoped under `[data-theme="default"]` and responsive.
-  
+
   Users no longer see broken layouts on seeded home content after `okcms init`.
 
 ## 0.13.18
@@ -261,14 +284,14 @@
 ### Patch Changes
 
 - Embed English default theme templates in CLI for `okcms init`
-  
+
   New projects created with `okcms init` now ship English versions of the default
   theme templates (`page-about.astro`, `page-contact.astro`, `post-first-post.astro`,
   `post-second-post.astro`) plus `page-home.astro` translated to English, so users
   who create pages/posts with English slugs (`about`, `contact`, `first-post`,
   `second-post`) get styled templates instead of falling back to the generic
   `page.astro` / `index.astro`.
-  
+
   Updated `theme.json` `provides.layouts` to register the new layouts.
 
 ## 0.13.16
@@ -276,13 +299,13 @@
 ### Patch Changes
 
 - Add English page templates to default theme
-  
+
   The default theme only shipped Portuguese templates (`page-sobre.astro`,
   `page-contact` section in `page-home.astro`). When a user creates pages with
   English slugs (`about`, `contact`), the template hierarchy could not find
   `page-about.astro` / `page-contact.astro` and fell back to the generic
   `page.astro` / `index.astro` — breaking the styling.
-  
+
   Adds `page-about.astro` and `page-contact.astro` (English versions) to the
   default theme and registers them in `theme.json` `provides.layouts`.
 
@@ -291,7 +314,7 @@
 ### Patch Changes
 
 - Fix CLI password hash validation: bcrypt only
-  
+
   `isValidBcryptHash` in `@oktis-works/cms` validated bcrypt hashes for the
   first-admin check during `okcms dev`. The auth service now hashes exclusively
   with bcrypt, so login works after the CLI creates the admin user. No more
@@ -305,14 +328,14 @@
 ### Patch Changes
 
 - Fix `okcms db:migrate` failing with "invalid input syntax for type uuid: """ when no default tenant exists
-  
+
   When `db:migrate` ran only `core_schema` domain migrations, `prepareDb` was told
   not to create/resolve the tenant default (`createDefaultTenant: false`,
   `resolveTenant: false`). The `tenantId` ended up as an empty string `""`, and
   when `applyMigration` executed `SELECT set_config('app.current_tenant_id', ...)`,
   Postgres tried to cast the empty string to UUID in RLS queries, producing
   `invalid input syntax for type uuid: """`.
-  
+
   `db:migrate` now always creates/resolves the `default` tenant, regardless of
   the migration domain, so the RLS context is always valid.
 
@@ -422,7 +445,7 @@
 ### Patch Changes
 
 - ### Security
-  
+
   - **Bun runtime updated from 1.3.14 to 1.4.4** — fixes critical vulnerabilities:
     - CVE-2026-111497 (GHSA-663w-cv8g-jj2p): Brotli decoder out-of-bounds write (HIGH)
     - GHSA-26q8-h657-pf84: Compromised eMudhra (emSign) root certificates in trust store (HIGH)
@@ -435,7 +458,7 @@
 ### Minor Changes
 
 - ### Fixes
-  
+
   - **db-prepare**: Import and call `seedDefaultFieldGroups()` in `prepareDb()` so default field groups are seeded on every `okcms dev`/`start`/`db:migrate`/`seed`, ensuring fresh projects have core-fields-post and core-fields-page available in admin
 
 ### Patch Changes
@@ -450,12 +473,12 @@
 ### Patch Changes
 
 - Default theme: remove the white frame around the site (UA body margin)
-  
+
   The design system reset only reached the `[data-theme]` wrapper — the
   browser's default `<body>` margin (8px) kept showing as a blank white
   frame on every side (top/left/right/bottom), because `wrapDocument` emits
   a bare `<body>` with no reset of its own.
-  
+
   Adds a page-level reset scoped with `:has([data-theme="default"])` so the
   stylesheet (also the last fallback of the project chain) never changes the
   page box of another theme. Guarded by a regression test.
@@ -465,7 +488,7 @@
 ### Minor Changes
 
 - Default theme: blog page lists the latest posts
-  
+
   New `posts.astro` template (declared in the theme manifest layouts): the
   page configured as the posts page now renders its title and intro from the
   page body plus the latest posts grid fed by the runtime `items` context —
@@ -482,13 +505,13 @@
 ### Patch Changes
 
 - Fix `okcms init` ETARGET: install ranges anchored per-package, not on the CLI
-  
+
   The scaffolded package.json used a single ±1-minor window derived from the
   CLI's own version for ALL @oktis-works packages. Packages are versioned
   independently (plugin-runtime sits on 0.7.0 while the CLI walked to 0.11.x),
   so the CLI-derived window matched nothing for api, admin, worker and
   plugin-runtime — every fresh `okcms init` failed to install.
-  
+
   - Each range is now anchored on the version actually published on npm
     (`getLatestVersion`, already used elsewhere in the CLI), then passed
     through the existing two-minor window of `appRangeFor` (which now anchors
@@ -515,11 +538,11 @@
 ### Minor Changes
 
 - Redesigned default theme: header menu, footer, richer sections
-  
+
   The default theme scaffolded by `okcms init` was minimal — no site header,
   no navigation, no footer and a bare stylesheet. The theme is now a proper
   starter design:
-  
+
   - Sticky glass header with the site brand and the `header` menu rendered
     from the runtime `menus` context (`menus.header.items`).
   - Dark footer with the site description and the `footer` menu.
@@ -563,7 +586,7 @@
 ### Patch Changes
 
 - Fix dev command user creation and CLI improvements
-  
+
   - Fixed dev command to prompt for admin email/name/password when:
     - No users exist in database, OR
     - Existing user has invalid password hash (e.g., dummy hash from seed)
@@ -586,7 +609,7 @@
 ### Patch Changes
 
 - 641e556: Fix demo content seed issues
-  
+
   - Add unique constraint for menus (tenant_id, slug) - V020 migration
   - Fix demo content seed to use CTE-based upserts instead of ON CONFLICT to avoid constraint caching issues with connection pooling
   - Fix pages, posts, menus, and settings inserts to use CTE-based upserts (WITH upsert AS UPDATE ... INSERT ... WHERE NOT EXISTS)
@@ -604,7 +627,7 @@
 ### Patch Changes
 
 - 7df7caa: Fix demo content seed issues
-  
+
   - Add unique constraint for content (tenant_id, type, slug) - V019 migration
   - Fix seed demo content ON CONFLICT for users email and tenant_users
   - Fix seed demo content ON CONFLICT for content (tenant_id, type, slug)
@@ -636,7 +659,7 @@
 ### Patch Changes
 
 - Implement Static Front Page (WP-style), demo content seed, and redesigned default theme
-  
+
   - **Theme Runtime (core):** Added Static Front Page logic — `resolve('/')` now checks settings `static_front_page` (UUID of a page) and `page_for_posts` (UUID of a page). Falls back to posts archive if unconfigured. Removed hardcoded `isHome: true` priority.
   - **Database (seed):** New `seedDemoContent()` creates 3 pages (home, sobre, blog), 2 posts (primeiro-post, segundo-post), 2 menus (header, footer), and configures reading settings (`static_front_page` + `page_for_posts`). Idempotent via ON CONFLICT.
   - **CLI:** `prepareDb()` and `seed` command now call `seedDemoContent()` automatically — `okcms init` + `okcms start` yields a working site with Home, About, Blog listing, and 2 demo posts.
@@ -726,13 +749,13 @@
 ### Patch Changes
 
 - 3da0733: fix(rate-limit): 429 em rajada e "logout" falso no admin
-  
+
   O admin estourava o rate limit carregando o dashboard (~21 requisições por
   página, com N+1 e /auth/me triplicado) e todos os clientes dividiam um único
   balde `platform:unknown` — a chave vinha de X-Forwarded-For forjável ou
   retornava literalmente "unknown". O guarda de sessão trataba qualquer erro
   (inclusive 429) como "usuário deslogado" e redirecionava para /login.
-  
+
   API:
   - rate limiting por classe: anônimo por IP real (socket, ou XFF apenas
     quando o par é proxy de confiança; `TRUST_PROXY`/`TRUSTED_PROXIES`),
@@ -746,7 +769,7 @@
     `/auth/me` devolve `locale` (sessão + idioma em uma chamada);
   - `GET /content?include=author` expande autores em uma query (anti N+1);
   - nginx: X-Real-IP/X-Forwarded-For também em `/storage/` e `/themes/`.
-  
+
   Admin:
   - `ApiError` tipado e `checkSession()` tri-estado: só um 401 definitivo
     redireciona; 429/5xx/rede viram `unavailable` (sem logout falso);
@@ -757,7 +780,7 @@
     com TTL de 10s que travava abas órfãs);
   - sessão e idioma resolvidos no SSR (uma chamada server-side; o login
     não gasta nenhuma), CSRF em memória por 60s, proxy injeta o IP real.
-  
+
   Config/CLI:
   - `RATE_LIMIT_DEFAULTS` em `@oktis-works/config` como fonte única; o wizard
     grava os mesmos defaults que a API lê (antes: wizard escrevia 100/60s e o
@@ -789,13 +812,13 @@
 ### Minor Changes
 
 - feat(themes): isolamento CSS `isolation: "manual"` + tema default já escopado (BUSI-040)
-  
+
   Formaliza a exceção de isolamento para temas `engine: css`: o manifest pode
   declarar `stylesConfig.isolation: "manual"`, significando que o AUTOR entrega o
   CSS já isolado (o pipeline de build não escopa de novo). `'manual'` é válido
   apenas com `engine: css` — em engines com build (scss/tailwind) é rejeitado na
   validação, pois o build sempre escopa.
-  
+
   - `theme-sdk`: `ThemeStyleConfig.isolation` aceita `true | 'manual'`.
   - `theme-runtime`: `validateStyleManifest`/`resolveStyleEngine`/`buildThemeStyles`
     entendem `'manual'` (não escopa; `false` continua proibido).
@@ -806,13 +829,13 @@
 ### Patch Changes
 
 - fix(theme-build): `theme:build` não apaga mais o `dist/theme.css` de temas sem entry
-  
+
   Para `engine: css` sem entry convencional (ex.: o tema default, que tem o CSS
   direto em `dist/theme.css`), `buildThemeStyles` devolvia `css: ""` e
   `buildThemeStylesOnDisk` gravava por cima — truncando o stylesheet servido em
   0 bytes, silenciosamente. Agora `entry` nulo vira no-op seguro: o artefato é
   preservado e o comando reporta `skipped: true` com warning orientando o autor.
-  
+
   Coberto por `theme-build.test.ts` (caso entry-null + caso scss com entry).
 - Updated dependencies
 - Updated dependencies
@@ -852,7 +875,7 @@
 ### Patch Changes
 
 - Correções do sistema de temas (ativação, descoberta, scaffold e customizador):
-  
+
   - **`updated_at` no banco (crítico)**: a tabela `themes` ganhou `updated_at` (schema + migração `V010__core__harden_themes_lifecycle.sql`), índices `UNIQUE(name)` e o índice parcial de **um único tema ativo por tenant** — as rotas de ativar/desativar/instalar sempre falhavam por coluna inexistente, e `deactivate` referenciava também `deactivated_at`, que nunca existiu.
   - **Fonte única de ativação (crítico)**: o app web resolve o tema ativo **por request** lendo `status = 'ACTIVE'` do banco (fallback para `ACTIVE_THEME`), em vez de uma leitura única no boot — ativar pela tela Temas agora reflete no site sem restart. `ThemeService.activate` desativa os demais numa única sequência, `getActive` ordena por `activated_at DESC`, e a CLI `theme:manage --set-active` grava config **e** banco (mesma verdade).
   - **Fallback `manifest.json` (crítico)**: `syncFromDirectory` e o `ThemeLoader` aceitam `theme.json` **ou** `manifest.json` (o formato legado que o tema default distribuído usa); `theme:manage --info` também. O manifesto do tema default agora declara `type: "theme"`.
@@ -873,7 +896,7 @@
 ### Patch Changes
 
 - 1951e81: Fix crítico: `okcms dev` falhava com "required variable DB_PASSWORD is missing a value" mesmo com `DB_PASSWORD` preenchido na `.env` da raiz.
-  
+
   - CAUSA: o bun carrega o `.env` do cwd no START de cada processo e não sobrescreve o que já está definido. O menu `okcms` nasce com o snapshot do template do `okcms init` (`DB_PASSWORD=` vazio); a entrevista grava o valor só no ARQUIVO; o `okcms dev` spawnado herda `DB_PASSWORD=''` — e a env vazia do processo vence o `--env-file` na interpolação do docker compose (`''` conta como ausente no `${DB_PASSWORD:?...}`).
   - FIX (3 camadas):
     - `runCompose` agora spawna o docker com `projectProcessEnv(cwd)`: valores não-vazios da `.env` da raiz sobrescrevem o snapshot do processo (todas as chamadas — infra, lanes, app);
@@ -885,7 +908,7 @@
 ### Patch Changes
 
 - Fix crítico: docker compose não encontra DB_PASSWORD no .env.
-  
+
   - CAUSA: docker compose lê .env do DIRETÓRIO DO COMPOSE FILE (ex:
     infrastructure/compose/), não do cwd (raiz do projeto). Se o .env tem
     DB_PASSWORD preenchido, o compose não o vê e falha na interpolação.
@@ -899,7 +922,7 @@
 ### Patch Changes
 
 - Wizard: entrevista .env reduzida aos campos ESSENCIAIS.
-  
+
   - Nova prop `essential` em EnvField — só campos essenciais entram na entrevista
   - Essenciais: DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, DATABASE_URL, JWT_SECRET, REDIS_HOST
   - Resto (rate limit, cache TTL, storage S3, worker concurrency, deploy, tema): defaults seguros, configurável com `okcms config`
@@ -913,7 +936,7 @@
 ### Patch Changes
 
 - Fix: DB_ENGINE não é mais perguntado duas vezes na entrevista .env.
-  
+
   - O engine select (PostgreSQL/MySQL/MariaDB) já define DB_ENGINE — o campo
     regular DB_ENGINE foi removido da lista de passos (era perguntado como
     [1/8] logo após o select, redundante)
@@ -924,7 +947,7 @@
 ### Patch Changes
 
 - Fix: conteúdo dos selects não multiplica mais com setas rápidas.
-  
+
   - `SelectOptions.fullClear` — usa ESC[2J+ESC[H (limpa tela inteira) em cada repaint do navigate
   - Aplicado nos selects da entrevista .env (engine, mode, skip) — terminais WSL/Windows que não processam ESC[nA rápido o suficiente agora renderizam limpo
   - Demais selects do CLI (menu, fluxos, catálogo) mantêm o comportamento anterior (ESC[nA+ESC[0J)
@@ -934,7 +957,7 @@
 ### Patch Changes
 
 - Wizard: navegação linear real na entrevista .env (b = passo anterior em qualquer ponto).
-  
+
   - Lista plana de passos (engine → mode → campo DB → campos de cada seção na ordem ENV_SECTIONS)
   - 'b' em QUALQUER passo volta ao anterior: campo DB → mode select → engine select → seção anterior
   - Engine e mode selects ganham opção "← Voltar" — selecionar o engine errado não te prende mais
@@ -946,7 +969,7 @@
 ### Patch Changes
 
 - Wizard: navegação limpa campo a campo (Back/Next) na entrevista .env.
-  
+
   - Cada campo limpa a tela antes de mostrar (ANSI clearScreen) — zero lixo no terminal
   - Tecla 'b' volta ao campo anterior para re-editar (prompt.askWithBack / prompt.secretWithBack)
   - Progress indicator [n/total] + dica "Enter = manter · b = voltar · Ctrl+C = cancelar tudo"
@@ -958,7 +981,7 @@
 ### Patch Changes
 
 - Wizard: navegação limpa entre campos (Back/Next) com tela limpa.
-  
+
   - Cada campo da entrevista `.env` agora limpa a tela antes de mostrar (clearScreen)
   - Navegação com tecla 'b' (Back) para voltar ao campo anterior e re-editar
   - Dica visual: "Enter = manter · b = voltar · Ctrl+C = cancelar tudo"
@@ -972,7 +995,7 @@
 ### Patch Changes
 
 - Wizard env interview: clean screen between sections.
-  
+
   - `runEnvInterview` clears screen on entry
   - Each section (Application, Database, Redis, Auth, Storage, Worker, Cache, Ports, Theme, Deploy) clears screen before showing fields
   - Clean navigation through all 10 sections of the .env interview
@@ -982,7 +1005,7 @@
 ### Patch Changes
 
 - Wizard flows: clean screen between all flow steps.
-  
+
   - `flowInit`, `flowDev`, `flowDeploy` (blue-green/simple/pm2), `flowUpdate` now clear screen on entry
   - `flowsMenu` clears screen when opened
   - `envStep`, `precheckDeploy`, `failureMenu` clear screen before prompting
@@ -993,7 +1016,7 @@
 ### Patch Changes
 
 - Wizard navigation improvements:
-  
+
   - Clear screen between menu transitions (`clearScreen` using ANSI escape codes) — no more terminal pollution when navigating between menus
   - Sub-menus (flows, commands, env, status) now clear screen on entry
   - Status screen (`okcms menu` → status) now waits for Enter before returning to main menu
@@ -1005,7 +1028,7 @@
 ### Minor Changes
 
 - Wizard: DB engine selection (PostgreSQL/MySQL/MariaDB) and individual container control.
-  
+
   - New `DB_ENGINE` field (postgres/mysql/mariadb) with dynamic defaults for port and compose service
   - Database section now asks engine first, then connection mode (DATABASE_URL vs individual fields)
   - `runDev` and `ensureRedisOnHost` now ask individually for DB container and Redis container
@@ -1024,10 +1047,10 @@
 ### Patch Changes
 
 - Wizard: seção de banco agora pergunta o modo de conexão antes dos campos.
-  
+
   - **Connection string (DATABASE_URL)**: usuário informa a URL única; `DB_PASSWORD` é gerado automaticamente para a infra local (o compose precisa dele para `POSTGRES_PASSWORD`).
   - **Valores individuais (DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD)**: fluxo original campo a campo.
-  
+
   Corrige o erro "required variable DB_PASSWORD is missing a value" ao subir a infra quando o usuário escolhia connection string.
 
 ## 0.7.1
@@ -1078,7 +1101,7 @@
 ### Minor Changes
 
 - Fix scaffold .env template with complete auth configuration
-  
+
   ## Changes
   - Added all missing auth config vars to scaffold `.env`: `AUTH_COOKIE_*`, `JWT_EXPIRES_IN=15m`, `REFRESH_TOKEN_EXPIRES_IN=7d`, `BCRYPT_ROUNDS`, `AUTH_CSRF_*`
   - Added Vite proxy support via `ADMIN_API_PROXY_TARGET` and `PUBLIC_API_URL=/api`
@@ -1090,13 +1113,13 @@
 ### Patch Changes
 
 - Fix "Missing refresh token" error on login in local development
-  
+
   ## Problem
   When running OkCMS locally with `okcms start`, the admin (port 3011) and API (port 3000) run on different ports. The auth cookies (including refresh_token) were set with `SameSite=lax`, which blocks cookies on cross-origin fetch requests. This caused the refresh token to not be sent when the admin made API calls, resulting in "Missing refresh token" errors.
-  
+
   ## Solution
   1. **Added Vite proxy to admin** (`apps/admin/astro.config.mjs`): In development, the admin now proxies `/api/*` requests to the API server. This makes admin and API same-origin (both on port 3011), allowing cookies to work with `SameSite=lax`.
-  
+
   2. **Updated scaffold** (`packages/cli/src/scaffold.ts`): New projects now get a complete `.env` with all auth configuration variables:
      - `AUTH_COOKIE_DOMAIN`, `AUTH_COOKIE_SAMESITE`, `AUTH_COOKIE_SECURE`
      - `AUTH_COOKIE_ACCESS_MAXAGE`, `AUTH_COOKIE_REFRESH_MAXAGE`
@@ -1104,11 +1127,11 @@
      - `BCRYPT_ROUNDS`, `AUTH_CSRF_*` settings
      - `ADMIN_API_PROXY_TARGET` for the Vite proxy
      - `PUBLIC_API_URL=/api` to use relative URLs via proxy
-  
+
   3. **Fixed JWT expiry confusion** in template `env.example`: Was `JWT_EXPIRES_IN=7d` (wrong for access token), now correctly `JWT_EXPIRES_IN=15m` and `REFRESH_TOKEN_EXPIRES_IN=7d`.
-  
+
   4. **Updated admin API client** (`apps/admin/src/lib/api.ts`): Supports relative `PUBLIC_API_URL` (e.g., `/api`) for proxy usage.
-  
+
   ## For existing projects
   Add to `.env`:
   ```bash
@@ -1213,7 +1236,7 @@
 ### Minor Changes
 
 - F0–F4: deploy Docker blue/green, wizards da CLI, redeploy de extensões e documentação bilíngue
-  
+
   - **F0/F1** — CLI de zero dependências com prompt próprio (menu numerado,
     confirmação, input com validação e segredo sem eco) e guardas: a CLI recusa
     rodar dentro de container e nunca monta `docker.sock`.
@@ -1272,7 +1295,7 @@
 ### Patch Changes
 
 - F1–F10: Admin panel completo
-  
+
   - F1 RBAC: seed 5 roles (SUPER_ADMIN, TENANT_ADMIN, EDITOR, AUTHOR, VIEWER); register atribui TENANT_ADMIN ao 1º usuário; login resolve slug→UUID e devolve tenantId no JWT
   - F2 Media: upload local-disk (UPLOAD_DIR), layout tenant/uuid.ext, GET /file público (cache imutável), 25MB, traversal bloqueado
   - F3 Settings: seed 4 configurações (siteTitle, siteDescription, language, timezone) grupo general
@@ -1320,7 +1343,7 @@
 ### Patch Changes
 
 - Corrige `okcms db:migrate` em banco fresco (erro `relation "migrations" does not exist`):
-  
+
   - `ensureCoreSchema` (novo em `@oktis-works/database`): aplica o schema core **uma única vez**, detectado via `to_regclass` — o schema tem `CREATE POLICY` (não idempotente) e a tabela `migrations` tem FK para `tenants`, ou seja, num banco novo nada existia;
   - `resolveTenantId` (novo): traduz o `--tenant` (slug) para o UUID real de `tenants.slug`, criando o tenant `default` na primeira vez — antes o runner recebia a string `"default"` e quebraria com `invalid input syntax for type uuid`;
   - CLI: novo `prepareDb` (init + schema + tenant) nos comandos `db:migrate`, `db:rollback` e `db:status`;
@@ -1338,7 +1361,7 @@
 ### Patch Changes
 
 - Scaffold executável sem CLI global (corrige `okcms: command not found`):
-  
+
   - `package.json` gerado ganha `scripts` (start, stop, status, doctor, migrate, backup) — npm/bun injetam `node_modules/.bin` no PATH, então `bun run migrate` / `npm run start` funcionam logo após o init;
   - next-steps do `init` imprime `npx okcms db:migrate` / `npx okcms start` / `npx okcms --help` (com alternativa `bun run`);
   - README: callout explicando a CLI local (npx/bunx + atalhos + `bun add -g` opcional), quickstart e blocos comandos com prefixo `npx`, aviso na tabela de comandos;

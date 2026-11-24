@@ -1,8 +1,8 @@
 > 📄 **English** · [Português](./README.pt-BR.md)
 
-# OkCMS v0.40.5
+# OkCMS v0.41.0
 
-Hybrid, modular, API-first, extensible CMS with Astro+SolidJS frontend, Node.js/TypeScript backend, PostgreSQL, Docker immutable deployments, plugin and theme extension systems, and multi-tenancy.
+Hybrid, modular, API-first, extensible CMS with Astro+SolidJS frontend, Node.js/TypeScript backend, PostgreSQL, Docker immutable deployments, plugin and theme extension systems, and multi-tenancy. Public themes can use the default string-template engine or compiled **React/Solid SSR** engines (`render.engine`), built on the host with `okcms theme:build` and watched by `okcms dev`.
 
 ## Documentation
 

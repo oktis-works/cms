@@ -1,11 +1,20 @@
 # @oktis-works/plugin-runtime
 
+## 0.8.2
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/types@0.11.0
+  - @oktis-works/validation@0.9.0
+  - @oktis-works/plugin-sdk@0.8.1
+
 ## 0.8.1
 
 ### Patch Changes
 
 - Security remediation follow-up fixes:
-  
+
   - database: confirm `ON DUPLICATE KEY UPDATE` upserts on MySQL/MariaDB by re-selecting the affected row and returning real affected counts.
   - plugin-runtime: export `validateManifestV2` so the web renderer can validate parent theme manifests.
   - worker: upgrade sharp to `^0.35.5` (libvips/libheif/librsvg CVEs) and handle sharp >= 0.35 reporting AVIF inputs as `heif` (guarded by `mediaType`).
@@ -16,45 +25,45 @@
 ### Minor Changes
 
 - # Dynamic URL Hierarchy (v0.37.0)
-  
+
   ## Features
-  
+
   ### Phase 1: Dynamic URL Hierarchy
   - **Hub pages per content type**: Any published page can be designated as a listing hub for any content type with `hasArchive` (via `metadata.hub_type`). The page's slug becomes the URL base (e.g., `/blog/`, `/projects/`).
   - **Hierarchical URLs**: Content items support `parent_id` for nested URLs (e.g., `/projects/cliente-a/projeto-1`). Walk-up validation ensures parent chain matches URL segments.
   - **Persistent redirects**: `url_redirects` table stores exact and prefix redirects for slug changes, parent changes, and hub page renames (prefix: `/old-base/*` → `/new-base/*`).
   - **Legacy compatibility**: `postsPage`/`page_for_posts` still work for type `post`; dynamic hubs take precedence.
-  
+
   ### Phase 2: Head SEO
   - `<link rel="canonical">` and `<meta property="og:url">` emitted from `resolution.canonicalPath`.
   - Meta description fix: now uses `page.seo_description` → `page.excerpt` → `siteDescription` (was global only).
-  
+
   ### Phase 3: Sitemap
   - `GET /sitemap.xml` lists hub pages + published items with canonical URLs.
   - Excludes redirect sources; pagination (`?page=N`) uses canonical self.
-  
+
   ### Phase 4: JSON-LD + Breadcrumbs
   - Schema.org entities: `BlogPosting` (post), `WebPage` (page), `CreativeWork` (custom).
   - `BreadcrumbList` from hub base + parent chain: `Home → Hub → Parent1 → Item`.
   - Injected via `<script type="application/ld+json">` in `single.astro` and `page.astro`.
-  
+
   ### Phase 5: RSS/Atom Feeds
   - `GET /{hubBase}/feed` (RSS 2.0 default, `?format=atom` for Atom 1.0).
   - Auto-discovers hub type via `metadata.hub_type`, lists published items ordered by `published_at DESC`.
-  
+
   ## Admin UI
   - **Reading Settings**: Hub pages table (add/remove type + page) with prefix redirect on page rename.
   - **Content Editor**: Parent select dropdown (same type, published, excludes self/descendants, max depth 5).
   - i18n keys for hub pages and parent select.
-  
+
   ## Templates
   - All default templates use `{{url}}` for canonical links (no hardcoded `/blog/`).
   - `single.astro` and `page.astro` inject JSON-LD.
   - CLI `okcms init` produces byte-identical theme.
-  
+
   ## Migrations
   - `V027__core__content_parent_and_hub.sql` (Postgres/MySQL/MariaDB): `parent_id` + `url_redirects` table.
-  
+
   ## Documentation
   All packages updated with READMEs covering Phase 1-5 integration.
 
@@ -113,7 +122,7 @@
 ### Patch Changes
 
 - 562e5c1: Fix fresh-checkout build and admin plugin field rendering
-  
+
   - plugin-runtime: resolve `@oktis-works/core` at runtime via a non-literal dynamic import in `bootstrapPlugins`, removing the static module reference that broke `tsc` on fresh checkouts (core builds after plugin-runtime and its `dist/` does not exist yet; `require()` is also unavailable in Node ESM).
   - core: replace the self-import `await import('@oktis-works/core')` in `plugin/load.ts` with a relative import of the field type extension service.
   - admin: fix plugin field type loaders (`PluginFieldRenderer`, `PluginFieldConfig`) — signals were read without calling them inside non-reactive `if` branches, so the components never left the loading state; now uses `Switch`/`Match` with `Dynamic`. Also fixes typecheck errors (index signature access, missing `t` prop propagation, `_t` prop name) across `FieldRenderer`.
@@ -123,13 +132,13 @@
 ### Minor Changes
 
 - feat: add custom field types via plugins
-  
+
   - Core: field_type_extensions table, dynamic type registry
   - Plugin Runtime: addFieldType API, manifest fieldTypes[]
   - Admin: dynamic component loading for field config/render
   - Docs: plugin-development.md, PLUGIN.md
   - Example plugin: mermaid-field
-  
+
   BREAKING CHANGE: none
 
 ### Patch Changes
@@ -167,13 +176,13 @@
 ### Patch Changes
 
 - fix(lint): remove imports/vars não usados que quebravam `bun run lint` no CI
-  
+
   `eslint .` falhava com 7 erros de `no-unused-vars` em arquivos committados
   (`apps/api/src/index.ts`, `packages/core/src/plugin/load.ts`,
   `packages/plugin-runtime/src/plugin-api-rls.test.ts`) — o gate de lint do CI
   ficava vermelho em qualquer tag. Removidos os símbolos sem uso, sem mudança
   de comportamento.
-  
+
   Inclui também a limpeza do `apps/web/src/rendering.ts`: `getScopedContainer` e
   `buildTheme` eram helpers exportados porém **nunca consumidos** pelo app
   (duplicavam o style-engine do pacote) — removidos junto com os imports órfãos.

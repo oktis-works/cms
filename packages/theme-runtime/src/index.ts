@@ -6,6 +6,8 @@ export type { ResolvedComponent } from './resolver.js';
 export {
   TemplateHierarchyResolver,
   buildTemplateChain,
+  buildTemplateKeyChain,
+  templateKeyFromFile,
   createProjectTemplateResolver,
   resolveProjectThemeChain,
 } from './template-resolver.js';
@@ -15,6 +17,25 @@ export type {
   TemplateFileChecker,
   ProjectTemplateResolver,
 } from './template-resolver.js';
+export {
+  THEME_BUILD_SCHEMA_VERSION,
+  safeThemePath,
+  readThemeBuild,
+  validateThemeBuild,
+  clearCompiledThemeCache,
+  importCompiledTheme,
+  renderCompiledTheme,
+} from './compiled.js';
+export type { ThemeBuildManifest, RenderCompiledThemeInput } from './compiled.js';
+export {
+  loadThemeCatalog,
+  readThemeManifest,
+  themeEngineOf,
+  themeSupportsKey,
+  findTemplateProvider,
+  activeCatalogEntry,
+} from './catalog.js';
+export type { ThemeCatalog, ThemeCatalogEntry } from './catalog.js';
 export { ThemeLoader } from './loader.js';
 export type { DiscoveredTheme } from './loader.js';
 export {

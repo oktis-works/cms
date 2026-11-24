@@ -1,11 +1,21 @@
 # @oktis-works/admin
 
+## 0.26.1
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/types@0.11.0
+  - @oktis-works/validation@0.9.0
+  - @oktis-works/plugin-sdk@0.8.1
+  - @oktis-works/ui@0.6.2
+
 ## 0.26.0
 
 ### Minor Changes
 
 - Security remediation (audit items 1-7, 9-14):
-  
+
   - JWT: migrate signing to RS256 with `kid` + JWKS endpoint (`/.well-known/jwks.json`), key rotation with grace period, and dev/test ephemeral key fallback; add `validateProductionConfig()` to reject default `JWT_SECRET`, missing DB SSL, and insecure cookies in production.
   - Rate limiting: replace in-memory Map with Redis sorted sets (`ratelimit:{key}`, TTL = window + 30s) and keep an in-memory fallback only when Redis is unavailable.
   - Plugin admin components: sandbox rendering through a Web Worker + Comlink host (`PluginWorkerHost`) instead of trusting plugin JSX in the main thread.
@@ -31,45 +41,45 @@
 ### Minor Changes
 
 - # Dynamic URL Hierarchy (v0.37.0)
-  
+
   ## Features
-  
+
   ### Phase 1: Dynamic URL Hierarchy
   - **Hub pages per content type**: Any published page can be designated as a listing hub for any content type with `hasArchive` (via `metadata.hub_type`). The page's slug becomes the URL base (e.g., `/blog/`, `/projects/`).
   - **Hierarchical URLs**: Content items support `parent_id` for nested URLs (e.g., `/projects/cliente-a/projeto-1`). Walk-up validation ensures parent chain matches URL segments.
   - **Persistent redirects**: `url_redirects` table stores exact and prefix redirects for slug changes, parent changes, and hub page renames (prefix: `/old-base/*` → `/new-base/*`).
   - **Legacy compatibility**: `postsPage`/`page_for_posts` still work for type `post`; dynamic hubs take precedence.
-  
+
   ### Phase 2: Head SEO
   - `<link rel="canonical">` and `<meta property="og:url">` emitted from `resolution.canonicalPath`.
   - Meta description fix: now uses `page.seo_description` → `page.excerpt` → `siteDescription` (was global only).
-  
+
   ### Phase 3: Sitemap
   - `GET /sitemap.xml` lists hub pages + published items with canonical URLs.
   - Excludes redirect sources; pagination (`?page=N`) uses canonical self.
-  
+
   ### Phase 4: JSON-LD + Breadcrumbs
   - Schema.org entities: `BlogPosting` (post), `WebPage` (page), `CreativeWork` (custom).
   - `BreadcrumbList` from hub base + parent chain: `Home → Hub → Parent1 → Item`.
   - Injected via `<script type="application/ld+json">` in `single.astro` and `page.astro`.
-  
+
   ### Phase 5: RSS/Atom Feeds
   - `GET /{hubBase}/feed` (RSS 2.0 default, `?format=atom` for Atom 1.0).
   - Auto-discovers hub type via `metadata.hub_type`, lists published items ordered by `published_at DESC`.
-  
+
   ## Admin UI
   - **Reading Settings**: Hub pages table (add/remove type + page) with prefix redirect on page rename.
   - **Content Editor**: Parent select dropdown (same type, published, excludes self/descendants, max depth 5).
   - i18n keys for hub pages and parent select.
-  
+
   ## Templates
   - All default templates use `{{url}}` for canonical links (no hardcoded `/blog/`).
   - `single.astro` and `page.astro` inject JSON-LD.
   - CLI `okcms init` produces byte-identical theme.
-  
+
   ## Migrations
   - `V027__core__content_parent_and_hub.sql` (Postgres/MySQL/MariaDB): `parent_id` + `url_redirects` table.
-  
+
   ## Documentation
   All packages updated with READMEs covering Phase 1-5 integration.
 
@@ -86,16 +96,16 @@
 ### Patch Changes
 
 - Fix theme preview iframe loading the admin instead of the active theme
-  
+
   The live preview iframe in the Theme Customizer (`/customize?theme=<uuid>`) was
   building a relative URL (`/`) that resolved to the admin application itself,
   so the preview showed the admin UI instead of the active theme's frontend.
-  
+
   The preview now resolves the public web app URL (`PUBLIC_WEB_URL`, derived
   from `PUBLIC_API_URL` or `http://localhost:3001` in dev) and loads the
   theme preview there with `?preview_settings` and `?preview_theme` query
   params.
-  
+
   Added `PUBLIC_WEB_URL` to the env schema and to the admin process env in
   `okcms start` and `okcms deploy` (pm2), with sensible defaults per port.
 
@@ -152,7 +162,7 @@
 ### Minor Changes
 
 - ### Features
-  
+
   - **Phase 5 - Polish, Tests & Documentation**
     - **Unit Tests**: ThemeService coverage >90% (validation, inheritance, export/import)
     - **API Integration Tests**: Config validation, export/import, history, restore
@@ -161,16 +171,16 @@
     - **Documentation**: Complete `THEME.md` with manifest.settings schema, all 21 field types, inheritance, conditional logic, tabs/groups, API endpoints, CLI
     - **Migration Guide**: `docs/THEME_MIGRATION.md` for legacy theme migration
     - **CHANGELOG**: Updated with all changes
-  
+
   ### Testing
-  
+
   - Unit tests for ThemeService validation, inheritance, export/import
   - API integration tests for config endpoints
   - Playwright E2E tests for full customizer flow
   - Visual regression tests with Chromatic/pixelmatch
-  
+
   ### Documentation
-  
+
   - `THEME.md` - Complete theme development guide
   - `docs/THEME_MIGRATION.md` - Legacy theme migration guide
   - Updated `CHANGELOG.md`
@@ -180,19 +190,19 @@
 ### Minor Changes
 
 - ### Features
-  
+
   - **Theme Customizer Phase 3**: Advanced UI/UX features for theme customization
     - **Conditional Logic**: Fields now show/hide based on `conditionalLogic` in manifest (reuses `isFieldVisible` from FieldRenderer)
     - **Tabs/Accordion Groups**: Fields with `group` property render as tabs (multiple groups) or accordion (single group/ungrouped)
     - **Parent/Child Theme Inheritance**: `buildThemeSettings` now accepts `parentManifest` for deep merge (parent defaults → child defaults → child config)
     - **Group Ordering**: Groups sorted by `groupOrder`, fields by `sort_order`
-  
+
   - **Web Runtime**: Updated `buildThemeSettings` to accept optional `parentManifest` for deep merge inheritance
   - **Web Server**: Fetches parent theme manifest and passes to `buildThemeSettings`
   - **CLI**: `theme:create` generates example settings with `group` and `groupOrder`
-  
+
   ### Related
-  
+
   - Theme Customizer now supports complex field layouts with conditional visibility
   - Parent/child theme inheritance works for settings (child inherits parent defaults, overrides with own)
   - Theme customizer UI adapts to field group structure automatically
@@ -202,7 +212,7 @@
 ### Minor Changes
 
 - ### Features
-  
+
   - **Advanced Field Types for Theme Customizer**: Implemented 10+ advanced field types for the Theme Customizer:
     - `image` / `file` / `gallery` — MediaPickerCustomizer with Media Library integration, upload, preview, multiple selection
     - `wysiwyg` — RichTextCustomizer with full toolbar (formatBlock H1-H4, bold, italic, underline, strikeThrough, lists, link, unlink, code, blockquote, undo/redo), sanitization onBlur
@@ -214,19 +224,19 @@
     - `repeater` — RepeaterCustomizer with add/remove/move rows, collapsible rows, nested subfields
     - `flexible_content` — FlexibleContentCustomizer with layout picker, per-layout subfields, drag-reorder
     - `group` — GroupCustomizer with collapsible fieldset, nested subfields, description
-  
+
   - **Shared Infrastructure**:
     - `RichTextEditor` — Shared component used by ContentEditor and WYSIWYG customizer field
     - `FieldRendererFactory` — Factory mapping 21 field types to their customizer components
     - `MediaPickerCustomizer` — Wrapper for Media Library picker with upload/selection
     - `LinkCustomizer`, `DateTimeCustomizer`, `GoogleMapCustomizer`, `RelationshipCustomizer`, `EntitySelectorCustomizer`, `RepeaterCustomizer`, `FlexibleContentCustomizer`, `GroupCustomizer` — New customizer components
-  
+
   - **Theme Customizer Integration**: Updated to use `FieldRendererFactory` for all field types, with automatic conversion from `ThemeSettingField` to `CustomFieldConfig`
-  
+
   - **CLI Scaffold**: `theme:create` now generates example settings (siteTitle, primaryColor, headerLayout) in new themes
-  
+
   - **i18n**: Added translations for all new field types and customizer UI in 14 languages (EN, PT-BR, ES, HE, IT, JA, PL, RU, SW, TR, UK, YO, ZH-CN, AR)
-  
+
   - **Default Theme**: Updated templates (index.astro, page.astro, archive.astro) to use `settings.theme.siteTitle` and `settings.theme.siteDescription`
 
 ## 0.20.0
@@ -234,15 +244,15 @@
 ### Minor Changes
 
 - ### Fixes
-  
+
   - **FieldRenderer**: Added `value` bindings to all field types (wysiwyg, email, url, password, date_picker, date_time_picker, time_picker, color_picker, select, image/file/gallery, google_map, link) so saved values display correctly in the admin editor
   - **WYSIWYG field type**: Replaced plain textarea with a rich text editor (contentEditable + toolbar with format block dropdown for Paragraph/H1-H4/Blockquote/Code, bold/italic/underline, lists, link) and onBlur HTML sanitization
   - **Classic editor body**: Added format block dropdown (Paragraph, H1-H4, Blockquote, Code) to toolbar alongside existing bold/italic/underline/lists/link
   - **ContentEditor**: Added `normalizeBody()` to defensively parse string body (double-encoded JSON) to object; falls back `html` → `content` so legacy/demo content displays in editor; on save syncs `html` key if present so theme renders updated content
   - **i18n**: Added English and Portuguese translations for new toolbar labels
-  
+
   ### Related
-  
+
   - Dynamic content now appears correctly in admin post/page edit fields
   - WYSIWYG custom fields now offer typography choices (paragraph, headings, etc.)
   - Removed stale compiled artifacts (.jsx/.js/.map/.d.ts) from src that shadowed .tsx sources
@@ -252,14 +262,14 @@
 ### Patch Changes
 
 - Fix /settings/reading stuck in infinite loading
-  
+
   The ReadingSettings component switched its loading state with a top-level
   `if (loading())` early return. Solid component bodies run once, so the
   initial "Loading..." markup was returned permanently: fetches completed
   successfully (no errors anywhere) but the UI never left the loading branch —
   including the safety timeout added earlier, which only mutated signals the
   frozen conditional could not see.
-  
+
   The render now uses the reactive `<Show when={!loading()}>` pattern (the same
   one used by ApiKeysManager, LogsManager and WebhooksManager), and the debug
   console.log calls added while chasing the symptom were removed. The 35s
@@ -270,7 +280,7 @@
 ### Minor Changes
 
 - 372cad9: Fix ReadingSettings: add timezone_string and gmt_offset fields
-  
+
   - Added timezone_string (IANA format) and gmt_offset fields to ReadingSettings
   - Updated submit to save timezone_string and gmt_offset
   - Added missing i18n keys for gmtOffsetDescription (en/pt-BR)
@@ -281,7 +291,7 @@
 ### Minor Changes
 
 - Fix timezone settings, taxonomy management UI, and theme activation
-  
+
   - Settings → Reading: Added timezone_string (IANA) and gmt_offset fields with TimezoneSelect (WP-style)
   - Settings → General: Removed timezone field (moved to Reading)
   - Sidebar: Added Reading to Settings submenu, moved Customize under Themes as sub-item
@@ -327,7 +337,7 @@
 ### Minor Changes
 
 - Implement Static Front Page (WP-style), demo content seed, and redesigned default theme
-  
+
   - **Theme Runtime (core):** Added Static Front Page logic — `resolve('/')` now checks settings `static_front_page` (UUID of a page) and `page_for_posts` (UUID of a page). Falls back to posts archive if unconfigured. Removed hardcoded `isHome: true` priority.
   - **Database (seed):** New `seedDemoContent()` creates 3 pages (home, sobre, blog), 2 posts (primeiro-post, segundo-post), 2 menus (header, footer), and configures reading settings (`static_front_page` + `page_for_posts`). Idempotent via ON CONFLICT.
   - **CLI:** `prepareDb()` and `seed` command now call `seedDemoContent()` automatically — `okcms init` + `okcms start` yields a working site with Home, About, Blog listing, and 2 demo posts.
@@ -346,7 +356,7 @@
 ### Minor Changes
 
 - Simplify the Themes and Plugins admin pages and enforce the single-active-theme lifecycle
-  
+
   - Themes page: remove the inline theme settings editor and the uninstall action — each theme card now shows only the Activate/Deactivate toggle.
   - Themes lifecycle: deactivation is refused while only one theme exists (an active theme must always remain). Enforced in the theme service and pre-checked in the admin UI, which shows a warning instead of calling the API.
   - Plugins page: read-only listing — installation, update and activation are manual (place plugin files in the project's plugins/ directory and restart via okcms start, pm2 or docker).
@@ -373,7 +383,7 @@
 ### Patch Changes
 
 - 562e5c1: Fix fresh-checkout build and admin plugin field rendering
-  
+
   - plugin-runtime: resolve `@oktis-works/core` at runtime via a non-literal dynamic import in `bootstrapPlugins`, removing the static module reference that broke `tsc` on fresh checkouts (core builds after plugin-runtime and its `dist/` does not exist yet; `require()` is also unavailable in Node ESM).
   - core: replace the self-import `await import('@oktis-works/core')` in `plugin/load.ts` with a relative import of the field type extension service.
   - admin: fix plugin field type loaders (`PluginFieldRenderer`, `PluginFieldConfig`) — signals were read without calling them inside non-reactive `if` branches, so the components never left the loading state; now uses `Switch`/`Match` with `Dynamic`. Also fixes typecheck errors (index signature access, missing `t` prop propagation, `_t` prop name) across `FieldRenderer`.
@@ -383,13 +393,13 @@
 ### Minor Changes
 
 - feat: add custom field types via plugins
-  
+
   - Core: field_type_extensions table, dynamic type registry
   - Plugin Runtime: addFieldType API, manifest fieldTypes[]
   - Admin: dynamic component loading for field config/render
   - Docs: plugin-development.md, PLUGIN.md
   - Example plugin: mermaid-field
-  
+
   BREAKING CHANGE: none
 
 ### Patch Changes
@@ -434,7 +444,7 @@
 ### Minor Changes
 
 - 93b17e3: feat(admin): dropdowns em portal, sidebar sem seta separada e /settings/access com modal + matriz de permissões
-  
+
   Dropdowns imunes a overflow: novo `FloatingPanel` renderiza o painel num
   portal no body com `position: fixed` (mede na abertura, abre para baixo ou
   vira para cima, contido na viewport, reposiciona em scroll/resize, fecha
@@ -444,12 +454,12 @@
     área de drag & drop, que agora não o corta);
   - `TimezoneSelect` em `/settings/general`.
   O `FieldTypePicker` também passa a fechar no clique fora (antes não fechava).
-  
+
   Sidebar: o botão de seta separado para as taxonomias foi removido — a seta
   agora é um caret decorativo DENTRO do link; clicar no link do content type
   navega e abre o dropdown das taxonomias ao mesmo tempo. O link Settings faz
   o mesmo com o submenu de configurações.
-  
+
   /settings/access:
   - permissões do role deixam de ser texto livre e viram `PermissionPicker` —
     matriz de checkboxes recurso × ação (vocabulário real da API), com busca,
@@ -459,7 +469,7 @@
   - criar/editar roles e tenants abrem em modal genérico (`ui/Modal`) em vez
     de formulário no topo do card;
   - tabela de Roles ganha coluna de resumo das permissões.
-  
+
   i18n: chaves novas em en/pt-BR (demais idiomas caem no fallback do en).
 
 ## 0.9.0
@@ -467,23 +477,23 @@
 ### Minor Changes
 
 - 2b5208c: feat(admin): página 404 com a marca OkCMS e seletor de ícones virtualizado
-  
+
   Página 404 própria (removendo a genérica do Astro) com o logo horizontal,
   caminho solicitado, sugestões sutis de navegação e "Voltar ao início" —
   traduzida nos 14 idiomas, com suporte a RTL (ar/he).
-  
+
   Em `/settings/post-types`, o campo "Ícone do menu lateral" deixa de aceitar
   texto livre e passa a ser um dropdown com preview do ícone Lucide escolhido:
   busca, contagem de resultados e o catálogo completo (~2.100 ícones) renderizado
   com virtualização (54 células no DOM), sem lag de digitação.
 - 3da0733: fix(rate-limit): 429 em rajada e "logout" falso no admin
-  
+
   O admin estourava o rate limit carregando o dashboard (~21 requisições por
   página, com N+1 e /auth/me triplicado) e todos os clientes dividiam um único
   balde `platform:unknown` — a chave vinha de X-Forwarded-For forjável ou
   retornava literalmente "unknown". O guarda de sessão trataba qualquer erro
   (inclusive 429) como "usuário deslogado" e redirecionava para /login.
-  
+
   API:
   - rate limiting por classe: anônimo por IP real (socket, ou XFF apenas
     quando o par é proxy de confiança; `TRUST_PROXY`/`TRUSTED_PROXIES`),
@@ -497,7 +507,7 @@
     `/auth/me` devolve `locale` (sessão + idioma em uma chamada);
   - `GET /content?include=author` expande autores em uma query (anti N+1);
   - nginx: X-Real-IP/X-Forwarded-For também em `/storage/` e `/themes/`.
-  
+
   Admin:
   - `ApiError` tipado e `checkSession()` tri-estado: só um 401 definitivo
     redireciona; 429/5xx/rede viram `unavailable` (sem logout falso);
@@ -508,7 +518,7 @@
     com TTL de 10s que travava abas órfãs);
   - sessão e idioma resolvidos no SSR (uma chamada server-side; o login
     não gasta nenhuma), CSRF em memória por 60s, proxy injeta o IP real.
-  
+
   Config/CLI:
   - `RATE_LIMIT_DEFAULTS` em `@oktis-works/config` como fonte única; o wizard
     grava os mesmos defaults que a API lê (antes: wizard escrevia 100/60s e o
@@ -528,17 +538,17 @@
 ### Patch Changes
 
 - feat(themes): `GET /api/v1/themes` vira leitura pura; sincronização explícita em `POST /sync`
-  
+
   `GET /api/v1/themes` disparava `syncFromDirectory()` — uma **escrita** no banco
   a cada listagem (upsert + `updated_at`), colidindo com o contrato de uma
   opação de leitura e fazendo I/O de disco à cada request.
-  
+
   - `GET /api/v1/themes`: só `themeService.list()` (sem side-effect).
   - `POST /api/v1/themes/sync`: novo, com `requirePermission('create', 'theme')`,
     devolve o estado completo após o upsert.
   - Admin (`ThemeManager`): `loadThemes()` chama `syncThemes()` e degrada para a
     listagem pura se o sync falhar (ex.: usuário sem permissão de criação).
-  
+
   Compatível com o fluxo existente do admin (abrir a tela Temas continua
   sincronizando), apenas com o side-effect movido para a operação explícita.
 
@@ -559,7 +569,7 @@
 ### Patch Changes
 
 - Correções do sistema de temas (ativação, descoberta, scaffold e customizador):
-  
+
   - **`updated_at` no banco (crítico)**: a tabela `themes` ganhou `updated_at` (schema + migração `V010__core__harden_themes_lifecycle.sql`), índices `UNIQUE(name)` e o índice parcial de **um único tema ativo por tenant** — as rotas de ativar/desativar/instalar sempre falhavam por coluna inexistente, e `deactivate` referenciava também `deactivated_at`, que nunca existiu.
   - **Fonte única de ativação (crítico)**: o app web resolve o tema ativo **por request** lendo `status = 'ACTIVE'` do banco (fallback para `ACTIVE_THEME`), em vez de uma leitura única no boot — ativar pela tela Temas agora reflete no site sem restart. `ThemeService.activate` desativa os demais numa única sequência, `getActive` ordena por `activated_at DESC`, e a CLI `theme:manage --set-active` grava config **e** banco (mesma verdade).
   - **Fallback `manifest.json` (crítico)**: `syncFromDirectory` e o `ThemeLoader` aceitam `theme.json` **ou** `manifest.json` (o formato legado que o tema default distribuído usa); `theme:manage --info` também. O manifesto do tema default agora declara `type: "theme"`.
@@ -583,7 +593,7 @@
 ### Patch Changes
 
 - 02ce591: fix(layout): .layout em 100vh puro com offset da AdminBar aplicado dentro
-  
+
   - `.layout` agora usa `height: 100vh` (antes `calc(100vh - 46px)`) e o
     `padding-top: 46px` no `<html>` foi removido — o documento começa em y=0 e a
     barra fixa sobrepõe o topo.
@@ -598,7 +608,7 @@
 ### Patch Changes
 
 - 4b3e5d7: fix(login): proxy /api standalone, join sem prefixo duplicado, logo sem caixa dourado e favicon versionado
-  
+
   - **404 no login (`api/api/v1/auth/csrf`)**: o `okcms dev/start` roda o Admin como
     build pré-compilado, onde o `vite.server.proxy` não existe — o modo
     recomendado do scaffold (`PUBLIC_API_URL=/api`) respondia 404 em todo `/api/*`.
@@ -618,7 +628,7 @@
 ### Patch Changes
 
 - 8dbb6f3: Logo oficial em todos os pontos da UI (favicon, admin bar, sidebar e login).
-  
+
   - Novo `public/logo.svg`: SVG original do CorelDRAW com cores e paths
     preservados; apenas o `viewBox` foi ajustado para o caixa real da arte
     (`44817.69 -304.8 30309.6 30309.6`) — o export A4 colocava a arte fora
@@ -683,7 +693,7 @@
 ### Minor Changes
 
 - Unify admin page layouts to match /settings/custom-fields pattern
-  
+
   ## Changes
   - Created shared `PageHeader` component with consistent layout (eyebrow, title, description, actions, toolbar)
   - Applied PageHeader to all settings pages, users, media, content, plugins, themes pages
@@ -696,13 +706,13 @@
 ### Patch Changes
 
 - Fix "Missing refresh token" error on login in local development
-  
+
   ## Problem
   When running OkCMS locally with `okcms start`, the admin (port 3011) and API (port 3000) run on different ports. The auth cookies (including refresh_token) were set with `SameSite=lax`, which blocks cookies on cross-origin fetch requests. This caused the refresh token to not be sent when the admin made API calls, resulting in "Missing refresh token" errors.
-  
+
   ## Solution
   1. **Added Vite proxy to admin** (`apps/admin/astro.config.mjs`): In development, the admin now proxies `/api/*` requests to the API server. This makes admin and API same-origin (both on port 3011), allowing cookies to work with `SameSite=lax`.
-  
+
   2. **Updated scaffold** (`packages/cli/src/scaffold.ts`): New projects now get a complete `.env` with all auth configuration variables:
      - `AUTH_COOKIE_DOMAIN`, `AUTH_COOKIE_SAMESITE`, `AUTH_COOKIE_SECURE`
      - `AUTH_COOKIE_ACCESS_MAXAGE`, `AUTH_COOKIE_REFRESH_MAXAGE`
@@ -710,11 +720,11 @@
      - `BCRYPT_ROUNDS`, `AUTH_CSRF_*` settings
      - `ADMIN_API_PROXY_TARGET` for the Vite proxy
      - `PUBLIC_API_URL=/api` to use relative URLs via proxy
-  
+
   3. **Fixed JWT expiry confusion** in template `env.example`: Was `JWT_EXPIRES_IN=7d` (wrong for access token), now correctly `JWT_EXPIRES_IN=15m` and `REFRESH_TOKEN_EXPIRES_IN=7d`.
-  
+
   4. **Updated admin API client** (`apps/admin/src/lib/api.ts`): Supports relative `PUBLIC_API_URL` (e.g., `/api`) for proxy usage.
-  
+
   ## For existing projects
   Add to `.env`:
   ```bash

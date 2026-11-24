@@ -1,0 +1,54 @@
+{
+  "name": "@oktis-works/theme-builder",
+  "version": "0.2.0",
+  "private": false,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo"
+  },
+  "dependencies": {
+    "@oktis-works/theme-runtime": "workspace:*",
+    "@oktis-works/theme-sdk": "workspace:*",
+    "@oktis-works/types": "workspace:*",
+    "@oktis-works/validation": "workspace:*",
+    "@vitejs/plugin-react": "^6.3.0",
+    "babel-preset-solid": "^1.9.16",
+    "vite": "^8.3.3",
+    "vite-plugin-solid": "^2.11.14"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0",
+    "solid-js": "^1.8.0"
+  },
+  "peerDependenciesMeta": {
+    "react": { "optional": true },
+    "react-dom": { "optional": true },
+    "solid-js": { "optional": true }
+  },
+  "devDependencies": {
+    "typescript": "5.7.3"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "license": "GPL-2.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/oktis-works/cms",
+    "directory": "packages/theme-builder"
+  }
+}

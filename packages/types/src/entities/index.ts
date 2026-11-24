@@ -663,6 +663,23 @@ export interface ThemeSettingField {
   }>;
 }
 
+/**
+ * Public theme render engine. `template` is the legacy string-template engine
+ * (root `*.astro` files interpreted by ThemeRenderer). `react` and `solid` are
+ * compiled component engines; a theme declares exactly one.
+ */
+export type ThemeRenderEngine = 'template' | 'react' | 'solid';
+
+export interface ThemeRenderConfig {
+  engine: ThemeRenderEngine;
+  /** Version of the compiled server-entry contract. Currently only 1. */
+  apiVersion?: 1;
+  /** Client hydration mode. `islands` is reserved for a later phase. */
+  hydration?: 'none' | 'islands';
+  /** Source entry used by the theme builder, relative to the theme root. */
+  entry?: string;
+}
+
 export interface ThemeManifest {
   name: string;
   version: string;
@@ -684,6 +701,8 @@ export interface ThemeManifest {
     assets?: string[];
   };
   parent?: string;
+  /** Render engine for the public site. Absent means `template`. */
+  render?: ThemeRenderConfig;
   settings?: ThemeSettingField[];
   components?: Array<{
     name: string;
