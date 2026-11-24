@@ -41,18 +41,12 @@ jobs:
 
       - name: Extract version from package.json
         id: version
-        run: |
-          echo "version=$(node -p \"require('./package.json').version\")" >> $GITHUB_OUTPUT
+        run: |\n          VERSION=$(node -p "require('./package.json').version")\n          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Determine release tag
         id: tag
-        run: |
-          TAG="${{ env.RELEASE_TAG }}"
-          if [ -z "$TAG" ]; then
-            TAG="v$(node -p \"require('./package.json').version\")"
-          fi
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-          echo "RELEASE_TAG=$TAG" >> $GITHUB_OUTPUT
+        run: |\n          TAG="${{ env.RELEASE_TAG }}"
+          if [ -z "$TAG" ]; then\n            TAG="v$(node -p 'require("./package.json").version')"\n          fi\n          echo "tag=$TAG" >> $GITHUB_OUTPUT\n          echo "RELEASE_TAG=$TAG" >> $GITHUB_OUTPUT
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -86,24 +80,24 @@ jobs:
           shopt -s nullglob
           # Inclui root (cms CLI) + packages/*
           for dir in . packages/*; do
-            [ \"$dir\" = \".\" ] && pkg_path=\"package.json\" || pkg_path=\"$dir/package.json\"
-            [ -f \"$pkg_path\" ] || continue
-            name=$(node -p \"require('./$pkg_path').name\")
-            version=$(node -p \"require('./$pkg_path').version\")
-            private=$(node -p \"require('./$pkg_path').private === true\")
-            if [ \"$private\" = \"true\" ]; then
-              echo \"• $name é privado — pulando\"
+            [ "$dir" = "." ] && pkg_path="package.json" || pkg_path="$dir/package.json"
+            [ -f "$pkg_path" ] || continue
+            name=$(node -p "require('./$pkg_path').name")
+            version=$(node -p "require('./$pkg_path').version")
+            private=$(node -p "require('./$pkg_path').private === true")
+            if [ "$private" = "true" ]; then
+              echo "• $name é privado — pulando"
               continue
             fi
-            if curl -fsS -o /dev/null \"https://registry.npmjs.org/$name/$version\"; then
-              echo \"✓ $name@$version já está no registry — pulando\"
+            if curl -fsS -o /dev/null "https://registry.npmjs.org/$name/$version"; then
+              echo "✓ $name@$version já está no registry — pulando"
               continue
             fi
-            echo \"→ publicando $name@$version\"
-            if [ \"$dir\" = \".\" ]; then
+            echo "→ publicando $name@$version"
+            if [ "$dir" = "." ]; then
               npm publish --access public --provenance
             else
-              (cd \"$dir\" && npm publish --access public --provenance)
+              (cd "$dir" && npm publish --access public --provenance)
             fi
             # Sono curto para manter o token OIDC válido entre publishes
             sleep 3
@@ -113,17 +107,17 @@ jobs:
         run: |
           set -euo pipefail
           for dir in . packages/*; do
-            [ \"$dir\" = \".\" ] && pkg_path=\"package.json\" || pkg_path=\"$dir/package.json\"
-            [ -f \"$pkg_path\" ] || continue
-            name=$(node -p \"require('./$pkg_path').name\")
-            version=$(node -p \"require('./$pkg_path').version\")
-            private=$(node -p \"require('./$pkg_path').private === true\")
-            [ \"$private\" = \"true\" ] && continue
-            latest=$(npm view \"$name\" version 2>/dev/null || echo '?')
-            if [ \"$latest\" = \"$version\" ]; then
-              echo \"✓ $name@$version\"
+            [ "$dir" = "." ] && pkg_path="package.json" || pkg_path="$dir/package.json"
+            [ -f "$pkg_path" ] || continue
+            name=$(node -p "require('./$pkg_path').name")
+            version=$(node -p "require('./$pkg_path').version")
+            private=$(node -p "require('./$pkg_path').private === true")
+            [ "$private" = "true" ] && continue
+            latest=$(npm view "$name" version 2>/dev/null || echo '?')
+            if [ "$latest" = "$version" ]; then
+              echo "✓ $name@$version"
             else
-              echo \"⚠️  $name: esperado $version, latest no registry = $latest\"
+              echo "⚠️  $name: esperado $version, latest no registry = $latest"
             fi
           done
 
@@ -143,18 +137,12 @@ jobs:
 
       - name: Extract version from package.json
         id: version
-        run: |
-          echo "version=$(node -p \"require('./package.json').version\")" >> $GITHUB_OUTPUT
+        run: |\n          VERSION=$(node -p "require('./package.json').version")\n          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Determine release tag
         id: tag
-        run: |
-          TAG="${{ env.RELEASE_TAG }}"
-          if [ -z "$TAG" ]; then
-            TAG="v$(node -p \"require('./package.json').version\")"
-          fi
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-          echo "RELEASE_TAG=$TAG" >> $GITHUB_OUTPUT
+        run: |\n          TAG="${{ env.RELEASE_TAG }}"
+          if [ -z "$TAG" ]; then\n            TAG="v$(node -p 'require("./package.json").version')"\n          fi\n          echo "tag=$TAG" >> $GITHUB_OUTPUT\n          echo "RELEASE_TAG=$TAG" >> $GITHUB_OUTPUT
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -187,23 +175,22 @@ jobs:
           shopt -s nullglob
           # Inclui apps/*
           for dir in apps/*; do
-            [ -d \"$dir\" ] || continue
-            [ \"$dir\" = \"apps/*\" ] && continue
-            pkg_path=\"$dir/package.json\"
-            [ -f \"$pkg_path\" ] || continue
-            name=$(node -p \"require('./$pkg_path').name\")
-            version=$(node -p \"require('./$pkg_path').version\")
-            private=$(node -p \"require('./$pkg_path').private === true\")
-            if [ \"$private\" = \"true\" ]; then
-              echo \"• $name é privado — pulando\"
+            [ -d "$dir" ] || continue
+            pkg_path="$dir/package.json"
+            [ -f "$pkg_path" ] || continue
+            name=$(node -p "require('./$pkg_path').name")
+            version=$(node -p "require('./$pkg_path').version")
+            private=$(node -p "require('./$pkg_path').private === true")
+            if [ "$private" = "true" ]; then
+              echo "• $name é privado — pulando"
               continue
             fi
-            if curl -fsS -o /dev/null \"https://registry.npmjs.org/$name/$version\"; then
-              echo \"✓ $name@$version já está no registry — pulando\"
+            if curl -fsS -o /dev/null "https://registry.npmjs.org/$name/$version"; then
+              echo "✓ $name@$version já está no registry — pulando"
               continue
             fi
-            echo \"→ publicando $name@$version\"
-            (cd \"$dir\" && npm publish --access public --provenance)
+            echo "→ publicando $name@$version"
+            (cd "$dir" && npm publish --access public --provenance)
             # Sono curto para manter o token OIDC válido
             sleep 3
           done
@@ -212,18 +199,17 @@ jobs:
         run: |
           set -euo pipefail
           for dir in apps/*; do
-            [ -d \"$dir\" ] || continue
-            [ \"$dir\" = \"apps/*\" ] && continue
-            pkg_path=\"$dir/package.json\"
-            [ -f \"$pkg_path\" ] || continue
-            name=$(node -p \"require('./$pkg_path').name\")
-            version=$(node -p \"require('./$pkg_path').version\")
-            private=$(node -p \"require('./$pkg_path').private === true\")
-            [ \"$private\" = \"true\" ] && continue
-            latest=$(npm view \"$name\" version 2>/dev/null || echo '?')
-            if [ \"$latest\" = \"$version\" ]; then
-              echo \"✓ $name@$version\"
+            [ -d "$dir" ] || continue
+            pkg_path="$dir/package.json"
+            [ -f "$pkg_path" ] || continue
+            name=$(node -p "require('./$pkg_path').name")
+            version=$(node -p "require('./$pkg_path').version")
+            private=$(node -p "require('./$pkg_path').private === true")
+            [ "$private" = "true" ] && continue
+            latest=$(npm view "$name" version 2>/dev/null || echo '?')
+            if [ "$latest" = "$version" ]; then
+              echo "✓ $name@$version"
             else
-              echo \"⚠️  $name: esperado $version, latest no registry = $latest\"
+              echo "⚠️  $name: esperado $version, latest no registry = $latest"
             fi
           done
