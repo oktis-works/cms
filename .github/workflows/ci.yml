@@ -183,9 +183,9 @@ jobs:
             [ "$private" = "true" ] && continue
             echo "→ DRY-RUN: $name@$version"
             if [ "$dir" = "." ]; then
-              npm publish --dry-run --access public 2>&1 | head -20
+              npm publish --dry-run --access public --ignore-scripts 2>&1 | head -20
             else
-              (cd "$dir" && npm publish --dry-run --access public 2>&1 | head -20)
+              (cd "$dir" && npm publish --dry-run --access public --ignore-scripts 2>&1 | head -20)
             fi
           done
 
@@ -202,5 +202,5 @@ jobs:
             private=$(node -p "require('./$pkg_path').private === true")
             [ "$private" = "true" ] && continue
             echo "→ DRY-RUN: $name@$version"
-            (cd "$dir" && npm publish --dry-run --access public 2>&1 | head -20)
+            (cd "$dir" && npm publish --dry-run --access public --ignore-scripts 2>&1 | head -20)
           done
