@@ -41,15 +41,14 @@ const packages = [
   'plugin-sdk',
   // Level 6: Depends on types, validation, plugin-sdk
   'plugin-runtime',
-  // Level 7: Depends on types, config, database, auth, validation, plugin-runtime
-  'core',
   // Level 3/4: Depends on types
   'theme-sdk',
+  'theme-runtime',
+  // Level 5: Depends on types and theme-runtime
+  // Level 7: Depends on types, config, database, auth, validation, plugin-runtime
+  'core',
   'api-client',
   'ui',
-  // Level 4/5: Depends on multiple
-  'theme-runtime',
-  // Level 5: Depends on theme-runtime
   'cli',
 ];
 
