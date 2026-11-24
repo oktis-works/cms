@@ -35,7 +35,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.client_payload.tag && format('refs/tags/{0}', github.event.client_payload.tag) || 'refs/heads/main' }}
+          ref: ${{ github.event.client_payload.tag != '' && format('refs/tags/{0}', github.event.client_payload.tag) || 'refs/heads/main' }}
+          fetch-depth: 0
 
       - name: Extract version from package.json
         id: version
@@ -139,7 +140,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.client_payload.tag && format('refs/tags/{0}', github.event.client_payload.tag) || 'refs/heads/main' }}
+          ref: ${{ github.event.client_payload.tag != '' && format('refs/tags/{0}', github.event.client_payload.tag) || 'refs/heads/main' }}
+          fetch-depth: 0
 
       - name: Extract version from package.json
         id: version

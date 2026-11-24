@@ -1,5 +1,15 @@
 # @oktis-works/plugin-runtime
 
+## 0.8.3
+
+### Patch Changes
+
+- Release v0.42.2: fix publish workflow tag checkout, add theme-builder README with sourcemap docs, fix CI trigger-publish to use actual tag ref
+- Updated dependencies
+  - @oktis-works/plugin-sdk@0.8.2
+  - @oktis-works/types@0.11.1
+  - @oktis-works/validation@0.9.1
+
 ## 0.8.2
 
 ### Patch Changes
