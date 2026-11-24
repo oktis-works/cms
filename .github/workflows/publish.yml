@@ -41,7 +41,9 @@ jobs:
 
       - name: Extract version from package.json
         id: version
-        run: |\n          VERSION=$(node -p "require('./package.json').version")\n          echo "version=$VERSION" >> $GITHUB_OUTPUT
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Determine release tag
         id: tag
@@ -137,12 +139,19 @@ jobs:
 
       - name: Extract version from package.json
         id: version
-        run: |\n          VERSION=$(node -p "require('./package.json').version")\n          echo "version=$VERSION" >> $GITHUB_OUTPUT
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Determine release tag
         id: tag
-        run: |\n          TAG="${{ env.RELEASE_TAG }}"
-          if [ -z "$TAG" ]; then\n            TAG="v$(node -p 'require("./package.json").version')"\n          fi\n          echo "tag=$TAG" >> $GITHUB_OUTPUT\n          echo "RELEASE_TAG=$TAG" >> $GITHUB_OUTPUT
+        run: |
+          TAG="${{ env.RELEASE_TAG }}"
+          if [ -z "$TAG" ]; then
+            TAG="v$(node -p "require('./package.json').version")"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "RELEASE_TAG=$TAG" >> $GITHUB_OUTPUT
 
       - uses: oven-sh/setup-bun@v2
         with:
