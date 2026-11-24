@@ -1,5 +1,13 @@
 # @oktis-works/api-client
 
+## 0.7.6
+
+### Patch Changes
+
+- Release v0.42.2: fix publish workflow tag checkout, add theme-builder README with sourcemap docs, fix CI trigger-publish to use actual tag ref
+- Updated dependencies
+  - @oktis-works/types@0.11.1
+
 ## 0.7.5
 
 ### Patch Changes

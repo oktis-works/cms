@@ -1,5 +1,11 @@
 # @oktis-works/validation
 
+## 0.9.1
+
+### Patch Changes
+
+- Release v0.42.2: fix publish workflow tag checkout, add theme-builder README with sourcemap docs, fix CI trigger-publish to use actual tag ref
+
 ## 0.9.0
 
 ### Minor Changes

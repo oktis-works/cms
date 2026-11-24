@@ -1,5 +1,14 @@
 # @oktis-works/database
 
+## 0.16.4
+
+### Patch Changes
+
+- Release v0.42.2: fix publish workflow tag checkout, add theme-builder README with sourcemap docs, fix CI trigger-publish to use actual tag ref
+- Updated dependencies
+  - @oktis-works/config@0.7.3
+  - @oktis-works/types@0.11.1
+
 ## 0.16.3
 
 ### Patch Changes
