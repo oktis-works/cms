@@ -36,7 +36,7 @@ import { assertHostOnly, type ContainerProbe } from './guards.js';
 import { loadProjectConfig } from './project-config.js';
 import { Prompt } from './prompt.js';
 import {
-  buildThemeStylesOnDisk,
+  buildThemeOnDisk,
   resolveThemeStyle,
   themeManifestPath,
 } from './theme-build.js';
@@ -74,9 +74,10 @@ export interface ThemeBuildEntry {
   theme: string;
   manifestPath: string | null;
   engine: string;
+  renderEngine: 'template' | 'react' | 'solid';
   output: string;
   entry: string | null;
-  /** 'build' = tem entrada de estilo e será compilado. */
+  /** 'build' = styles and/or compiled artifact will be built on the host. */
   status: 'build' | 'no-entry' | 'missing-manifest' | 'invalid-manifest';
   /** Erros do manifest (o runtime recusaria o tema de qualquer forma). */
   problems: string[];
@@ -172,6 +173,7 @@ export function planRedeploy(opts: RedeployPlanOptions = {}): RedeployPlan {
         theme,
         manifestPath: null,
         engine: '-',
+        renderEngine: 'template',
         output: 'dist/theme.css',
         entry: null,
         status: 'missing-manifest',
@@ -186,6 +188,7 @@ export function planRedeploy(opts: RedeployPlanOptions = {}): RedeployPlan {
         theme,
         manifestPath,
         engine: '-',
+        renderEngine: 'template',
         output: 'dist/theme.css',
         entry: null,
         status: 'invalid-manifest',
@@ -206,13 +209,27 @@ export function planRedeploy(opts: RedeployPlanOptions = {}): RedeployPlan {
     problems.push(...resolved.report.errors);
 
     const { report } = resolved;
+    const renderEngine: 'template' | 'react' | 'solid' =
+      resolved.manifest['render'] && typeof resolved.manifest['render'] === 'object'
+        ? (resolved.manifest['render'] as { engine?: unknown }).engine === 'react'
+          ? 'react'
+          : (resolved.manifest['render'] as { engine?: unknown }).engine === 'solid'
+            ? 'solid'
+            : 'template'
+        : 'template';
     themeBuilds.push({
       theme,
       manifestPath,
       engine: report.engine,
+      renderEngine,
       output: report.output,
       entry: report.entry,
-      status: problems.length > 0 ? 'invalid-manifest' : report.entry ? 'build' : 'no-entry',
+      status:
+        problems.length > 0
+          ? 'invalid-manifest'
+          : report.entry || renderEngine !== 'template'
+            ? 'build'
+            : 'no-entry',
       problems,
     });
   }
@@ -306,7 +323,9 @@ export function renderPlan(plan: RedeployPlan, opts: RenderPlanOptions = {}): st
     lines.push('theme build:');
     for (const entry of plan.themeBuilds) {
       if (entry.status === 'build') {
-        lines.push(`  ✓ ${entry.theme} — ${entry.engine} → ${entry.output}`);
+        lines.push(
+          `  ✓ ${entry.theme} — ${entry.engine}${entry.renderEngine !== 'template' ? ` + ${entry.renderEngine} ssr` : ''} → ${entry.output}`
+        );
       } else if (entry.status === 'no-entry') {
         lines.push(`  - ${entry.theme} — no style entry (${entry.engine})`);
       } else if (entry.status === 'missing-manifest') {
@@ -501,7 +520,7 @@ export async function runRedeploy(opts: RedeployOptions = {}): Promise<number> {
     } else {
       for (const entry of toBuild) {
         try {
-          const outcome = await buildThemeStylesOnDisk(themesDir, entry.theme);
+          const { styles: outcome, render } = await buildThemeOnDisk(themesDir, entry.theme);
           for (const warning of outcome.warnings) prompt.warn(`${entry.theme}: ${warning}`);
           if (outcome.skipped) {
             write(
@@ -511,6 +530,12 @@ export async function runRedeploy(opts: RedeployOptions = {}): Promise<number> {
             write(
               `  ✓ theme ${outcome.theme}: ${outcome.engine} → ${outcome.output} ` +
                 `(${outcome.bytes} bytes, isolated=${outcome.isolated})\n`
+            );
+          }
+          if (render) {
+            for (const warning of render.warnings) prompt.warn(`${entry.theme}: ${warning}`);
+            write(
+              `  ✓ theme ${outcome.theme}: ${render.engine} ssr → ${render.entry} (buildId ${render.buildId})\n`
             );
           }
         } catch (error) {

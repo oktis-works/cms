@@ -138,7 +138,16 @@ export function ThemeManager() {
                       <span class={`status-badge ${getStatusClass(theme.status)}`}>
                         {getStatusLabel(theme.status)}
                       </span>
+                      <span class="engine-badge">{theme.build?.engine ?? theme.manifest?.render?.engine ?? 'template'}</span>
+                      <Show when={theme.build}>
+                        <span class={`build-badge build-${theme.build!.status}`}>
+                          build: {theme.build!.status}
+                        </span>
+                      </Show>
                     </p>
+                    <Show when={theme.build?.problems.length}>
+                      <p class="theme-build-problem">{theme.build!.problems.join('; ')}</p>
+                    </Show>
                     {theme.manifest?.description && (
                       <p class="theme-desc">{theme.manifest!.description}</p>
                     )}
@@ -275,6 +284,32 @@ export function ThemeManager() {
         .status-inactive {
           background: var(--color-muted-soft);
           color: var(--color-muted);
+        }
+        .engine-badge,
+        .build-badge {
+          display: inline-flex;
+          align-items: center;
+          padding: 0.25rem 0.5rem;
+          border-radius: var(--radius-full);
+          font-size: 0.625rem;
+          font-weight: 600;
+          text-transform: lowercase;
+          background: var(--color-muted-soft);
+          color: var(--color-muted);
+        }
+        .build-ok {
+          background: var(--color-success-soft);
+          color: var(--color-success);
+        }
+        .build-missing,
+        .build-invalid {
+          background: var(--color-error-soft);
+          color: var(--color-error);
+        }
+        .theme-build-problem {
+          margin: 0;
+          font-size: 0.75rem;
+          color: var(--color-error);
         }
         .theme-actions {
           margin-top: 0.5rem;

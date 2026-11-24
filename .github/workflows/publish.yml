@@ -47,13 +47,8 @@ jobs:
 
       - name: Determine release tag
         id: tag
-        run: |
-          TAG="${{ env.RELEASE_TAG }}"
-          if [ -z "$TAG" ]; then
-            TAG="v$(node -p "require('./package.json').version")"
-          fi
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-          echo "RELEASE_TAG=$TAG" >> $GITHUB_OUTPUT
+        run: |\n          TAG="${{ env.RELEASE_TAG }}"
+          if [ -z "$TAG" ]; then\n            TAG="v$(node -p 'require("./package.json").version')"\n          fi\n          echo "tag=$TAG" >> $GITHUB_OUTPUT\n          echo "RELEASE_TAG=$TAG" >> $GITHUB_OUTPUT
 
       - uses: oven-sh/setup-bun@v2
         with:

@@ -1,9 +1,14 @@
 // @oktis-works/cms - Scaffolds de plugin e tema (cli-devexp-004)
 
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { CMS_VERSION, assertCompatible } from '@oktis-works/validation';
 import { DEFAULT_THEME_CSS, THEME_TEMPLATE_FILES } from './theme-assets.js';
+import {
+  TEMPLATE_KEYS,
+  compiledThemeFiles,
+  type ScaffoldThemeEngine,
+} from './theme-engine-assets.js';
 
 export interface ScaffoldExtensionResult {
   dir: string;
@@ -66,6 +71,7 @@ export function scaffoldPlugin(name: string, baseDir?: string): ScaffoldExtensio
 }
 
 export type ScaffoldThemeStyle = 'css' | 'scss' | 'tailwind';
+export type { ScaffoldThemeEngine };
 
 /**
  * Gera um tema no formato que o runtime do web realmente renderiza:
@@ -75,15 +81,23 @@ export type ScaffoldThemeStyle = 'css' | 'scss' | 'tailwind';
  * servível (o site linka somente esse caminho, sem build).
  * @param style escolha exclusiva: css | scss | tailwind (default css)
  */
-export function scaffoldTheme(name: string, baseDir?: string, style: ScaffoldThemeStyle = 'css'): ScaffoldExtensionResult {
+export function scaffoldTheme(
+  name: string,
+  baseDir?: string,
+  style: ScaffoldThemeStyle = 'css',
+  renderEngine: ScaffoldThemeEngine = 'template'
+): ScaffoldExtensionResult {
   assertSafeName(name);
+  if (renderEngine !== 'template' && renderEngine !== 'react' && renderEngine !== 'solid') {
+    throw new Error(`Invalid render engine: "${renderEngine}" (use template|react|solid)`);
+  }
 
   const styleConfig =
     style === 'css' ? undefined : style === 'scss' ? { engine: 'scss', entry: 'styles/main.scss', output: 'dist/theme.css', isolation: true } : { engine: 'tailwind', entry: 'src/input.css', output: 'dist/theme.css', isolation: true };
 
   // The manifest must declare exactly the templates being written — the
   // runtime resolves a page to `provides.layouts` entries.
-  const layouts = Object.keys(THEME_TEMPLATE_FILES).map((file) =>
+  const layouts = (renderEngine === 'template' ? Object.keys(THEME_TEMPLATE_FILES) : [...TEMPLATE_KEYS]).map((file) =>
     file.replace(/\.astro$/, '')
   );
 
@@ -98,6 +112,16 @@ export function scaffoldTheme(name: string, baseDir?: string, style: ScaffoldThe
       ...(style === 'css' ? { assets: ['dist/theme.css'] } : {}),
     },
     ...(styleConfig ? { stylesConfig: styleConfig } : {}),
+    ...(renderEngine !== 'template'
+      ? {
+          render: {
+            engine: renderEngine,
+            apiVersion: 1,
+            hydration: 'none',
+            entry: 'src/entry-server.tsx',
+          },
+        }
+      : {}),
     // Example settings for the customizer (demonstrates text, color, select)
     settings: [
       {
@@ -136,11 +160,18 @@ export function scaffoldTheme(name: string, baseDir?: string, style: ScaffoldThe
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, 'theme.json'), JSON.stringify(manifest, null, 2));
 
-  // Templates at the theme root — that is what the runtime catch-all looks
-  // for. They come from `themes/default/` (generated), so a scaffolded theme
-  // starts with exactly the templates the default theme ships.
-  for (const [file, content] of Object.entries(THEME_TEMPLATE_FILES)) {
-    writeFileSync(join(dir, file), content);
+  // Template themes use root *.astro files; compiled themes use root *.tsx
+  // components with the same logical keys plus a server entry.
+  if (renderEngine === 'template') {
+    for (const [file, content] of Object.entries(THEME_TEMPLATE_FILES)) {
+      writeFileSync(join(dir, file), content);
+    }
+  } else {
+    for (const [file, content] of Object.entries(compiledThemeFiles(name, renderEngine))) {
+      const target = join(dir, file);
+      mkdirSync(dirname(target), { recursive: true });
+      writeFileSync(target, content);
+    }
   }
 
   if (style === 'scss') {
@@ -182,9 +213,14 @@ export function scaffoldTheme(name: string, baseDir?: string, style: ScaffoldThe
       `OkCMS theme.`,
       '',
       `- Manifest: theme.json`,
-      `- Templates: *.astro at the theme root (the hierarchy the runtime resolves)`,
+      renderEngine === 'template'
+        ? `- Templates: *.astro at the theme root (the hierarchy the runtime resolves)`
+        : `- Render engine: ${renderEngine} (root *.tsx + src/entry-server.tsx)`,
       `- Template context: site.*, page.*, content.*, items, menus, settings`,
-      `- Engine: ${style}${style === 'css' ? ' (dist/theme.css served directly)' : ' (okcms theme:build → dist/theme.css)'}`,
+      `- Styles: ${style}${style === 'css' ? ' (dist/theme.css served directly)' : ' (okcms theme:build → dist/theme.css)'}`,
+      renderEngine === 'template'
+        ? ''
+        : `- Build: okcms theme:build --name ${name} (emits dist/theme-build.json + dist/server/entry.js)`,
       '',
     ].join('\n')
   );

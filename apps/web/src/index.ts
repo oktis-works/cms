@@ -18,7 +18,7 @@ import { getHookRegistry } from '@oktis-works/plugin-runtime';
 import {
   createRouter,
   wireThemeHooks,
-  renderContentPage,
+  renderContentPageAsync,
   toSiteSettings,
   resolveThemeAssetPath,
   contentTypeForAsset,
@@ -742,7 +742,7 @@ async function main() {
           }
         }
 
-        return renderContentPage({
+        return await renderContentPageAsync({
           resolution,
           contentRow,
           data: { ...renderData, jsonLd },
@@ -752,6 +752,7 @@ async function main() {
           themeData: themeDataWithPlugins,
           activeTheme,
           themesRoot,
+          tenantId,
           pluginAssets: pluginAssetTags,
         });
       });

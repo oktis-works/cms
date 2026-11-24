@@ -1,11 +1,49 @@
 # @oktis-works/core
 
+## 0.20.0
+
+### Minor Changes
+
+- Complete the compiled-theme addenda.
+  
+  Expose engine/build status in the Admin Themes screen, add hydration payloads
+  and client-asset validation, cache artifacts by mtime, cover the React/Solid
+  route matrix and golden template HTML, and start theme watchers in the
+  monorepo `bun run dev`.
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/theme-runtime@0.14.0
+
+## 0.19.0
+
+### Minor Changes
+
+- Add compiled React and Solid theme render engines.
+
+  Themes can now declare `render.engine: "react" | "solid"` and export a
+  server bundle that is built on the host by `okcms theme:build` (Vite SSR,
+  `dist/theme-build.json` + `dist/server/entry.js`). Template themes keep the
+  existing string-template path unchanged. `okcms dev` watches compiled themes
+  and rebuilds them on save, while production deploys the host-built artifact.
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/types@0.11.0
+  - @oktis-works/validation@0.9.0
+  - @oktis-works/theme-runtime@0.13.0
+  - @oktis-works/config@0.7.2
+  - @oktis-works/database@0.16.3
+  - @oktis-works/plugin-runtime@0.8.2
+
 ## 0.18.2
 
 ### Patch Changes
 
 - Fix tenant context establishment during bootstrap and rate-limit store initialization
-  
+
   - Establish default tenant context in core bootstrap before syncing plugins
   - Establish default tenant context in API and Worker entry points after bootstrap
   - Fix rate-limit store to always return valid MemoryStore fallback when Redis unavailable
@@ -25,7 +63,7 @@
 ### Minor Changes
 
 - Security remediation (audit items 1-7, 9-14):
-  
+
   - JWT: migrate signing to RS256 with `kid` + JWKS endpoint (`/.well-known/jwks.json`), key rotation with grace period, and dev/test ephemeral key fallback; add `validateProductionConfig()` to reject default `JWT_SECRET`, missing DB SSL, and insecure cookies in production.
   - Rate limiting: replace in-memory Map with Redis sorted sets (`ratelimit:{key}`, TTL = window + 30s) and keep an in-memory fallback only when Redis is unavailable.
   - Plugin admin components: sandbox rendering through a Web Worker + Comlink host (`PluginWorkerHost`) instead of trusting plugin JSX in the main thread.
@@ -48,28 +86,28 @@
 ### Minor Changes
 
 - Add generic plugin infrastructure for vertical plugins (ecommerce, marketplace, LMS, etc.):
-  
+
   **@oktis-works/core:**
   - New `web-auth` module with `webAuthMiddleware` for resolving authenticated users on public web app (themes SSR)
   - `runWithUserContext` / `getCurrentUserIdSync()` / `getCurrentUserRolesSync()` / `getCurrentUserTenantIdSync()` for sync access to user context
   - Middleware integrates with existing tenant resolution, sets both `app.current_tenant_id` and `app.current_user_id` in Postgres via `runWithTenantTransaction`
-  
+
   **@oktis-works/database:**
   - `runWithTenantTransaction` now accepts optional `userId` parameter to set `app.current_user_id` for RLS
   - New `rls-helpers.ts` with `createUserRlsPolicy()` and `createTenantUserRlsPolicy()` for plugin migrations
   - Migration `V028__core__user_rls_support.sql` adds `current_user_id()` SQL function
-  
+
   **@oktis-works/web:**
   - Integrated `webAuthMiddleware` after tenant resolution (optional, non-blocking)
   - Request context now includes `userId`, `userEmail`, `tenantId`, `userRoles`
-  
+
   **Plugin SDK (documented in PLUGIN.md):**
   - `api.addRoute()` with `requireAuth` and `requiredPermissions` for public/authenticated plugin routes
   - `api.addThemeDataProvider()` for injecting user data (orders, cart, etc.) into theme templates
   - `theme:data:user` hook for render-time data injection
   - RLS helpers for per-user data isolation in plugin tables
   - New permissions: `routes:register`, `theme-data:provide`
-  
+
   This is a minor version bump (0.38.0 → 0.39.0) as it adds new APIs without breaking changes.
 
 ### Patch Changes
@@ -117,45 +155,45 @@
 ### Minor Changes
 
 - # Dynamic URL Hierarchy (v0.37.0)
-  
+
   ## Features
-  
+
   ### Phase 1: Dynamic URL Hierarchy
   - **Hub pages per content type**: Any published page can be designated as a listing hub for any content type with `hasArchive` (via `metadata.hub_type`). The page's slug becomes the URL base (e.g., `/blog/`, `/projects/`).
   - **Hierarchical URLs**: Content items support `parent_id` for nested URLs (e.g., `/projects/cliente-a/projeto-1`). Walk-up validation ensures parent chain matches URL segments.
   - **Persistent redirects**: `url_redirects` table stores exact and prefix redirects for slug changes, parent changes, and hub page renames (prefix: `/old-base/*` → `/new-base/*`).
   - **Legacy compatibility**: `postsPage`/`page_for_posts` still work for type `post`; dynamic hubs take precedence.
-  
+
   ### Phase 2: Head SEO
   - `<link rel="canonical">` and `<meta property="og:url">` emitted from `resolution.canonicalPath`.
   - Meta description fix: now uses `page.seo_description` → `page.excerpt` → `siteDescription` (was global only).
-  
+
   ### Phase 3: Sitemap
   - `GET /sitemap.xml` lists hub pages + published items with canonical URLs.
   - Excludes redirect sources; pagination (`?page=N`) uses canonical self.
-  
+
   ### Phase 4: JSON-LD + Breadcrumbs
   - Schema.org entities: `BlogPosting` (post), `WebPage` (page), `CreativeWork` (custom).
   - `BreadcrumbList` from hub base + parent chain: `Home → Hub → Parent1 → Item`.
   - Injected via `<script type="application/ld+json">` in `single.astro` and `page.astro`.
-  
+
   ### Phase 5: RSS/Atom Feeds
   - `GET /{hubBase}/feed` (RSS 2.0 default, `?format=atom` for Atom 1.0).
   - Auto-discovers hub type via `metadata.hub_type`, lists published items ordered by `published_at DESC`.
-  
+
   ## Admin UI
   - **Reading Settings**: Hub pages table (add/remove type + page) with prefix redirect on page rename.
   - **Content Editor**: Parent select dropdown (same type, published, excludes self/descendants, max depth 5).
   - i18n keys for hub pages and parent select.
-  
+
   ## Templates
   - All default templates use `{{url}}` for canonical links (no hardcoded `/blog/`).
   - `single.astro` and `page.astro` inject JSON-LD.
   - CLI `okcms init` produces byte-identical theme.
-  
+
   ## Migrations
   - `V027__core__content_parent_and_hub.sql` (Postgres/MySQL/MariaDB): `parent_id` + `url_redirects` table.
-  
+
   ## Documentation
   All packages updated with READMEs covering Phase 1-5 integration.
 
@@ -252,7 +290,7 @@
 ### Minor Changes
 
 - ### Features
-  
+
   - **Phase 5 - Polish, Tests & Documentation**
     - **Unit Tests**: ThemeService coverage >90% (validation, inheritance, export/import)
     - **API Integration Tests**: Config validation, export/import, history, restore
@@ -261,16 +299,16 @@
     - **Documentation**: Complete `THEME.md` with manifest.settings schema, all 21 field types, inheritance, conditional logic, tabs/groups, API endpoints, CLI
     - **Migration Guide**: `docs/THEME_MIGRATION.md` for legacy theme migration
     - **CHANGELOG**: Updated with all changes
-  
+
   ### Testing
-  
+
   - Unit tests for ThemeService validation, inheritance, export/import
   - API integration tests for config endpoints
   - Playwright E2E tests for full customizer flow
   - Visual regression tests with Chromatic/pixelmatch
-  
+
   ### Documentation
-  
+
   - `THEME.md` - Complete theme development guide
   - `docs/THEME_MIGRATION.md` - Legacy theme migration guide
   - Updated `CHANGELOG.md`
@@ -280,27 +318,27 @@
 ### Minor Changes
 
 - ### Features
-  
+
   - **Theme Config Export/Import**: Export theme config as JSON file, import with validation (merge/replace modes)
   - **Config History/Versioning**: Automatic history tracking via `theme_config_versions` table, with REST API for history and restore
   - **Permission `theme:customize`**: New granular permission for theme config operations (separate from `theme:update`)
   - **Audit Log**: Automatic history entries on config changes with user tracking
   - **Restore Defaults**: One-click reset to manifest defaults
-  
+
   ### Database
-  
+
   - New migration `V022__core__theme_config_history.sql` creates `theme_config_versions` table with RLS
-  
+
   ### API
-  
+
   - `GET /themes/:id/config/export` - Export config as downloadable JSON
   - `POST /themes/:id/config/import` - Import config with merge/replace modes
   - `GET /themes/:id/config/history` - Paginated config history
   - `POST /themes/:id/config/restore` - Restore specific version
   - `POST /themes/:id/config/restore-defaults` - Reset to manifest defaults
-  
+
   ### Permissions
-  
+
   - New `theme:customize` permission added to TENANT_ADMIN role
   - Config routes (`PATCH/GET/POST /themes/:id/config/*`) now require `theme:customize` instead of `theme:update`
 
@@ -309,19 +347,19 @@
 ### Minor Changes
 
 - ### Features
-  
+
   - **Theme Customizer Phase 3**: Advanced UI/UX features for theme customization
     - **Conditional Logic**: Fields now show/hide based on `conditionalLogic` in manifest (reuses `isFieldVisible` from FieldRenderer)
     - **Tabs/Accordion Groups**: Fields with `group` property render as tabs (multiple groups) or accordion (single group/ungrouped)
     - **Parent/Child Theme Inheritance**: `buildThemeSettings` now accepts `parentManifest` for deep merge (parent defaults → child defaults → child config)
     - **Group Ordering**: Groups sorted by `groupOrder`, fields by `sort_order`
-  
+
   - **Web Runtime**: Updated `buildThemeSettings` to accept optional `parentManifest` for deep merge inheritance
   - **Web Server**: Fetches parent theme manifest and passes to `buildThemeSettings`
   - **CLI**: `theme:create` generates example settings with `group` and `groupOrder`
-  
+
   ### Related
-  
+
   - Theme Customizer now supports complex field layouts with conditional visibility
   - Parent/child theme inheritance works for settings (child inherits parent defaults, overrides with own)
   - Theme customizer UI adapts to field group structure automatically
@@ -359,16 +397,16 @@
 ### Patch Changes
 
 - Fix plugin runtime sync failure in published installs
-  
+
   The plugin loader (`packages/core/src/plugin/load.ts`) resolved
   `@oktis-works/plugin-runtime` through a CommonJS `require()`. The published
   package is ESM-only (`"type": "module"`) and its dependency's `exports` map
   only exposes `import`/`types` conditions, so resolution always failed at
   runtime with:
-  
+
   `[plugins] sync unavailable (tenant:...): ResolveMessage: Cannot find module
   '@oktis-works/plugin-runtime' from .../core/dist/plugin/load.js`
-  
+
   The loader now uses a native dynamic `import()`, which resolves under the
   `import` export condition. `bunx okcms start` boots cleanly again.
 
@@ -377,7 +415,7 @@
 ### Minor Changes
 
 - Implement timezone system (WP-style) and fix dev command user creation
-  
+
   - Added okForceUtcRuntime, okDate, okCurrentTime, okGetTimezoneOffset, okConvertToGmt, okConvertFromGmt, okGetTimezoneAbbreviation, okIsDstActive, okGetCommonTimezones, okGetManualOffsets
   - Bootstrap integration: forces UTC runtime on startup
   - API: okDate(), okCurrentTime(), okGetTimezoneOffset(), okConvertToGmt(), okConvertFromGmt(), okGetTimezoneAbbreviation(), okIsDstActive(), okGetCommonTimezones(), okGetManualOffsets()
@@ -419,7 +457,7 @@
 ### Minor Changes
 
 - Add WordPress-style timezone system (OK CMS nomenclature)
-  
+
   - **Core (timezone service)**: New `okForceUtcRuntime()`, `okDate()`, `okCurrentTime()`, `okGetTimezoneOffset()`, `okConvertToGmt()`, `okConvertFromGmt()`, `okGetTimezoneAbbreviation()`, `okIsDstActive()`, `okGetCommonTimezones()`, `okGetManualOffsets()`
   - **Bootstrap integration**: Forces UTC runtime on startup (equivalent to WP's `date_default_timezone_set('UTC')`)
   - **Database**: Migration V018 adds `published_at_gmt` column to content table for dual date storage (local + GMT)
@@ -427,7 +465,7 @@
   - **Settings**: `timezone_string` (IANA) and `gmt_offset` (manual) with priority: timezone_string > gmt_offset
   - **Cache**: Config loaded from settings with in-memory cache
   - **Tests**: 21 new timezone service tests covering DST, offsets, conversions, formatting
-  
+
   Breaking: Requires running migration V018. Default timezone is America/Sao_Paulo.
 
 ### Patch Changes
@@ -440,7 +478,7 @@
 ### Minor Changes
 
 - Implement Static Front Page (WP-style), demo content seed, and redesigned default theme
-  
+
   - **Theme Runtime (core):** Added Static Front Page logic — `resolve('/')` now checks settings `static_front_page` (UUID of a page) and `page_for_posts` (UUID of a page). Falls back to posts archive if unconfigured. Removed hardcoded `isHome: true` priority.
   - **Database (seed):** New `seedDemoContent()` creates 3 pages (home, sobre, blog), 2 posts (primeiro-post, segundo-post), 2 menus (header, footer), and configures reading settings (`static_front_page` + `page_for_posts`). Idempotent via ON CONFLICT.
   - **CLI:** `prepareDb()` and `seed` command now call `seedDemoContent()` automatically — `okcms init` + `okcms start` yields a working site with Home, About, Blog listing, and 2 demo posts.
@@ -464,7 +502,7 @@
 ### Minor Changes
 
 - Simplify the Themes and Plugins admin pages and enforce the single-active-theme lifecycle
-  
+
   - Themes page: remove the inline theme settings editor and the uninstall action — each theme card now shows only the Activate/Deactivate toggle.
   - Themes lifecycle: deactivation is refused while only one theme exists (an active theme must always remain). Enforced in the theme service and pre-checked in the admin UI, which shows a warning instead of calling the API.
   - Plugins page: read-only listing — installation, update and activation are manual (place plugin files in the project's plugins/ directory and restart via okcms start, pm2 or docker).
@@ -493,7 +531,7 @@
 ### Patch Changes
 
 - 562e5c1: Fix fresh-checkout build and admin plugin field rendering
-  
+
   - plugin-runtime: resolve `@oktis-works/core` at runtime via a non-literal dynamic import in `bootstrapPlugins`, removing the static module reference that broke `tsc` on fresh checkouts (core builds after plugin-runtime and its `dist/` does not exist yet; `require()` is also unavailable in Node ESM).
   - core: replace the self-import `await import('@oktis-works/core')` in `plugin/load.ts` with a relative import of the field type extension service.
   - admin: fix plugin field type loaders (`PluginFieldRenderer`, `PluginFieldConfig`) — signals were read without calling them inside non-reactive `if` branches, so the components never left the loading state; now uses `Switch`/`Match` with `Dynamic`. Also fixes typecheck errors (index signature access, missing `t` prop propagation, `_t` prop name) across `FieldRenderer`.
@@ -505,13 +543,13 @@
 ### Minor Changes
 
 - feat: add custom field types via plugins
-  
+
   - Core: field_type_extensions table, dynamic type registry
   - Plugin Runtime: addFieldType API, manifest fieldTypes[]
   - Admin: dynamic component loading for field config/render
   - Docs: plugin-development.md, PLUGIN.md
   - Example plugin: mermaid-field
-  
+
   BREAKING CHANGE: none
 
 ### Patch Changes
@@ -571,24 +609,24 @@
 ### Patch Changes
 
 - fix(lint): remove imports/vars não usados que quebravam `bun run lint` no CI
-  
+
   `eslint .` falhava com 7 erros de `no-unused-vars` em arquivos committados
   (`apps/api/src/index.ts`, `packages/core/src/plugin/load.ts`,
   `packages/plugin-runtime/src/plugin-api-rls.test.ts`) — o gate de lint do CI
   ficava vermelho em qualquer tag. Removidos os símbolos sem uso, sem mudança
   de comportamento.
-  
+
   Inclui também a limpeza do `apps/web/src/rendering.ts`: `getScopedContainer` e
   `buildTheme` eram helpers exportados porém **nunca consumidos** pelo app
   (duplicavam o style-engine do pacote) — removidos junto com os imports órfãos.
 - fix(extensions): `THEMES_DIR` e `OKCMS_THEMES_DIR` apontam para o mesmo diretório
-  
+
   O web runtime resolvia o diretório de temas com `THEMES_DIR ?? ./themes` (cwd),
   enquanto o core/API usava `OKCMS_THEMES_DIR ?? okcms.config.json ?? ./themes`.
   Dois nomes de env para a mesma coisa, sem ninguém definir o segundo — em apps
   com cwd diferente (worker/e2e) a API olhava um diretório vazio e o `sync`
   "não descobria" nenhum tema.
-  
+
   Agora o web consome `resolveExtensionDirectory('theme')` do core (fonte única)
   e a função aceita `THEMES_DIR` como alias documentado do canônico
   `OKCMS_THEMES_DIR`. Contrato novo coberto por `project-directories.test.ts`.
@@ -622,7 +660,7 @@
 ### Patch Changes
 
 - Correções do sistema de temas (ativação, descoberta, scaffold e customizador):
-  
+
   - **`updated_at` no banco (crítico)**: a tabela `themes` ganhou `updated_at` (schema + migração `V010__core__harden_themes_lifecycle.sql`), índices `UNIQUE(name)` e o índice parcial de **um único tema ativo por tenant** — as rotas de ativar/desativar/instalar sempre falhavam por coluna inexistente, e `deactivate` referenciava também `deactivated_at`, que nunca existiu.
   - **Fonte única de ativação (crítico)**: o app web resolve o tema ativo **por request** lendo `status = 'ACTIVE'` do banco (fallback para `ACTIVE_THEME`), em vez de uma leitura única no boot — ativar pela tela Temas agora reflete no site sem restart. `ThemeService.activate` desativa os demais numa única sequência, `getActive` ordena por `activated_at DESC`, e a CLI `theme:manage --set-active` grava config **e** banco (mesma verdade).
   - **Fallback `manifest.json` (crítico)**: `syncFromDirectory` e o `ThemeLoader` aceitam `theme.json` **ou** `manifest.json` (o formato legado que o tema default distribuído usa); `theme:manage --info` também. O manifesto do tema default agora declara `type: "theme"`.
@@ -720,7 +758,7 @@
 ### Patch Changes
 
 - F1–F10: Admin panel completo
-  
+
   - F1 RBAC: seed 5 roles (SUPER_ADMIN, TENANT_ADMIN, EDITOR, AUTHOR, VIEWER); register atribui TENANT_ADMIN ao 1º usuário; login resolve slug→UUID e devolve tenantId no JWT
   - F2 Media: upload local-disk (UPLOAD_DIR), layout tenant/uuid.ext, GET /file público (cache imutável), 25MB, traversal bloqueado
   - F3 Settings: seed 4 configurações (siteTitle, siteDescription, language, timezone) grupo general

@@ -21,6 +21,14 @@ jobs:
         id: version
         run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
+      # `gh pr create --label` aborts the whole call when the label is
+      # missing, and the `|| true` below would hide the failure: no PR at
+      # all. Create the label up front so the PR always opens.
+      - name: Ensure release label exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh label create release --color 5319e7 --description "Release pull request" || true
+
       - name: Create PR to main
         env:
           GH_TOKEN: ${{ github.token }}

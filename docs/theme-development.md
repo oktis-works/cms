@@ -10,6 +10,41 @@ another one.
 > install). With the global CLI (`bun add -g @oktis-works/cms`), run
 > `okcms ...` directly.
 
+## Render engines: template, React or Solid
+
+A theme declares **exactly one** render engine in `theme.json`:
+
+```json
+"render": { "engine": "react", "apiVersion": 1, "hydration": "none" }
+```
+
+| `render.engine` | Source | Build | Runtime |
+|---|---|---|---|
+| `template` (default) | root `*.astro` string templates | CSS only | `ThemeRenderer` |
+| `react` | root `*.tsx` + `src/entry-server.tsx` | Vite SSR + `dist/theme-build.json` | imports the server bundle |
+| `solid` | root `*.tsx` + `src/entry-server.tsx` | Vite SSR + `dist/theme-build.json` | imports the server bundle |
+
+- **Never mix engines in one theme.** React and Solid are alternatives.
+- The hierarchy, `ThemePageData` data contract, `settings`, assets and
+  `[data-theme]` CSS isolation are identical across engines.
+- `okcms theme:build` compiles the server bundle on the host; the container
+  only serves the artifact.
+- **Development:** `okcms dev` watches every React/Solid theme and rebuilds the
+  artifact on save; the web runtime imports the new `buildId` on the next
+  request without a restart. Use `okcms theme:dev --name <theme>` to watch one
+  theme, and `okcms theme:build` for production/pre-deploy.
+- Template inheritance requires the same engine. Cross-engine parents
+  contribute settings, styles and assets only.
+- Hydration (`"islands"`) is opt-in and requires `src/entry-client.tsx`.
+  The page carries `#okcms-theme-hydration` (`application/json`) with
+  `{ buildId, templateKey, data }`; read it with
+  `readThemeHydrationPayload()` and hydrate the matching root. Only the
+  external module script is emitted, so CSP remains `script-src 'self'`.
+
+> The examples below document the `template` engine. `*.astro` files are string
+> templates parsed by OkCMS, not Astro/Solid/React components; `<slot />`,
+> component tags and `await` inside templates are not executed.
+
 ## Generated structure
 
 ```bash

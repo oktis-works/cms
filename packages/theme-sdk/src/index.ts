@@ -11,7 +11,25 @@ export type {
   PageProps,
   StyleEngine,
   ThemeStyleConfig,
+  ThemeRenderEngine,
+  ThemeRenderConfig,
+  ThemePageData,
+  ThemeRenderContext,
+  ThemeRenderOutput,
+  ThemeServerModule,
 } from "./types.js";
+
+export {
+  validateThemeRenderConfig,
+  validateThemeManifestRender,
+  isSafeThemeRenderEntry,
+} from './manifest.js';
+
+export {
+  THEME_HYDRATION_ELEMENT_ID,
+  readThemeHydrationPayload,
+} from './hydrate.js';
+export type { ThemeHydrationPayload } from './hydrate.js';
 
 export {
   getFields,

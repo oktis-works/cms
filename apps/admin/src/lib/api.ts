@@ -234,6 +234,13 @@ export interface Content {
   author?: { id: string; name: string; email: string; avatar?: string | null } | null;
 }
 
+export interface ThemeBuildStatus {
+  engine: 'template' | 'react' | 'solid';
+  status: 'not-applicable' | 'ok' | 'missing' | 'invalid';
+  buildId?: string;
+  problems: string[];
+}
+
 export interface ThemeInfo {
   id: string;
   name: string;
@@ -242,6 +249,8 @@ export interface ThemeInfo {
   /** Config (customizador) salvo no banco — mesclado sobre os defaults do manifesto. */
   config?: Record<string, unknown> | null;
   manifest?: ThemeManifest | null;
+  /** Read-only artifact status for compiled (React/Solid) themes. */
+  build?: ThemeBuildStatus;
 }
 
 export interface PluginInfo {
@@ -1116,6 +1125,7 @@ export class ApiClient {
       status: String(theme['status'] ?? 'INSTALLED'),
       config: (theme['config'] as Record<string, unknown> | null) ?? {},
       manifest: (theme['manifest'] as ThemeInfo['manifest']) ?? null,
+      build: (theme['build'] as ThemeInfo['build']) ?? undefined,
     }));
   }
 
@@ -1129,6 +1139,7 @@ export class ApiClient {
       status: String(theme['status'] ?? 'INSTALLED'),
       config: (theme['config'] as Record<string, unknown> | null) ?? {},
       manifest: (theme['manifest'] as ThemeInfo['manifest']) ?? null,
+      build: (theme['build'] as ThemeInfo['build']) ?? undefined,
     }));
   }
 
