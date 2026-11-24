@@ -42,6 +42,12 @@ A theme declares **exactly one** render engine in `theme.json`:
   templates.
 - Hydration (`render.hydration: "islands"`) is opt-in and requires
   `src/entry-client.tsx`; the default is server-only (`"none"`).
+- **Islands contract:** the web emits a non-executable
+  `<script type="application/json" id="okcms-theme-hydration">` with
+  `{ buildId, templateKey, data }`, followed by the theme's external module
+  script. The client entry reads it with `readThemeHydrationPayload()` from
+  `@oktis-works/theme-sdk` and hydrates the matching root. CSP stays
+  `script-src 'self'` — no inline executable script is generated.
 
 ```bash
 okcms theme:create --name my-react-theme --engine react --style tailwind

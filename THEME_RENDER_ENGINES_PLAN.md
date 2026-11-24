@@ -1,6 +1,6 @@
 # Theme Render Engines: React and Solid — Implementation Plan
 
-- **Status:** Implemented in v0.41.0 (compiled React/Solid engines, host build, dev watcher, artifact activation gate).
+- **Status:** Implemented in v0.42.0 (compiled React/Solid engines, host build, dev watcher, hydration payload, Admin build status, artifact activation gate).
 - **Product target:** OkCMS `0.41.x` (minor release)
 - **Scope owner:** Theme platform
 - **Last updated:** 2026-11-24

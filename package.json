@@ -1,6 +1,6 @@
 {
   "name": "okcms",
-  "version": "0.41.0",
+  "version": "0.42.0",
   "private": true,
   "license": "GPL-2.0-or-later",
   "description": "Hybrid, modular, API-first CMS",
@@ -19,7 +19,7 @@
     "fast-xml-parser": "4.5.7"
   },
   "scripts": {
-    "dev": "bun run --filter '@oktis-works/*' dev",
+    "dev": "bun scripts/dev.mjs",
     "build": "node scripts/build-order.mjs",
     "test": "vitest",
     "test:run": "vitest run",
@@ -36,11 +36,18 @@
     "sync-version": "node scripts/sync-version.mjs",
     "publish:all": "node scripts/prepare-publish.mjs && for pkg in packages/* apps/api apps/admin apps/web apps/worker; do [ -f \"$pkg/package.json\" ] || continue; echo \"→ publishing $pkg\"; (cd \"$pkg\" && npm publish --access public) || exit 1; done"
   },
+  "dependencies": {
+    "@oktis-works/admin": "workspace:*",
+    "@oktis-works/auth": "workspace:*",
+    "@oktis-works/api": "workspace:*",
+    "@oktis-works/web": "workspace:*",
+    "@oktis-works/worker": "workspace:*"
+  },
   "devDependencies": {
     "@changesets/changelog-github": "^1.0.1",
     "@changesets/cli": "^3.0.3",
     "@oktis-works/api-client": "workspace:*",
-    "@oktis-works/cms": "^0.18.0",
+    "@oktis-works/cms": "^0.19.0",
     "@types/node": "22.0.0",
     "@types/react": "19",
     "@types/react-dom": "19",

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
@@ -92,6 +92,32 @@ describe('compiled theme artifacts', () => {
     expect(validateThemeBuild(themeDir, build, 'solid').join(' ')).toMatch(/does not match/);
     expect(validateThemeBuild(themeDir, { ...build, entry: '../outside.js' }).join(' ')).toMatch(/escapes/);
     expect(validateThemeBuild(themeDir, { ...build, styles: ['../secret.css'] }).join(' ')).toMatch(/escapes/);
+  });
+
+  it('requires a real client entry when hydration is islands', () => {
+    const build = writeBuild({ hydration: 'islands', client: { main: 'dist/client/entry.js' } });
+    expect(validateThemeBuild(themeDir, build, 'react').join(' ')).toMatch(/client asset does not exist/);
+
+    mkdirSync(join(themeDir, 'dist', 'client'), { recursive: true });
+    writeFileSync(join(themeDir, 'dist', 'client', 'entry.js'), 'console.log("hydrate");');
+    expect(validateThemeBuild(themeDir, build, 'react')).toEqual([]);
+
+    expect(validateThemeBuild(themeDir, { ...build, client: {} }).join(' ')).toMatch(/client\.main/);
+  });
+
+  it('caches artifact reads by mtime and refreshes after a rebuild', () => {
+    writeBuild();
+    const first = readThemeBuild(themeDir);
+    expect(readThemeBuild(themeDir)).toBe(first);
+
+    writeBuild({ buildId: 'sha256:changed' });
+    const artifact = join(themeDir, 'dist', 'theme-build.json');
+    const future = new Date(Date.now() + 2000);
+    utimesSync(artifact, future, future);
+
+    const rebuilt = readThemeBuild(themeDir);
+    expect(rebuilt).not.toBe(first);
+    expect(rebuilt?.buildId).toBe('sha256:changed');
   });
 
   it('imports the server entry and renders with ThemePageData', async () => {

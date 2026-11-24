@@ -36,6 +36,10 @@ A theme declares **exactly one** render engine in `theme.json`:
 - Template inheritance requires the same engine. Cross-engine parents
   contribute settings, styles and assets only.
 - Hydration (`"islands"`) is opt-in and requires `src/entry-client.tsx`.
+  The page carries `#okcms-theme-hydration` (`application/json`) with
+  `{ buildId, templateKey, data }`; read it with
+  `readThemeHydrationPayload()` and hydrate the matching root. Only the
+  external module script is emitted, so CSP remains `script-src 'self'`.
 
 > The examples below document the `template` engine. `*.astro` files are string
 > templates parsed by OkCMS, not Astro/Solid/React components; `<slot />`,

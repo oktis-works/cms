@@ -45,15 +45,31 @@ export function safeThemePath(themeDir: string, relativePath: string): string | 
   return target;
 }
 
-/** Reads `dist/theme-build.json`; returns null when absent or invalid JSON. */
+const artifactCache = new Map<string, { mtimeMs: number; build: ThemeBuildManifest | null }>();
+
+/**
+ * Reads `dist/theme-build.json`; returns null when absent or invalid JSON.
+ * The parse result is cached by mtime, so warm requests do not re-read/parse
+ * the artifact while a rebuild (new mtime) is picked up immediately.
+ */
 export function readThemeBuild(themeDir: string): ThemeBuildManifest | null {
   const file = join(themeDir, 'dist', 'theme-build.json');
-  if (!existsSync(file)) return null;
+  if (!existsSync(file)) {
+    artifactCache.delete(file);
+    return null;
+  }
   try {
+    const mtimeMs = statSync(file).mtimeMs;
+    const cached = artifactCache.get(file);
+    if (cached && cached.mtimeMs === mtimeMs) return cached.build;
     const parsed = JSON.parse(readFileSync(file, 'utf-8')) as Partial<ThemeBuildManifest>;
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
-    return parsed as ThemeBuildManifest;
+    const build = !parsed || typeof parsed !== 'object' || Array.isArray(parsed)
+      ? null
+      : (parsed as ThemeBuildManifest);
+    artifactCache.set(file, { mtimeMs, build });
+    return build;
   } catch {
+    artifactCache.delete(file);
     return null;
   }
 }
@@ -119,9 +135,16 @@ export function validateThemeBuild(
       ? Object.values(build.client)
       : [];
   for (const client of clientAssets) {
-    if (typeof client === 'string' && !safeThemePath(themeDir, client)) {
+    if (typeof client !== 'string') continue;
+    const clientPath = safeThemePath(themeDir, client);
+    if (!clientPath) {
       issues.push(`theme build client asset escapes the theme directory: ${client}`);
+    } else if (!existsSync(clientPath) || !statSync(clientPath).isFile()) {
+      issues.push(`theme build client asset does not exist: ${client}`);
     }
+  }
+  if (build.hydration === 'islands' && !build.client?.['main']) {
+    issues.push('theme build hydration "islands" requires client.main');
   }
 
   return issues;
@@ -132,6 +155,7 @@ const moduleCache = new Map<string, ThemeServerModule>();
 /** Clears the compiled module cache (tests and hot activation). */
 export function clearCompiledThemeCache(): void {
   moduleCache.clear();
+  artifactCache.clear();
 }
 
 /**

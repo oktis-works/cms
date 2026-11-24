@@ -1,5 +1,13 @@
 # @oktis-works/theme-builder
 
+## 0.2.1
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/theme-sdk@0.10.0
+  - @oktis-works/theme-runtime@0.14.0
+
 ## 0.2.0
 
 ### Minor Changes

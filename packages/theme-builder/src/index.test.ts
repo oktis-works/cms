@@ -91,6 +91,25 @@ describe('buildTheme — compiled engines', () => {
     expect(module.render('home', pageData).html).toContain('<h1>Built</h1>');
   }, 60_000);
 
+  it('builds an islands client entry when hydration is islands', async () => {
+    writeBase('react');
+    const manifestPath = join(dir, 'theme.json');
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8')) as Record<string, unknown>;
+    manifest['render'] = { engine: 'react', apiVersion: 1, hydration: 'islands', entry: 'src/entry-server.tsx' };
+    writeFileSync(manifestPath, JSON.stringify(manifest));
+    writeFileSync(
+      join(dir, 'src', 'entry-client.tsx'),
+      "import { hydrateRoot } from 'react-dom/client';\nconsole.log(typeof hydrateRoot);\n"
+    );
+
+    const result = await buildTheme({ themesRoot: root, themeName: 'react-theme' });
+    expect(result.engine).toBe('react');
+    const artifact = JSON.parse(readFileSync(join(dir, 'dist', 'theme-build.json'), 'utf-8')) as ThemeBuildManifest;
+    expect(artifact.hydration).toBe('islands');
+    expect(artifact.client['main']).toBe('dist/client/entry.js');
+    expect(existsSync(join(dir, 'dist', 'client', 'entry.js'))).toBe(true);
+  }, 60_000);
+
   it('builds a Solid SSR artifact', async () => {
     writeBase('solid');
     const result = await buildTheme({ themesRoot: root, themeName: 'solid-theme' });

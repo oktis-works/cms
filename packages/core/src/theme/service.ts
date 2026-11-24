@@ -10,6 +10,43 @@ import { resolveExtensionDirectory } from '../extensions/project-directories.js'
 
 const SAFE_NAME_RE = /^[a-z0-9][a-z0-9_-]*$/i;
 
+export interface ThemeBuildStatus {
+  engine: 'template' | 'react' | 'solid';
+  status: 'not-applicable' | 'ok' | 'missing' | 'invalid';
+  buildId?: string;
+  problems: string[];
+}
+
+/**
+ * Read-only build status for the Admin Themes screen. The artifact is the
+ * activation contract, so the API exposes exactly what the runtime checks.
+ */
+export function describeThemeBuild(theme: {
+  name: string;
+  manifest?: unknown;
+}): ThemeBuildStatus {
+  const manifest = theme.manifest as { render?: { engine?: string } } | null | undefined;
+  const engine = manifest?.render?.engine;
+  if (engine !== 'react' && engine !== 'solid') {
+    return { engine: 'template', status: 'not-applicable', problems: [] };
+  }
+
+  const themeDir = join(resolveExtensionDirectory('theme'), theme.name);
+  const build = readThemeBuild(themeDir);
+  if (!build) {
+    return {
+      engine,
+      status: 'missing',
+      problems: ['dist/theme-build.json is missing'],
+    };
+  }
+  const issues = validateThemeBuild(themeDir, build, engine);
+  if (issues.length > 0) {
+    return { engine, status: 'invalid', buildId: build.buildId, problems: issues };
+  }
+  return { engine, status: 'ok', buildId: build.buildId, problems: [] };
+}
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

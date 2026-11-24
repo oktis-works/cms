@@ -1,8 +1,13 @@
 import { Hono } from 'hono'
-import { themeService } from '@oktis-works/core'
+import { describeThemeBuild, themeService } from '@oktis-works/core'
 import { authMiddleware, requirePermission } from '../../middleware/auth.js'
 
 const themes = new Hono()
+
+/** Adds the read-only artifact status consumed by the Admin Themes screen. */
+function withBuildStatus<T extends { name: string; manifest?: unknown }>(rows: T[]): Array<T & { build: ReturnType<typeof describeThemeBuild> }> {
+  return rows.map((row) => ({ ...row, build: describeThemeBuild(row) }))
+}
 
 themes.use('*', authMiddleware)
 
@@ -12,7 +17,7 @@ themes.use('*', authMiddleware)
 themes.get('/', requirePermission('read', 'theme'), async (c) => {
   try {
     const result = await themeService.list()
-    return c.json(result)
+    return c.json(withBuildStatus(result))
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to list themes'
     return c.json({ error: message }, 500)
@@ -24,7 +29,7 @@ themes.get('/', requirePermission('read', 'theme'), async (c) => {
 themes.post('/sync', requirePermission('create', 'theme'), async (c) => {
   try {
     const result = await themeService.syncFromDirectory();
-    return c.json(result);
+    return c.json(withBuildStatus(result));
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to sync themes'
     return c.json({ error: message }, 500)
@@ -51,7 +56,7 @@ themes.post('/:id/activate', requirePermission('update', 'theme'), async (c) => 
     const id = c.req.param('id') as string
     const result = await themeService.activate(id)
     if (!result) return c.json({ error: 'Theme not found' }, 404)
-    return c.json(result)
+    return c.json({ ...result, build: describeThemeBuild(result) })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to activate theme'
     return c.json({ error: message }, 400)
@@ -63,7 +68,7 @@ themes.post('/:id/deactivate', requirePermission('update', 'theme'), async (c) =
     const id = c.req.param('id') as string
     const result = await themeService.deactivate(id)
     if (!result) return c.json({ error: 'Theme not found' }, 404)
-    return c.json(result)
+    return c.json({ ...result, build: describeThemeBuild(result) })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to deactivate theme'
     return c.json({ error: message }, 400)

@@ -1,5 +1,23 @@
 # @oktis-works/web
 
+## 0.17.0
+
+### Minor Changes
+
+- Complete the compiled-theme addenda.
+  
+  Expose engine/build status in the Admin Themes screen, add hydration payloads
+  and client-asset validation, cache artifacts by mtime, cover the React/Solid
+  route matrix and golden template HTML, and start theme watchers in the
+  monorepo `bun run dev`.
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/theme-sdk@0.10.0
+  - @oktis-works/theme-runtime@0.14.0
+  - @oktis-works/core@0.20.0
+
 ## 0.16.0
 
 ### Minor Changes

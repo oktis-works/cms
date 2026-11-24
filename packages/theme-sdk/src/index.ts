@@ -26,6 +26,12 @@ export {
 } from './manifest.js';
 
 export {
+  THEME_HYDRATION_ELEMENT_ID,
+  readThemeHydrationPayload,
+} from './hydrate.js';
+export type { ThemeHydrationPayload } from './hydrate.js';
+
+export {
   getFields,
   getField,
   getFlexibleLayouts,

@@ -24,7 +24,7 @@ import {
   type ProjectTemplateResolver,
   type TemplateFileChecker,
 } from '@oktis-works/theme-runtime';
-import type { ThemePageData, ThemeRenderData } from '@oktis-works/theme-sdk';
+import type { ThemeHydrationPayload, ThemePageData, ThemeRenderData } from '@oktis-works/theme-sdk';
 import { CMS_VERSION } from '@oktis-works/validation';
 
 /**
@@ -417,6 +417,12 @@ export async function renderContentPageAsync(input: ContentPageRenderInput): Pro
     return renderFallbackPage(input, input.pluginAssets);
   }
 
+  if (provider.build.engine !== active.engine) {
+    throw new Error(
+      `Theme "${provider.name}" engine mismatch: theme.json says ${active.engine}, artifact says ${provider.build.engine}.`
+    );
+  }
+
   const templateKey = provider.build.templates.includes(requestedKey) ? requestedKey : '404';
   const prepared = prepareContentPage(input, file);
   const output = await renderCompiledTheme({
@@ -424,7 +430,20 @@ export async function renderContentPageAsync(input: ContentPageRenderInput): Pro
     build: provider.build,
     templateKey,
     data: prepared.context as unknown as ThemePageData,
-    record: { ...prepared.row, ...prepared.themeRecord },
+    // `getField()` (ALS) must see the same `theme:before:render` output as
+    // the component props, not the pre-hook row.
+    record: {
+      ...prepared.row,
+      ...prepared.themeRecord,
+      body: {
+        ...((prepared.row['body'] as Record<string, unknown> | undefined) ?? {}),
+        ...prepared.renderData,
+      },
+      data: {
+        ...((prepared.row['data'] as Record<string, unknown> | undefined) ?? {}),
+        ...prepared.renderData,
+      },
+    },
     context: {
       url: input.resolution.canonicalPath ?? '',
       params: {},
@@ -447,6 +466,14 @@ export async function renderContentPageAsync(input: ContentPageRenderInput): Pro
     styles: output.styles,
     head: output.head,
     scripts,
+    hydration:
+      provider.build.hydration === 'islands'
+        ? {
+            buildId: provider.build.buildId,
+            templateKey,
+            data: prepared.context as unknown as ThemePageData,
+          }
+        : undefined,
   });
 }
 
@@ -642,6 +669,16 @@ export interface ThemeDocumentAssets {
   head?: string;
   /** Module scripts relative to the theme root (hydration phase). */
   scripts?: string[];
+  /** Serialized SSR payload for islands hydration. */
+  hydration?: ThemeHydrationPayload;
+}
+
+/** Escapes JSON for an application/json script (never executable HTML). */
+export function serializeThemeHydration(payload: ThemeHydrationPayload): string {
+  return JSON.stringify(payload)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026');
 }
 
 export interface SeoMeta {
@@ -711,6 +748,9 @@ export function wrapDocument(
             `<script type="module" src="/themes/${escapeHtml(themeAssets.themeName)}/${escapeHtml(script)}"></script>`
         )
         .join('\n')
+    : '';
+  const hydrationScript = themeAssets?.hydration
+    ? `<script type="application/json" id="okcms-theme-hydration">${serializeThemeHydration(themeAssets.hydration)}</script>`
     : '';
 
   // WP6: ponto de extensão theme:head — plugins injetam tags no <head>
@@ -787,9 +827,8 @@ export function wrapDocument(
 ${canonicalTag}
 ${ogTags.join('\n')}
 ${twitterTags.join('\n')}
-${seoMetaTags}${stylesheet}${extraStyles ? `${extraStyles}\n` : ''}${themeHead}${headInjections}${assetHead}</head>
-<body>
-${body}${assetFooter}${themeScripts ? `\n${themeScripts}` : ''}
+${seoMetaTags}${stylesheet}${extraStyles ? `${extraStyles}\n` : ''}${themeHead}${headInjections}${assetHead}</head>  <body>
+${body}${assetFooter}${hydrationScript ? `\n${hydrationScript}` : ''}${themeScripts ? `\n${themeScripts}` : ''}
 </body>
 </html>`;
 }

@@ -18,7 +18,13 @@ ENV UPLOAD_DIR=/app/.data/storage
 # this `install`.
 FROM base AS deps
 COPY package.json bun.lock* package-lock.json* yarn.lock* pnpm-lock.yaml* ./
-RUN bun install --production --frozen-lockfile
+# Workspace manifests are required by the lockfile even in a production
+# install. .dockerignore already drops source/tests from these copies.
+COPY apps ./apps
+COPY packages ./packages
+COPY plugins ./plugins
+RUN bun install --frozen-lockfile \
+ && bun install --frozen-lockfile --filter '@oktis-works/*'
 
 # --- runtime ----------------------------------------------------------------
 FROM base AS runtime
@@ -26,6 +32,11 @@ FROM base AS runtime
 COPY . .
 # 2. clean node_modules from the deps stage, on top — never the host's
 COPY --from=deps /app/node_modules ./node_modules
+# Workspace apps/packages use isolated node_modules (Bun's linker); copy them
+# too, otherwise @oktis-works/web cannot resolve hono and its runtime deps.
+COPY --from=deps /app/apps ./apps
+COPY --from=deps /app/packages ./packages
+COPY --from=deps /app/plugins ./plugins
 
 RUN mkdir -p /app/.data/storage /app/.data/cache /app/logs
 
