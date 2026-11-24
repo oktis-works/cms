@@ -41,14 +41,16 @@ jobs:
 
       - name: Extract version from package.json
         id: version
-        run: echo "version=$(node -p 'require("./package.json").version')" >> $GITHUB_OUTPUT
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Determine release tag
         id: tag
         run: |
           TAG="${{ env.RELEASE_TAG }}"
           if [ -z "$TAG" ]; then
-            TAG="v$(node -p 'require("./package.json").version')"
+            TAG="v$(node -p "require('./package.json').version")"
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "RELEASE_TAG=$TAG" >> $GITHUB_OUTPUT
@@ -142,14 +144,16 @@ jobs:
 
       - name: Extract version from package.json
         id: version
-        run: echo "version=$(node -p 'require("./package.json").version')" >> $GITHUB_OUTPUT
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Determine release tag
         id: tag
         run: |
           TAG="${{ env.RELEASE_TAG }}"
           if [ -z "$TAG" ]; then
-            TAG="v$(node -p 'require("./package.json").version')"
+            TAG="v$(node -p "require('./package.json').version")"
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "RELEASE_TAG=$TAG" >> $GITHUB_OUTPUT
