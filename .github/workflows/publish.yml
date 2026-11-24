@@ -1,7 +1,7 @@
 name: Publish to npm
 
 # Trusted Publishing (OIDC) — sem tokens, sem OTP.
-# Requisitos no npmjs.com (por pacote, nas 17 publicações):
+# Requisitos no npmjs.com (por pacote, nas publicações):
 #   Settings → Trusted publishing → GitHub Actions:
 #     Organization/user: oktis-works | Repository: cms | Workflow filename: publish.yml
 #     e permitir EXPLICITAMENTE a ação "npm publish"
@@ -25,11 +25,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish:
-    name: Publish workspaces (OIDC)
+  # Job 1: Publica root + packages (cms, api-client, auth, config, core, database, plugin-runtime, plugin-sdk, theme-builder)
+  # Este job usa o token OIDC enquanto ele está fresco.
+  publish-packages:
+    name: Publish packages (OIDC)
     runs-on: ubuntu-latest
     env:
-      # Versão vem do client-payload (tag) ou do package.json (push em main)
       RELEASE_TAG: ${{ github.event.client_payload.tag || '' }}
       PACKAGE_VERSION: ${{ github.event.client_payload.tag || '' }}
     steps:
@@ -41,14 +42,14 @@ jobs:
       - name: Extract version from package.json
         id: version
         run: |
-          echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+          echo "version=$(node -p \"require('./package.json').version\")" >> $GITHUB_OUTPUT
 
       - name: Determine release tag
         id: tag
         run: |
           TAG="${{ env.RELEASE_TAG }}"
           if [ -z "$TAG" ]; then
-            TAG="v$(node -p "require('./package.json').version")"
+            TAG="v$(node -p \"require('./package.json').version\")"
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "RELEASE_TAG=$TAG" >> $GITHUB_OUTPUT
@@ -79,47 +80,150 @@ jobs:
       - name: Preparar manifests (workspace:* → versão concreta)
         run: node scripts/prepare-publish.mjs --tag "${{ steps.tag.outputs.tag }}"
 
-      - name: npm publish (idempotente — pula o que já está no registry)
+      - name: npm publish packages (idempotente — pula o que já está no registry)
         run: |
           set -euo pipefail
           shopt -s nullglob
-          # Inclui root (cms CLI) + packages/* + apps/*
-          for dir in . packages/* apps/*; do
-            [ "$dir" = "." ] && pkg_path="package.json" || pkg_path="$dir/package.json"
-            [ -f "$pkg_path" ] || continue
-            name=$(node -p "require('./$pkg_path').name")
-            version=$(node -p "require('./$pkg_path').version")
-            private=$(node -p "require('./$pkg_path').private === true")
-            if [ "$private" = "true" ]; then
-              echo "• $name é privado — pulando"
+          # Inclui root (cms CLI) + packages/*
+          for dir in . packages/*; do
+            [ \"$dir\" = \".\" ] && pkg_path=\"package.json\" || pkg_path=\"$dir/package.json\"
+            [ -f \"$pkg_path\" ] || continue
+            name=$(node -p \"require('./$pkg_path').name\")
+            version=$(node -p \"require('./$pkg_path').version\")
+            private=$(node -p \"require('./$pkg_path').private === true\")
+            if [ \"$private\" = \"true\" ]; then
+              echo \"• $name é privado — pulando\"
               continue
             fi
-            if curl -fsS -o /dev/null "https://registry.npmjs.org/$name/$version"; then
-              echo "✓ $name@$version já está no registry — pulando"
+            if curl -fsS -o /dev/null \"https://registry.npmjs.org/$name/$version\"; then
+              echo \"✓ $name@$version já está no registry — pulando\"
               continue
             fi
-            echo "→ publicando $name@$version"
-            if [ "$dir" = "." ]; then
+            echo \"→ publicando $name@$version\"
+            if [ \"$dir\" = \".\" ]; then
               npm publish --access public --provenance
             else
-              (cd "$dir" && npm publish --access public --provenance)
+              (cd \"$dir\" && npm publish --access public --provenance)
             fi
+            # Sono curto para manter o token OIDC válido entre publishes
+            sleep 3
           done
 
       - name: Verificação final (esperado vs latest)
         run: |
           set -euo pipefail
-          for dir in . packages/* apps/*; do
-            [ "$dir" = "." ] && pkg_path="package.json" || pkg_path="$dir/package.json"
-            [ -f "$pkg_path" ] || continue
-            name=$(node -p "require('./$pkg_path').name")
-            version=$(node -p "require('./$pkg_path').version")
-            private=$(node -p "require('./$pkg_path').private === true")
-            [ "$private" = "true" ] && continue
-            latest=$(npm view "$name" version 2>/dev/null || echo '?')
-            if [ "$latest" = "$version" ]; then
-              echo "✓ $name@$version"
+          for dir in . packages/*; do
+            [ \"$dir\" = \".\" ] && pkg_path=\"package.json\" || pkg_path=\"$dir/package.json\"
+            [ -f \"$pkg_path\" ] || continue
+            name=$(node -p \"require('./$pkg_path').name\")
+            version=$(node -p \"require('./$pkg_path').version\")
+            private=$(node -p \"require('./$pkg_path').private === true\")
+            [ \"$private\" = \"true\" ] && continue
+            latest=$(npm view \"$name\" version 2>/dev/null || echo '?')
+            if [ \"$latest\" = \"$version\" ]; then
+              echo \"✓ $name@$version\"
             else
-              echo "⚠️  $name: esperado $version, latest no registry = $latest"
+              echo \"⚠️  $name: esperado $version, latest no registry = $latest\"
+            fi
+          done
+
+  # Job 2: Publica apps (após renovaçāo de token OIDC via job boundary)
+  publish-apps:
+    name: Publish apps (OIDC)
+    runs-on: ubuntu-latest
+    needs: publish-packages
+    env:
+      RELEASE_TAG: ${{ github.event.client_payload.tag || '' }}
+      PACKAGE_VERSION: ${{ github.event.client_payload.tag || '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.client_payload.tag && format('refs/tags/{0}', github.event.client_payload.tag) || 'refs/heads/main' }}
+
+      - name: Extract version from package.json
+        id: version
+        run: |
+          echo "version=$(node -p \"require('./package.json').version\")" >> $GITHUB_OUTPUT
+
+      - name: Determine release tag
+        id: tag
+        run: |
+          TAG="${{ env.RELEASE_TAG }}"
+          if [ -z "$TAG" ]; then
+            TAG="v$(node -p \"require('./package.json').version\")"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "RELEASE_TAG=$TAG" >> $GITHUB_OUTPUT
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: npm >= 11.5.1 (requisito do Trusted Publishing)
+        run: npm install -g npm@latest
+
+      - name: Validar sistema de versionamento (quando há tag)
+        if: github.event.client_payload.tag != ''
+        run: node scripts/prepare-publish.mjs --check --tag "$RELEASE_TAG"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # dist/ é obrigatório no tarball
+      - name: Build
+        run: bun run build
+
+      - name: Preparar manifests (workspace:* → versão concreta)
+        run: node scripts/prepare-publish.mjs --tag "${{ steps.tag.outputs.tag }}"
+
+      - name: npm publish apps (idempotente — pula o que já está no registry)
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          # Inclui apps/*
+          for dir in apps/*; do
+            [ -d \"$dir\" ] || continue
+            [ \"$dir\" = \"apps/*\" ] && continue
+            pkg_path=\"$dir/package.json\"
+            [ -f \"$pkg_path\" ] || continue
+            name=$(node -p \"require('./$pkg_path').name\")
+            version=$(node -p \"require('./$pkg_path').version\")
+            private=$(node -p \"require('./$pkg_path').private === true\")
+            if [ \"$private\" = \"true\" ]; then
+              echo \"• $name é privado — pulando\"
+              continue
+            fi
+            if curl -fsS -o /dev/null \"https://registry.npmjs.org/$name/$version\"; then
+              echo \"✓ $name@$version já está no registry — pulando\"
+              continue
+            fi
+            echo \"→ publicando $name@$version\"
+            (cd \"$dir\" && npm publish --access public --provenance)
+            # Sono curto para manter o token OIDC válido
+            sleep 3
+          done
+
+      - name: Verificação final (esperado vs latest)
+        run: |
+          set -euo pipefail
+          for dir in apps/*; do
+            [ -d \"$dir\" ] || continue
+            [ \"$dir\" = \"apps/*\" ] && continue
+            pkg_path=\"$dir/package.json\"
+            [ -f \"$pkg_path\" ] || continue
+            name=$(node -p \"require('./$pkg_path').name\")
+            version=$(node -p \"require('./$pkg_path').version\")
+            private=$(node -p \"require('./$pkg_path').private === true\")
+            [ \"$private\" = \"true\" ] && continue
+            latest=$(npm view \"$name\" version 2>/dev/null || echo '?')
+            if [ \"$latest\" = \"$version\" ]; then
+              echo \"✓ $name@$version\"
+            else
+              echo \"⚠️  $name: esperado $version, latest no registry = $latest\"
             fi
           done
