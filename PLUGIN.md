@@ -34,6 +34,16 @@ Este documento foca na **especificação completa** para desenvolvedores de plug
     "field-types:register"
   ],
   "compatibility": { "okcms": "^0.42.0" },
+
+  // Dependências npm que o plugin precisa — instaladas no HOST (projeto raiz)
+  // via `okcms plugin:install`. O CLI faz `bun add <pkg>@<range>` no workspace raiz.
+  // O plugin faz import normal (ex: `import mermaid from 'mermaid'`) e resolve
+  // no node_modules do host. NÃO crie package.json/node_modules dentro do plugin.
+  "dependencies": [
+    { "name": "mermaid", "versionRange": "^11.12.0", "optional": false },
+    { "name": "chart.js", "versionRange": "^4.4.0", "optional": true }
+  ],
+
   "fieldTypes": [
     {
       "type": "mermaid",
@@ -92,6 +102,56 @@ use os campos adicionais:
 | `httpPolicy` | `{ allowHosts?: string[] }` — allowlist estrita para `api.http` |
 | `rateLimit` | `{ rpm?: number }` — limite das rotas do plugin |
 | `migrations[]` | Caminhos de arquivos SQL aplicados em ordem no `onInstall` (relativos ao plugin) |
+
+---
+
+## 2.2 Dependências npm do Plugin (`dependencies[]`)
+
+Plugins podem declarar dependências npm no `manifest.json` sob `dependencies[]`. Estas são **instaladas no host (projeto raiz)** durante `okcms plugin:install`, não dentro do diretório do plugin.
+
+### Formato
+
+```json
+"dependencies": [
+  { "name": "mermaid", "versionRange": "^11.12.0", "optional": false },
+  { "name": "chart.js", "versionRange": "^4.4.0", "optional": true }
+]
+```
+
+### Campos
+
+| Campo | Obrigatório? | Descrição |
+|-------|--------------|-----------|
+| `name` | **Sim** | Nome do pacote npm (ex: `mermaid`, `chart.js`, `date-fns`). |
+| `versionRange` | **Sim** | Range semver (ex: `^11.12.0`, `>=4.0.0 <5.0.0`). Alias `version` também aceito. |
+| `optional` | Não | Se `true`, falha na instalação não bloqueia o plugin. Default: `false`. |
+| `required` | Não | Alias de `optional` invertido (legacy). Use `optional`. |
+
+### Comportamento
+
+1. **Instalação**: `okcms plugin:install` lê `dependencies[]` e roda `bun add <name>@<versionRange>` no **workspace raiz** do projeto (mesmo `package.json` do CMS). Se `bun` indisponível, fallback para `npm install`.
+2. **Resolução**: O código do plugin faz `import mermaid from 'mermaid'` — resolve no `node_modules` do **host**, não do plugin. Plugins compartilham o mesmo `node_modules`.
+3. **Deduplicação**: Se múltiplos plugins pedem a mesma dependência, o gerenciador de pacotes resolve uma única versão compatível (ou falha se ranges conflitarem).
+4. **Versões**: Use ranges semver flexíveis (`^`, `~`, `>= <`) para evitar conflitos. Evite versões fixas (`1.2.3`) a menos que estritamente necessário.
+5. **Opcional**: `optional: true` permite que o plugin carregue mesmo se a dependência falhar (ex: peer opcional). O plugin deve checar disponibilidade em runtime (`try { import(...) } catch`).
+6. **Proibido**: **Não crie** `package.json`, `node_modules`, `package-lock.json`, `bun.lock` dentro de `plugins/seu-plugin/`. O plugin é apenas código + manifesto + assets admin.
+
+### Exemplo completo no manifesto
+
+```json
+{
+  "name": "meu-plugin",
+  "version": "1.0.0",
+  "main": "index.js",
+  "compatibility": { "okcms": "^0.42.0" },
+  "permissions": ["field-types:register"],
+  "dependencies": [
+    { "name": "mermaid", "versionRange": "^11.12.0" },
+    { "name": "date-fns", "versionRange": "^3.6.0", "optional": true }
+  ],
+  "fieldTypes": [...]
+}
+```
 
 ---
 
