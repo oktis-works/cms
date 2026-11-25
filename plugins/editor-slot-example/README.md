@@ -8,14 +8,13 @@ editor plugins — **it is not a full editor**.
 
 | Surface | Manifest (static) | Runtime (`index.js`) |
 |---------|-------------------|----------------------|
-| Editor slot | `admin.editors[]` (`below` mode) | `api.admin.addEditor()` |
-| Block registry | `blocks[]` (`example-note`) | `api.registerBlock()` |
-| Pattern registry | `patterns[]` (`example-cta`) | `api.registerPattern()` |
+| Editor slot | `admin.editors[]` (`below` mode) | — |
+| Block registry | `blocks[]` (`example-note`) | — |
+| Pattern registry | `patterns[]` (`example-cta`) | — |
 | Save-time compilation | — | `api.addFilter('before_save_content_post', ...)` |
 
-Manifest and runtime entries share namespaced ids, and the catalogs
-(`GET /api/v1/plugins/extensions`, `GET /api/v1/blocks`,
-`GET /api/v1/patterns`) dedupe them — both declaration paths coexist.
+The example keeps each declaration in one registration path so the runtime
+does not register duplicate editor, block, or pattern definitions.
 
 ## Files
 

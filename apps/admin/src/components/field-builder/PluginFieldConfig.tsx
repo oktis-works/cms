@@ -1,10 +1,10 @@
 // @oktis-works/admin - Plugin Field Config Component
-// Uses Web Worker sandbox for plugin field type configuration in custom fields editor
+// Interactive plugin field components run in the admin client so their event
+// handlers and SolidJS state remain connected to the rendered component.
 
 import { Show, Switch, Match, createSignal, onMount } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { loadPluginComponent } from '../../ext/slots';
-import { PluginWorkerHost } from '../PluginWorkerHost';
 
 interface PluginFieldConfigProps {
   field: {
@@ -18,20 +18,16 @@ interface PluginFieldConfigProps {
 }
 
 export function PluginFieldConfig(props: PluginFieldConfigProps) {
-  const [Component] = createSignal<any>(null);
+  const [Component, setComponent] = createSignal<any>(null);
   const [error, setError] = createSignal<string | null>(null);
   const [loading, setLoading] = createSignal(true);
-  const [useWorker, setUseWorker] = createSignal(false);
 
   onMount(async () => {
     try {
       const module = await loadPluginComponent(props.adminComponentPath);
       const Comp = module['default'] || module['PluginFieldConfig'];
       if (Comp) {
-        // Use worker sandbox for all plugin components for security
-        setUseWorker(true);
-        setLoading(false);
-        return;
+        setComponent(Comp);
       } else {
         setError('Componente de configuração não encontrado no módulo');
       }
@@ -62,7 +58,7 @@ export function PluginFieldConfig(props: PluginFieldConfigProps) {
           <span>Carregando configuração do plugin...</span>
         </div>
       </Match>
-      <Match when={error() || !useWorker()}>
+      <Match when={error() || !Component()}>
         <div class="fb-plugin-field-config fb-plugin-field-config--error">
           <i data-lucide="alert-triangle" aria-hidden="true"></i>
           <div>
@@ -75,22 +71,7 @@ export function PluginFieldConfig(props: PluginFieldConfigProps) {
           </div>
         </div>
       </Match>
-      <Match when={useWorker()}>
-        <div class="fb-plugin-field-config">
-          <PluginWorkerHost
-            componentPath={props.adminComponentPath}
-            mode="config"
-            props={{
-              config: props.field.config,
-              schema: props.configSchema,
-              onChange: handleConfigChange,
-              t: props.t,
-            }}
-            fallback={fallback}
-          />
-        </div>
-      </Match>
-      <Match when={true}>
+      <Match when={Component()}>
         <div class="fb-plugin-field-config">
           <Dynamic
             component={Component()}

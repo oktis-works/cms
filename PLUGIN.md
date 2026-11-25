@@ -33,7 +33,7 @@ Este documento foca na **especificação completa** para desenvolvedores de plug
     "events:emit",
     "field-types:register"
   ],
-  "compatibility": { "okcms": "^0.16.0" },
+  "compatibility": { "okcms": "^0.42.0" },
   "fieldTypes": [
     {
       "type": "mermaid",
@@ -456,7 +456,7 @@ Declare no `manifest.json`:
   "main": "index.js",
   "scope": "tenant",
   "permissions": ["field-types:register"],
-  "compatibility": { "okcms": "^0.16.0" },
+  "compatibility": { "okcms": "^0.42.0" },
   "fieldTypes": [
     {
       "type": "mermaid",

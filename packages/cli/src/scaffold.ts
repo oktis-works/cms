@@ -47,6 +47,18 @@ export function getThemeAssetDir(
   return candidates.find((dir) => existsSync(dir)) ?? null;
 }
 
+/** Resolves the bundled Mermaid example plugin used by `init`. */
+export function getMermaidPluginAssetDir(
+  fromDir: string = dirname(fileURLToPath(import.meta.url))
+): string | null {
+  const candidates = [
+    join(fromDir, 'plugins', 'mermaid-field'),
+    join(fromDir, '..', 'plugins', 'mermaid-field'),
+    join(fromDir, '..', '..', '..', 'plugins', 'mermaid-field'),
+  ];
+  return candidates.find((dir) => existsSync(join(dir, 'manifest.json'))) ?? null;
+}
+
 /**
  * Read every file of a theme directory recursively (used by `init` when a real
  * theme directory resolves). Exported for the parity test.
@@ -67,6 +79,23 @@ export async function readThemeFiles(dir: string, prefix = ''): Promise<Map<stri
       // and the embedded fallback write every file the same way.
       const relative = `${prefix}${entry.name}`;
       files.set(relative, isBinaryThemeAsset(relative) ? readFileSync(full) : await readFile(full, 'utf-8'));
+    }
+  }
+  return files;
+}
+
+/** Read every text file in a bundled plugin directory recursively. */
+export async function readPluginFiles(dir: string, prefix = ''): Promise<Map<string, string>> {
+  const { readdir } = await import('node:fs/promises');
+  const files = new Map<string, string>();
+  const entries = await readdir(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      const nested = await readPluginFiles(full, `${prefix}${entry.name}/`);
+      for (const [relative, content] of nested) files.set(relative, content);
+    } else {
+      files.set(`${prefix}${entry.name}`, await readFile(full, 'utf-8'));
     }
   }
   return files;
@@ -228,6 +257,20 @@ export async function scaffoldProject(
     } else {
       await writeFile(target, content, 'utf-8');
     }
+  }
+
+  // Bundle the supported Mermaid field example so a fresh project has one
+  // working custom field available without a separate download step.
+  const mermaidPluginAssetDir = getMermaidPluginAssetDir();
+  if (!mermaidPluginAssetDir) {
+    throw new Error('Bundled mermaid-field plugin assets are missing from the CLI package');
+  }
+  const mermaidPluginFiles = await readPluginFiles(mermaidPluginAssetDir);
+  for (const [relative, content] of mermaidPluginFiles) {
+    const target = join(root, 'plugins', 'mermaid-field', relative);
+    if (existsSync(target)) continue;
+    await mkdir(dirname(target), { recursive: true });
+    await writeFile(target, content, 'utf-8');
   }
 
   const config = defaultProjectConfig(name);

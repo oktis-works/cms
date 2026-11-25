@@ -1,5 +1,12 @@
 # @oktis-works/api
 
+## 0.19.3
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/auth@0.9.4
+
 ## 0.19.2
 
 ### Patch Changes

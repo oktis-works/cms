@@ -1,5 +1,13 @@
 # @oktis-works/cms
 
+## 0.19.3
+
+### Patch Changes
+
+- Ship the Mermaid field and editor-slot example as working, compatible extensions. The CLI now bundles mermaid-field into new projects, the admin preserves interactive plugin components, and CommonJS bcrypt imports work during plugin field synchronization.
+- Updated dependencies
+  - @oktis-works/auth@0.9.4
+
 ## 0.19.2
 
 ### Patch Changes

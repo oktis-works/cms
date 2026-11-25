@@ -1,10 +1,10 @@
 // @oktis-works/admin - Plugin Field Renderer Component
-// Uses Web Worker sandbox for plugin field type rendering in content editor
+// Interactive plugin renderers run in the admin client so their event
+// handlers and SolidJS state remain connected to the rendered component.
 
 import { Show, Switch, Match, createSignal, onMount } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { loadPluginComponent } from '../ext/slots';
-import { PluginWorkerHost } from '../components/PluginWorkerHost';
 
 interface PluginFieldRendererProps {
   field: {
@@ -24,12 +24,9 @@ interface PluginFieldRendererProps {
 }
 
 export function PluginFieldRenderer(props: PluginFieldRendererProps) {
-  const [Component] = createSignal<any>(null);
+  const [Component, setComponent] = createSignal<any>(null);
   const [error, setError] = createSignal<string | null>(null);
   const [loading, setLoading] = createSignal(true);
-  const [useWorker, setUseWorker] = createSignal(false);
-  const [workerPath, setWorkerPath] = createSignal<string>('');
-  const [triedRenderer, setTriedRenderer] = createSignal(false);
 
   onMount(async () => {
     // Try renderer path first, then fall back to config component path
@@ -43,20 +40,13 @@ export function PluginFieldRenderer(props: PluginFieldRendererProps) {
         const module = await loadPluginComponent(path);
         const Comp = module['default'] || module['PluginFieldRenderer'] || module['PluginFieldConfig'];
         if (Comp) {
-          // Check if plugin declares sandbox support in manifest
-          // For now, use worker for all plugin components for security
-          setUseWorker(true);
-          setWorkerPath(path);
+          setComponent(Comp);
           setLoading(false);
           return;
         }
       } catch (e) {
         console.debug(`[PluginFieldRenderer] Failed to load ${path}:`, e);
       }
-    }
-
-    if (props.adminRendererPath && !triedRenderer()) {
-      setTriedRenderer(true);
     }
 
     setError('Componente de renderização não encontrado');
@@ -85,7 +75,7 @@ export function PluginFieldRenderer(props: PluginFieldRendererProps) {
           <span>Carregando editor...</span>
         </div>
       </Match>
-      <Match when={error() || (!Component() && !useWorker())}>
+      <Match when={error() || !Component()}>
         <div class="fb-plugin-field-renderer fb-plugin-field-renderer--fallback">
           <Show when={error()}>
             <div class="fb-renderer-error">
@@ -96,23 +86,7 @@ export function PluginFieldRenderer(props: PluginFieldRendererProps) {
           {fallback()}
         </div>
       </Match>
-      <Match when={useWorker()}>
-        <div class="fb-plugin-field-renderer">
-          <PluginWorkerHost
-            componentPath={workerPath()}
-            mode="renderer"
-            props={{
-              field: props.field,
-              value: props.value,
-              onChange: handleValueChange,
-              disabled: props.disabled,
-              t: props._t,
-            }}
-            fallback={fallback}
-          />
-        </div>
-      </Match>
-      <Match when={true}>
+      <Match when={Component()}>
         <div class="fb-plugin-field-renderer">
           <Dynamic
             component={Component()}

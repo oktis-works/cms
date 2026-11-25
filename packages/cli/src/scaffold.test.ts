@@ -72,6 +72,11 @@ describe('scaffoldProject', () => {
       'themes',
       'plugins',
       'migrations',
+      // The bundled Mermaid field is ready to load after `okcms init`.
+      join('plugins', 'mermaid-field', 'manifest.json'),
+      join('plugins', 'mermaid-field', 'index.js'),
+      join('plugins', 'mermaid-field', 'admin', 'components', 'MermaidField.tsx'),
+      join('plugins', 'mermaid-field', 'admin', 'components', 'MermaidFieldRenderer.tsx'),
       // tema default pronto: o projeto novo já renderiza de cara
       join('themes', 'default', 'theme.json'),
       join('themes', 'default', 'screenshot.png'),
