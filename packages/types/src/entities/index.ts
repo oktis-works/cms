@@ -616,7 +616,7 @@ export interface Plugin extends Timestamps {
 export type ThemeStatus = 'ACTIVE' | 'INACTIVE' | 'INSTALLED';
 
 export type ThemeSettingType = 
-  | 'text' | 'textarea' | 'select' | 'checkbox' | 'color' | 'number'
+  | 'text' | 'textarea' | 'select' | 'checkbox' | 'toggle' | 'color' | 'number'
   | 'image' | 'file' | 'gallery' | 'wysiwyg'
   | 'date_picker' | 'date_time_picker' | 'time_picker'
   | 'google_map' | 'link'

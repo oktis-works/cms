@@ -8,7 +8,13 @@ let root: string;
 
 function theme(name: string, manifest: Record<string, unknown>, templates: Record<string, string> = {}): void {
   mkdirSync(join(root, name), { recursive: true });
-  writeFileSync(join(root, name, 'theme.json'), JSON.stringify({ name, version: '1.0.0', type: 'theme', ...manifest }));
+  writeFileSync(join(root, name, 'theme.json'), JSON.stringify({
+    name,
+    version: '1.0.0',
+    type: 'theme',
+    compatibility: { okcms: '^0.42.0' },
+    ...manifest,
+  }));
   for (const [file, content] of Object.entries(templates)) {
     writeFileSync(join(root, name, file), content);
   }
@@ -22,6 +28,7 @@ function compiled(name: string, engine: 'react' | 'solid', keys: string[], paren
       name,
       version: '1.0.0',
       type: 'theme',
+      compatibility: { okcms: '^0.42.0' },
       ...(parent ? { parent } : {}),
       render: { engine, apiVersion: 1, hydration: 'none' },
     })

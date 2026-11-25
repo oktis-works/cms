@@ -81,6 +81,7 @@ export function validateFieldValue(
       validateSelect(value, config, field.label, errors);
       break;
     case 'checkbox':
+    case 'toggle':
       validateCheckbox(value, config, field.label, errors);
       break;
     case 'radio':

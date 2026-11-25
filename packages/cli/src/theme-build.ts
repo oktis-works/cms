@@ -143,8 +143,36 @@ export async function buildThemeOnDisk(
   themesDir: string,
   themeName: string
 ): Promise<ThemeBuildBundleOutcome> {
-  const styles = await buildThemeStylesOnDisk(themesDir, themeName);
-  const render = await buildTheme({ themesRoot: themesDir, themeName, mode: 'js' });
+  const manifestPath = themeManifestPath(themesDir, themeName);
+  if (!manifestPath) {
+    throw new Error(`Theme manifest not found in ${join(themesDir, themeName)} (theme.json)`);
+  }
+  const manifest = readThemeManifest(manifestPath);
+  if (!manifest) throw new Error(`Invalid theme manifest (JSON): ${manifestPath}`);
+  const render = await buildTheme({ themesRoot: themesDir, themeName, manifest, mode: 'all' });
+  const styles: ThemeBuildOutcome = render.styleReport
+    ? {
+        theme: themeName,
+        engine: render.styleReport.engine,
+        output: render.styleReport.output,
+        bytes: render.styleReport.entry
+          ? Buffer.byteLength(readFileSync(join(themesDir, themeName, render.styles[0] ?? render.styleReport.output), 'utf8'))
+          : null,
+        isolated: render.styleReport.isolated,
+        entry: render.styleReport.entry,
+        warnings: render.warnings,
+        skipped: !render.styleReport.entry,
+      }
+    : {
+        theme: themeName,
+        engine: 'css',
+        output: 'dist/theme.css',
+        bytes: null,
+        isolated: true,
+        entry: null,
+        warnings: render.warnings,
+        skipped: true,
+      };
   return {
     styles,
     render: render.engine === 'template' ? null : render,

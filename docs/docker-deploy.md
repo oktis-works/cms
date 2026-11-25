@@ -171,7 +171,7 @@ is compiled **on the host**. That is why installing an extension never has any e
 production until a rebuild:
 
 ```bash
-npx okcms plugin:install -n ./meu-plugin   # or: theme:install
+npx okcms plugin:install -n ./meu-plugin; copy complete theme directories into `themes/`
 npx okcms redeploy --dry-run               # only shows the plan
 npx okcms redeploy
 ```

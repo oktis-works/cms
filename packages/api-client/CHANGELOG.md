@@ -1,5 +1,13 @@
 # @oktis-works/api-client
 
+## 0.7.7
+
+### Patch Changes
+
+- Complete the tenant-scoped theme system correction, including secure preview, validated inheritance, atomic compiled artifacts, provider compatibility, and public rendering hardening.
+- Updated dependencies
+  - @oktis-works/types@0.11.2
+
 ## 0.7.6
 
 ### Patch Changes

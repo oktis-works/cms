@@ -1,8 +1,8 @@
 // @oktis-works/theme-runtime - Theme Style Engine (Tailwind XOR SCSS + Isolamento Fino)
 // BUSI-039 Exclusive Style Engine | BUSI-040 Fine Isolation Scoping | DECI-029
 
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
+import { join, resolve, sep } from 'node:path';
 import type { ThemeManifest } from '@oktis-works/theme-sdk';
 import type { StyleEngine } from '@oktis-works/theme-sdk';
 
@@ -126,7 +126,7 @@ export function scopeCss(css: string, themeName: string, prefix = `[data-theme="
       continue;
     }
     // at-rule sem bloco (termina com ;)
-    if (css[i] === '@') {
+    if (css[i] === '@' && /^@(import|charset|namespace)\b/i.test(css.slice(i))) {
       const semi = css.indexOf(';', i);
       const brace = css.indexOf('{', i);
       // se ; vem antes de { ou não há {, é at-rule sem bloco
@@ -141,14 +141,43 @@ export function scopeCss(css: string, themeName: string, prefix = `[data-theme="
     if (braceIdx === -1) { out += css.slice(i); break; }
     const selectorPart = css.slice(i, braceIdx).trim();
     // encontra } correspondente com aninhamento
-    let depth = 0;
+    let depth = 1;
     let endIdx = -1;
-    for (let k = braceIdx; k < len; k++) {
+    let quote: '"' | "'" | null = null;
+    let comment = false;
+    let k = braceIdx + 1;
+    while (k < len) {
+      if (comment) {
+        if (css[k] === '*' && css[k + 1] === '/') {
+          comment = false;
+          k += 2;
+        } else {
+          k += 1;
+        }
+        continue;
+      }
+      if (!quote && css[k] === '/' && css[k + 1] === '*') {
+        comment = true;
+        k += 2;
+        continue;
+      }
+      if (quote) {
+        if (css[k] === '\\') k += 2;
+        else if (css[k] === quote) quote = null;
+        k += 1;
+        continue;
+      }
+      if (css[k] === '"' || css[k] === "'") {
+        quote = css[k] as '"' | "'";
+        k += 1;
+        continue;
+      }
       if (css[k] === '{') depth++;
       else if (css[k] === '}') {
         depth--;
         if (depth === 0) { endIdx = k; break; }
       }
+      k += 1;
     }
     if (endIdx === -1) { out += css.slice(i); break; }
     const block = css.slice(i, endIdx + 1);
@@ -213,15 +242,14 @@ export async function compileTailwind(entryAbs: string, themePath: string): Prom
     const tailwindMod: any = await import('tailwindcss').catch(() => null);
     const autoprefixMod: any = await import('autoprefixer').catch(() => null);
     if (!postcssMod || !tailwindMod) {
-      // sem tailwind instalado, retorna raw (dev pode instalar)
-      return raw;
+      throw new Error('Tailwind theme build requires postcss and tailwindcss to be installed');
     }
     const postcss = postcssMod.default ?? postcssMod;
     const tailwindcss = tailwindMod.default ?? tailwindMod;
     const tailwindConfigPath =
       [join(themePath, 'tailwind.config.js'), join(themePath, 'tailwind.config.cjs'), join(themePath, 'tailwind.config.mjs')].find((p) => existsSync(p)) ?? null;
     let tailwindConfig: any = {
-      content: [join(themePath, 'templates/**/*.{astro,html,js,ts}'), join(themePath, 'src/**/*.{astro,html,js,ts}'), join(themePath, 'components/**/*.{astro,html,js,ts}')],
+      content: [join(themePath, 'templates/**/*.{astro,html,js,jsx,ts,tsx}'), join(themePath, 'src/**/*.{astro,html,js,jsx,ts,tsx}'), join(themePath, 'components/**/*.{astro,html,js,jsx,ts,tsx}')],
       corePlugins: { preflight: false },
     };
     if (tailwindConfigPath) tailwindConfig = tailwindConfigPath;
@@ -257,6 +285,9 @@ export async function buildThemeStyles(opts: StyleEngineOptions): Promise<{ css:
   } else {
     css = readFileSync(entryAbs, 'utf-8');
   }
+  if (report.engine === 'tailwind' && /@tailwind\s+(?:base|components|utilities|screens)\b/.test(css)) {
+    throw new Error(`Tailwind output still contains unresolved @tailwind directives for ${opts.themeName}`);
+  }
   // autoprefixer genérico se não tailwind
   if (report.engine !== 'tailwind') {
     try {
@@ -290,11 +321,59 @@ export function validateStyleManifest(manifest: ThemeManifest, themePath: string
   if ((manifest.stylesConfig as any)?.isolation === 'manual' && (engine ?? 'css') !== 'css') {
     errors.push('stylesConfig.isolation="manual" é válido apenas com engine css — engines com build sempre escopam (BUSI-040)');
   }
-  const hasTailwind = existsSync(join(themePath, 'tailwind.config.js')) || existsSync(join(themePath, 'tailwind.config.cjs'));
+  const hasTailwind = existsSync(join(themePath, 'tailwind.config.js')) || existsSync(join(themePath, 'tailwind.config.cjs')) || existsSync(join(themePath, 'tailwind.config.mjs'));
   const hasScss = listFilesRecursive(themePath).some((f) => f.endsWith('.scss'));
   if (hasTailwind && hasScss) errors.push('Tema contém ambos tailwind.config e .scss — escolha apenas um engine (tailwind XOR scss)');
   if (manifest.stylesConfig?.entry?.includes('..')) errors.push('stylesConfig.entry com path traversal');
+  if (manifest.stylesConfig?.output && (manifest.stylesConfig.output.includes('..') || manifest.stylesConfig.output.startsWith('/') || manifest.stylesConfig.output.includes('\\'))) {
+    errors.push('stylesConfig.output must remain inside the theme');
+  }
+  const themeRoot = resolve(themePath);
+  const isRealPathInside = (target: string): boolean => {
+    try {
+      const realRoot = requireRealpath(themeRoot);
+      const realTarget = requireRealpath(target);
+      return realTarget === realRoot || realTarget.startsWith(realRoot + sep);
+    } catch {
+      return false;
+    }
+  };
+  if (manifest.stylesConfig?.entry) {
+    const entry = resolve(themePath, manifest.stylesConfig.entry);
+    if (!entry.startsWith(themeRoot + sep) || !existsSync(entry)) {
+      errors.push(`stylesConfig.entry does not exist: ${manifest.stylesConfig.entry}`);
+    } else if (!isRealPathInside(entry)) {
+      errors.push(`stylesConfig.entry resolves outside the theme: ${manifest.stylesConfig.entry}`);
+    }
+  }
+  if (manifest.stylesConfig?.output) {
+    const output = resolve(themePath, manifest.stylesConfig.output);
+    if (!output.startsWith(themeRoot + sep)) {
+      errors.push(`stylesConfig.output must remain inside the theme: ${manifest.stylesConfig.output}`);
+    } else if (existsSync(output) && !isRealPathInside(output)) {
+      errors.push(`stylesConfig.output resolves outside the theme: ${manifest.stylesConfig.output}`);
+    } else if (!existsSync(output)) {
+      errors.push(`stylesConfig.output does not exist: ${manifest.stylesConfig.output}`);
+    }
+  }
+  const declaredAssets = [
+    ...(manifest.provides?.assets ?? []),
+    ...(manifest.provides?.styles ?? []),
+  ];
+  for (const asset of declaredAssets) {
+    const target = resolve(themePath, asset);
+    if (!asset || asset.includes('..') || asset.includes('\\') || asset.startsWith('/') ||
+      !target.startsWith(resolve(themePath) + sep) || !existsSync(target)) {
+      errors.push(`declared theme asset does not exist or escapes the theme: ${asset}`);
+    } else if (!isRealPathInside(target)) {
+      errors.push(`declared theme asset resolves outside the theme: ${asset}`);
+    }
+  }
   return errors;
+}
+
+function requireRealpath(target: string): string {
+  return realpathSync(target);
 }
 
 export function getThemeScopeAttribute(themeName: string): { attr: string; selector: string } {

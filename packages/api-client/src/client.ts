@@ -352,10 +352,6 @@ export class OkCMSClient {
     return this.request('GET', '/api/v1/themes');
   }
 
-  async installTheme(name: string): Promise<ThemeResponse> {
-    return this.request('POST', '/api/v1/themes/install', { name });
-  }
-
   async activateTheme(id: UUID): Promise<ThemeResponse> {
     return this.request('POST', `/api/v1/themes/${id}/activate`);
   }

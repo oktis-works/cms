@@ -19,7 +19,7 @@ export const COMMAND_GROUPS: ReadonlyArray<readonly [string, readonly string[]]>
   ['Project', ['init', 'menu', 'start', 'stop', 'status', 'dev', 'doctor', 'config']],
   ['Database', ['db:migrate', 'db:rollback', 'db:status', 'db:inventory', 'db:backup', 'db:restore', 'seed', 'user:create']],
   ['Migration', ['wp']],
-  ['Extensions', ['plugin:create', 'plugin:install', 'plugin:list', 'plugin:search', 'plugin:manage', 'theme:create', 'theme:install', 'theme:list', 'theme:search', 'theme:manage', 'theme:build', 'theme:dev']],
+  ['Extensions', ['plugin:create', 'plugin:install', 'plugin:list', 'plugin:search', 'plugin:manage', 'theme:create', 'theme:list', 'theme:search', 'theme:manage', 'theme:build', 'theme:dev']],
   ['Deploy', ['build', 'update', 'redeploy', 'rollback', 'deploy']],
   ['System', ['media:migrate', 'system:status', 'i18n:extract']],
 ];
@@ -32,13 +32,13 @@ const READ_ONLY = new Set([
 
 const DESTRUCTIVE = new Set([
   'db:migrate', 'db:rollback', 'db:restore', 'seed', 'user:create', 'config', 'plugin:install', 'plugin:manage',
-  'theme:install', 'theme:manage', 'media:migrate', 'rollback', 'update', 'redeploy', 'deploy',
+  'theme:manage', 'media:migrate', 'rollback', 'update', 'redeploy', 'deploy',
 ]);
 
 const PROJECT_REQUIRED = new Set([
   'start', 'stop', 'status', 'dev', 'config', 'update', 'redeploy', 'deploy', 'rollback',
   'db:migrate', 'db:rollback', 'db:status', 'db:backup', 'db:restore', 'seed', 'user:create',
-  'plugin:install', 'plugin:list', 'plugin:manage', 'theme:install', 'theme:list', 'theme:manage',
+  'plugin:install', 'plugin:list', 'plugin:manage', 'theme:list', 'theme:manage',
   'theme:build', 'theme:dev', 'build', 'media:migrate', 'system:status', 'i18n:extract',
   'wp',
 ]);
@@ -46,7 +46,7 @@ const PROJECT_REQUIRED = new Set([
 const DATABASE_REQUIRED = new Set([
   'start', 'stop', 'status', 'dev', 'db:migrate', 'db:rollback', 'db:status', 'db:backup',
   'db:restore', 'seed', 'user:create', 'plugin:install', 'plugin:list', 'plugin:manage',
-  'theme:install', 'theme:list', 'theme:manage', 'system:status',
+  'theme:list', 'theme:manage', 'system:status',
   'wp',
 ]);
 

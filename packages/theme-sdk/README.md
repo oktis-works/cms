@@ -9,7 +9,7 @@ Theme SDK — rendering engine, template hierarchy, component rendering.
 Renders Astro templates to HTML with component support.
 
 ```typescript
-const renderer = new ThemeRenderer(themesRoot, activeTheme);
+const renderer = new ThemeRenderer({ themePath: themesRoot });
 const html = renderer.renderString(templateSource, context, globals);
 ```
 
@@ -23,8 +23,9 @@ Resolves template file from theme hierarchy:
 
 ```
 active-theme/          → highest priority
+declared parent themes → parent chain, when declared in theme.json
 _shared/               → shared across themes
-default/               → fallback (bundled)
+default/               → built-in floor for legacy templates
 ```
 
 Resolution order:
@@ -32,6 +33,11 @@ Resolution order:
 2. Type template: `single.astro` (content), `archive.astro` (listing)
 3. Page template: `page.astro`, `page-blog.astro`, `page-home.astro`
 4. Fallback: `index.astro`
+
+The active theme itself is never selected from the filesystem. It must be the
+active tenant-owned row in the database; the filesystem chain only resolves
+templates after that decision. A tenant-specific `default` row is created and
+activated during tenant bootstrap.
 
 ### `TemplateContext`
 

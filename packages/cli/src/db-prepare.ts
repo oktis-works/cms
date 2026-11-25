@@ -30,7 +30,7 @@ export async function prepareDb(
   prepareOptions: PrepareDbOptions = {}
 ): Promise<string> {
   await initDb();
-  const { ensureCoreSchema, resolveTenantId, seedCoreData, seedDemoContent, seedActivateDefaultTheme, seedDefaultFieldGroups } = await import('@oktis-works/database');
+  const { ensureCoreSchema, resolveTenantId, seedCoreData, seedDemoContent, seedActivateDefaultTheme, seedDefaultFieldGroups, runWithTenantTransaction } = await import('@oktis-works/database');
   if (prepareOptions.ensureSchema !== false) {
     const applied = await ensureCoreSchema({ adoptLegacy: prepareOptions.adoptLegacy });
     if (applied) {
@@ -38,25 +38,35 @@ export async function prepareDb(
     }
   }
 
-  if (prepareOptions.seed) {
-    const seeded = await seedCoreData();
-    if (seeded.roles > 0 || seeded.settings > 0) {
-      console.log(`✓ seed: ${seeded.roles} roles, ${seeded.settings} settings created`);
-    }
-    const fieldGroups = await seedDefaultFieldGroups();
-    if (fieldGroups.fieldGroups > 0 || fieldGroups.fieldDefinitions > 0) {
-      console.log(`✓ field groups: ${fieldGroups.fieldGroups} groups, ${fieldGroups.fieldDefinitions} definitions created`);
-    }
-    const demo = await seedDemoContent();
-    const total = demo.pages + demo.posts + demo.menus + demo.readingSettings;
-    if (total > 0) {
-      console.log(`✓ demo content: ${demo.pages} pages, ${demo.posts} posts, ${demo.menus} menus, ${demo.readingSettings} reading settings`);
-    }
-    await seedActivateDefaultTheme();
-    console.log('✓ default theme activated');
+  const tenantId = prepareOptions.resolveTenant === false
+    ? ''
+    : await resolveTenantId(getTenantId(options), {
+      createDefault: prepareOptions.createDefaultTenant !== false,
+    });
+
+  if (tenantId) {
+    const { themeService, runWithTenantContext } = await import('@oktis-works/core');
+    await runWithTenantTransaction(tenantId, () => runWithTenantContext({ tenantId }, async () => {
+      if (prepareOptions.seed) {
+        const seeded = await seedCoreData();
+        if (seeded.roles > 0 || seeded.settings > 0) {
+          console.log(`✓ seed: ${seeded.roles} roles, ${seeded.settings} settings created`);
+        }
+        const fieldGroups = await seedDefaultFieldGroups();
+        if (fieldGroups.fieldGroups > 0 || fieldGroups.fieldDefinitions > 0) {
+          console.log(`✓ field groups: ${fieldGroups.fieldGroups} groups, ${fieldGroups.fieldDefinitions} definitions created`);
+        }
+        const demo = await seedDemoContent();
+        const total = demo.pages + demo.posts + demo.menus + demo.readingSettings;
+        if (total > 0) {
+          console.log(`✓ demo content: ${demo.pages} pages, ${demo.posts} posts, ${demo.menus} menus, ${demo.readingSettings} reading settings`);
+        }
+      }
+      await themeService.syncFromDirectory(tenantId);
+      await seedActivateDefaultTheme(tenantId);
+      console.log('✓ default theme activated');
+    }));
   }
   if (prepareOptions.resolveTenant === false) return '';
-  return resolveTenantId(getTenantId(options), {
-    createDefault: prepareOptions.createDefaultTenant !== false,
-  });
+  return tenantId;
 }

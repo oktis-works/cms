@@ -52,7 +52,6 @@ interface Config {
     refreshTokenTtl: number;   // seconds
   };
   theme: {
-    defaultTheme: string;      // fallback theme name
   };
   plugins: {
     platformDir: string;       // platform-wide plugins
@@ -90,7 +89,6 @@ const config = loadConfig();  // loads from env + config file
 | `STORAGE_PUBLIC_URL` | `storage.local.publicUrl` | `/uploads` |
 | `JWT_ACCESS_TTL` | `jwt.accessTokenTtl` | `900` (15min) |
 | `JWT_REFRESH_TTL` | `jwt.refreshTokenTtl` | `604800` (7 days) |
-| `THEME_DEFAULT` | `theme.defaultTheme` | `default` |
 | `PLUGINS_PLATFORM_DIR` | `plugins.platformDir` | `./plugins/platform` |
 | `PLUGINS_TENANT_DIR` | `plugins.tenantDir` | `./plugins/tenant` |
 
@@ -135,7 +133,7 @@ mail:
 
 - `app.baseUrl` used for canonical URLs, sitemap, JSON-LD, feeds
 - `database.maxConnections` passed to pool config (fallback 10)
-- `theme.defaultTheme` used as fallback when no active theme in DB
+- Theme selection is stored per tenant in the database; configuration does not provide a fallback theme.
 
 ## Loading
 

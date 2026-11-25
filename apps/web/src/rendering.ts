@@ -1,6 +1,6 @@
 // @oktis-works/web - Runtime Rendering (catch-all SSR com hierarquia de templates)
 
-import { existsSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -53,6 +53,46 @@ export function createTemplateChecker(themesRoot: string, activeTheme: string): 
  */
 export function loadTemplateSource(themesRoot: string, activeTheme: string, file: string): string | null {
   return projectTemplates(themesRoot, activeTheme).read(file);
+}
+
+/** Registers manifest-declared legacy components from parent to child. */
+function registerThemeComponents(themesRoot: string, activeTheme: string): void {
+  const chain = resolveProjectThemeChain(themesRoot, activeTheme);
+  themeRenderer.clearComponents();
+  for (const themeName of [...chain].reverse()) {
+    const themeDir = resolve(themesRoot, themeName);
+    const manifestPath = join(themeDir, 'theme.json');
+    if (!existsSync(manifestPath)) continue;
+    let manifest: Record<string, unknown>;
+    try {
+      manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+    const components = Array.isArray(manifest['components']) ? manifest['components'] : [];
+    for (const value of components) {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) continue;
+      const component = value as Record<string, unknown>;
+      const name = typeof component['name'] === 'string' ? component['name'] : '';
+      const file = typeof component['file'] === 'string' ? component['file'] : '';
+      if (!name || !file || file.includes('..') || file.includes('\\') || file.startsWith('/')) continue;
+      const target = resolve(themeDir, file);
+      if (!target.startsWith(themeDir + sep) || !existsSync(target)) continue;
+      try {
+        const realThemeDir = realpathSync(themeDir);
+        const realTarget = realpathSync(target);
+        if (realTarget !== realThemeDir && !realTarget.startsWith(realThemeDir + sep)) continue;
+        themeRenderer.registerComponent({
+          name,
+          type: component['type'] as 'layout' | 'component' | 'page' | 'partial',
+          file: realTarget,
+          props: component['props'] as Record<string, unknown> | undefined,
+        });
+      } catch {
+        continue;
+      }
+    }
+  }
 }
 
 export interface SiteSettings {
@@ -178,15 +218,21 @@ function extractDefaults(settings: unknown[]): Record<string, unknown> {
 export function buildThemeSettings(
   manifest: Record<string, unknown> | null | undefined,
   config: Record<string, unknown> | null | undefined,
-  parentManifest?: Record<string, unknown> | Array<Record<string, unknown>> | null | undefined
+  parentManifest?: Record<string, unknown> | Array<Record<string, unknown>> | null | undefined,
+  parentConfigs?: Array<Record<string, unknown> | null | undefined>
 ): Record<string, unknown> {
   let settings: Record<string, unknown> = {};
 
   // 1. Parent defaults (if parent theme exists)
   if (parentManifest) {
     const parents = Array.isArray(parentManifest) ? [...parentManifest].reverse() : [parentManifest];
-    for (const parent of parents) {
+    for (let index = 0; index < parents.length; index += 1) {
+      const parent = parents[index]!;
       settings = deepMerge(settings, extractDefaults(parent['settings'] as unknown[]));
+      const configForParent = parentConfigs?.[parents.length - 1 - index];
+      if (configForParent && typeof configForParent === 'object' && !Array.isArray(configForParent)) {
+        settings = deepMerge(settings, configForParent);
+      }
     }
   }
 
@@ -255,7 +301,8 @@ interface PreparedContentPage {
  */
 function prepareContentPage(input: ContentPageRenderInput, file: string): PreparedContentPage {
   const row = input.contentRow ?? {};
-  const logicalRecord = normalizeLogicalValues({ body: row['body'], data: row['data'], native: row });
+  const publicRow = publicContentRecord(row);
+  const logicalRecord = normalizeLogicalValues({ body: publicRow['body'], data: publicRow['data'], native: publicRow });
   const title = toText(row['title']) || input.settings.siteTitle;
 
   // E5 (FEAT-100): render/save hook surface for plugin-built editors.
@@ -272,17 +319,18 @@ function prepareContentPage(input: ContentPageRenderInput, file: string): Prepar
     slug: input.resolution.slug ?? '',
     activeTheme: input.activeTheme,
     settings: input.settings,
-    contentRow: { ...row, ...logicalRecord },
+    contentRow: { ...publicRow, ...logicalRecord },
   };
   const renderData = (registry.applyFilters(
     HOOK_POINTS.THEME_BEFORE_RENDER,
-    { ...input.data },
+    { ...logicalRecord, ...input.data },
     hookContext
   ) as Record<string, unknown> | undefined) ?? input.data;
+  const publicRenderData = sanitizePublicValue(renderData) as Record<string, unknown>;
   const themeRecord = normalizeLogicalValues({
-    body: renderData,
-    data: row['data'],
-    native: row,
+    body: publicRenderData,
+    data: publicRow['data'],
+    native: publicRow,
   });
 
   const context: Record<string, unknown> = {
@@ -306,8 +354,8 @@ function prepareContentPage(input: ContentPageRenderInput, file: string): Prepar
       isPageForPosts: input.resolution.isPageForPosts ?? false,
       isFrontPage: input.resolution.isFrontPage ?? false,
     },
-    content: { ...plainColumns(row), ...renderData },
-    fields: renderData,
+    content: { ...plainColumns(publicRow), ...publicRenderData },
+    fields: publicRenderData,
     record: themeRecord,
     items: input.items ?? [],
     pagination: input.pagination ?? { page: 1, perPage: 0, total: 0, pages: 0, hasPrevious: false, hasNext: false },
@@ -319,7 +367,7 @@ function prepareContentPage(input: ContentPageRenderInput, file: string): Prepar
     themeData: input.themeData ?? { menus: { all: [], bySlug: {} }, contentTypes: [], taxonomies: [], terms: {}, settings: input.settings },
   };
 
-  return { file, row, logicalRecord, title, registry, hookContext, renderData, themeRecord, context };
+  return { file, row: publicRow, logicalRecord, title, registry, hookContext, renderData: publicRenderData, themeRecord, context };
 }
 
 /** Wraps a rendered body in the document and runs the post-render hook. */
@@ -329,7 +377,10 @@ function finalizeContentPage(
   body: string,
   themeAssets?: ThemeDocumentAssets
 ): string {
-  const stylesheet = themeAssets?.themeName ?? resolveThemeStylesheet(input.themesRoot, input.activeTheme);
+  // Compiled artifacts carry their own versioned stylesheet list. Linking the
+  // legacy stable path as well would defeat cache versioning and may load a
+  // stale CSS generation.
+  const stylesheet = themeAssets ? null : resolveThemeStylesheets(input.themesRoot, input.activeTheme);
 
   // Build canonical URL for SEO
   const canonicalPath = input.resolution.canonicalPath ?? '';
@@ -345,6 +396,7 @@ function finalizeContentPage(
   const pageRobots = (input.contentRow?.['seo_robots'] as string) ?? undefined;
   const pageCanonical = (input.contentRow?.['seo_canonical_url'] as string) ?? undefined;
   const pageOgImage = (input.contentRow?.['seo_og_image'] as string) ?? undefined;
+  const configuredOgImage = toText(input.settings['ogImage']) || undefined;
 
   const html = wrapDocument(
     body,
@@ -358,14 +410,14 @@ function finalizeContentPage(
       pageDescription,
       ogTitle: prepared.title,
       ogDescription: pageDescription,
-      ogImage: pageOgImage ?? undefined,
+      ogImage: pageOgImage ?? configuredOgImage,
       ogType: (input.settings['ogType'] as string) ?? 'website',
       ogSiteName: input.settings.siteTitle,
       ogLocale: input.settings.language ?? 'pt-BR',
       twitterCard: (input.settings['twitterCard'] as string) ?? 'summary_large_image',
       twitterTitle: prepared.title,
       twitterDescription: pageDescription,
-      twitterImage: pageOgImage ?? undefined,
+      twitterImage: pageOgImage ?? configuredOgImage,
       robots: pageRobots ?? (input.settings['defaultRobots'] as string) ?? 'index,follow',
     },
     themeAssets
@@ -382,8 +434,9 @@ export function renderContentPage(input: ContentPageRenderInput): string {
   }
 
   const prepared = prepareContentPage(input, file);
+  registerThemeComponents(input.themesRoot, input.activeTheme);
   const body = themeRenderer.wrapWithThemeScope(
-    themeRenderer.renderString(template, prepared.context, { ...prepared.row, ...prepared.themeRecord }),
+    themeRenderer.renderString(template, prepared.context, { ...prepared.themeRecord }),
     input.activeTheme
   );
   return finalizeContentPage(input, prepared, body);
@@ -425,6 +478,16 @@ export async function renderContentPageAsync(input: ContentPageRenderInput): Pro
 
   const templateKey = provider.build.templates.includes(requestedKey) ? requestedKey : '404';
   const prepared = prepareContentPage(input, file);
+  const styleAssets = catalog.entries
+    .filter((entry) => entry.problems.length === 0)
+    .flatMap((entry) => {
+      if (entry.build) {
+        return [{ themeName: entry.name, styles: entry.build.styles, buildId: entry.build.buildId }];
+      }
+      return existsSync(join(entry.dir, 'dist', 'theme.css'))
+        ? [{ themeName: entry.name, styles: ['dist/theme.css'] }]
+        : [];
+    });
   const output = await renderCompiledTheme({
     themeDir: provider.dir,
     build: provider.build,
@@ -433,14 +496,13 @@ export async function renderContentPageAsync(input: ContentPageRenderInput): Pro
     // `getField()` (ALS) must see the same `theme:before:render` output as
     // the component props, not the pre-hook row.
     record: {
-      ...prepared.row,
       ...prepared.themeRecord,
       body: {
-        ...((prepared.row['body'] as Record<string, unknown> | undefined) ?? {}),
+        ...((prepared.themeRecord['body'] as Record<string, unknown> | undefined) ?? {}),
         ...prepared.renderData,
       },
       data: {
-        ...((prepared.row['data'] as Record<string, unknown> | undefined) ?? {}),
+        ...((prepared.themeRecord['data'] as Record<string, unknown> | undefined) ?? {}),
         ...prepared.renderData,
       },
     },
@@ -451,6 +513,7 @@ export async function renderContentPageAsync(input: ContentPageRenderInput): Pro
       templateKey,
       buildId: provider.build.buildId,
     },
+    automaticAssets: provider.build.hydration === 'islands' || styleAssets.some((asset) => asset.styles.length > 0),
   });
 
   const body = themeRenderer.wrapWithThemeScope(output.html, provider.name);
@@ -463,7 +526,9 @@ export async function renderContentPageAsync(input: ContentPageRenderInput): Pro
         : [];
   return finalizeContentPage(input, prepared, body, {
     themeName: provider.name,
+    buildId: provider.build.buildId,
     styles: output.styles,
+    styleAssets,
     head: output.head,
     scripts,
     hydration:
@@ -648,11 +713,14 @@ export async function renderPluginBlocks(
  * sai sem <link> quebrado (nada de 404 silencioso no console).
  */
 export function resolveThemeStylesheet(themesRoot: string, activeTheme: string): string | null {
-  for (const theme of resolveProjectThemeChain(themesRoot, activeTheme)) {
-    if (!theme) continue;
-    if (existsSync(join(themesRoot, theme, 'dist', 'theme.css'))) return theme;
-  }
-  return null;
+  return resolveThemeStylesheets(themesRoot, activeTheme)[0] ?? null;
+}
+
+/** Returns all inherited legacy styles in parent-to-child order. */
+export function resolveThemeStylesheets(themesRoot: string, activeTheme: string): string[] {
+  return [...resolveProjectThemeChain(themesRoot, activeTheme)]
+    .reverse()
+    .filter((theme) => existsSync(join(themesRoot, theme, 'dist', 'theme.css')));
 }
 
 /**
@@ -665,12 +733,16 @@ export interface ThemeDocumentAssets {
   themeName: string;
   /** Paths relative to the theme root (e.g. dist/theme.css). */
   styles?: string[];
+  /** Inherited compiled styles, each with its owning theme/build identity. */
+  styleAssets?: Array<{ themeName: string; styles: string[]; buildId?: string }>;
   /** Trusted extra <head> markup emitted by a compiled theme. */
   head?: string;
   /** Module scripts relative to the theme root (hydration phase). */
   scripts?: string[];
   /** Serialized SSR payload for islands hydration. */
   hydration?: ThemeHydrationPayload;
+  /** Build identity used for browser/proxy cache invalidation. */
+  buildId?: string;
 }
 
 /** Escapes JSON for an application/json script (never executable HTML). */
@@ -715,7 +787,7 @@ export function wrapDocument(
   pageTitle: string,
   settings: SiteSettings,
   activeTheme: string,
-  stylesheetTheme: string | null = null,
+  stylesheetTheme: string | string[] | null = null,
   pluginAssets?: { head: string; footer: string },
   seo?: SeoMeta,
   themeAssets?: ThemeDocumentAssets
@@ -726,26 +798,41 @@ export function wrapDocument(
 
   const title = pageTitle && pageTitle !== settings.siteTitle ? `${pageTitle} | ${settings.siteTitle}` : settings.siteTitle;
   const lang = escapeHtml(settings.language || 'pt-BR');
-  const stylesheet = stylesheetTheme
-    ? `  <link rel="stylesheet" href="/themes/${escapeHtml(stylesheetTheme)}/dist/theme.css" data-theme-style="${escapeHtml(stylesheetTheme)}" />\n`
-    : '';
+  const stylesheetNames = stylesheetTheme === null
+    ? []
+    : Array.isArray(stylesheetTheme)
+      ? stylesheetTheme
+      : [stylesheetTheme];
+  const stylesheet = stylesheetNames
+    .map((themeName) => `  <link rel="stylesheet" href="/themes/${escapeHtml(themeName)}/dist/theme.css" data-theme-style="${escapeHtml(themeName)}" />`)
+    .join('\n');
 
   // Compiled themes may emit extra styles/scripts/head from their artifact.
-  const extraStyles = themeAssets
-    ? (themeAssets.styles ?? [])
-        .filter((style) => style !== 'dist/theme.css')
-        .map(
-          (style) =>
-            `  <link rel="stylesheet" href="/themes/${escapeHtml(themeAssets.themeName)}/${escapeHtml(style)}" data-theme-style="${escapeHtml(themeAssets.themeName)}" />`
-        )
-        .join('\n')
-    : '';
+  const styleAssets = themeAssets
+    ? themeAssets.styleAssets ?? [{ themeName: themeAssets.themeName, styles: themeAssets.styles ?? [], buildId: themeAssets.buildId }]
+    : [];
+  const seenStyleAssets = new Set<string>();
+  const extraStyles = styleAssets
+    .flatMap((asset) => asset.styles
+      .filter((style) => {
+        const key = `${asset.themeName}:${style}`;
+        if (seenStyleAssets.has(key)) return false;
+        seenStyleAssets.add(key);
+        return true;
+      })
+      .filter((style) => !(style === 'dist/theme.css' && asset.buildId))
+      .map((style) =>
+        `  <link rel="stylesheet" href="/themes/${escapeHtml(asset.themeName)}/${escapeHtml(style)}${asset.buildId ? `?v=${encodeURIComponent(asset.buildId)}` : ''}" data-theme-style="${escapeHtml(asset.themeName)}" />`
+      ))
+    .join('\n');
+  const legacyStyles = stylesheet ? `${stylesheet}\n` : '';
+  const compiledStyles = extraStyles ? `${extraStyles}\n` : '';
   const themeHead = themeAssets?.head ? `${themeAssets.head}\n` : '';
   const themeScripts = themeAssets
     ? (themeAssets.scripts ?? [])
         .map(
           (script) =>
-            `<script type="module" src="/themes/${escapeHtml(themeAssets.themeName)}/${escapeHtml(script)}"></script>`
+            `<script type="module" src="/themes/${escapeHtml(themeAssets.themeName)}/${escapeHtml(script)}${themeAssets.buildId ? `?v=${encodeURIComponent(themeAssets.buildId)}` : ''}"></script>`
         )
         .join('\n')
     : '';
@@ -771,7 +858,7 @@ export function wrapDocument(
   // Open Graph defaults das settings
   const ogTitle = seo?.ogTitle ?? pageTitle ?? settings.siteTitle;
   const ogDescription = seo?.ogDescription ?? seo?.pageDescription ?? settings.siteDescription;
-  const ogImage = seo?.ogImage ?? settings['siteUrl'] ? `${settings['siteUrl']}/logo.png` : '';
+  const ogImage = seo?.ogImage ?? (settings['siteUrl'] ? `${settings['siteUrl']}/logo.png` : '');
   const ogType = seo?.ogType ?? 'website';
   const ogSiteName = seo?.ogSiteName ?? settings.siteTitle;
   const ogLocale = seo?.ogLocale ?? settings.language ?? 'pt-BR';
@@ -827,7 +914,7 @@ export function wrapDocument(
 ${canonicalTag}
 ${ogTags.join('\n')}
 ${twitterTags.join('\n')}
-${seoMetaTags}${stylesheet}${extraStyles ? `${extraStyles}\n` : ''}${themeHead}${headInjections}${assetHead}</head>  <body>
+${seoMetaTags}${legacyStyles}${compiledStyles}${themeHead}${headInjections}${assetHead}</head>  <body>
 ${body}${assetFooter}${hydrationScript ? `\n${hydrationScript}` : ''}${themeScripts ? `\n${themeScripts}` : ''}
 </body>
 </html>`;
@@ -841,6 +928,35 @@ function plainColumns(row: Record<string, unknown>): Record<string, unknown> {
     out[key] = value;
   }
   return out;
+}
+
+const PRIVATE_CONTENT_COLUMNS = new Set([
+  'tenant_id',
+  'password_hash',
+  'password_reset_token',
+  'reset_token',
+  'reset_token_expires_at',
+  'session_token',
+  'api_key',
+  'secret',
+]);
+
+const PRIVATE_CONTENT_KEY_RE = /(?:password|token|secret|api[_-]?key|private[_-]?key|credential|authorization|cookie|hash)/i;
+
+/** Recursively removes credential-like keys before data reaches a theme. */
+function sanitizePublicValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sanitizePublicValue);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .filter(([key]) => !PRIVATE_CONTENT_COLUMNS.has(key) && !PRIVATE_CONTENT_KEY_RE.test(key))
+      .map(([key, child]) => [key, sanitizePublicValue(child)])
+  );
+}
+
+/** Removes storage-only and credential fields from the public theme contract. */
+function publicContentRecord(row: Record<string, unknown>): Record<string, unknown> {
+  return sanitizePublicValue(row) as Record<string, unknown>;
 }
 
 /** Tema sem template para a rota: HTML mínimo com os dados reais (nunca stub). */

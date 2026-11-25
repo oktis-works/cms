@@ -172,6 +172,10 @@ export class ThemeRenderer {
     this.componentCache.set(component.name, component);
   }
 
+  clearComponents(): void {
+    this.componentCache.clear();
+  }
+
   private parse(template: string, start: number): TemplateNode[] {
     const nodes: TemplateNode[] = [];
     let i = start;
@@ -259,6 +263,8 @@ export class ThemeRenderer {
       case 'text':
         return node.value;
       case 'variable': {
+        const component = node.name.match(/^(?:>\s*|component\s+)([A-Za-z][\w-]*)$/i);
+        if (component) return this.renderRegisteredComponent(component[1]!, context);
         const value = String(this.resolveExpression(node.name, context) ?? '');
         return node.raw ? this.sanitizeRawHtml(value) : this.escapeHtml(value);
       }
@@ -279,6 +285,23 @@ export class ThemeRenderer {
         return node.elseBody?.map(n => this.renderNode(n, context)).join('') ?? '';
       }
     }
+  }
+
+  private renderRegisteredComponent(name: string, context: Record<string, unknown>): string {
+    const component = this.componentCache.get(name);
+    if (!component?.file) return '';
+    try {
+      const template = this.readRegisteredComponent(component.file);
+      return this.execute(this.compile(template), context);
+    } catch (error) {
+      throw new Error(`Component "${name}" could not be rendered: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
+    }
+  }
+
+  private readRegisteredComponent(file: string): string {
+    const target = isAbsolute(file) ? resolve(file) : null;
+    if (!target) throw new Error(`Component path must be absolute: ${file}`);
+    return readFileSync(target, 'utf-8');
   }
 
   private resolveVariable(name: string, context: Record<string, unknown>): unknown {
@@ -342,10 +365,10 @@ export class ThemeRenderer {
 
   private sanitizeRawHtml(html: string): string {
     return html
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-      .replace(/<(?:iframe|object|embed|applet)\b[^>]*>[^<]*(?:<\/[^>]+>)?/gi, '')
+      .replace(/<\s*(?:script|iframe|object|embed|applet|style|link|meta)\b[^>]*>[\s\S]*?<\s*\/\s*(?:script|iframe|object|embed|applet|style|link|meta)\s*>/gi, '')
+      .replace(/<\s*(?:script|iframe|object|embed|applet|style|link|meta)\b[^>]*\/?>/gi, '')
       .replace(/on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-      .replace(/(?:javascript|vbscript|data):/gi, '');
+      .replace(/(?:java\s*script|vb\s*script|data)\s*:/gi, '');
   }
 
   private async loadTemplate(file: string): Promise<string> {

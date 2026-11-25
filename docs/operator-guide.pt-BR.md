@@ -149,8 +149,8 @@ npx okcms plugin:search -q galeria          # npm, keyword okcms-plugin
 
 # temas
 npx okcms theme:create -n meu-tema --style scss
-npx okcms theme:install -n ./caminho/para/meu-tema
-npx okcms theme:manage -n meu-tema --set-active
+Copie o diretório completo do tema para `themes/<nome-do-tema>` e sincronize-o pelo Admin ou pelo fluxo de deploy.
+npx okcms theme:manage -n meu-tema --set-active --tenant <tenant-id>
 npx okcms theme:build -n meu-tema           # scss/tailwind → dist/theme.css
 npx okcms theme:list
 ```
@@ -276,7 +276,7 @@ deploy, mas backup fora do servidor é o único que aguenta perda da máquina.
 | `okcms db:migrate` · `db:rollback` · `db:status` | Migrations de `migrations/` (`--tenant` opcional) |
 | `okcms db:backup` · `db:restore -f <arquivo>` | Backup/restore do Postgres |
 | `okcms plugin:create` · `plugin:install` · `plugin:list` · `plugin:search` · `plugin:manage` | Ciclo de vida de plugins |
-| `okcms theme:create` · `theme:install` · `theme:list` · `theme:search` · `theme:manage` | Ciclo de vida de temas (`--set-active`) |
+| `okcms theme:create` · `theme:list` · `theme:search` · `theme:manage` | Ciclo de vida de temas (`--set-active --tenant <id>`) |
 | `okcms theme:build -n <nome>` | Compila SCSS/Tailwind → `dist/theme.css` isolado |
 | `okcms user:create` | Cria usuário e atribui papel no tenant |
 | `okcms seed` | Roles + settings iniciais (idempotente) |

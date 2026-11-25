@@ -32,7 +32,7 @@ describe('DEFAULT_THEME_FILES (tema default embutido no init)', () => {
         expect(Object.keys(DEFAULT_THEME_FILES).sort()).toEqual(['404.astro', 'archive.astro', 'dist/theme.css', 'home.astro', 'index.astro', 'theme.json', 'page.astro', 'single.astro'].sort());
         expect(Object.keys(DEFAULT_THEME_BINARY_FILES)).toEqual(['screenshot.png']);
     });
-    it('manifest declara compatibility.okcms (BUSI-022 — theme:install exige)', () => {
+    it('manifest declares compatibility.okcms for runtime loading', () => {
         expect(manifest['compatibility']['okcms']).toMatch(/^\^\d+\.\d+\.\d+$/);
     });
     it('manifest declara screenshots para o preview do admin e o PNG decodifica válido', () => {

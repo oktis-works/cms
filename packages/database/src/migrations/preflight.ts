@@ -69,7 +69,10 @@ export async function preflightMigration(
 
   // Match UPDATE <table> and DELETE FROM <table> but not ON CONFLICT ... DO UPDATE SET
   const affectedTables = [...source.matchAll(/\b(?:UPDATE|DELETE\s+FROM)\s+([a-z_][a-z0-9_]*)/gi)]
-    .filter((match) => match[1]?.toLowerCase() !== 'set')
+    // `UPDATE SET` (upsert), `UPDATE ON` (trigger syntax), and similar SQL
+    // keywords are not table names. Keep the scan conservative because every
+    // match becomes a live COUNT query during migration preflight.
+    .filter((match) => !['set', 'on'].includes(match[1]?.toLowerCase() ?? ''))
     .map((match) => match[1]!);
   const uniqueTables = [...new Set(affectedTables)];
   for (const table of uniqueTables) {

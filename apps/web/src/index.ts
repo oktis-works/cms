@@ -6,12 +6,12 @@ import { Hono } from 'hono';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { serve } from '@hono/node-server';
-import { bootstrap, ensureTenantPluginsLoaded, getPluginBlocks, getPluginPatterns } from '@oktis-works/core';
+import { bootstrap, ensureTenantPluginsLoaded, getPluginBlocks, getPluginPatterns, verifyThemePreviewToken } from '@oktis-works/core';
 import { resolveExtensionDirectory } from '@oktis-works/core';
 import { runWithTenantContext } from '@oktis-works/core';
 import { getPluginAssets } from '@oktis-works/core';
 import { webAuthMiddleware } from '@oktis-works/core';
-import { CMS_VERSION, normalizeLogicalValues } from '@oktis-works/validation';
+import { CMS_VERSION, checkExtensionCompatibility, normalizeLogicalValues, validateThemeManifestRender } from '@oktis-works/validation';
 import { getConnection, createConnection, runWithTenantTransaction } from '@oktis-works/database';
 import { loadConfig } from '@oktis-works/config';
 import { getHookRegistry } from '@oktis-works/plugin-runtime';
@@ -34,7 +34,7 @@ import { generateFeeds } from './rss.js';
 import { createDatabaseThemeDataProvider, loadThemeRenderData } from './theme-data.js';
 import { resolveTenantFromHost } from './tenant-resolver.js';
 import { runWithThemeDataProvider } from '@oktis-works/theme-sdk';
-import { validateManifestV2 } from '@oktis-works/plugin-runtime';
+import { readThemeBuild, validateStyleManifest } from '@oktis-works/theme-runtime';
 
 type Variables = {
   tenant: Record<string, unknown>;
@@ -46,6 +46,14 @@ type Variables = {
 
 type ContentRow = Record<string, unknown>;
 const SAFE_THEME_NAME_RE = /^[A-Za-z0-9_-]+$/;
+
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)).map(([key, entry]) => `${JSON.stringify(key)}:${stableJson(entry)}`).join(',')}}`;
+  }
+  return JSON.stringify(value) ?? 'null';
+}
 
 function bodyOf(row: ContentRow): Record<string, unknown> {
   return normalizeLogicalValues({ body: row['body'], data: row['data'], native: row });
@@ -85,73 +93,95 @@ async function buildParentChain(
 
 /**
  * Tema ativo efetivo: a fonte única é o banco (status ACTIVE, gravado pelo
- * admin ou pela CLI). Sem linha ativa — ou com o tema sem arquivos no disco —
- * cai no ACTIVE_THEME do ambiente. Lido por request: ativação no admin não
- * exige restart do web. A row completa volta junto (manifest + config do
- * customizador) para expor `settings.theme` nos templates.
+ * admin ou pela CLI). Não existe fallback global ou por ambiente: uma falha
+ * de bootstrap/configuração deve ser explícita. Lido por request: ativação no
+ * admin não exige restart do web. A row completa volta junto (manifest +
+ * config do customizador) para expor `settings.theme` nos templates.
  */
 async function resolveActiveTheme(
   themesRoot: string,
-  envFallback: string,
-  previewTheme?: string
-): Promise<{ name: string; row: Record<string, unknown> | null; parentManifests: Array<Record<string, unknown>> }> {
-  try {
-    const rows = previewTheme && SAFE_THEME_NAME_RE.test(previewTheme)
-      ? await getConnection().unsafe('SELECT * FROM themes WHERE name = $1 LIMIT 1', [previewTheme])
-      : await getConnection().unsafe(
-        `SELECT * FROM themes WHERE status = 'ACTIVE'
-         ORDER BY (tenant_id IS NULL), activated_at DESC NULLS LAST, created_at DESC
-         LIMIT 1`
-      );
-    const row = (rows as unknown as Array<Record<string, unknown>>)[0];
-    const name = row?.['name'];
-    if (typeof name === 'string' && SAFE_THEME_NAME_RE.test(name) && existsSync(join(themesRoot, name))) {
-      const parentManifests: Array<Record<string, unknown>> = [];
-      const manifest = row?.['manifest'] as Record<string, unknown> | null;
-      let parentName = manifest?.['parent'] as string | undefined;
-      const visited = new Set<string>([name]);
-      while (parentName && SAFE_THEME_NAME_RE.test(parentName) && !visited.has(parentName)) {
-        visited.add(parentName);
-        const parentRows = await getConnection().unsafe(
-          `SELECT manifest FROM themes
-           WHERE name = $1
-             AND (tenant_id = current_setting('app.current_tenant_id', true)::uuid OR tenant_id IS NULL)
-           ORDER BY tenant_id NULLS LAST
-           LIMIT 1`,
-          [parentName]
-        );
-        if (parentRows[0]) {
-          const parentManifest = parentRows[0]['manifest'] as Record<string, unknown> | null;
-          if (parentManifest) {
-            // Validate parent manifest structure
-            const manifestIssues = validateManifestV2(parentManifest);
-            if (manifestIssues.length > 0) {
-              throw new Error(`Invalid parent theme manifest for "${parentName}": ${manifestIssues.join('; ')}`);
-            }
-            parentManifests.push(parentManifest);
-            parentName = parentManifest['parent'] as string | undefined;
-          } else {
-            parentName = undefined;
-          }
-        } else {
-          throw new Error(`Missing parent theme "${parentName}"`);
-        }
-      }
-      if (parentName && !SAFE_THEME_NAME_RE.test(parentName)) throw new Error(`Unsafe parent theme name "${parentName}"`);
-      if (parentName && visited.has(parentName)) throw new Error(`Theme inheritance cycle detected at "${parentName}"`);
-      return { name, row: row ?? null, parentManifests };
-    }
-  } catch (error) {
-    if (error instanceof Error && /theme|parent/i.test(error.message)) throw error;
-    // Log the error for debugging
-    console.error('[web] Failed to resolve active theme:', error);
-    // If previewTheme was explicitly requested, return 500 instead of silently falling back
-    if (previewTheme) {
-      throw new Error(`Failed to resolve preview theme "${previewTheme}": ${error instanceof Error ? error.message : String(error)}`);
-    }
-    // tabela ausente/falha de leitura nunca derruba o render — usa o env
+  tenantId: string,
+  previewToken?: string,
+  currentUserId?: string
+): Promise<{ name: string; row: Record<string, unknown> | null; parentManifests: Array<Record<string, unknown>>; parentConfigs: Array<Record<string, unknown> | null> }> {
+  const preview = previewToken ? verifyThemePreviewToken(previewToken) : null;
+  if (previewToken && !preview) throw new Error('Invalid or expired theme preview token');
+  if (preview && preview.tenantId !== tenantId) throw new Error('Theme preview token does not belong to the current tenant');
+  if (preview && (!currentUserId || preview.userId !== currentUserId)) {
+    throw new Error('Theme preview token does not belong to the current user');
   }
-  return { name: envFallback, row: null, parentManifests: [] };
+
+  const rows = preview
+    ? await getConnection().unsafe(
+      'SELECT * FROM themes WHERE id = $1 AND tenant_id = $2 LIMIT 1',
+      [preview.themeId, tenantId]
+    )
+    : await getConnection().unsafe(
+      `SELECT * FROM themes
+       WHERE status = 'ACTIVE' AND tenant_id = $1
+       ORDER BY activated_at DESC NULLS LAST, created_at DESC
+       LIMIT 1`,
+      [tenantId]
+    );
+  const row = (rows as unknown as Array<Record<string, unknown>>)[0];
+  if (!row) throw new Error(`No valid active theme exists for tenant "${tenantId}"`);
+
+  const name = row['name'];
+  if (typeof name !== 'string' || !SAFE_THEME_NAME_RE.test(name) || !existsSync(join(themesRoot, name))) {
+    throw new Error(`Theme files are missing or unsafe for tenant "${tenantId}"`);
+  }
+  const manifest = row['manifest'] as Record<string, unknown> | null;
+  let filesystemManifest: Record<string, unknown>;
+  try {
+    filesystemManifest = JSON.parse(readFileSync(join(themesRoot, name, 'theme.json'), 'utf8')) as Record<string, unknown>;
+  } catch {
+    throw new Error(`Theme manifest is missing or invalid on disk for "${name}"`);
+  }
+  if (stableJson(manifest) !== stableJson(filesystemManifest)) {
+    throw new Error(`Theme manifest drift detected for "${name}"; synchronize the database with the filesystem`);
+  }
+  const manifestIssues = [
+    ...checkExtensionCompatibility('theme', manifest ?? {}, CMS_VERSION).map((issue) => issue.message),
+    ...validateThemeManifestRender(manifest ?? {}),
+    ...validateStyleManifest(filesystemManifest as never, join(themesRoot, name)),
+  ];
+  if (manifestIssues.length > 0) throw new Error(`Invalid theme manifest for "${name}": ${manifestIssues.join('; ')}`);
+
+  const parentManifests: Array<Record<string, unknown>> = [];
+  const parentConfigs: Array<Record<string, unknown> | null> = [];
+  let parentName = manifest?.['parent'] as string | undefined;
+  const visited = new Set<string>([name]);
+  while (parentName) {
+    if (!SAFE_THEME_NAME_RE.test(parentName)) throw new Error(`Unsafe parent theme name "${parentName}"`);
+    if (visited.has(parentName)) throw new Error(`Theme inheritance cycle detected at "${parentName}"`);
+    visited.add(parentName);
+    const parentRows = await getConnection().unsafe(
+      `SELECT manifest, config FROM themes WHERE name = $1 AND tenant_id = $2 LIMIT 1`,
+      [parentName, tenantId]
+    );
+    const parentManifest = parentRows[0]?.['manifest'] as Record<string, unknown> | null;
+    if (!parentManifest) throw new Error(`Missing parent theme "${parentName}" for tenant "${tenantId}"`);
+    const parentDir = join(themesRoot, parentName);
+    let parentFilesystemManifest: Record<string, unknown>;
+    try {
+      parentFilesystemManifest = JSON.parse(readFileSync(join(parentDir, 'theme.json'), 'utf8')) as Record<string, unknown>;
+    } catch {
+      throw new Error(`Parent theme files are missing or invalid for "${parentName}"`);
+    }
+    if (stableJson(parentManifest) !== stableJson(parentFilesystemManifest)) {
+      throw new Error(`Theme manifest drift detected for parent "${parentName}"; synchronize the database with the filesystem`);
+    }
+    const parentIssues = [
+      ...checkExtensionCompatibility('theme', parentManifest, CMS_VERSION).map((issue) => issue.message),
+      ...validateThemeManifestRender(parentManifest),
+      ...validateStyleManifest(parentFilesystemManifest as never, parentDir),
+    ];
+    if (parentIssues.length > 0) throw new Error(`Invalid parent theme manifest for "${parentName}": ${parentIssues.join('; ')}`);
+    parentManifests.push(parentManifest);
+    parentConfigs.push((parentRows[0]?.['config'] as Record<string, unknown> | null) ?? null);
+    parentName = parentManifest['parent'] as string | undefined;
+  }
+  return { name, row, parentManifests, parentConfigs };
 }
 
 async function main() {
@@ -175,8 +205,6 @@ async function main() {
   // API/CLI (env → okcms.config.json → ./themes). Antes o web lia só
   // THEMES_DIR com outro fallback — apps com cwd diferente divergiam.
   const themesRoot = resolveExtensionDirectory('theme');
-  const envActiveTheme = process.env['ACTIVE_THEME']?.trim() || 'default';
-
   const app = new Hono<{ Variables: Variables }>();
 
   // Content Security Policy
@@ -224,18 +252,31 @@ async function main() {
     try {
       const sql = getConnection();
       await sql`SELECT 1`;
+      const tenant = c.get('tenant') as { id?: string } | undefined;
+      let theme: { status: 'ok' | 'error'; activeTheme?: string; error?: string } = { status: 'ok' };
+      if (tenant?.id) {
+        try {
+          const active = await resolveActiveTheme(themesRoot, String(tenant.id));
+          theme = { status: 'ok', activeTheme: active.name };
+        } catch (error) {
+          theme = { status: 'error', error: error instanceof Error ? error.message : String(error) };
+        }
+      }
+      const healthy = theme.status === 'ok';
       return c.json({
-        status: 'healthy',
+        status: healthy ? 'healthy' : 'degraded',
         service: 'web',
         timestamp: new Date().toISOString(),
         database: 'connected',
-      });
+        theme,
+      }, healthy ? 200 : 503);
     } catch {
       return c.json({
         status: 'unhealthy',
         service: 'web',
         timestamp: new Date().toISOString(),
         database: 'disconnected',
+        theme: { status: 'unknown' },
       }, 503);
     }
   });
@@ -537,14 +578,41 @@ async function main() {
     const [themeName, ...rest] = wildcard.split('/');
     const assetPath = rest.join('/');
 
+    // Server bundles and build metadata are never public assets. Client
+    // bundles and styles are served only when their path is explicitly
+    // referenced by a validated build manifest.
+    if (
+      assetPath === 'dist/theme-build.json' ||
+      /^dist\/(?:server|\.versions\/[^/]+\/server)(?:\/|$)/.test(assetPath)
+    ) {
+      return c.notFound();
+    }
+
     const target = resolveThemeAssetPath(themesRoot, themeName ?? '', assetPath);
     if (!target || !existsSync(target) || !statSync(target).isFile()) {
       return c.notFound();
     }
 
+    const requestedVersion = c.req.query('v');
+    const build = readThemeBuild(join(themesRoot, themeName ?? ''));
+    const declaredBuildAsset = Boolean(
+      build &&
+      [build.entry, ...build.styles, ...Object.values(build.client)].includes(`dist/${assetPath}`)
+    );
+    if (assetPath.startsWith('dist/.versions/') && !declaredBuildAsset) {
+      return c.notFound();
+    }
+    const versionedAsset = Boolean(
+      requestedVersion &&
+      build?.buildId === requestedVersion &&
+      declaredBuildAsset
+    );
+
     return c.body(new Uint8Array(readFileSync(target)), 200, {
       'Content-Type': contentTypeForAsset(target),
-      'Cache-Control': 'public, max-age=3600',
+      'Cache-Control': versionedAsset
+        ? 'public, max-age=31536000, immutable'
+        : 'no-cache',
     });
   });
 
@@ -553,10 +621,16 @@ async function main() {
     const path = c.req.path;
 
     try {
-      // Tema ativo por request (banco → env): ativação reflete sem restart.
-      const active = await resolveActiveTheme(themesRoot, envActiveTheme, c.req.query('preview_theme'));
+      // Theme active per request from the tenant-scoped database registry.
+      const active = await resolveActiveTheme(
+        themesRoot,
+        String(c.get('tenant')['id']),
+        c.req.query('preview_token'),
+        c.get('userId')
+      );
       const activeTheme = active.name;
       const parentManifests = active.parentManifests;
+      const parentConfigs = active.parentConfigs;
       const router = createRouter(themesRoot, activeTheme);
       const resolution = await router.resolve(path);
 
@@ -707,7 +781,8 @@ async function main() {
               c.req.query('preview_settings'),
               allowedKeys
             ),
-            parentManifests
+            parentManifests,
+            parentConfigs
           ),
         };
 
@@ -759,7 +834,16 @@ async function main() {
 
       return c.html(html);
     } catch (error) {
-      console.error('[web] Falha ao resolver rota:', error);
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[web] Theme request failed:', message);
+      const themeFailure = /theme|artifact|manifest|build|preview token|active theme/i.test(message);
+      if (themeFailure) {
+        return c.json({
+          error: 'Theme runtime unavailable',
+          code: 'THEME_RUNTIME_INVALID',
+          ...(process.env['NODE_ENV'] !== 'production' ? { detail: message } : {}),
+        }, 503);
+      }
       return c.json({ error: 'Internal server error' }, 500);
     }
   });

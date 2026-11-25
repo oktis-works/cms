@@ -101,6 +101,7 @@ export { pluginService, PluginService } from './plugin/service.js';
 export { syncEnabledPlugins, ensureTenantPluginsLoaded, invalidateTenantPlugins, invalidatePlatformPlugins, getPluginsRuntimeState, getRegisteredPluginRoutes, registerPluginRoutes, unregisterPluginRoutes, getPluginJobHandler, getPluginAdminExtensions, getPluginBlocks, getPluginPatterns, getPluginAssets, getPluginHealthChecks, type PluginRouteEntry, type PluginJobHandlerFn } from './plugin/load.js';
 export type { PluginsRuntimeState, PluginsScopeState } from './plugin/load.js';
 export { themeService, ThemeService, describeThemeBuild } from './theme/service.js';
+export { createThemePreviewToken, verifyThemePreviewToken } from './theme/preview.js';
 export type { ThemeBuildStatus } from './theme/service.js';
 export { resolveExtensionDirectory } from './extensions/project-directories.js';
 export { buildService, BuildService } from './build/service.js';

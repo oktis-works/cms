@@ -246,7 +246,7 @@ export function validateFieldClient(
     case 'number': case 'range': validateNumber(value, config, field.label, errors); break;
     case 'wysiwyg': validateTextLike(value, config, field.label, errors); break;
     case 'select': validateSelect(value, config, field.label, errors); break;
-    case 'checkbox': validateCheckbox(value, config, field.label, errors); break;
+    case 'checkbox': case 'toggle': validateCheckbox(value, config, field.label, errors); break;
     case 'radio': validateRadio(value, config, field.label, errors); break;
     case 'true_false': validateTrueFalse(value, field.label, errors); break;
     case 'image': validateImage(value, config, field.label, errors); break;

@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { describeThemeBuild, themeService } from '@oktis-works/core'
+import { createThemePreviewToken, describeThemeBuild, getCurrentTenantIdSync, themeService } from '@oktis-works/core'
 import { authMiddleware, requirePermission } from '../../middleware/auth.js'
 
 const themes = new Hono()
@@ -36,17 +36,39 @@ themes.post('/sync', requirePermission('create', 'theme'), async (c) => {
   }
 })
 
-themes.post('/install', requirePermission('create', 'theme'), async (c) => {
+themes.get('/health', requirePermission('read', 'theme'), async (c) => {
   try {
-    const body = await c.req.json()
-    const result = await themeService.install({
-      name: body.name,
-      version: body.version,
-      manifest: body.manifest,
-    })
-    return c.json(result, 201)
+    const rows = await themeService.list()
+    const themesWithBuild = withBuildStatus(rows)
+    const active = themesWithBuild.find((theme) => theme.status === 'ACTIVE')
+    const ready = Boolean(active && (active.build?.status === 'ok' || active.build?.status === 'not-applicable'))
+    return c.json({
+      ready,
+      status: ready ? 'healthy' : 'degraded',
+      activeTheme: active?.name ?? null,
+      themes: themesWithBuild.map((theme) => ({ name: theme.name, status: theme.status, build: theme.build })),
+    }, ready ? 200 : 503)
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to install theme'
+    const message = error instanceof Error ? error.message : 'Failed to inspect theme health'
+    return c.json({ ready: false, status: 'unhealthy', error: message }, 503)
+  }
+})
+
+themes.post('/:id/preview-token', requirePermission('customize', 'theme'), async (c) => {
+  try {
+    const id = c.req.param('id') as string
+    const theme = await themeService.getById(id)
+    if (!theme) return c.json({ error: 'Theme not found' }, 404)
+    const userId = c.get('userId') as string | undefined
+    if (!userId) return c.json({ error: 'Authenticated user is required for theme preview' }, 401)
+    const token = createThemePreviewToken({
+      tenantId: getCurrentTenantIdSync(),
+      themeId: theme.id,
+      userId,
+    })
+    return c.json({ token, expiresIn: 300 })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to create theme preview token'
     return c.json({ error: message }, 400)
   }
 })

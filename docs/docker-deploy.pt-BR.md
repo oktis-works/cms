@@ -170,7 +170,7 @@ Se o proxy não recarregar, a CLI cai para `docker restart okcms-proxy`
 produção até um rebuild:
 
 ```bash
-npx okcms plugin:install -n ./meu-plugin   # ou: theme:install
+npx okcms plugin:install -n ./meu-plugin; copie diretórios completos de temas para `themes/`
 npx okcms redeploy --dry-run               # só mostra o plano
 npx okcms redeploy
 ```

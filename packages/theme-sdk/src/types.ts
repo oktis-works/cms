@@ -117,7 +117,7 @@ export interface ThemeRenderOutput {
   scripts?: string[];
 }
 
-/** Contract implemented by `dist/server/entry.js` of compiled themes. */
+/** Contract implemented by the versioned server entry in a compiled theme artifact. */
 export interface ThemeServerModule {
   render(
     templateKey: string,

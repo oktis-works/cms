@@ -57,7 +57,7 @@ describe('OkCMSClient', () => {
 
   it('should have theme methods', () => {
     expect(typeof client.listThemes).toBe('function');
-    expect(typeof client.installTheme).toBe('function');
+    expect(typeof client.installTheme).toBe('undefined');
   });
 
   it('should have deployment methods', () => {

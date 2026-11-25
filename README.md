@@ -1,6 +1,6 @@
 > 📄 **English** · [Português](./README.pt-BR.md)
 
-# OkCMS v0.42.2
+# OkCMS v0.42.3
 
 Hybrid, modular, API-first, extensible CMS with Astro+SolidJS frontend, Node.js/TypeScript backend, PostgreSQL, Docker immutable deployments, plugin and theme extension systems, and multi-tenancy. Public themes can use the default string-template engine or compiled **React/Solid SSR** engines (`render.engine`), built on the host with `okcms theme:build` and watched by `okcms dev`.
 
@@ -191,7 +191,7 @@ okcms update --mode download     # packages only
 okcms update --mode deploy       # deployment: target from menu, --target or saved
 okcms update --mode deploy --target pm2 --yes # CI: no prompts, defaults
 
-okcms plugin:install -n ./meu-plugin   # or theme:install
+Copy a complete theme directory into `themes/<theme-name>/` and synchronize it with the database.
 okcms redeploy                  # stage + build + deploy (what to do after installing)
 okcms redeploy --dry-run        # only shows the plan
 ```
@@ -229,7 +229,7 @@ target.
 | `okcms plugin:list` · `plugin:search` | `-q, --query` | Lists installed / searches npm (`okcms-plugin`) |
 | `okcms plugin:manage` | `-n, --name` (required) · `-i` · `-e` · `-d` · `-u` | Info; enable/disable (local state); uninstall |
 | `okcms theme:create` | `-n, --name` (required) · `-d, --dir` · `-s, --style css\|scss\|tailwind` | Minimal theme scaffold |
-| `okcms theme:install` · `theme:list` · `theme:search` | `-q, --query` | Theme install/lookup |
+| `okcms theme:list` · `theme:search` | `-q, --query` | Theme lookup |
 | `okcms theme:manage` | `-n, --name` (required) · `-i` · `-e` · `-d` · `-u` · `-s, --set-active` | Info; enable/disable (local state); uninstall; activate |
 | `okcms theme:build` | `-n, --name` (required) · `-d, --themes-dir` | Compiles SCSS/Tailwind → isolated `dist/theme.css` |
 
@@ -314,7 +314,7 @@ Installing an extension **doesn't change what's running**: `plugins/` and
 compile SCSS/Tailwind). A plugin that touches the database must apply its own SQL.
 
 ```bash
-okcms plugin:install -n ./meu-plugin   # or: theme:install
+Copy the complete theme directory into `themes/<theme-name>/`; theme installation is filesystem-only.
 okcms redeploy
 ```
 

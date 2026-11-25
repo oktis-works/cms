@@ -84,15 +84,17 @@ export class ThemeLoader {
       if (!manifest.name || !manifest.version || !/^[A-Za-z0-9_-]+$/.test(manifest.name)) return null;
       if (manifest.type !== undefined && manifest.type !== 'theme') return null;
 
-      // validação de estilo exclusiva (avisa em erro, mas não bloqueia descoberta)
+      // Invalid style/render contracts block discovery. Loading an invalid
+      // theme would otherwise defer a deterministic deployment error until a
+      // public request.
       const errors = validateStyleManifest(manifest as ThemeManifest, themePath);
       if (errors.length) {
-        console.warn(`[ThemeLoader] ${manifest.name}: ${errors.join('; ')}`);
+        return null;
       }
 
       const renderErrors = validateThemeManifestRender(manifest);
       if (renderErrors.length) {
-        console.warn(`[ThemeLoader] ${manifest.name}: ${renderErrors.join('; ')}`);
+        return null;
       }
 
       return manifest as ThemeManifest;

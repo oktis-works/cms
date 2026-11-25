@@ -133,4 +133,20 @@ describe('compiled theme artifacts', () => {
     expect(output.html).toBe('<main data-key="home"><h1>Hello</h1></main>');
     expect(output.styles).toEqual([]);
   });
+
+  it('rejects a full document when automatic styles or hydration are enabled', async () => {
+    const build = writeBuild({ styles: ['dist/theme.css'] });
+    writeFileSync(
+      join(themeDir, 'dist', 'server', 'entry.js'),
+      'export const templateKeys = ["home"]; export function render() { return { html: "<!doctype html><html><body>full</body></html>" }; }'
+    );
+    await expect(renderCompiledTheme({
+      themeDir,
+      build,
+      templateKey: 'home',
+      data: pageData,
+      record: {},
+      context: { url: '/', params: {}, tenant: 't1', templateKey: 'home', buildId: build.buildId },
+    })).rejects.toThrow(/full document/i);
+  });
 });

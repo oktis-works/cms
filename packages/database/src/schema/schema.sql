@@ -350,11 +350,10 @@ CREATE INDEX IF NOT EXISTS idx_plugin_dependencies_plugin ON plugin_dependencies
 -- ============================================================
 -- Themes
 -- ============================================================
--- Temas são GLOBAIS no modelo atual: tenant_id fica NULL (reservado para
--- multi-tenant futuro) e a policy RLS permite tenant_id IS NULL.
+-- Themes are tenant-owned. There are no global theme rows.
 CREATE TABLE IF NOT EXISTS themes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+  tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   name VARCHAR(255) NOT NULL,
   version VARCHAR(50) NOT NULL,
   status VARCHAR(20) NOT NULL DEFAULT 'INSTALLED' CHECK (status IN ('ACTIVE', 'INACTIVE', 'INSTALLED')),
@@ -366,14 +365,10 @@ CREATE TABLE IF NOT EXISTS themes (
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_themes_tenant ON themes(tenant_id) WHERE tenant_id IS NOT NULL;
--- Nome único globalmente: a descoberta por diretório faz upsert por name.
-CREATE UNIQUE INDEX IF NOT EXISTS idx_themes_name_unique ON themes(name);
+CREATE INDEX IF NOT EXISTS idx_themes_tenant ON themes(tenant_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_themes_name_unique ON themes(tenant_id, name);
 CREATE INDEX IF NOT EXISTS idx_themes_status ON themes(status);
--- No máximo UM tema ativo por tenant (NULL = global).
-CREATE UNIQUE INDEX IF NOT EXISTS idx_themes_single_active
-  ON themes((COALESCE(tenant_id, '00000000-0000-0000-0000-000000000000'::uuid)))
-  WHERE status = 'ACTIVE';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_themes_single_active ON themes(tenant_id) WHERE status = 'ACTIVE';
 
 CREATE TABLE IF NOT EXISTS theme_config_versions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1175,7 +1170,9 @@ BEGIN
     SELECT 1 FROM pg_policies 
     WHERE policyname = 'tenant_isolation_themes' AND tablename = 'themes'
   ) THEN
-    CREATE POLICY tenant_isolation_themes ON themes USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid OR tenant_id IS NULL);
+    CREATE POLICY tenant_isolation_themes ON themes
+      USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid)
+      WITH CHECK (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
   END IF;
 END $$;
 
@@ -1192,14 +1189,12 @@ BEGIN
         theme_id IN (
           SELECT id FROM themes
           WHERE tenant_id = current_setting('app.current_tenant_id', true)::uuid
-             OR tenant_id IS NULL
         )
       )
       WITH CHECK (
         theme_id IN (
           SELECT id FROM themes
           WHERE tenant_id = current_setting('app.current_tenant_id', true)::uuid
-             OR tenant_id IS NULL
         )
       );
   END IF;

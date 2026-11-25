@@ -32,6 +32,17 @@ describe('ThemeRenderer', () => {
     expect(renderer.renderString(template, {}, { title: 'Canonical', body: { showHero: true } })).toBe('<h1>Canonical</h1>hero');
     expect(renderer.renderString('{{field "body.secret"}}', {}, { body: { secret: 'hidden' } })).toBe('');
   });
+
+  it('renders manifest-registered components and allows child overrides', () => {
+    const renderer = new ThemeRenderer();
+    renderer.registerComponent({ name: 'Header', file: '/tmp/header.astro', type: 'component' });
+    renderer.registerComponent({ name: 'Header', file: '/tmp/header-child.astro', type: 'component' });
+    const originalRead = (renderer as any).readRegisteredComponent;
+    (renderer as any).readRegisteredComponent = (file: string) =>
+      file.endsWith('header-child.astro') ? '<header>{{site.title}}</header>' : '<header>parent</header>';
+    expect(renderer.renderString('{{> Header}}', { site: { title: 'Child' } })).toBe('<header>Child</header>');
+    (renderer as any).readRegisteredComponent = originalRead;
+  });
 });
 
 describe('ThemeRenderer — cache de templates', () => {
