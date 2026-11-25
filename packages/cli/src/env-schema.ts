@@ -506,16 +506,6 @@ export const ENV_FIELDS: EnvField[] = [
     default: '3001',
   },
 
-  // -- Tema -----------------------------------------------------------------
-  {
-    key: 'ACTIVE_THEME',
-    section: 'theme',
-    label: 'ACTIVE_THEME',
-    description: 'Folder name in themes/ (empty = default theme)',
-    type: 'string',
-    example: 'default',
-  },
-
   // -- Deploy ---------------------------------------------------------------
   {
     key: 'OKCMS_VERSION',

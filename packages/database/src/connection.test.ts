@@ -22,4 +22,10 @@ describe('provider SQL adapter', () => {
     const sql = translateProviderSql('ALTER TABLE content ENABLE ROW LEVEL SECURITY; DO $$ BEGIN NULL; END $$;', 'mariadb');
     expect(sql).not.toMatch(/ROW LEVEL SECURITY|DO \$\$/i);
   });
+
+  it('translates PostgreSQL ANY array predicates to portable IN parameters', () => {
+    const sql = translateProviderSql('SELECT key FROM settings WHERE "group" = ANY($1::text[])', 'mysql');
+    expect(sql).toContain('`group` IN ($1)');
+    expect(translateProviderSql('SELECT id FROM themes WHERE id = ANY($1::uuid[])', 'mariadb')).toContain('id IN ($1)');
+  });
 });

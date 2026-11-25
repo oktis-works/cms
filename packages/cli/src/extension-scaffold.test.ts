@@ -68,12 +68,12 @@ describe('scaffoldTheme (runtime web format)', () => {
     expect(styles['output']).toBe('dist/theme.css');
   });
 
-  it('tailwind engine generates input.css + a config scanning the root .astro files', () => {
+  it('tailwind engine generates input.css + a config scanning supported theme source files', () => {
     const { dir } = scaffoldTheme('meu-tema', baseDir, 'tailwind');
 
     expect(existsSync(join(dir, 'src', 'input.css'))).toBe(true);
     const config = readFileSync(join(dir, 'tailwind.config.js'), 'utf-8');
-    expect(config).toContain('./**/*.astro');
+    expect(config).toContain('./**/*.{astro,html,js,jsx,ts,tsx}');
     expect(config).not.toContain('templates/**');
   });
 

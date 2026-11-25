@@ -63,7 +63,6 @@ export async function startProject(options: Record<string, string> = {}): Promis
   const includeWeb = defaultAll || options['web'] !== undefined || options['all'] !== undefined;
   const includeWorker = defaultAll || options['worker'] !== undefined || options['all'] !== undefined;
 
-  process.env['ACTIVE_THEME'] = config.activeTheme || process.env['ACTIVE_THEME'] || '';
   const mediaEnv: Record<string, string> = {};
   if (config.storage.driver === 'local') {
     mediaEnv['UPLOAD_DIR'] = process.env['UPLOAD_DIR'] || (isAbsolute(config.storage.localPath ?? '')

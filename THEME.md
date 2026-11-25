@@ -27,8 +27,9 @@ A theme declares **exactly one** render engine in `theme.json`:
   `archive`, `404`, `{type}-{slug}`), the same `ThemePageData` contract and
   the same `[data-theme]` CSS isolation.
 - React/Solid themes are built on the host: `okcms theme:build --name my-theme`
-  emits `dist/server/entry.js` + `dist/theme-build.json`. The container never
-  compiles theme code.
+  publishes a validated generation under `dist/.versions/<buildId>/` and
+  atomically updates `dist/theme-build.json`. The container never compiles
+  theme code.
 - **Development:** `okcms dev` starts a watcher for every React/Solid theme and
   rebuilds its artifact on each save (the web runtime picks up the new
   `buildId` on the next request, no restart). Run a single theme with
@@ -105,8 +106,11 @@ rejected.
 ### Templates
 
 Templates are `*.astro` files **at the theme root** — that's what the site
-runtime looks up (hierarchy `home` → `index` → `404`, with `_shared` →
-`default` fallback). Syntax with variables, raw HTML, and nested
+runtime looks up (hierarchy `home` → `index` → `404`, with declared parents,
+`_shared`, and the built-in `default` floor for missing legacy templates).
+This filesystem resolution happens only after the active tenant-owned database
+row has been resolved; it never selects an active theme by fallback. Syntax
+with variables, raw HTML, and nested
 loops/conditionals:
 
 ```html
@@ -144,16 +148,44 @@ loops/conditionals:
 | `scss` | `styles/main.scss` (+ `components.scss`) | `okcms theme:build -n my-theme` |
 | `tailwind` | `src/input.css` + `tailwind.config.js` | `okcms theme:build -n my-theme` |
 
-The public site only links `/themes/<theme>/dist/theme.css` — on the `css`
-engine the file is born in `dist/` (served with no build). On the others, the
-build compiles into `dist/theme.css` **with `[data-theme="my-theme"]`
-isolation** (styles never leak between themes; Tailwind already ships with
-`preflight: false`).
+The public site links `dist/theme.css` directly for the manual `css` engine.
+Compiled React/Solid styles are emitted under the validated build generation
+and linked with `?v=<buildId>` **with `[data-theme="my-theme"]` isolation**
+(styles never leak between themes; Tailwind already ships with `preflight:
+false`).
 
 > `dist/theme.css` is read **ready-made** by the container — nothing compiles
 > SCSS or Tailwind inside the image. The file exists on the host and only
 > reaches production when the image is rebuilt: `okcms theme:build` followed by
 > `okcms redeploy`.
+
+### Build diagnostics and caching
+
+Compiled React and Solid themes publish each server, client, and stylesheet
+under a content-derived generation and update `dist/theme-build.json` only
+after validation succeeds. The previous valid generation remains available if
+a rebuild fails. Asset URLs include `?v=<buildId>`; unversioned development
+assets are sent with `Cache-Control: no-cache`, while immutable caching is
+reserved for validated versioned assets.
+
+The Admin Themes screen shows the current artifact ID, expected source ID,
+build timestamp, engine, and the exact missing, stale, or invalid-artifact
+reason. `okcms dev` fails on an initial compiled-theme build error unless
+`OKCMS_THEME_DIAGNOSTIC_MODE=1` is explicitly set. A runtime request with an
+invalid artifact returns `THEME_RUNTIME_INVALID` and does not execute the
+invalid server bundle.
+
+Common recovery commands:
+
+```bash
+okcms theme:build --name my-theme
+okcms theme:manage --name my-theme --tenant <tenant-id> --set-active
+```
+
+If a theme is missing from Admin, copy its complete directory into the
+project's `themes/` directory and run the synchronization flow before
+activation. Theme files are project-managed; unregistering a tenant row does
+not delete those files.
 
 ## data-theme on HTML (automatic isolation)
 
@@ -192,22 +224,20 @@ okcms theme:create --name my-theme --style scss
 # 3. Compile the styles (scss/tailwind)
 okcms theme:build --name my-theme
 
-# 4. Activate it (writes activeTheme into okcms.config.json)
-okcms theme:manage --name my-theme --set-active
-#    (equivalent: ACTIVE_THEME=my-theme in .env)
+# 4. Activate it for an explicit tenant (database is the runtime source of truth)
+okcms theme:manage --name my-theme --set-active --tenant <tenant-id>
 #    The admin Themes screen activates too — the active theme is read from
 #    the database on every request, no site restart needed.
 
 # 5. Management
 okcms theme:list                               # installed + status
 okcms theme:manage -n my-theme --info          # theme.json information
-okcms theme:manage -n my-theme --disable|enable
-#    (local state .okcms/extensions.json; the active theme is the --set-active)
-okcms theme:manage -n my-theme --uninstall
+There is no local enable/disable state for themes.
+okcms theme:manage -n my-theme --uninstall --tenant <tenant-id>
 okcms theme:search -q blog                     # npm search (keyword okcms-theme)
 
-# If you created it OUTSIDE the project:
-okcms theme:install --name ../my-theme-source
+# If you created it outside the project:
+Copy the complete theme directory into `themes/my-theme/`, run `okcms theme:build --name my-theme` for React/Solid themes, and then synchronize it from the Admin or deployment workflow.
 
 # 6. After changing templates/styles: recompile and redo the deploy
 okcms theme:build --name my-theme   # (the redeploy compiles it anyway)

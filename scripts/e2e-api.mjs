@@ -81,7 +81,6 @@ async function main() {
     JWT_SECRET: 'e2e-secret',
     PORT: API_PORT,
     WEB_PORT,
-    ACTIVE_THEME: 'default',
     THEMES_DIR: new URL('../themes', import.meta.url).pathname,
     UPLOAD_DIR: 'uploads-e2e',
     // Redis configurável como o DATABASE_URL (CI/portas alternativas de dev)

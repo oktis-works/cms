@@ -40,11 +40,11 @@ export interface ContentLookup {
   getSetting(key: string): Promise<string | null>;
   listTypes(): Promise<Array<{ slug: string; hasArchive: boolean }>>;
   // NOVO: mapa de hubs (base → tipo) para o tenant atual
-  getHubPages(): Promise<Array<{ type: string; base: string; hubPageId: string }>>;
+  getHubPages?(): Promise<Array<{ type: string; base: string; hubPageId: string }>>;
   // NOVO: buscar pai direto (para walk-up validation)
-  findParent(parentId: string): Promise<{ id: string; slug: string; type: string } | null>;
+  findParent?(parentId: string): Promise<{ id: string; slug: string; type: string } | null>;
   // NOVO: consultar store de redirects
-  findRedirect(sourcePath: string): Promise<{ targetPath: string; redirectType: number } | null>;
+  findRedirect?(sourcePath: string): Promise<{ targetPath: string; redirectType: number } | null>;
 }
 
 /** Contrato mínimo do barramento de eventos (@oktis-works/core). */
@@ -119,7 +119,7 @@ export class RuntimeRouter {
     const map = new Map<string, HubInfo>();
 
     // 1) Hub pages dinâmicas (metadata.hub_type nas páginas publicadas)
-    const hubPages = await this.lookup.getHubPages();
+    const hubPages = this.lookup.getHubPages ? await this.lookup.getHubPages() : [];
     for (const hp of hubPages) {
       if (hp.base && hp.type) {
         map.set(hp.base, { type: hp.type, base: hp.base, hubPageId: hp.hubPageId });
@@ -322,7 +322,7 @@ export class RuntimeRouter {
     if (!item || item.type !== hub.type) {
       // Tentar redirect store antes de desistir
       const fullPath = normalizedPathFromSegments([hub.base, ...pathSegments]);
-      const redirect = await this.lookup.findRedirect(fullPath);
+      const redirect = this.lookup.findRedirect ? await this.lookup.findRedirect(fullPath) : null;
       if (redirect) {
         return {
           matched: true,
@@ -338,7 +338,7 @@ export class RuntimeRouter {
     if (!valid) {
       // Tentar redirect store
       const fullPath = normalizedPathFromSegments([hub.base, ...pathSegments]);
-      const redirect = await this.lookup.findRedirect(fullPath);
+      const redirect = this.lookup.findRedirect ? await this.lookup.findRedirect(fullPath) : null;
       if (redirect) {
         return {
           matched: true,
@@ -431,7 +431,7 @@ export class RuntimeRouter {
     const content = await this.lookup.findByPath(slug);
     if (!content) {
       // Tentar redirect store
-      const redirect = await this.lookup.findRedirect(slug);
+      const redirect = this.lookup.findRedirect ? await this.lookup.findRedirect(slug) : null;
       if (redirect) {
         return {
           matched: true,
@@ -491,7 +491,8 @@ export class RuntimeRouter {
     const visited = new Set<string>();
 
     while (true) {
-      const parent = await this.lookup.findParent(currentId);
+      const findParent = this.lookup.findParent;
+      const parent: { id: string; slug: string; type: string } | null = findParent ? await findParent(currentId) : null;
       if (!parent || !parent.id) break;
       if (visited.has(parent.id)) break;
       visited.add(parent.id);
@@ -517,7 +518,8 @@ export class RuntimeRouter {
     const visited = new Set<string>();
 
     while (true) {
-      const parent = await this.lookup.findParent(currentId);
+      const findParent = this.lookup.findParent;
+      const parent: { id: string; slug: string; type: string } | null = findParent ? await findParent(currentId) : null;
       if (!parent || !parent.id) break;
       if (visited.has(parent.id)) break;
       visited.add(parent.id);

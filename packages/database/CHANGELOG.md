@@ -1,5 +1,14 @@
 # @oktis-works/database
 
+## 0.16.5
+
+### Patch Changes
+
+- Complete the tenant-scoped theme system correction, including secure preview, validated inheritance, atomic compiled artifacts, provider compatibility, and public rendering hardening.
+- Updated dependencies
+  - @oktis-works/config@0.7.4
+  - @oktis-works/types@0.11.2
+
 ## 0.16.4
 
 ### Patch Changes

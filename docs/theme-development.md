@@ -130,11 +130,11 @@ loops/conditionals:
 | `scss` | `styles/main.scss` (+ `components.scss`) | `okcms theme:build -n my-theme` |
 | `tailwind` | `src/input.css` + `tailwind.config.js` | `okcms theme:build -n my-theme` |
 
-The public site only links `/themes/<theme>/dist/theme.css` — on the `css`
-engine the file is born in `dist/` (served with no build). On the others, the
-build compiles into `dist/theme.css` **with `[data-theme="my-theme"]`
-isolation** (styles never leak between themes; Tailwind already ships with
-`preflight: false`).
+The public site links `dist/theme.css` directly for the manual `css` engine.
+Compiled React/Solid styles are emitted under the validated build generation
+and linked with `?v=<buildId>` **with `[data-theme="my-theme"]` isolation**
+(styles never leak between themes; Tailwind already ships with `preflight:
+false`).
 
 > `dist/theme.css` is read **ready-made** by the container — nothing compiles
 > SCSS or Tailwind inside the image. The file exists on the host and only
@@ -153,21 +153,20 @@ okcms theme:create --name my-theme --style scss
 okcms theme:build --name my-theme
 
 # 4. Activate it (writes activeTheme into okcms.config.json)
-okcms theme:manage --name my-theme --set-active
-#    (equivalent: ACTIVE_THEME=my-theme in .env)
+okcms theme:manage --name my-theme --set-active --tenant <tenant-id>
 #    The admin Themes screen activates too — the active theme is read from
 #    the database on every request, no site restart needed.
 
 # 5. Management
 okcms theme:list                               # installed + status
 okcms theme:manage -n my-theme --info          # theme.json information
-okcms theme:manage -n my-theme --disable|enable
+Theme activation is tenant-scoped and stored in the database; themes have no local enable/disable state.
 #    (local state .okcms/extensions.json; the active theme is the --set-active)
-okcms theme:manage -n my-theme --uninstall
+okcms theme:manage -n my-theme --uninstall --tenant <tenant-id>
 okcms theme:search -q blog                     # npm search (keyword okcms-theme)
 
 # If you created it OUTSIDE the project:
-okcms theme:install --name ../my-theme-source
+Copy the complete theme directory into `themes/my-theme/`, run `okcms theme:build --name my-theme` for React/Solid themes, and then synchronize it.
 
 # 6. After changing templates/styles: recompile and redo the deploy
 okcms theme:build --name my-theme   # (the redeploy compiles it anyway)

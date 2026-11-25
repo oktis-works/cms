@@ -114,21 +114,20 @@ okcms theme:create --name meu-tema --style scss
 okcms theme:build --name meu-tema
 
 # 4. Ative (grava activeTheme no okcms.config.json)
-okcms theme:manage --name meu-tema --set-active
-#    (equivalente: ACTIVE_THEME=meu-tema no .env)
+okcms theme:manage --name meu-tema --set-active --tenant <tenant-id>
 #    A tela Temas do admin também ativa — o tema ativo é lido do banco a
 #    cada request, sem restart do site.
 
 # 5. Gestão
 okcms theme:list                               # instalados + status
 okcms theme:manage -n meu-tema --info          # informações do theme.json
-okcms theme:manage -n meu-tema --disable|enable
+Ativação de temas é por tenant e fica registrada no banco; não existe estado local de enable/disable para temas.
 #    (estado local .okcms/extensions.json; o tema ativo é o --set-active)
-okcms theme:manage -n meu-tema --uninstall
+okcms theme:manage -n meu-tema --uninstall --tenant <tenant-id>
 okcms theme:search -q blog                     # busca no npm (keyword okcms-theme)
 
 # Se criou FORA do projeto:
-okcms theme:install --name ../meu-tema-fonte
+Copie o diretório completo para `themes/meu-tema/`, sincronize-o e execute `okcms theme:build --name meu-tema`.
 
 # 6. Depois de mudar templates/estilos: recompila e refaz o deploy
 okcms theme:build --name meu-tema   # (o redeploy já compila sozinho)

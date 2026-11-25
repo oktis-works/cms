@@ -31,4 +31,27 @@ describe('migration preflight', () => {
     expect(report.blocked).toBe(false);
     expect(report.requiresBackup).toBe(true);
   });
+
+  it('does not treat trigger UPDATE ON syntax as a table', async () => {
+    const unsafe = vi.fn(async (_query: string) => [{ affected: 0 }]);
+    const sql = { unsafe } as unknown as RepoSql;
+    const triggerMigration: MigrationFile = {
+      ...migration,
+      sql: '-- @okcms domain=core_schema provider=mysql\nCREATE TRIGGER themes_active_scope_update BEFORE UPDATE ON themes FOR EACH ROW SET NEW.active_scope = NULL;',
+      metadata: {
+        domain: 'core_schema',
+        provider: 'mysql',
+        reversible: true,
+        forwardOnly: false,
+        destructive: true,
+        requiresBackup: true,
+        dependencies: [],
+        conflictPolicy: 'report',
+      },
+    };
+
+    await preflightMigration(triggerMigration, sql);
+
+    expect(unsafe.mock.calls.map(([query]) => query)).not.toContain('SELECT COUNT(*) AS affected FROM on');
+  });
 });

@@ -300,7 +300,7 @@ os 6 passos acima na mão. Prefira o comando da CLI.
 | \`okcms plugin:install -n <caminho>\` | Instala plugin de um caminho local + registra |
 | \`okcms plugin:list\` · \`plugin:search\` · \`plugin:manage\` | Lista, busca (npm) e gerencia plugins (info · habilitar/desabilitar no estado local) |
 | \`okcms theme:create -n <nome> --style css\\|scss\\|tailwind\` | Scaffold de tema — guia em [THEME.md](./THEME.md) |
-| \`okcms theme:install\` · \`theme:list\` · \`theme:search\` · \`theme:manage\` | Gestão de temas (\`--set-active\` define o ativo) |
+| \`okcms theme:list\` · \`theme:search\` · \`theme:manage\` | Gestão de temas (\`--set-active --tenant <id>\` define o ativo) |
 | \`okcms theme:build -n <nome>\` | Compila SCSS/Tailwind → \`dist/theme.css\` isolado |
 | \`okcms update\` | Assistente de atualização: y/n por etapa — pacotes → migrations (sincroniza \`./migrations\`) → healthcheck → deploy |
 | \`okcms update -i\` | Alias legado; a atualização completa já instala os pacotes |
@@ -347,7 +347,7 @@ Flags de deploy: \`--no-cache\` (rebuild limpo) · \`--remove-orphans\`
 
 Instalar extensão não muda o que está no ar: \`plugins/\` e \`themes/\` entram
 na imagem no build, e \`themes/<n>/dist/theme.css\` é compilado **no host**.
-Depois de \`plugin:install\` / \`theme:install\`, rode:
+Depois de copiar um tema completo para \`themes/\`, sincronize-o e rode:
 
 \`\`\`bash
 okcms redeploy
@@ -607,7 +607,7 @@ the 6 steps above to do by hand. Prefer the CLI command.
 | \`okcms plugin:install -n <path>\` | Installs a plugin from a local path + registers it |
 | \`okcms plugin:list\` · \`plugin:search\` · \`plugin:manage\` | Lists, searches (npm) and manages plugins (info · enable/disable in local state) |
 | \`okcms theme:create -n <name> --style css\\|scss\\|tailwind\` | Theme scaffold — guide in [THEME.md](./THEME.md) |
-| \`okcms theme:install\` · \`theme:list\` · \`theme:search\` · \`theme:manage\` | Theme management (\`--set-active\` sets the active one) |
+| \`okcms theme:list\` · \`theme:search\` · \`theme:manage\` | Theme management (\`--set-active --tenant <id>\` sets the active one) |
 | \`okcms theme:build -n <name>\` | Compiles SCSS/Tailwind → isolated \`dist/theme.css\` |
 | \`okcms deploy\` | First deploy — target menu: blue/green, simple or pm2 (\`--target\`, \`--yes\`) |
 | \`okcms update\` | Update wizard: y/n per step — packages → migrations (syncs \`./migrations\`) → healthcheck → deploy |
@@ -654,7 +654,7 @@ Deploy flags: \`--no-cache\` (clean rebuild) · \`--remove-orphans\`
 
 Installing an extension does not change what is running: \`plugins/\` and \`themes/\`
 go into the image at build time, and \`themes/<n>/dist/theme.css\` is compiled
-**on the host**. After \`plugin:install\` / \`theme:install\`, run:
+**on the host**. After copying a complete theme into \`themes/\`, run:
 
 \`\`\`bash
 okcms redeploy
@@ -957,21 +957,20 @@ okcms theme:create --name meu-tema --style scss
 okcms theme:build --name meu-tema
 
 # 4. Ative (grava activeTheme no okcms.config.json)
-okcms theme:manage --name meu-tema --set-active
-#    (equivalente: ACTIVE_THEME=meu-tema no .env)
+okcms theme:manage --name meu-tema --set-active --tenant <tenant-id>
 #    A tela Temas do admin também ativa — o tema ativo é lido do banco a
 #    cada request, sem restart do site.
 
 # 5. Gestão
 okcms theme:list                               # instalados + status
 okcms theme:manage -n meu-tema --info          # informações do theme.json
-okcms theme:manage -n meu-tema --disable|enable
+Theme activation is tenant-scoped and stored in the database; themes have no local enable/disable state.
 #    (estado local .okcms/extensions.json; o tema ativo é o --set-active)
-okcms theme:manage -n meu-tema --uninstall
+okcms theme:manage -n meu-tema --uninstall --tenant <tenant-id>
 okcms theme:search -q blog                     # busca no npm (keyword okcms-theme)
 
 # Se criou FORA do projeto:
-okcms theme:install --name ../meu-tema-fonte
+Copy the complete theme directory into \`themes/meu-tema/\`, synchronize it, and run \`okcms theme:build --name meu-tema\`.
 
 # 6. Depois de mudar templates/estilos: recompila e refaz o deploy
 okcms theme:build --name meu-tema   # (o redeploy já compila sozinho)
@@ -1271,21 +1270,20 @@ okcms theme:create --name my-theme --style scss
 okcms theme:build --name my-theme
 
 # 4. Activate it (writes activeTheme into okcms.config.json)
-okcms theme:manage --name my-theme --set-active
-#    (equivalent: ACTIVE_THEME=my-theme in .env)
+okcms theme:manage --name my-theme --set-active --tenant <tenant-id>
 #    The admin Themes screen activates too — the active theme is read from
 #    the database on every request, no site restart needed.
 
 # 5. Management
 okcms theme:list                               # installed + status
 okcms theme:manage -n my-theme --info          # theme.json information
-okcms theme:manage -n my-theme --disable|enable
+Theme activation is tenant-scoped and stored in the database; themes have no local enable/disable state.
 #    (local state .okcms/extensions.json; the active theme is the --set-active)
-okcms theme:manage -n my-theme --uninstall
+okcms theme:manage -n my-theme --uninstall --tenant <tenant-id>
 okcms theme:search -q blog                     # npm search (keyword okcms-theme)
 
 # If you created it OUTSIDE the project:
-okcms theme:install --name ../my-theme-source
+Copy the complete theme directory into \`themes/my-theme/\`, synchronize it, and run \`okcms theme:build --name my-theme\`.
 
 # 6. After changing templates/styles: recompile and redo the deploy
 okcms theme:build --name my-theme   # (the redeploy compiles it anyway)

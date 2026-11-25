@@ -1,4 +1,4 @@
-import { For, Show, createSignal, onMount } from 'solid-js';
+import { For, Show, createSignal, onCleanup, onMount } from 'solid-js';
 import { useTranslation } from '../../../i18n';
 import { apiClient, ThemeInfo } from '../../../lib/api';
 
@@ -12,6 +12,10 @@ export function ThemeManager() {
 
   onMount(async () => {
     await loadThemes();
+    const refresh = setInterval(() => {
+      if (!loading()) void refreshThemeStatus();
+    }, 10_000);
+    onCleanup(() => clearInterval(refresh));
   });
 
   async function loadThemes() {
@@ -33,6 +37,14 @@ export function ThemeManager() {
       setError(t('themes.loadError'));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function refreshThemeStatus() {
+    try {
+      setThemes(await apiClient.getThemes());
+    } catch {
+      // Keep the last known status when a background refresh is unavailable.
     }
   }
 
@@ -143,6 +155,15 @@ export function ThemeManager() {
                         <span class={`build-badge build-${theme.build!.status}`}>
                           build: {theme.build!.status}
                         </span>
+                        <Show when={theme.build!.buildId}>
+                          <small class="theme-build-id">current: {theme.build!.buildId}</small>
+                        </Show>
+                        <Show when={theme.build!.expectedBuildId}>
+                          <small class="theme-build-id">expected: {theme.build!.expectedBuildId}</small>
+                        </Show>
+                        <Show when={theme.build!.builtAt}>
+                          <small class="theme-build-id">built: {theme.build!.builtAt}</small>
+                        </Show>
                       </Show>
                     </p>
                     <Show when={theme.build?.problems.length}>
@@ -302,7 +323,9 @@ export function ThemeManager() {
           color: var(--color-success);
         }
         .build-missing,
-        .build-invalid {
+        .build-invalid,
+        .build-incompatible,
+        .build-stale {
           background: var(--color-error-soft);
           color: var(--color-error);
         }

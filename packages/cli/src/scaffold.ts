@@ -361,8 +361,6 @@ AUTH_CSRF_ENABLED=true
 AUTH_CSRF_HEADER=x-csrf-token
 AUTH_CSRF_COOKIE=csrf_token
 
-# Active theme
-ACTIVE_THEME=default
 `;
 
   await writeFile(join(root, '.env.example'), envExample, 'utf-8');

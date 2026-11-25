@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { getConnection } from '@oktis-works/database';
+import { getConnection, runInTransaction } from '@oktis-works/database';
 import type { Tenant } from '@oktis-works/types';
+import { runWithTenantContext } from './context.js';
 
 export class TenantService {
   async list(options: {
@@ -55,19 +56,27 @@ export class TenantService {
     subdomain?: string;
     settings?: Record<string, unknown>;
   }): Promise<Tenant> {
-    const sql = getConnection();
     const id = randomUUID();
     const status = 'ACTIVE';
     const settingsJson = input.settings ?? null;
 
-    const result = await sql.unsafe(
-      `INSERT INTO tenants (id, name, slug, domain, subdomain, status, settings)
-       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
-       RETURNING *`,
-      [id, input.name, input.slug, input.domain ?? null, input.subdomain ?? null, status, settingsJson]
-    );
+    return runInTransaction(async () => {
+      const sql = getConnection();
+      const result = await sql.unsafe(
+        `INSERT INTO tenants (id, name, slug, domain, subdomain, status, settings)
+         VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+         RETURNING *`,
+        [id, input.name, input.slug, input.domain ?? null, input.subdomain ?? null, status, settingsJson]
+      );
 
-    return result[0] as unknown as Tenant;
+      const { themeService } = await import('../theme/service.js');
+      const { seedActivateDefaultTheme } = await import('@oktis-works/database');
+      await runWithTenantContext({ tenantId: id }, async () => {
+        await themeService.syncFromDirectory(id);
+        await seedActivateDefaultTheme(id);
+      });
+      return result[0] as unknown as Tenant;
+    });
   }
 
   async update(

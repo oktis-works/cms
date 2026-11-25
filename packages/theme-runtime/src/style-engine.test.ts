@@ -30,6 +30,17 @@ describe('style-engine: BUSI-039 exclusive + BUSI-040 isolation', () => {
     expect(scoped).toContain('[data-theme="t"] .site');
   });
 
+  it('scopeCss handles strings, imports, layers, nesting, and comments', () => {
+    const scoped = scopeCss('@layer base { .card { content: "}"; color: red; } }', 't');
+    const nested = scopeCss('.card { & .title { color: red; } }', 't');
+    const preserved = scopeCss('/* { do not parse } */ @import url("theme.css");', 't');
+    expect(preserved).toContain('@import url("theme.css");');
+    expect(scoped).toContain('@layer base');
+    expect(scoped).toContain('[data-theme="t"] .card');
+    expect(scoped).toContain('content: "}"');
+    expect(nested).toContain('[data-theme="t"] .card');
+  });
+
   it('resolveStyleEngine rejeita isolation=false (BUSI-040)', () => {
     const dir = mkdtempSync(join(tmpdir(), 'theme-'));
     try {

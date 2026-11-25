@@ -1,6 +1,5 @@
 // @oktis-works/core - Theme Service Tests (ciclo de vida + descoberta)
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { CMS_VERSION } from '@oktis-works/validation';
 let queue;
 let lastQuery;
 const allQueries = [];
@@ -24,6 +23,9 @@ vi.mock('node:fs/promises', () => ({
 }));
 vi.mock('../extensions/project-directories.js', () => ({
     resolveExtensionDirectory: vi.fn(() => '/projeto/themes'),
+}));
+vi.mock('../tenant/context.js', () => ({
+    getCurrentTenantIdSync: vi.fn(() => 'tenant-1'),
 }));
 import { ThemeService } from './service.js';
 const themeRow = (overrides = {}) => ({
@@ -92,47 +94,6 @@ describe('ThemeService.syncFromDirectory', () => {
         const result = await new ThemeService().syncFromDirectory();
         expect(result).toHaveLength(1);
         expect(lastQuery.text).toContain('FROM themes');
-    });
-});
-describe('ThemeService.install', () => {
-    const validManifest = {
-        name: 'novo-tema',
-        version: '1.0.0',
-        type: 'theme',
-        // Símbolo, nunca literal: o teste cobre o CICLO DE VIDA do install, não a
-        // compatibilidade — o range precisa satisfazer qualquer CMS_VERSION futura.
-        compatibility: { okcms: `^${CMS_VERSION}` },
-    };
-    it('rejeita nome inseguro', async () => {
-        await expect(new ThemeService().install({ name: '../fora', version: '1.0.0', manifest: validManifest })).rejects.toThrow(/Invalid theme name/);
-        expect(allQueries).toHaveLength(0);
-    });
-    it('rejeita manifesto sem type/compatibility (contrato BUSI-022)', async () => {
-        await expect(new ThemeService().install({
-            name: 'novo-tema',
-            version: '1.0.0',
-            manifest: { name: 'novo-tema', version: '1.0.0' },
-        })).rejects.toThrow(/Invalid theme manifest/);
-    });
-    it('rejeita nome já instalado (unicidade)', async () => {
-        queue = [[themeRow({ name: 'novo-tema' })]];
-        await expect(new ThemeService().install({ name: 'novo-tema', version: '1.0.0', manifest: validManifest })).rejects.toThrow(/already installed/);
-    });
-    it('instala como INSTALLED com installed_at + updated_at', async () => {
-        queue = [
-            [], // getByName → vazio
-            [themeRow({ status: 'INSTALLED' })], // INSERT RETURNING
-        ];
-        const result = await new ThemeService().install({
-            name: 'novo-tema',
-            version: '1.0.0',
-            manifest: validManifest,
-        });
-        const insert = allQueries.find((q) => q.text.includes('INSERT INTO themes'));
-        expect(insert.text).toContain("'INSTALLED'");
-        expect(insert.text).toContain('installed_at');
-        expect(insert.text).toContain('updated_at');
-        expect(result.status).toBe('INSTALLED');
     });
 });
 describe('ThemeService.activate / deactivate', () => {

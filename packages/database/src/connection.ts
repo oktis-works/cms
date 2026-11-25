@@ -129,7 +129,13 @@ function mysqlError(driver: DatabaseDriver, error: unknown): Error {
 function replacePostgresParameters(query: string, parameters: unknown[]): { query: string; values: unknown[] } {
   const values: unknown[] = [];
   const converted = query.replace(/\$(\d+)/g, (_match, index: string) => {
-    values.push(parameters[Number(index) - 1]);
+    const value = parameters[Number(index) - 1];
+    if (Array.isArray(value)) {
+      if (value.length === 0) return 'NULL';
+      values.push(...value);
+      return value.map(() => '?').join(', ');
+    }
+    values.push(value);
     return '?';
   });
   return { query: converted, values };
@@ -138,6 +144,9 @@ function replacePostgresParameters(query: string, parameters: unknown[]): { quer
 export function translateProviderSql(source: string, driver: 'mysql' | 'mariadb'): string {
   void driver;
   let query = source
+    // Translate ANY before removing PostgreSQL casts so the array type suffix
+    // remains part of the predicate match.
+    .replace(/((?:"[^"]+"|`[^`]+`|[a-z_][a-z0-9_.]*))\s*=\s*ANY\(\$(\d+)(?:::[a-z0-9_]+\[\])?\)/gi, (_match, column: string, index: string) => `${column} IN ($${index})`)
     .replace(/\b([a-z_][a-z0-9_]*)::integer\b/gi, 'CAST($1 AS SIGNED)')
     .replace(/::(?:jsonb|json|uuid|text|integer|int|boolean|bigint|timestamptz)/gi, '')
     .replace(/\bgen_random_uuid\(\)/gi, 'UUID()')
@@ -185,7 +194,7 @@ export function translateProviderSql(source: string, driver: 'mysql' | 'mariadb'
   query = query.replace(/\bjsonb_typeof\(/gi, 'JSON_TYPE(');
   query = query.replace(/\bstrpos\(([^,]+),\s*([^\)]+)\)/gi, 'LOCATE($2, $1)');
   query = query.replace(/\bcurrent_setting\([^)]*\)/gi, 'NULL');
-  query = query.replace(/\bkey\b/g, '`key`').replace(/\bschema\b/g, '`schema`');
+  query = query.replace(/"([a-z_][a-z0-9_]*)"/gi, '`$1`').replace(/\bkey\b/g, '`key`').replace(/\bschema\b/g, '`schema`');
   query = query.replace(/\s+RETURNING\s+[\s\S]*?\s*;?\s*$/i, '');
   return query;
 }

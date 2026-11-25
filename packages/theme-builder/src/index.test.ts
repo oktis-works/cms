@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { buildTheme, verifyThemeBuild, watchTheme, type ThemeWatchEvent } from './index.js';
 import type { ThemeBuildManifest } from '@oktis-works/theme-runtime';
+import { readThemeBuild, validateThemeBuild } from '@oktis-works/theme-runtime';
 import type { ThemePageData } from '@oktis-works/theme-sdk';
 
 let root: string;
@@ -79,13 +80,13 @@ describe('buildTheme — compiled engines', () => {
 
     expect(result.engine).toBe('react');
     expect(result.templates).toEqual(['home']);
-    expect(existsSync(join(dir, 'dist', 'server', 'entry.js'))).toBe(true);
+    expect(existsSync(join(dir, 'dist', '.versions'))).toBe(true);
     const artifact = JSON.parse(readFileSync(join(dir, 'dist', 'theme-build.json'), 'utf-8')) as ThemeBuildManifest;
-    expect(artifact.entry).toBe('dist/server/entry.js');
-    expect(artifact.styles).toContain('dist/theme.css');
+    expect(artifact.entry).toMatch(/^dist\/\.versions\/sha256_[^/]+\/server\/entry\.js$/);
+    expect(artifact.styles).toEqual([]);
     expect(verifyThemeBuild(dir).ok).toBe(true);
 
-    const module = (await import(`${pathToFileURL(join(dir, 'dist', 'server', 'entry.js')).href}?t=1`)) as {
+    const module = (await import(`${pathToFileURL(join(dir, artifact.entry)).href}?t=1`)) as {
       render: (key: string, data: ThemePageData) => { html: string };
     };
     expect(module.render('home', pageData).html).toContain('<h1>Built</h1>');
@@ -106,15 +107,16 @@ describe('buildTheme — compiled engines', () => {
     expect(result.engine).toBe('react');
     const artifact = JSON.parse(readFileSync(join(dir, 'dist', 'theme-build.json'), 'utf-8')) as ThemeBuildManifest;
     expect(artifact.hydration).toBe('islands');
-    expect(artifact.client['main']).toBe('dist/client/entry.js');
-    expect(existsSync(join(dir, 'dist', 'client', 'entry.js'))).toBe(true);
+    expect(artifact.client['main']).toMatch(/^dist\/\.versions\/sha256_[^/]+\/client\/entry\.js$/);
+    expect(existsSync(join(dir, artifact.client['main']!))).toBe(true);
   }, 60_000);
 
   it('builds a Solid SSR artifact', async () => {
     writeBase('solid');
     const result = await buildTheme({ themesRoot: root, themeName: 'solid-theme' });
     expect(result.engine).toBe('solid');
-    expect(existsSync(join(dir, 'dist', 'server', 'entry.js'))).toBe(true);
+    const artifact = JSON.parse(readFileSync(join(dir, 'dist', 'theme-build.json'), 'utf-8')) as ThemeBuildManifest;
+    expect(existsSync(join(dir, artifact.entry))).toBe(true);
     expect(verifyThemeBuild(dir).ok).toBe(true);
   }, 60_000);
 
@@ -145,4 +147,25 @@ describe('buildTheme — compiled engines', () => {
       stop();
     }
   }, 30_000);
+
+  it('fails startup when the initial compiled build is invalid', async () => {
+    writeBase('react');
+    rmSync(join(dir, 'src', 'entry-server.tsx'));
+    await expect(watchTheme({ themesRoot: root, themeName: 'react-theme', pollMs: 20 })).rejects.toThrow(/entry not found/i);
+  });
+
+  it('keeps the previous valid artifact when a rebuild fails', async () => {
+    writeBase('react');
+    await buildTheme({ themesRoot: root, themeName: 'react-theme' });
+    const artifactPath = join(dir, 'dist', 'theme-build.json');
+    const previous = readFileSync(artifactPath, 'utf-8');
+
+    rmSync(join(dir, 'src', 'entry-server.tsx'));
+    await expect(buildTheme({ themesRoot: root, themeName: 'react-theme' })).rejects.toThrow(/entry not found/i);
+
+    expect(readFileSync(artifactPath, 'utf-8')).toBe(previous);
+    const artifact = readThemeBuild(dir);
+    expect(artifact).not.toBeNull();
+    expect(validateThemeBuild(dir, artifact!, 'react')).toEqual([]);
+  }, 60_000);
 });

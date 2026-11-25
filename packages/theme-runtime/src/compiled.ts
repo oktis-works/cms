@@ -24,6 +24,7 @@ export interface ThemeBuildManifest {
   engine: ThemeRenderEngine;
   apiVersion: number;
   buildId: string;
+  builtAt?: string;
   entry: string;
   templates: string[];
   client: Record<string, string>;
@@ -126,8 +127,17 @@ export function validateThemeBuild(
   }
 
   for (const style of Array.isArray(build.styles) ? build.styles : []) {
-    if (!safeThemePath(themeDir, style)) {
+    const stylePath = safeThemePath(themeDir, style);
+    if (!stylePath) {
       issues.push(`theme build style escapes the theme directory: ${style}`);
+    } else if (!existsSync(stylePath) || !statSync(stylePath).isFile()) {
+      issues.push(`theme build style does not exist: ${style}`);
+    } else {
+      const root = realpathSync(resolve(themeDir));
+      const realStyle = realpathSync(stylePath);
+      if (realStyle !== root && !realStyle.startsWith(root + sep)) {
+        issues.push(`theme build style resolves outside the theme directory: ${style}`);
+      }
     }
   }
   const clientAssets =
@@ -141,6 +151,12 @@ export function validateThemeBuild(
       issues.push(`theme build client asset escapes the theme directory: ${client}`);
     } else if (!existsSync(clientPath) || !statSync(clientPath).isFile()) {
       issues.push(`theme build client asset does not exist: ${client}`);
+    } else {
+      const root = realpathSync(resolve(themeDir));
+      const realClient = realpathSync(clientPath);
+      if (realClient !== root && !realClient.startsWith(root + sep)) {
+        issues.push(`theme build client asset resolves outside the theme directory: ${client}`);
+      }
     }
   }
   if (build.hydration === 'islands' && !build.client?.['main']) {
@@ -151,6 +167,7 @@ export function validateThemeBuild(
 }
 
 const moduleCache = new Map<string, ThemeServerModule>();
+const MAX_COMPILED_THEME_CACHE_ENTRIES = 8;
 
 /** Clears the compiled module cache (tests and hot activation). */
 export function clearCompiledThemeCache(): void {
@@ -172,17 +189,27 @@ export async function importCompiledTheme(
   }
   const cacheKey = `${realpathSync(resolve(themeDir))}::${build.buildId}`;
   const cached = moduleCache.get(cacheKey);
-  if (cached) return cached;
+  if (cached) {
+    moduleCache.delete(cacheKey);
+    moduleCache.set(cacheKey, cached);
+    return cached;
+  }
 
   const module = (await import(`${pathToFileURL(entry).href}?v=${encodeURIComponent(build.buildId)}`)) as Partial<ThemeServerModule>;
   if (typeof module.render !== 'function') {
     throw new Error(`Theme server entry does not export render(): ${build.entry}`);
   }
+  moduleCache.delete(cacheKey);
   moduleCache.set(cacheKey, module as ThemeServerModule);
+  while (moduleCache.size > MAX_COMPILED_THEME_CACHE_ENTRIES) {
+    const oldest = moduleCache.keys().next().value as string | undefined;
+    if (!oldest) break;
+    moduleCache.delete(oldest);
+  }
   return module as ThemeServerModule;
 }
 
-function safeAssetList(values: unknown, field: string): string[] {
+function safeAssetList(values: unknown, field: string, themeDir: string): string[] {
   if (values === undefined) return [];
   if (!Array.isArray(values) || values.some((value) => typeof value !== 'string')) {
     throw new Error(`Theme render output ${field} must be a string array`);
@@ -197,6 +224,15 @@ function safeAssetList(values: unknown, field: string): string[] {
     ) {
       throw new Error(`Theme render output ${field} contains an unsafe path: ${value}`);
     }
+    const target = safeThemePath(themeDir, value);
+    if (!target || !existsSync(target) || !statSync(target).isFile()) {
+      throw new Error(`Theme render output ${field} references a missing file: ${value}`);
+    }
+    const root = realpathSync(resolve(themeDir));
+    const realTarget = realpathSync(target);
+    if (realTarget !== root && !realTarget.startsWith(root + sep)) {
+      throw new Error(`Theme render output ${field} resolves outside the theme directory: ${value}`);
+    }
   }
   return values as string[];
 }
@@ -208,6 +244,8 @@ export interface RenderCompiledThemeInput {
   data: ThemePageData;
   record: Record<string, unknown>;
   context: ThemeRenderContext;
+  /** True when the surrounding runtime will inject inherited or automatic assets. */
+  automaticAssets?: boolean;
 }
 
 /**
@@ -223,11 +261,24 @@ export async function renderCompiledTheme(input: RenderCompiledThemeInput): Prom
   if (!output || typeof output !== 'object' || typeof output.html !== 'string') {
     throw new Error(`Theme render() must return { html: string } (template: ${input.templateKey})`);
   }
+  const fullDocument = /<html\b|<!doctype\b/i.test(output.html);
+  if (fullDocument && (
+    input.build.hydration === 'islands' ||
+    input.automaticAssets === true ||
+    Boolean(output.head) ||
+    input.build.styles.length > 0 ||
+    (Array.isArray(output.styles) && output.styles.length > 0) ||
+    (Array.isArray(output.scripts) && output.scripts.length > 0)
+  )) {
+    throw new Error(
+      `Theme render() returned a full document while hydration or automatic theme assets are enabled (template: ${input.templateKey})`
+    );
+  }
 
   return {
     html: output.html,
     ...(typeof output.head === 'string' ? { head: output.head } : {}),
-    styles: safeAssetList(output.styles, 'styles'),
-    scripts: safeAssetList(output.scripts, 'scripts'),
+    styles: safeAssetList(output.styles, 'styles', input.themeDir),
+    scripts: safeAssetList(output.scripts, 'scripts', input.themeDir),
   };
 }

@@ -1,5 +1,18 @@
 # @oktis-works/cms
 
+## 0.19.2
+
+### Patch Changes
+
+- Complete the tenant-scoped theme system correction, including secure preview, validated inheritance, atomic compiled artifacts, provider compatibility, and public rendering hardening.
+- Updated dependencies
+  - @oktis-works/config@0.7.4
+  - @oktis-works/core@0.20.2
+  - @oktis-works/database@0.16.5
+  - @oktis-works/theme-builder@0.2.3
+  - @oktis-works/theme-runtime@0.14.2
+  - @oktis-works/validation@0.9.2
+
 ## 0.19.1
 
 ### Patch Changes

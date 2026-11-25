@@ -4,7 +4,8 @@
 // Framework code is bundled into the artifact; @oktis-works/theme-runtime does
 // not depend on React or Solid.
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { join, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -12,6 +13,7 @@ import type { PluginOption } from 'vite';
 import {
   buildThemeStyles,
   scopeCss,
+  validateThemeBuild,
   type ThemeBuildManifest,
   type ThemeStyleReport,
 } from '@oktis-works/theme-runtime';
@@ -125,7 +127,8 @@ async function loadFrameworkPlugins(
 async function buildClientBundle(
   themeDir: string,
   engine: Exclude<ThemeRenderEngine, 'template'>,
-  entry: string
+  entry: string,
+  outputDir: string
 ): Promise<void> {
   const { build } = await import('vite');
   const plugins = await loadFrameworkPlugins(engine);
@@ -138,7 +141,7 @@ async function buildClientBundle(
       plugins,
       resolve: { alias: frameworkAliases(engine) },
       build: {
-        outDir: join(themeDir, 'dist', 'client'),
+        outDir: outputDir,
         emptyOutDir: true,
         target: 'node22',
         minify: true,
@@ -159,7 +162,8 @@ async function buildClientBundle(
 async function buildServerBundle(
   themeDir: string,
   engine: Exclude<ThemeRenderEngine, 'template'>,
-  entry: string
+  entry: string,
+  outputDir: string
 ): Promise<void> {
   const { build } = await import('vite');
   const plugins = await loadFrameworkPlugins(engine);
@@ -174,7 +178,7 @@ async function buildServerBundle(
       resolve: { alias: frameworkAliases(engine) },
       build: {
         ssr: entry,
-        outDir: join(themeDir, 'dist', 'server'),
+        outDir: outputDir,
         emptyOutDir: true,
         target: 'node22',
         minify: false,
@@ -238,20 +242,41 @@ export async function buildTheme(opts: BuildThemeOptions): Promise<ThemeBuildRes
 
   let styleReport: ThemeStyleReport | undefined;
 
+  const buildId = engine === 'template' ? null : computeBuildId(themeDir, manifest);
+  const generation = buildId ? buildId.replace(/[^A-Za-z0-9_-]/g, '_') : null;
+  const generationRoot = generation ? join(themeDir, 'dist', '.versions', generation) : null;
+  const stagingRoot = generation
+    ? join(themeDir, 'dist', `.staging-${generation}-${randomUUID()}`)
+    : null;
+  if (stagingRoot) mkdirSync(stagingRoot, { recursive: true });
+  const discardStaging = (): void => {
+    if (stagingRoot) rmSync(stagingRoot, { recursive: true, force: true });
+  };
+
   if (opts.mode !== 'js') {
-    const { css, report } = await buildThemeStyles({
-      themesRoot: resolve(opts.themesRoot),
-      themeName,
-      manifest,
-    });
+    let css: string;
+    let report: ThemeStyleReport;
+    try {
+      ({ css, report } = await buildThemeStyles({
+        themesRoot: resolve(opts.themesRoot),
+        themeName,
+        manifest,
+      }));
+    } catch (error) {
+      discardStaging();
+      throw error;
+    }
     styleReport = report;
     warnings.push(...report.warnings);
 
     if (report.entry) {
-      const output = assertInside(themeDir, report.output);
+      const output = stagingRoot
+        ? join(stagingRoot, 'theme.css')
+        : assertInside(themeDir, report.output);
       mkdirSync(resolve(output, '..'), { recursive: true });
       writeFileSync(output, css, 'utf-8');
     } else if (report.engine !== 'css') {
+      discardStaging();
       throw new Error(`No style entry found for ${report.engine} theme "${themeName}"`);
     }
   }
@@ -273,20 +298,36 @@ export async function buildTheme(opts: BuildThemeOptions): Promise<ThemeBuildRes
   const entrySource = manifest.render?.entry ?? 'src/entry-server.tsx';
   const entryPath = assertInside(themeDir, entrySource);
   if (!existsSync(entryPath)) {
+    discardStaging();
     throw new Error(`Compiled theme entry not found: ${entrySource}`);
   }
 
-  await buildServerBundle(themeDir, engine, entryPath);
+  const serverOutput = join(stagingRoot!, 'server');
+  try {
+    await buildServerBundle(themeDir, engine, entryPath, serverOutput);
+  } catch (error) {
+    discardStaging();
+    throw error;
+  }
 
-  const serverDir = join(themeDir, 'dist', 'server');
+  const serverDir = serverOutput;
   const entryFile = join(serverDir, 'entry.js');
   if (!existsSync(entryFile)) {
+    discardStaging();
     throw new Error(`Vite did not emit dist/server/entry.js for theme "${themeName}"`);
   }
 
-  const templates = await readTemplateKeys(entryFile);
+  let templates: string[];
+  try {
+    templates = await readTemplateKeys(entryFile);
+  } catch (error) {
+    discardStaging();
+    throw error;
+  }
   const styles: string[] = [];
-  if (existsSync(join(themeDir, 'dist', 'theme.css'))) styles.push('dist/theme.css');
+  if (stagingRoot && existsSync(join(stagingRoot, 'theme.css'))) {
+    styles.push(`dist/.versions/${generation}/theme.css`);
+  }
 
   // CSS imported by components is emitted by Vite; scope it with the same
   // [data-theme] contract and expose it as an extra stylesheet.
@@ -296,8 +337,8 @@ export async function buildTheme(opts: BuildThemeOptions): Promise<ThemeBuildRes
       .map((file) => readFileSync(file, 'utf-8'))
       .join('\n');
     const componentsCss = scopeCss(css, themeName);
-    writeFileSync(join(themeDir, 'dist', 'theme-components.css'), componentsCss, 'utf-8');
-    styles.push('dist/theme-components.css');
+    writeFileSync(join(stagingRoot!, 'theme-components.css'), componentsCss, 'utf-8');
+    styles.push(`dist/.versions/${generation}/theme-components.css`);
     for (const file of emittedCss) rmSync(file, { force: true });
   }
 
@@ -308,28 +349,66 @@ export async function buildTheme(opts: BuildThemeOptions): Promise<ThemeBuildRes
     const clientEntrySource = 'src/entry-client.tsx';
     const clientEntryPath = assertInside(themeDir, clientEntrySource);
     if (!existsSync(clientEntryPath)) {
+      discardStaging();
       throw new Error(
         `hydration="islands" requires ${clientEntrySource} (client entry that hydrates the page)`
       );
     }
-    await buildClientBundle(themeDir, engine, clientEntryPath);
-    client['main'] = 'dist/client/entry.js';
+    try {
+      await buildClientBundle(themeDir, engine, clientEntryPath, join(stagingRoot!, 'client'));
+    } catch (error) {
+      discardStaging();
+      throw error;
+    }
+    client['main'] = `dist/.versions/${generation}/client/entry.js`;
   }
 
   const build: ThemeBuildManifest = {
     schemaVersion: 1,
     engine,
     apiVersion: 1,
-    buildId: computeBuildId(themeDir, manifest),
-    entry: 'dist/server/entry.js',
+    buildId: buildId!,
+    builtAt: new Date().toISOString(),
+    entry: `dist/.versions/${generation}/server/entry.js`,
     templates,
     client,
     styles,
     hydration,
   };
 
+  // Validate the complete staged set before making it visible to requests.
+  // The staged paths are deliberately different from the published paths so
+  // a failed build cannot replace the last valid artifact manifest.
+  const stagedBuild: ThemeBuildManifest = {
+    ...build,
+    entry: `dist/${relative(join(themeDir, 'dist'), stagingRoot!)}/server/entry.js`,
+    styles: build.styles.map((style) => style.replace(`dist/.versions/${generation}`, `dist/${relative(join(themeDir, 'dist'), stagingRoot!)}`)),
+    client: Object.fromEntries(Object.entries(build.client).map(([key, asset]) => [
+      key,
+      asset.replace(`dist/.versions/${generation}`, `dist/${relative(join(themeDir, 'dist'), stagingRoot!)}`),
+    ])),
+  };
+  const stagedIssues = validateThemeBuild(themeDir, stagedBuild, engine);
+  if (stagedIssues.length > 0) {
+    rmSync(stagingRoot!, { recursive: true, force: true });
+    throw new Error(`Compiled theme staging validation failed: ${stagedIssues.join('; ')}`);
+  }
+
+  mkdirSync(join(themeDir, 'dist', '.versions'), { recursive: true });
+  if (!existsSync(generationRoot!)) {
+    try {
+      renameSync(stagingRoot!, generationRoot!);
+    } catch (error) {
+      if (!existsSync(generationRoot!)) throw error;
+      rmSync(stagingRoot!, { recursive: true, force: true });
+    }
+  } else {
+    rmSync(stagingRoot!, { recursive: true, force: true });
+  }
+
   mkdirSync(join(themeDir, 'dist'), { recursive: true });
   writeThemeBuild(themeDir, build);
+  cleanupPublishedGenerations(join(themeDir, 'dist', '.versions'), generation!);
 
   return {
     theme: themeName,
@@ -342,6 +421,17 @@ export async function buildTheme(opts: BuildThemeOptions): Promise<ThemeBuildRes
     ...(styleReport ? { styleReport } : {}),
     warnings,
   };
+}
+
+/** Retain the current and immediately previous valid generation for rollback. */
+function cleanupPublishedGenerations(versionsDir: string, current: string): void {
+  if (!existsSync(versionsDir)) return;
+  const generations = readdirSync(versionsDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && entry.name !== current && !entry.name.startsWith('.staging-'))
+    .sort((a, b) => statSync(join(versionsDir, b.name)).mtimeMs - statSync(join(versionsDir, a.name)).mtimeMs);
+  for (const entry of generations.slice(1)) {
+    rmSync(join(versionsDir, entry.name), { recursive: true, force: true });
+  }
 }
 
 export interface WatchThemeOptions extends BuildThemeOptions {
@@ -394,16 +484,23 @@ export async function watchTheme(
   let pending = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
 
-  const run = async (): Promise<void> => {
+  const run = async (): Promise<ThemeWatchEvent> => {
     try {
       const result = await buildTheme(opts);
-      onChange({ type: 'build', result });
+      const event: ThemeWatchEvent = { type: 'build', result };
+      onChange(event);
+      return event;
     } catch (error) {
-      onChange({ type: 'error', error: error instanceof Error ? error : new Error(String(error)) });
+      const event: ThemeWatchEvent = { type: 'error', error: error instanceof Error ? error : new Error(String(error)) };
+      onChange(event);
+      return event;
     }
   };
 
-  await run();
+  const initialEvent = await run();
+  if (initialEvent.type === 'error' && process.env['OKCMS_THEME_DIAGNOSTIC_MODE'] !== '1') {
+    throw initialEvent.error ?? new Error(`Initial build failed for theme "${opts.themeName}"`);
+  }
 
   let snapshot: string;
   try {

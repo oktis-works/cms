@@ -1,5 +1,11 @@
 # @oktis-works/validation
 
+## 0.9.2
+
+### Patch Changes
+
+- Complete the tenant-scoped theme system correction, including secure preview, validated inheritance, atomic compiled artifacts, provider compatibility, and public rendering hardening.
+
 ## 0.9.1
 
 ### Patch Changes

@@ -27,6 +27,7 @@ export {
   renderCompiledTheme,
 } from './compiled.js';
 export type { ThemeBuildManifest, RenderCompiledThemeInput } from './compiled.js';
+export { THEME_BUILDER_VERSION, computeThemeBuildId } from './build-id.js';
 export {
   loadThemeCatalog,
   readThemeManifest,

@@ -189,7 +189,7 @@ export function scaffoldTheme(
       [
         `/** @type {import('tailwindcss').Config} */`,
         `module.exports = {`,
-        `  content: ["./**/*.astro"],`,
+        `  content: ["./**/*.{astro,html,js,jsx,ts,tsx}"],`,
         `  corePlugins: { preflight: false },`,
         `  // isolamento fino: importante apenas dentro do tema pode ser ativado via important: '[data-theme="${name}"]'`,
         `};`,
@@ -220,7 +220,7 @@ export function scaffoldTheme(
       `- Styles: ${style}${style === 'css' ? ' (dist/theme.css served directly)' : ' (okcms theme:build → dist/theme.css)'}`,
       renderEngine === 'template'
         ? ''
-        : `- Build: okcms theme:build --name ${name} (emits dist/theme-build.json + dist/server/entry.js)`,
+        : `- Build: okcms theme:build --name ${name} (emits a validated versioned server artifact and dist/theme-build.json)`,
       '',
     ].join('\n')
   );

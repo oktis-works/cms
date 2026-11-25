@@ -1059,27 +1059,6 @@ Run 'okcms wp import --help' or 'okcms wp validate --help' for subcommand option
     },
   },
   {
-    name: 'theme:install',
-    description: 'Install a theme from a local path into the project themes dir',
-    options: [
-      { name: 'name', alias: 'n', description: 'Theme name or path', required: true },
-    ],
-    handler: async (_args, options) => {
-      const name = options['name'];
-      if (!name) {
-        console.error('Theme name or path is required (--name)');
-        process.exit(1);
-      }
-      const { installExtension } = await import('./installer.js');
-      try {
-        await installExtension('theme', name);
-      } catch (error) {
-        console.error(error instanceof Error ? error.message : error);
-        process.exit(1);
-      }
-    },
-  },
-  {
     name: 'theme:list',
     description: 'List installed themes',
     options: [],
@@ -1113,20 +1092,18 @@ Run 'okcms wp import --help' or 'okcms wp validate --help' for subcommand option
   },
   {
     name: 'theme:manage',
-    description: 'Theme info / enable / disable / --set-active / --uninstall',
+    description: 'Theme info / --set-active / --uninstall',
     options: [
       { name: 'name', alias: 'n', description: 'Theme name', required: true },
       { name: 'info', alias: 'i', description: 'Show theme.json info', required: false },
-      { name: 'enable', alias: 'e', description: 'Enable the theme', required: false },
-      { name: 'disable', alias: 'd', description: 'Disable the theme', required: false },
-      { name: 'uninstall', alias: 'u', description: 'Uninstall (remove files + registry)', required: false },
+      { name: 'tenant', alias: 't', description: 'Tenant ID for database operations', required: false, valueKind: 'tenant' },
+      { name: 'uninstall', alias: 'u', description: 'Unregister from the tenant database (theme files remain project-managed)', required: false },
       { name: 'set-active', alias: 's', description: 'Set as active theme', required: false },
     ],
     handler: async (_args, options) => {
-      const { readFileSync, writeFileSync, existsSync } = await import('node:fs');
+      const { readFileSync, existsSync } = await import('node:fs');
       const { join } = await import('node:path');
-      const { loadProjectConfig, DEFAULT_CONFIG_FILENAME } = await import('./project-config.js');
-      const { setEnabled, loadExtensionsState } = await import('./extensions-state.js');
+      const { loadProjectConfig } = await import('./project-config.js');
       const projectConfig = loadProjectConfig();
 
       const name = options['name'];
@@ -1143,33 +1120,33 @@ Run 'okcms wp import --help' or 'okcms wp validate --help' for subcommand option
       migrateThemeManifests(themesDir);
 
       if (options['uninstall'] !== undefined) {
-        const { uninstallExtension } = await import('./extensions-state.js');
-        const result = uninstallExtension('theme', name);
-        if (!result.removed) {
-          console.log(`Theme "${name}" was not installed.`);
+        const tenantOption = options['tenant'];
+        if (!tenantOption) {
+          console.error('Tenant ID is required for --uninstall (use --tenant)');
+          process.exit(1);
+        }
+        const { initDb } = await import('./db-init.js');
+        const { resolveTenantId, runWithTenantTransaction } = await import('@oktis-works/database');
+        const { runWithTenantContext, themeService } = await import('@oktis-works/core');
+        await initDb();
+        const tenantId = await resolveTenantId(tenantOption, { createDefault: true });
+        const removed = await runWithTenantTransaction(tenantId, () => runWithTenantContext({ tenantId }, async () => {
+          const row = await themeService.getByName(name, tenantId);
+          return row ? themeService.uninstall(row.id, tenantId) : false;
+        }));
+        if (!removed) {
+          console.log(`Theme "${name}" was not registered for tenant "${tenantId}".`);
           process.exitCode = 1;
           return;
         }
-        console.log(`Theme "${name}" uninstalled (${result.targetDir}).`);
-        // Remove também o registro no banco (best-effort — sem banco, o
-        // registro continua visível na tela Temas do admin para desinstalar).
-        try {
-          const { initDb } = await import('./db-init.js');
-          await initDb();
-          const { themeService } = await import('@oktis-works/core');
-          const row = await themeService.getByName(name);
-          if (row) await themeService.uninstall(row.id);
-        } catch {
-          // registro remanescente é tratável pela UI
-        }
+        console.log(`Theme "${name}" uninstalled for tenant "${tenantId}".`);
         return;
       }
 
       if (options['set-active'] !== undefined) {
-        const configPath = join(process.cwd(), DEFAULT_CONFIG_FILENAME);
-
-        if (!existsSync(configPath)) {
-          console.error(`${DEFAULT_CONFIG_FILENAME} not found; run \`okcms init\` first.`);
+        const tenantOption = options['tenant'];
+        if (!tenantOption) {
+          console.error('Tenant ID is required for --set-active (use --tenant)');
           process.exit(1);
         }
 
@@ -1205,36 +1182,21 @@ Run 'okcms wp import --help' or 'okcms wp validate --help' for subcommand option
           }
         }
 
-        const raw = JSON.parse(readFileSync(configPath, 'utf-8')) as Record<string, unknown>;
-        raw['activeTheme'] = name;
-        writeFileSync(configPath, JSON.stringify(raw, null, 2));
-
-        // Fonte única do tema ativo em runtime é o BANCO (o site lê por
-        // request) — sem gravar lá, a ativação via CLI seria ignorada ou
-        // divergiria do status mostrado no admin.
-        try {
-          const { initDb } = await import('./db-init.js');
-          await initDb();
-          const { themeService } = await import('@oktis-works/core');
-          await themeService.syncFromDirectory(); // registra temas do diretório (idempotente)
-          const row = await themeService.getByName(name);
-          if (row) {
-            await themeService.activate(row.id);
-            console.log(`Active theme set to "${name}" (config + banco).`);
-          } else {
-            console.log(`Active theme set to "${name}" (config; tema não descoberto no banco — abra a tela Temas do admin para sincronizar).`);
-          }
-        } catch {
-          console.log(`Active theme set to "${name}" (config; banco indisponível — ative pelo admin depois).`);
-        }
-        return;
-      }
-
-      if (options['enable'] !== undefined || options['disable'] !== undefined) {
-        const enabled = options['enable'] !== undefined;
-        const ok = setEnabled('theme', name, enabled);
-        console.log(ok ? `Theme "${name}" ${enabled ? 'enabled' : 'disabled'}.` : `Theme "${name}" is not registered.`);
-        process.exitCode = ok ? 0 : 1;
+        const { initDb } = await import('./db-init.js');
+        const { resolveTenantId } = await import('@oktis-works/database');
+        const { runWithTenantContext } = await import('@oktis-works/core');
+        const { runWithTenantTransaction } = await import('@oktis-works/database');
+        await initDb();
+        const tenantId = await resolveTenantId(tenantOption, { createDefault: true });
+        const { themeService } = await import('@oktis-works/core');
+        await runWithTenantTransaction(tenantId, () => runWithTenantContext({ tenantId }, async () => {
+          await themeService.syncFromDirectory(tenantId);
+          const row = await themeService.getByName(name, tenantId);
+          if (!row) throw new Error(`Theme "${name}" is not registered for tenant "${tenantId}"`);
+          const activated = await themeService.activate(row.id, tenantId);
+          if (!activated) throw new Error(`Theme "${name}" could not be activated for tenant "${tenantId}"`);
+        }));
+        console.log(`Active theme set to "${name}" for tenant "${tenantId}".`);
         return;
       }
 
@@ -1245,14 +1207,12 @@ Run 'okcms wp import --help' or 'okcms wp validate --help' for subcommand option
         if (!existsSync(themeJsonPath)) throw new Error('manifesto não encontrado');
         const manifest = JSON.parse(readFileSync(themeJsonPath, 'utf-8')) as Record<string, unknown>;
         const provides = (manifest['provides'] ?? {}) as Record<string, unknown>;
-        const state = loadExtensionsState().themes[name];
         console.log(`Name:       ${manifest['name'] ?? name}`);
         console.log(`Version:    ${manifest['version'] ?? '?'}`);
         console.log(`Author:     ${manifest['author'] ?? '-'}`);
         console.log(`Parent:     ${manifest['parent'] ?? '-'}`);
         console.log(`Layouts:    ${(provides['layouts'] as string[] | undefined)?.join(', ') ?? '-'}`);
-        console.log(`Active:     ${config.activeTheme === name ? 'yes' : 'no'} (${config.activeTheme || 'none'})`);
-        console.log(`State:      ${state?.enabled === false ? 'disabled' : 'enabled'}`);
+        console.log('Activation: tenant-scoped database registry (use --set-active --tenant <tenant-id>)');
       } catch {
         console.error(`theme.json not found at ${themeDir}`);
         process.exit(1);
@@ -1321,11 +1281,14 @@ Run 'okcms wp import --help' or 'okcms wp validate --help' for subcommand option
     ],
     handler: async (_args, options) => {
       await initDb();
-      const { ensureCoreSchema, seedCoreData, seedDemoContent, seedActivateDefaultTheme } = await import('@oktis-works/database');
+      const { ensureCoreSchema, resolveTenantId, seedCoreData, seedDemoContent, seedActivateDefaultTheme, runWithTenantTransaction } = await import('@oktis-works/database');
       const applied = await ensureCoreSchema();
       if (applied) {
         console.log('✓ core schema applied (database initialized)');
       }
+      const tenantId = await resolveTenantId('default');
+      const { themeService, runWithTenantContext } = await import('@oktis-works/core');
+      await runWithTenantTransaction(tenantId, () => runWithTenantContext({ tenantId }, () => themeService.syncFromDirectory(tenantId)));
       const { roles, settings } = await seedCoreData();
       console.log(`✓ seed completed: ${roles} roles, ${settings} settings created`);
       if (options['demo'] !== undefined) {
@@ -1348,12 +1311,8 @@ Run 'okcms wp import --help' or 'okcms wp validate --help' for subcommand option
           console.log(`✓ demo content: ${demo.pages} pages, ${demo.posts} posts, ${demo.menus} menus, ${demo.readingSettings} reading settings`);
         }
       }
-      try {
-        await seedActivateDefaultTheme();
-        console.log('✓ default theme activated');
-      } catch (error) {
-        console.warn('⚠ default theme activation failed:', error instanceof Error ? error.message : error);
-      }
+      await runWithTenantTransaction(tenantId, () => runWithTenantContext({ tenantId }, () => seedActivateDefaultTheme(tenantId)));
+      console.log('✓ default theme activated');
     },
   },
   {

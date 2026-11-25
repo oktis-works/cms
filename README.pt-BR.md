@@ -161,7 +161,7 @@ okcms update --mode download     # apenas pacotes
 okcms update --mode deploy       # deploy: target do menu, --target ou salvo
 okcms update --mode deploy --target pm2 --yes # CI: sem prompts, defaults
 
-okcms plugin:install -n ./meu-plugin   # ou theme:install
+Copie o diretório completo do tema para `themes/<nome-do-tema>` e sincronize-o com o banco.
 okcms redeploy                  # stage + build + deploy (o que fazer depois de instalar)
 okcms redeploy --dry-run        # só mostra o plano
 ```
@@ -199,7 +199,7 @@ executa o deploy do target escolhido.
 | `okcms plugin:list` · `plugin:search` | `-q, --query` | Lista instalados / busca no npm (`okcms-plugin`) |
 | `okcms plugin:manage` | `-n, --name` (obrigatória) · `-i` · `-e` · `-d` · `-u` | Info; enable/disable (estado local); uninstall |
 | `okcms theme:create` | `-n, --name` (obrigatória) · `-d, --dir` · `-s, --style css\|scss\|tailwind` | Scaffold mínimo de tema |
-| `okcms theme:install` · `theme:list` · `theme:search` | `-q, --query` | Instalação/consulta de temas |
+| `okcms theme:list` · `theme:search` | `-q, --query` | Consulta de temas |
 | `okcms theme:manage` | `-n, --name` (obrigatória) · `-i` · `-e` · `-d` · `-u` · `-s, --set-active` | Info; enable/disable (estado local); uninstall; ativar |
 | `okcms theme:build` | `-n, --name` (obrigatória) · `-d, --themes-dir` | Compila SCSS/Tailwind → `dist/theme.css` isolado |
 
@@ -284,7 +284,7 @@ compilado **no host** (o container não compila SCSS/Tailwind). Um plugin que
 mexe no banco, além disso, precisa aplicar o SQL dele.
 
 ```bash
-okcms plugin:install -n ./meu-plugin   # ou: theme:install
+Copie diretórios completos de temas para `themes/`; a instalação de temas é somente por arquivos.
 okcms redeploy
 ```
 

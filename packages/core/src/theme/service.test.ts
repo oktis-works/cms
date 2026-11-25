@@ -1,7 +1,6 @@
 // @oktis-works/core - Theme Service Tests (ciclo de vida + descoberta)
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { CMS_VERSION } from '@oktis-works/validation';
 
 type Row = Record<string, unknown>;
 let queue: Row[][];
@@ -43,6 +42,9 @@ vi.mock('node:fs/promises', () => ({
 
 vi.mock('node:fs', () => ({
   existsSync: vi.fn(() => true),
+  readFileSync: vi.fn(() => JSON.stringify({ name: 'meu-tema', version: '1.0.0', type: 'theme', compatibility: { okcms: '^0.36.0' }, settings: [{ name: 'siteTitle', type: 'text', label: 'Site Title', default: 'Meu Site' }, { name: 'siteDescription', type: 'text', label: 'Site Description', default: '' }, { name: 'restored', type: 'checkbox', label: 'Restored', default: false }] })),
+  readdirSync: vi.fn(() => []),
+  statSync: vi.fn(() => ({ isDirectory: () => false, isFile: () => true })),
   realpathSync: vi.fn((path: string) => path),
 }));
 
@@ -50,19 +52,27 @@ vi.mock('../extensions/project-directories.js', () => ({
   resolveExtensionDirectory: vi.fn(() => '/projeto/themes'),
 }));
 
+vi.mock('../tenant/context.js', () => ({
+  getCurrentTenantIdSync: vi.fn(() => 'tenant-1'),
+}));
+
 import { ThemeService } from './service.js';
 
 const themeRow = (overrides: Row = {}): Row => ({
   id: 'id-1',
+  tenant_id: 'tenant-1',
   name: 'meu-tema',
   version: '1.0.0',
   status: 'INSTALLED',
   manifest: { 
     name: 'meu-tema', 
     version: '1.0.0',
+    type: 'theme',
+    compatibility: { okcms: '^0.36.0' },
     settings: [
       { name: 'siteTitle', type: 'text', label: 'Site Title', default: 'Meu Site' },
-      { name: 'siteDescription', type: 'text', label: 'Site Description', default: '' }
+      { name: 'siteDescription', type: 'text', label: 'Site Description', default: '' },
+      { name: 'restored', type: 'checkbox', label: 'Restored', default: false },
     ]
   },
   config: {},
@@ -141,59 +151,6 @@ describe('ThemeService.syncFromDirectory', () => {
   });
 });
 
-describe('ThemeService.install', () => {
-  const validManifest = {
-    name: 'novo-tema',
-    version: '1.0.0',
-    type: 'theme',
-    compatibility: { okcms: `^${CMS_VERSION}` },
-  };
-
-  it('rejeita nome inseguro', async () => {
-    await expect(
-      new ThemeService().install({ name: '../fora', version: '1.0.0', manifest: validManifest })
-    ).rejects.toThrow(/Invalid theme name/);
-    expect(allQueries).toHaveLength(0);
-  });
-
-  it('rejeita manifesto sem type/compatibility (contrato BUSI-022)', async () => {
-    await expect(
-      new ThemeService().install({
-        name: 'novo-tema',
-        version: '1.0.0',
-        manifest: { name: 'novo-tema', version: '1.0.0' },
-      })
-    ).rejects.toThrow(/Invalid theme manifest/);
-  });
-
-  it('rejeita nome já instalado (unicidade)', async () => {
-    queue = [[themeRow({ name: 'novo-tema' })]];
-
-    await expect(
-      new ThemeService().install({ name: 'novo-tema', version: '1.0.0', manifest: validManifest })
-    ).rejects.toThrow(/already installed/);
-  });
-
-  it('instala como INSTALLED com installed_at + updated_at', async () => {
-    queue = [
-      [], // getByName → vazio
-      [themeRow({ status: 'INSTALLED' })], // INSERT RETURNING
-    ];
-
-    const result = await new ThemeService().install({
-      name: 'novo-tema',
-      version: '1.0.0',
-      manifest: validManifest,
-    });
-
-    const insert = allQueries.find((q) => q.text.includes('INSERT INTO themes'))!;
-    expect(insert.text).toContain("'INSTALLED'");
-    expect(insert.text).toContain('installed_at');
-    expect(insert.text).toContain('updated_at');
-    expect(result.status).toBe('INSTALLED');
-  });
-});
-
 describe('ThemeService.activate / deactivate', () => {
   it('activate devolve null sem tocar no banco quando o id não existe', async () => {
     queue = [[]];
@@ -267,8 +224,18 @@ describe('ThemeService.getActive', () => {
     const result = await new ThemeService().getActive();
 
     expect(lastQuery!.text).toContain('activated_at DESC');
-    expect(lastQuery!.values).toEqual([]);
+    expect(lastQuery!.values).toEqual(['tenant-1']);
     expect(result!.status).toBe('ACTIVE');
+  });
+
+  it('always scopes same-name themes to the requested tenant', async () => {
+    queue = [[themeRow({ tenant_id: 'tenant-2', id: 'id-2' })]];
+
+    const result = await new ThemeService().getByName('meu-tema', 'tenant-2');
+
+    expect((result as unknown as Row | null)?.['tenant_id']).toBe('tenant-2');
+    expect(lastQuery?.text).toContain('name = $1 AND tenant_id = $2');
+    expect(lastQuery?.values).toEqual(['meu-tema', 'tenant-2']);
   });
 });
 
@@ -375,6 +342,7 @@ describe('ThemeService.restoreConfigVersion', () => {
     queue = [
       [themeRow()], // getById
       [{ id: 'ver-1', config: { restored: true } }], // getConfigHistory
+      [themeRow()], // updateConfig selected theme
       [], // INSERT history
       [themeRow({ config: { restored: true } })], // UPDATE
     ];

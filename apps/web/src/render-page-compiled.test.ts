@@ -66,6 +66,7 @@ beforeAll(() => {
       name: 'react-theme',
       version: '1.0.0',
       type: 'theme',
+      compatibility: { okcms: '^0.42.0' },
       render: { engine: 'react', apiVersion: 1, hydration: 'none' },
     })
   );
@@ -234,7 +235,7 @@ describe('renderContentPageAsync — compiled React theme', () => {
     expect(html).toContain('<script type="application/json"');
     expect(html).toContain('"templateKey":"single"');
     expect(html).toContain('type="module"');
-    expect(html).toContain('src="/themes/react-theme/dist/client/entry.js"');
+    expect(html).toContain('src="/themes/react-theme/dist/client/entry.js?v=sha256%3Aweb-test"');
     expect(html).not.toContain('<script>alert');
   });
 });

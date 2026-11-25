@@ -163,4 +163,14 @@ describe('buildThemeSettings — customizador exposto como settings.theme', () =
     expect(buildThemeSettings(undefined, undefined)).toEqual({});
     expect(buildThemeSettings({ settings: 'nao-array' }, {})).toEqual({});
   });
+
+  it('merges persisted parent configuration before child defaults and config', async () => {
+    const { buildThemeSettings } = await import('./rendering.js');
+    const parent = { settings: [{ name: 'accent', default: '#111111' }, { name: 'layout', default: 'wide' }] };
+    const child = { settings: [{ name: 'accent', default: '#222222' }] };
+    expect(buildThemeSettings(child, { accent: '#333333' }, [parent], [{ layout: 'boxed', accent: '#000000' }])).toEqual({
+      accent: '#333333',
+      layout: 'boxed',
+    });
+  });
 });

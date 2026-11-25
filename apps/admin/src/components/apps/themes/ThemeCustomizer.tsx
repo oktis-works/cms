@@ -39,7 +39,7 @@ function resolveWebAppBaseUrl(): string {
 
 function defaultForField(field: ThemeSettingField): unknown {
   if (field.default !== undefined) return field.default;
-  if (field.type === 'checkbox') return false;
+  if (field.type === 'checkbox' || field.type === 'toggle') return false;
   if (field.type === 'number') return 0;
   return '';
 }
@@ -98,6 +98,7 @@ export function ThemeCustomizer() {
   const [saved, setSaved] = createSignal(false);
   const [previewPath, setPreviewPath] = createSignal('/');
   const [previewNonce, setPreviewNonce] = createSignal(0);
+  const [previewToken, setPreviewToken] = createSignal<string | null>(null);
   const [selectedThemeId, setSelectedThemeId] = createSignal<string | null>(null);
   const [activeTab, setActiveTab] = createSignal<string | null>(null);
 
@@ -169,6 +170,8 @@ export function ThemeCustomizer() {
       }
 
       setSelectedThemeId(targetTheme.id);
+      const preview = await apiClient.createThemePreviewToken(targetTheme.id);
+      setPreviewToken(preview.token);
 
       // Initialize active tab to first group if groups exist
       const firstGroup = targetTheme.manifest?.settings?.find((f) => (f as any).group) as ThemeSettingField | undefined;
@@ -237,15 +240,15 @@ export function ThemeCustomizer() {
     if (/^https?:\/\//i.test(rawBase)) {
       const separator = rawBase.includes('?') ? '&' : '?';
       const encoded = encodeURIComponent(JSON.stringify(draft()));
-      const themeName = selectedTheme()?.name;
-      const selected = themeName ? `&preview_theme=${encodeURIComponent(themeName)}` : '';
+      const token = previewToken();
+      const selected = token ? `&preview_token=${encodeURIComponent(token)}` : '';
       return `${rawBase}${separator}preview_settings=${encoded}${selected}&_=${previewNonce()}`;
     }
     const base = rawBase.startsWith('/') ? rawBase : `/${rawBase}`;
     const encoded = encodeURIComponent(JSON.stringify(draft()));
     const separator = base.includes('?') ? '&' : '?';
-    const themeName = selectedTheme()?.name;
-    const selected = themeName ? `&preview_theme=${encodeURIComponent(themeName)}` : '';
+    const token = previewToken();
+    const selected = token ? `&preview_token=${encodeURIComponent(token)}` : '';
     const webAppBase = resolveWebAppBaseUrl();
     const previewBase = webAppBase ? `${webAppBase}${base}` : base;
     return `${previewBase}${separator}preview_settings=${encoded}${selected}&_=${previewNonce()}`;

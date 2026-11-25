@@ -537,36 +537,30 @@ export async function seedDemoContent(
 
 /** Activates the default theme when no active theme exists yet. */
 export async function seedActivateDefaultTheme(
+  tenantId?: string,
   sql: Sql = getConnection()
 ): Promise<void> {
-  try {
-    const tenantId = await resolveTenantId('default');
-    
-    // Check if an active theme already exists
-    const activeTheme = await sql.unsafe(
-      `SELECT id FROM themes WHERE status = 'ACTIVE' AND tenant_id = $1 LIMIT 1`,
-      [tenantId]
-    );
-    
-    if (activeTheme.length > 0) return;
-    
-    // Busca o tema default
-    const defaultTheme = await sql.unsafe(
-      `SELECT id FROM themes WHERE name = 'default' AND tenant_id = $1 LIMIT 1`,
-      [tenantId]
-    );
-    
-    if (defaultTheme.length > 0) {
-      const row = defaultTheme[0];
-      const themeId = row?.['id'];
-      if (themeId) {
-        await sql.unsafe(
-          `UPDATE themes SET status = 'ACTIVE', updated_at = NOW() WHERE id = $1`,
-          [themeId]
-        );
-      }
-    }
-  } catch {
-    // Silent — theme activation is best-effort
+  const currentTenantId = tenantId ?? await resolveTenantId('default');
+  const activeTheme = await sql.unsafe(
+    `SELECT id FROM themes WHERE status = 'ACTIVE' AND tenant_id = $1 LIMIT 1`,
+    [currentTenantId]
+  );
+  if (activeTheme.length > 0) return;
+
+  const defaultTheme = await sql.unsafe(
+    `SELECT id FROM themes WHERE name = 'default' AND tenant_id = $1 LIMIT 1`,
+    [currentTenantId]
+  );
+  const themeId = defaultTheme[0]?.['id'];
+  if (!themeId) {
+    throw new Error(`Default theme is not registered for tenant "${currentTenantId}"`);
+  }
+  const activated = await sql.unsafe(
+    `UPDATE themes SET status = 'ACTIVE', activated_at = NOW(), updated_at = NOW()
+     WHERE id = $1 AND tenant_id = $2 RETURNING id`,
+    [themeId, currentTenantId]
+  );
+  if (activated.length === 0) {
+    throw new Error(`Default theme could not be activated for tenant "${currentTenantId}"`);
   }
 }

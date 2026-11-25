@@ -1,7 +1,7 @@
 // @oktis-works/theme-runtime - Template Hierarchy Resolver
 
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { join, resolve, sep } from 'node:path';
 
 export interface TemplateContext {
   type: string;
@@ -132,9 +132,17 @@ export function resolveProjectThemeChain(themesRoot: string, activeTheme: string
   const visit = (theme: string): void => {
     if (!theme || !SAFE_THEME_NAME_RE.test(theme) || chain.includes(theme)) return;
     if (visiting.has(theme)) throw new Error(`Theme inheritance cycle detected at "${theme}"`);
+    const themePath = join(themesRoot, theme);
+    if (existsSync(themePath)) {
+      const root = realpathSync(resolve(themesRoot));
+      const realThemePath = realpathSync(themePath);
+      if (realThemePath !== root && !realThemePath.startsWith(root + sep)) {
+        throw new Error(`Theme "${theme}" resolves outside the themes directory`);
+      }
+    }
     visiting.add(theme);
     chain.push(theme);
-    const manifestPath = join(themesRoot, theme, 'theme.json');
+    const manifestPath = join(themePath, 'theme.json');
     if (existsSync(manifestPath)) {
       try {
         const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8')) as { parent?: unknown };
@@ -148,8 +156,14 @@ export function resolveProjectThemeChain(themesRoot: string, activeTheme: string
           }
           visit(manifest.parent);
         }
-      } catch {
-        throw new Error(`Invalid theme manifest: ${manifestPath}`);
+      } catch (error) {
+        if (error instanceof Error && (
+          error.message.startsWith('Theme "') ||
+          error.message.startsWith('Theme inheritance cycle detected')
+        )) {
+          throw error;
+        }
+        throw new Error(`Invalid theme manifest: ${manifestPath}`, { cause: error });
       }
     }
     visiting.delete(theme);
@@ -201,7 +215,17 @@ export function createProjectTemplateResolver(
 function safeTarget(themesRoot: string, theme: string, file: string): string | null {
   if (!file || file.includes('..') || file.startsWith('/')) return null;
   const target = join(themesRoot, theme, file);
-  return target === themesRoot || target.startsWith(themesRoot + '/') ? target : null;
+  const lexicalRoot = resolve(themesRoot);
+  const lexicalTarget = resolve(target);
+  if (lexicalTarget !== lexicalRoot && !lexicalTarget.startsWith(lexicalRoot + sep)) return null;
+  if (!existsSync(target)) return target;
+  try {
+    const realRoot = realpathSync(lexicalRoot);
+    const realTarget = realpathSync(target);
+    return realTarget === realRoot || realTarget.startsWith(realRoot + sep) ? realTarget : null;
+  } catch {
+    return null;
+  }
 }
 
 export class TemplateHierarchyResolver {

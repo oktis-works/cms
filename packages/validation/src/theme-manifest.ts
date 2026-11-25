@@ -17,6 +17,8 @@ export interface ThemeRenderManifestLike {
   version?: unknown;
   type?: unknown;
   render?: unknown;
+  parent?: unknown;
+  components?: unknown;
 }
 
 const VALID_ENGINES: readonly ThemeRenderEngine[] = ['template', 'react', 'solid'];
@@ -70,8 +72,30 @@ export function validateThemeManifestRender(manifest: unknown): string[] {
     return ['theme manifest must be an object'];
   }
   const record = manifest as ThemeRenderManifestLike;
+  const issues: string[] = [];
   if (record.type !== undefined && record.type !== 'theme') {
     return ['theme manifest type must be "theme"'];
   }
-  return validateThemeRenderConfig(record.render);
+  if (record.parent !== undefined && (typeof record.parent !== 'string' || !/^[A-Za-z0-9_-]+$/.test(record.parent))) {
+    issues.push('theme manifest parent must be a safe relative theme name');
+  }
+  if (record.components !== undefined) {
+    if (!Array.isArray(record.components)) {
+      issues.push('theme manifest components must be an array');
+    } else {
+      for (const component of record.components) {
+        if (!component || typeof component !== 'object' || Array.isArray(component)) {
+          issues.push('theme manifest components must contain objects');
+          continue;
+        }
+        const item = component as Record<string, unknown>;
+        if (typeof item['name'] !== 'string' || !item['name']) issues.push('theme component name is required');
+        if (typeof item['file'] !== 'string' || !isSafeThemeRenderEntry(item['file'])) {
+          issues.push('theme component file must be a safe relative path');
+        }
+      }
+    }
+  }
+  issues.push(...validateThemeRenderConfig(record.render));
+  return issues;
 }

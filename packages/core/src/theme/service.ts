@@ -1,19 +1,27 @@
 import { randomUUID } from 'node:crypto';
-import { existsSync, realpathSync } from 'node:fs';
-import { readdir, readFile, rm } from 'node:fs/promises';
-import { join, resolve, sep } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { readdir, readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { getConnection, runInTransaction } from '@oktis-works/database';
 import type { Theme, ThemeSettingField } from '@oktis-works/types';
 import { checkExtensionCompatibility, validateThemeManifestRender } from '@oktis-works/validation';
-import { readThemeBuild, validateThemeBuild } from '@oktis-works/theme-runtime';
+import { computeThemeBuildId, readThemeBuild, validateStyleManifest, validateThemeBuild } from '@oktis-works/theme-runtime';
 import { resolveExtensionDirectory } from '../extensions/project-directories.js';
+import { getCurrentTenantIdSync } from '../tenant/context.js';
 
 const SAFE_NAME_RE = /^[a-z0-9][a-z0-9_-]*$/i;
 
+function requireThemeTenant(tenantId?: string): string {
+  if (tenantId) return tenantId;
+  return getCurrentTenantIdSync();
+}
+
 export interface ThemeBuildStatus {
   engine: 'template' | 'react' | 'solid';
-  status: 'not-applicable' | 'ok' | 'missing' | 'invalid';
+  status: 'not-applicable' | 'ok' | 'missing' | 'invalid' | 'incompatible' | 'stale';
   buildId?: string;
+  expectedBuildId?: string;
+  builtAt?: string;
   problems: string[];
 }
 
@@ -32,23 +40,60 @@ export function describeThemeBuild(theme: {
   }
 
   const themeDir = join(resolveExtensionDirectory('theme'), theme.name);
+  let filesystemManifest: Record<string, unknown> | null = null;
+  let expectedBuildId: string | undefined;
+  try {
+    filesystemManifest = JSON.parse(readFileSync(join(themeDir, 'theme.json'), 'utf8')) as Record<string, unknown>;
+    expectedBuildId = computeThemeBuildId(themeDir, filesystemManifest as never);
+  } catch {
+    expectedBuildId = undefined;
+  }
+  if (filesystemManifest) {
+    const manifestIssues = [
+      ...checkExtensionCompatibility('theme', filesystemManifest).map((issue) => issue.message),
+      ...validateThemeManifestRender(filesystemManifest),
+      ...validateStyleManifest(filesystemManifest as never, themeDir),
+    ];
+    if (manifestIssues.length > 0) {
+      return { engine, status: 'incompatible', expectedBuildId, problems: manifestIssues };
+    }
+  }
   const build = readThemeBuild(themeDir);
   if (!build) {
     return {
       engine,
       status: 'missing',
+      expectedBuildId,
       problems: ['dist/theme-build.json is missing'],
     };
   }
   const issues = validateThemeBuild(themeDir, build, engine);
   if (issues.length > 0) {
-    return { engine, status: 'invalid', buildId: build.buildId, problems: issues };
+    return { engine, status: 'invalid', buildId: build.buildId, builtAt: build.builtAt, problems: issues };
   }
-  return { engine, status: 'ok', buildId: build.buildId, problems: [] };
+  if (expectedBuildId && expectedBuildId !== build.buildId) {
+    return {
+      engine,
+      status: 'stale',
+      buildId: build.buildId,
+      expectedBuildId,
+      builtAt: build.builtAt,
+      problems: [`artifact buildId ${build.buildId} does not match current sources ${expectedBuildId}`],
+    };
+  }
+  return { engine, status: 'ok', buildId: build.buildId, builtAt: build.builtAt, problems: [] };
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)).map(([key, entry]) => `${JSON.stringify(key)}:${stableJson(entry)}`).join(',')}}`;
+  }
+  return JSON.stringify(value) ?? 'null';
 }
 
 /** Resultado da validação de config de tema. */
@@ -186,7 +231,8 @@ function validateFieldValue(
       break;
     }
 
-    case 'checkbox': {
+    case 'checkbox':
+    case 'toggle': {
       if (typeof value !== 'boolean') {
         errors.push(`Setting "${key}" must be a boolean`);
       } else {
@@ -397,14 +443,13 @@ function validateFieldValue(
   return { valid: errors.length === 0, errors, sanitized };
 }
 
-/** Sanitização básica de HTML para prevenir XSS em campos wysiwyg/textarea. */
+/** Removes executable HTML from user-managed theme settings. */
 function sanitizeHtml(html: string): string {
   return html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove script tags
-    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '') // Remove iframe tags
-    .replace(/<(?:object|embed|applet)\b[^>]*>/gi, '')
+    .replace(/<\s*(?:script|iframe|object|embed|applet|style|link|meta)\b[^>]*>[\s\S]*?<\s*\/\s*(?:script|iframe|object|embed|applet|style|link|meta)\s*>/gi, '')
+    .replace(/<\s*(?:script|iframe|object|embed|applet|style|link|meta)\b[^>]*\/?>/gi, '')
     .replace(/on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-    .replace(/(?:javascript|vbscript|data):/gi, '');
+    .replace(/(?:java\s*script|vb\s*script|data)\s*:/gi, '');
 }
 
 export class ThemeService {
@@ -415,55 +460,101 @@ export class ThemeService {
    * retornada é o estado do banco COMPLETO: temas removidos do disco continuam
    * visíveis para desinstalação.
    */
-  async syncFromDirectory(): Promise<Theme[]> {
+  async syncFromDirectory(tenantId?: string): Promise<Theme[]> {
+    const currentTenantId = requireThemeTenant(tenantId);
     const directory = resolveExtensionDirectory('theme');
     let entries;
     try {
       entries = await readdir(directory, { withFileTypes: true });
     } catch {
       // Sem diretório/sem permissão: devolve o que já está registrado.
-      return this.list();
+      return this.list(currentTenantId);
     }
 
     const sql = getConnection();
+    const failures: string[] = [];
 
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
-      const manifest = await this.readManifest(join(directory, entry.name));
-      if (!manifest) continue;
+      const themeDir = join(directory, entry.name);
+      if (!existsSync(join(themeDir, 'theme.json'))) continue;
+      const manifest = await this.readManifest(themeDir);
+      if (!manifest) {
+        if (existsSync(join(themeDir, 'manifest.json'))) continue;
+        failures.push(`${entry.name}: theme.json is missing or invalid JSON`);
+        continue;
+      }
 
       const name = typeof manifest['name'] === 'string' ? manifest['name'].trim() : '';
       const version = typeof manifest['version'] === 'string' ? manifest['version'].trim() : '';
-      if (!SAFE_NAME_RE.test(name) || !version) continue;
+      if (!SAFE_NAME_RE.test(name) || !version) {
+        failures.push(`${entry.name}: theme.json requires a safe name and non-empty version`);
+        continue;
+      }
+      if (name !== entry.name) {
+        failures.push(`${entry.name}: theme.json name must match the directory name`);
+        continue;
+      }
 
       const compatibilityIssues = checkExtensionCompatibility('theme', { ...manifest, name, version });
-      if (compatibilityIssues.length > 0) continue;
+      if (compatibilityIssues.length > 0) {
+        failures.push(`${name}: ${compatibilityIssues.map((issue) => issue.message).join('; ')}`);
+        continue;
+      }
 
       // Invalid render config must not silently enter the registry: the web
       // would fail later with a less actionable error.
       const renderIssues = validateThemeManifestRender({ ...manifest, name, version });
       if (renderIssues.length > 0) {
-        console.warn(`[ThemeService] ${name}: ${renderIssues.join('; ')}`);
+        failures.push(`${name}: ${renderIssues.join('; ')}`);
         continue;
       }
+      const styleIssues = validateStyleManifest({ ...manifest, name, version }, themeDir);
+      if (styleIssues.length > 0) {
+        failures.push(`${name}: ${styleIssues.join('; ')}`);
+        continue;
+      }
+      const engine = (manifest['render'] as { engine?: unknown } | undefined)?.engine;
+      if (engine === 'react' || engine === 'solid') {
+        const build = readThemeBuild(themeDir);
+        if (!build) {
+          failures.push(`${name}: dist/theme-build.json is missing; run okcms theme:build --name ${name}`);
+          continue;
+        }
+        const buildIssues = validateThemeBuild(themeDir, build, engine);
+        const expectedBuildId = computeThemeBuildId(themeDir, manifest as never);
+        if (buildIssues.length > 0) {
+          failures.push(`${name}: ${buildIssues.join('; ')}`);
+          continue;
+        }
+        if (build.buildId !== expectedBuildId) {
+          failures.push(`${name}: compiled artifact is stale (artifact ${build.buildId}, sources ${expectedBuildId}); run okcms theme:build --name ${name}`);
+          continue;
+        }
+      }
 
-      const existing = await this.getByName(name);
+      const existing = await this.getByName(name, currentTenantId);
       if (existing) {
         const status = existing.status === 'INACTIVE' || existing.status === 'ACTIVE' ? existing.status : 'INSTALLED';
         await sql.unsafe(
-          `UPDATE themes SET version = $1, manifest = $2::jsonb, status = $3, updated_at = NOW() WHERE id = $4`,
-          [version, manifest, status, existing.id]
+          `UPDATE themes SET version = $1, manifest = $2::jsonb, status = $3, updated_at = NOW()
+           WHERE id = $4 AND tenant_id = $5`,
+          [version, manifest, status, existing.id, currentTenantId]
         );
       } else {
         await sql.unsafe(
-          `INSERT INTO themes (id, name, version, status, manifest, config, installed_at, updated_at)
-           VALUES ($1, $2, $3, 'INSTALLED', $4::jsonb, $5::jsonb, NOW(), NOW())`,
-          [randomUUID(), name, version, manifest, {}]
+          `INSERT INTO themes (id, tenant_id, name, version, status, manifest, config, installed_at, updated_at)
+           VALUES ($1, $2, $3, $4, 'INSTALLED', $5::jsonb, $6::jsonb, NOW(), NOW())`,
+          [randomUUID(), currentTenantId, name, version, manifest, {}]
         );
       }
     }
 
-    return this.list();
+    if (failures.length > 0) {
+      throw new Error(`Theme synchronization failed:\n- ${failures.join('\n- ')}`);
+    }
+
+    return this.list(currentTenantId);
   }
 
   /** Lê o theme.json (nome canônico) do diretório do tema. */
@@ -478,103 +569,64 @@ export class ThemeService {
     return null;
   }
 
-  async list(): Promise<Theme[]> {
+  async list(tenantId?: string): Promise<Theme[]> {
+    const currentTenantId = requireThemeTenant(tenantId);
     const sql = getConnection();
-    const result = await sql.unsafe('SELECT * FROM themes ORDER BY name ASC');
+    const result = await sql.unsafe('SELECT * FROM themes WHERE tenant_id = $1 ORDER BY name ASC', [currentTenantId]);
     return result as unknown as Theme[];
   }
 
-  async getById(id: string): Promise<Theme | null> {
+  async getById(id: string, tenantId?: string): Promise<Theme | null> {
+    const currentTenantId = requireThemeTenant(tenantId);
     const sql = getConnection();
-    const result = await sql.unsafe('SELECT * FROM themes WHERE id = $1', [id]);
+    const result = await sql.unsafe('SELECT * FROM themes WHERE id = $1 AND tenant_id = $2', [id, currentTenantId]);
     return (result[0] as unknown as Theme) ?? null;
   }
 
-  async getByName(name: string): Promise<Theme | null> {
+  async getByName(name: string, tenantId?: string): Promise<Theme | null> {
+    const currentTenantId = requireThemeTenant(tenantId);
     const sql = getConnection();
-    const result = await sql.unsafe('SELECT * FROM themes WHERE name = $1', [name]);
+    const result = await sql.unsafe('SELECT * FROM themes WHERE name = $1 AND tenant_id = $2', [name, currentTenantId]);
     return (result[0] as unknown as Theme) ?? null;
-  }
-
-  /**
-   * Registra um tema enviado via API (instalação explícita). O manifesto
-   * precisa do contrato BUSI-022 completo (name, version, type, compatibility).
-   */
-  async install(input: {
-    name: string;
-    version: string;
-    manifest: Record<string, unknown>;
-    config?: Record<string, unknown>;
-  }): Promise<Theme> {
-    const name = typeof input.name === 'string' ? input.name.trim() : '';
-    if (!SAFE_NAME_RE.test(name) || name.includes('..') || name.length > 100) {
-      throw new Error(`Invalid theme name: "${input.name}" (use [a-z0-9-_], max 100 chars)`);
-    }
-
-    const version = typeof input.version === 'string' ? input.version.trim() : '';
-    if (!version) throw new Error('Theme version is required');
-
-    if (!isPlainObject(input.manifest)) {
-      throw new Error('Theme manifest must be an object');
-    }
-
-    // BUSI-022: o manifesto precisa declarar type: "theme" e compatibility.okcms.
-    const issues = checkExtensionCompatibility('theme', { ...input.manifest, name, version });
-    if (issues.length > 0) {
-      throw new Error(`Invalid theme manifest: ${issues.map((issue) => issue.message).join('; ')}`);
-    }
-
-    const renderIssues = validateThemeManifestRender({ ...input.manifest, name, version });
-    if (renderIssues.length > 0) {
-      throw new Error(`Invalid theme manifest: ${renderIssues.join('; ')}`);
-    }
-
-    const installConfig = input.config ?? {};
-    if (!isPlainObject(installConfig)) throw new Error('Theme config must be an object');
-    const configValidation = validateThemeConfig(
-      installConfig,
-      Array.isArray(input.manifest['settings']) ? input.manifest['settings'] : []
-    );
-    if (!configValidation.valid) {
-      throw new Error(`Theme config validation failed: ${configValidation.errors.join('; ')}`);
-    }
-
-    const duplicate = await this.getByName(name);
-    if (duplicate) {
-      throw new Error(`Theme "${name}" is already installed (id ${duplicate.id})`);
-    }
-
-    const sql = getConnection();
-    const id = randomUUID();
-
-    const result = await sql.unsafe(
-      `INSERT INTO themes (id, name, version, status, manifest, config, installed_at, created_at, updated_at)
-       VALUES ($1, $2, $3, 'INSTALLED', $4::jsonb, $5::jsonb, NOW(), NOW(), NOW())
-       RETURNING *`,
-      [id, name, version, { ...input.manifest, name, version }, configValidation.sanitized]
-    );
-
-    return result[0] as unknown as Theme;
   }
 
   /**
    * Ativa um tema DESATIVANDO os demais (invariante: um único ACTIVE por
    * tenant, garantida também pelo índice parcial idx_themes_single_active).
    */
-  async activate(id: string): Promise<Theme | null> {
+  async activate(id: string, tenantId?: string): Promise<Theme | null> {
+    const currentTenantId = requireThemeTenant(tenantId);
     return runInTransaction(async () => {
       const sql = getConnection();
-      const selected = await sql.unsafe('SELECT * FROM themes WHERE id = $1 FOR UPDATE', [id]);
+      const selected = await sql.unsafe('SELECT * FROM themes WHERE id = $1 AND tenant_id = $2 FOR UPDATE', [id, currentTenantId]);
       const existing = (selected[0] as unknown as Theme & { tenant_id?: string | null }) ?? null;
       if (!existing) return null;
+      if (existing.tenant_id !== currentTenantId) return null;
       const themeDir = join(resolveExtensionDirectory('theme'), existing.name);
       if (!existsSync(join(themeDir, 'theme.json'))) {
         throw new Error(`Theme files are missing for "${existing.name}"`);
       }
+      let filesystemManifest: Record<string, unknown>;
+      try {
+        filesystemManifest = JSON.parse(readFileSync(join(themeDir, 'theme.json'), 'utf8')) as Record<string, unknown>;
+      } catch {
+        throw new Error(`Theme manifest is invalid for "${existing.name}"`);
+      }
+      if (stableJson(existing.manifest) !== stableJson(filesystemManifest)) {
+        throw new Error(`Theme manifest drift detected for "${existing.name}"; synchronize the database with the filesystem`);
+      }
+      const manifestIssues = [
+        ...checkExtensionCompatibility('theme', filesystemManifest).map((issue) => issue.message),
+        ...validateThemeManifestRender(filesystemManifest),
+        ...validateStyleManifest(filesystemManifest as never, themeDir),
+      ];
+      if (manifestIssues.length > 0) {
+        throw new Error(`Theme "${existing.name}" has an invalid manifest: ${manifestIssues.join('; ')}`);
+      }
 
       // Compiled themes are inert without a valid artifact. Refuse activation
       // here (admin/API path) with the same actionable message as the CLI.
-      const manifest = existing.manifest as { render?: { engine?: string } } | null;
+      const manifest = filesystemManifest as { render?: { engine?: string } } | null;
       const engine = manifest?.render?.engine;
       if (engine === 'react' || engine === 'solid') {
         const build = readThemeBuild(themeDir);
@@ -589,20 +641,26 @@ export class ThemeService {
             `Theme "${existing.name}" has an invalid build: ${issues.join('; ')}. Run \`okcms theme:build --name ${existing.name}\`.`
           );
         }
+        const expectedBuildId = computeThemeBuildId(themeDir, JSON.parse(readFileSync(join(themeDir, 'theme.json'), 'utf8')));
+        if (expectedBuildId !== build.buildId) {
+          throw new Error(
+            `Theme "${existing.name}" has a stale build (artifact ${build.buildId}, sources ${expectedBuildId}). Run \`okcms theme:build --name ${existing.name}\`.`
+          );
+        }
       }
 
       await sql.unsafe(
         `UPDATE themes SET status = 'INACTIVE', updated_at = NOW()
-         WHERE status = 'ACTIVE' AND id <> $1 AND tenant_id IS NOT DISTINCT FROM $2`,
-        [id, existing.tenant_id ?? null]
+         WHERE status = 'ACTIVE' AND id <> $1 AND tenant_id = $2`,
+        [id, currentTenantId]
       );
 
       const result = await sql.unsafe(
         `UPDATE themes
          SET status = 'ACTIVE', activated_at = NOW(), updated_at = NOW()
-         WHERE id = $1
+         WHERE id = $1 AND tenant_id = $2
          RETURNING *`,
-        [id]
+        [id, currentTenantId]
       );
 
       return (result[0] as unknown as Theme) ?? null;
@@ -614,18 +672,19 @@ export class ThemeService {
    * theme — deactivation is refused while it is the only registered theme;
    * with multiple themes the admin re-activates one of the others.
    */
-  async deactivate(id: string): Promise<Theme | null> {
+  async deactivate(id: string, tenantId?: string): Promise<Theme | null> {
+    const currentTenantId = requireThemeTenant(tenantId);
     return runInTransaction(async () => {
       const sql = getConnection();
-      const selected = await sql.unsafe('SELECT * FROM themes WHERE id = $1 FOR UPDATE', [id]);
+      const selected = await sql.unsafe('SELECT * FROM themes WHERE id = $1 AND tenant_id = $2 FOR UPDATE', [id, currentTenantId]);
       const existing = (selected[0] as unknown as Theme & { tenant_id?: string | null }) ?? null;
       if (!existing) return null;
 
       if (existing.status === 'ACTIVE') {
         const countResult = await sql.unsafe(
           `SELECT COUNT(*)::int AS count FROM themes
-           WHERE status = 'ACTIVE' AND tenant_id IS NOT DISTINCT FROM $1`,
-          [existing.tenant_id ?? null]
+           WHERE status = 'ACTIVE' AND tenant_id = $1`,
+          [currentTenantId]
         );
         const activeCount = Number((countResult[0] as { count?: number | string } | undefined)?.count ?? 0);
         if (activeCount <= 1) {
@@ -636,9 +695,9 @@ export class ThemeService {
       const result = await sql.unsafe(
         `UPDATE themes
          SET status = 'INACTIVE', updated_at = NOW()
-         WHERE id = $1
+         WHERE id = $1 AND tenant_id = $2
          RETURNING *`,
-        [id]
+        [id, currentTenantId]
       );
 
       return (result[0] as unknown as Theme) ?? null;
@@ -646,25 +705,27 @@ export class ThemeService {
   }
 
   /** Tema ativo atual (fonte única lida pelo app web na renderização). */
-  async getActive(): Promise<Theme | null> {
+  async getActive(tenantId?: string): Promise<Theme | null> {
+    const currentTenantId = requireThemeTenant(tenantId);
     const sql = getConnection();
     const result = await sql.unsafe(
-      `SELECT * FROM themes WHERE status = 'ACTIVE'
-       ORDER BY (tenant_id IS NULL), activated_at DESC NULLS LAST, created_at DESC
+      `SELECT * FROM themes WHERE status = 'ACTIVE' AND tenant_id = $1
+       ORDER BY activated_at DESC NULLS LAST, created_at DESC
        LIMIT 1`
-    );
+      , [currentTenantId]);
     return (result[0] as unknown as Theme) ?? null;
   }
 
   /** Atualiza o config (customizador) do tema — validado contra manifest.settings. */
-  async updateConfig(id: string, config: unknown, userId?: string, allowExtraKeys?: boolean): Promise<Theme | null> {
+  async updateConfig(id: string, config: unknown, userId?: string, allowExtraKeys?: boolean, tenantId?: string): Promise<Theme | null> {
     if (!isPlainObject(config)) {
       throw new Error('Theme config must be an object');
     }
 
+    const currentTenantId = requireThemeTenant(tenantId);
     return runInTransaction(async () => {
       const sql = getConnection();
-      const selected = await sql.unsafe('SELECT * FROM themes WHERE id = $1 FOR UPDATE', [id]);
+      const selected = await sql.unsafe('SELECT * FROM themes WHERE id = $1 AND tenant_id = $2 FOR UPDATE', [id, currentTenantId]);
       const existing = (selected[0] as unknown as Theme) ?? null;
       if (!existing) return null;
 
@@ -678,46 +739,39 @@ export class ThemeService {
 
       await sql.unsafe(
         `INSERT INTO theme_config_versions (theme_id, config, user_id, change_summary)
-         VALUES ($1, $2::jsonb, $3, $4)`,
-        [id, existing.config ?? {}, userId ?? null, 'Config updated via API']
+         SELECT $1, $2::jsonb, $3, $4
+         WHERE EXISTS (SELECT 1 FROM themes WHERE id = $1 AND tenant_id = $5)`,
+        [id, existing.config ?? {}, userId ?? null, 'Config updated via API', currentTenantId]
       );
 
       const result = await sql.unsafe(
-        `UPDATE themes SET config = $1::jsonb, updated_at = NOW() WHERE id = $2 RETURNING *`,
-        [allowExtraKeys ? config : validation.sanitized, id]
+        `UPDATE themes SET config = $1::jsonb, updated_at = NOW()
+         WHERE id = $2 AND tenant_id = $3 RETURNING *`,
+        [allowExtraKeys ? config : validation.sanitized, id, currentTenantId]
       );
 
       return (result[0] as unknown as Theme) ?? null;
     });
   }
 
-  async uninstall(id: string): Promise<boolean> {
-    const existing = await this.getById(id);
+  async uninstall(id: string, tenantId?: string): Promise<boolean> {
+    const currentTenantId = requireThemeTenant(tenantId);
+    const existing = await this.getById(id, currentTenantId);
     if (!existing) return false;
     if (existing.status === 'ACTIVE') {
       throw new Error('Cannot uninstall the active theme; activate another theme first');
     }
 
     const sql = getConnection();
-    await sql.unsafe('DELETE FROM themes WHERE id = $1', [id]);
-
-    const themesRoot = resolveExtensionDirectory('theme');
-    const root = resolve(themesRoot);
-    const themeDir = resolve(root, existing.name);
-    if (themeDir.startsWith(root + sep) && existsSync(themeDir)) {
-      const realRoot = realpathSync(root);
-      const realThemeDir = realpathSync(themeDir);
-      if (realThemeDir.startsWith(realRoot + sep)) {
-        await rm(realThemeDir, { recursive: true, force: true });
-      }
-    }
-
+    await sql.unsafe('DELETE FROM themes WHERE id = $1 AND tenant_id = $2', [id, currentTenantId]);
+    // Theme files are project-managed and can be shared by multiple tenants;
+    // uninstalling a tenant registry row must never delete the filesystem source.
     return true;
   }
 
   /** Export theme config as JSON. */
-  async exportConfig(id: string): Promise<{ config: Record<string, unknown>; manifest: Record<string, unknown>; exportedAt: string } | null> {
-    const theme = await this.getById(id);
+  async exportConfig(id: string, tenantId?: string): Promise<{ config: Record<string, unknown>; manifest: Record<string, unknown>; exportedAt: string } | null> {
+    const theme = await this.getById(id, tenantId);
     if (!theme) return null;
 
     return {
@@ -728,8 +782,9 @@ export class ThemeService {
   }
 
   /** Import theme config from JSON, validating against manifest. */
-  async importConfig(id: string, config: Record<string, unknown>, options?: { mode?: 'merge' | 'replace' }): Promise<Theme | null> {
-    const existing = await this.getById(id);
+  async importConfig(id: string, config: Record<string, unknown>, options?: { mode?: 'merge' | 'replace' }, tenantId?: string): Promise<Theme | null> {
+    const currentTenantId = requireThemeTenant(tenantId);
+    const existing = await this.getById(id, currentTenantId);
     if (!existing) return null;
 
     const mode = options?.mode ?? 'merge';
@@ -757,34 +812,43 @@ export class ThemeService {
       newConfig = { ...(existing.config ?? {}), ...validation.sanitized };
     }
 
-    return this.updateConfig(id, newConfig, undefined, mode === 'replace');
+    return this.updateConfig(id, newConfig, undefined, mode === 'replace', currentTenantId);
   }
 
   /** Get config version history for a theme. */
-  async getConfigHistory(id: string, limit = 50, offset = 0): Promise<Array<{ id: string; config: Record<string, unknown>; userId: string | null; changeSummary: string | null; createdAt: Date }>> {
+  async getConfigHistory(id: string, limit = 50, offset = 0, tenantId?: string): Promise<Array<{ id: string; config: Record<string, unknown>; userId: string | null; changeSummary: string | null; createdAt: Date }>> {
+    const currentTenantId = requireThemeTenant(tenantId);
+    const theme = await this.getById(id, currentTenantId);
+    if (!theme) return [];
     const sql = getConnection();
     const rows = await sql.unsafe(
       `SELECT id, config, user_id, change_summary, created_at
        FROM theme_config_versions
        WHERE theme_id = $1
+         AND EXISTS (SELECT 1 FROM themes WHERE id = $1 AND tenant_id = $4)
        ORDER BY created_at DESC
        LIMIT $2 OFFSET $3`,
-      [id, limit, offset]
+      [id, limit, offset, currentTenantId]
     );
     return rows as unknown as Array<{ id: string; config: Record<string, unknown>; userId: string | null; changeSummary: string | null; createdAt: Date }>;
   }
 
   /** Restore a previous config version. */
-  async restoreConfigVersion(themeId: string, versionId: string, userId: string | null): Promise<Theme | null> {
+  async restoreConfigVersion(themeId: string, versionId: string, userId: string | null, tenantId?: string): Promise<Theme | null> {
+    const currentTenantId = requireThemeTenant(tenantId);
+    const theme = await this.getById(themeId, currentTenantId);
+    if (!theme) return null;
     const sql = getConnection();
     const version = await sql.unsafe(
-      `SELECT config FROM theme_config_versions WHERE id = $1 AND theme_id = $2`,
-      [versionId, themeId]
+      `SELECT config FROM theme_config_versions
+       WHERE id = $1 AND theme_id = $2
+         AND EXISTS (SELECT 1 FROM themes WHERE id = $2 AND tenant_id = $3)`,
+      [versionId, themeId, currentTenantId]
     );
     if (!version[0]) return null;
 
     const config = version[0]['config'] as Record<string, unknown>;
-    return this.updateConfig(themeId, config, userId ?? undefined);
+    return this.updateConfig(themeId, config, userId ?? undefined, undefined, currentTenantId);
   }
 }
 

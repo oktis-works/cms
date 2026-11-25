@@ -236,8 +236,10 @@ export interface Content {
 
 export interface ThemeBuildStatus {
   engine: 'template' | 'react' | 'solid';
-  status: 'not-applicable' | 'ok' | 'missing' | 'invalid';
+  status: 'not-applicable' | 'ok' | 'missing' | 'invalid' | 'incompatible' | 'stale';
   buildId?: string;
+  expectedBuildId?: string;
+  builtAt?: string;
   problems: string[];
 }
 
@@ -1143,6 +1145,10 @@ export class ApiClient {
     }));
   }
 
+  async createThemePreviewToken(id: string): Promise<{ token: string; expiresIn: number }> {
+    return this.request('POST', `/api/v1/themes/${id}/preview-token`);
+  }
+
   async activateTheme(id: string): Promise<ThemeInfo> {
     return this.request('POST', `/api/v1/themes/${id}/activate`);
   }
@@ -1153,10 +1159,6 @@ export class ApiClient {
 
   async updateThemeConfig(id: string, config: Record<string, unknown>): Promise<ThemeInfo> {
     return this.request('PATCH', `/api/v1/themes/${id}/config`, { config });
-  }
-
-  async installTheme(data: { name: string; version: string; manifest: Record<string, unknown> }): Promise<ThemeInfo> {
-    return this.request('POST', '/api/v1/themes/install', data);
   }
 
   // Plugins

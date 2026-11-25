@@ -8,8 +8,10 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import type { ThemeManifest, ThemeRenderEngine } from '@oktis-works/theme-sdk';
+import { CMS_VERSION, checkExtensionCompatibility, validateThemeManifestRender } from '@oktis-works/validation';
 import { readThemeBuild, validateThemeBuild, type ThemeBuildManifest } from './compiled.js';
 import { resolveProjectThemeChain } from './template-resolver.js';
+import { validateStyleManifest } from './style-engine.js';
 
 export interface ThemeCatalogEntry {
   name: string;
@@ -48,6 +50,14 @@ export function loadThemeCatalog(themesRoot: string, activeTheme: string): Theme
     const manifest = readThemeManifest(dir);
     const engine = themeEngineOf(manifest);
     const problems: string[] = [];
+
+    if (!manifest) {
+      problems.push(`theme "${name}" has no valid theme.json`);
+    } else {
+      problems.push(...checkExtensionCompatibility('theme', manifest, CMS_VERSION).map((issue) => issue.message));
+      problems.push(...validateThemeManifestRender(manifest));
+      problems.push(...validateStyleManifest(manifest, dir));
+    }
 
     let build: ThemeBuildManifest | null = null;
     if (engine !== 'template') {

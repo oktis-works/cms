@@ -2,6 +2,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { checkExtensionCompatibility, assertCompatible, CMS_VERSION } from './compatibility.js';
+import { validateThemeManifestRender } from './theme-manifest.js';
 
 const valid = {
   name: 'meu-plugin',
@@ -59,5 +60,17 @@ describe('checkExtensionCompatibility (BUSI-022)', () => {
     ).toThrow(new RegExp(`incompatível \\(plugin\\): .*${CMS_VERSION.replace(/\./g, '\\.')}`));
 
     expect(() => assertCompatible('theme', valid)).not.toThrow();
+  });
+});
+
+describe('theme manifest render contract', () => {
+  it('rejects unsafe parents and component files before runtime loading', () => {
+    const issues = validateThemeManifestRender({
+      name: 'theme',
+      version: '1.0.0',
+      parent: '../outside',
+      components: [{ name: 'Header', file: '../header.astro' }],
+    });
+    expect(issues.join(' ')).toMatch(/parent|component file/);
   });
 });

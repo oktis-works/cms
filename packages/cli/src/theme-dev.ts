@@ -1,7 +1,7 @@
 // @oktis-works/cms - Compiled theme dev watcher
 //
 // `okcms dev` starts one watcher per React/Solid theme. The watcher rebuilds
-// `dist/theme-build.json` + `dist/server/entry.js` on source changes; the web
+// a versioned server artifact plus `dist/theme-build.json` on source changes; the web
 // runtime imports the new artifact by `buildId`, so no restart is required.
 // Production never watches: `okcms theme:build` / `okcms redeploy` build once.
 

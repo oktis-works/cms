@@ -32,7 +32,7 @@ export function defaultProjectConfig(name = 'my-okcms-site'): ProjectConfig {
     },
     themesDir: 'themes',
     pluginsDir: 'plugins',
-    activeTheme: process.env['ACTIVE_THEME'] ?? '',
+    activeTheme: '',
     ports: {
       api: Number(process.env['PORT'] ?? 3000),
       admin: Number(process.env['ADMIN_PORT'] ?? 3011),
