@@ -40,7 +40,10 @@ export function readThemeManifest(themeDir: string): ThemeManifest | null {
 
 export function themeEngineOf(manifest: ThemeManifest | null): ThemeRenderEngine {
   const engine = manifest?.render?.engine;
-  return engine === 'react' || engine === 'solid' ? engine : 'template';
+  if (engine !== 'react' && engine !== 'solid') {
+    throw new Error(`Invalid theme render engine: ${engine}. Must be 'react' or 'solid'.`);
+  }
+  return engine;
 }
 
 export function loadThemeCatalog(themesRoot: string, activeTheme: string): ThemeCatalog {
@@ -60,13 +63,11 @@ export function loadThemeCatalog(themesRoot: string, activeTheme: string): Theme
     }
 
     let build: ThemeBuildManifest | null = null;
-    if (engine !== 'template') {
-      build = readThemeBuild(dir);
-      if (!build) {
-        problems.push(`compiled theme "${name}" has no dist/theme-build.json (run okcms theme:build)`);
-      } else {
-        problems.push(...validateThemeBuild(dir, build, engine));
-      }
+    build = readThemeBuild(dir);
+    if (!build) {
+      problems.push(`compiled theme "${name}" has no dist/theme-build.json (run okcms theme:build)`);
+    } else {
+      problems.push(...validateThemeBuild(dir, build, engine));
     }
 
     return { name, dir, manifest, engine, build, problems };
@@ -78,9 +79,6 @@ export function loadThemeCatalog(themesRoot: string, activeTheme: string): Theme
 /** True when the theme itself provides the template key. */
 export function themeSupportsKey(entry: ThemeCatalogEntry, key: string): boolean {
   if (!key) return false;
-  if (entry.engine === 'template') {
-    return existsSync(join(entry.dir, `${key}.astro`));
-  }
   if (!entry.build || entry.problems.length > 0) return false;
   return entry.build.templates.includes(key);
 }

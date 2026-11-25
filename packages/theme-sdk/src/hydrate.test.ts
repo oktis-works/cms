@@ -9,11 +9,11 @@ const payload: ThemeHydrationPayload = {
   buildId: 'sha256:test',
   templateKey: 'home',
   data: {
-    site: { title: 'Site', description: '', theme: 'theme' },
+    site: { title: 'Site', description: '', theme: { siteTitle: 'Theme Site' } },
     page: {
       title: 'Home',
       description: '',
-      template: 'home.astro',
+      template: 'home.tsx',
       type: 'page',
       slug: 'home',
       url: '/',

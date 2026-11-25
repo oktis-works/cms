@@ -451,13 +451,9 @@ export async function renderContentPageAsync(input: ContentPageRenderInput): Pro
   const catalog = loadThemeCatalog(input.themesRoot, input.activeTheme);
   const active = catalog.entries[0] ?? null;
 
-  // No manifest or legacy template theme: preserve the existing path exactly.
-  if (!active || active.engine === 'template') {
+  // No valid compiled theme: fall back to legacy renderer (should not happen with new themes)
+  if (!active || active.problems.length > 0) {
     return renderContentPage(input);
-  }
-
-  if (active.problems.length > 0) {
-    throw new Error(`Theme "${active.name}" cannot render: ${active.problems.join('; ')}`);
   }
 
   const file = input.resolution.template ?? 'index.astro';

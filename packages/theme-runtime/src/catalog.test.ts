@@ -8,11 +8,17 @@ let root: string;
 
 function theme(name: string, manifest: Record<string, unknown>, templates: Record<string, string> = {}): void {
   mkdirSync(join(root, name), { recursive: true });
+  const baseRender = { engine: 'react', apiVersion: 1, entry: 'src/entry-server.tsx' };
+  const manifestRender = manifest['render'] as Record<string, unknown> | undefined;
+  const mergedRender = manifestRender
+    ? { ...baseRender, ...manifestRender }
+    : baseRender;
   writeFileSync(join(root, name, 'theme.json'), JSON.stringify({
     name,
     version: '1.0.0',
     type: 'theme',
     compatibility: { okcms: '^0.42.0' },
+    render: mergedRender,
     ...manifest,
   }));
   for (const [file, content] of Object.entries(templates)) {
@@ -58,26 +64,33 @@ afterEach(() => {
   rmSync(root, { recursive: true, force: true });
 });
 
+function createFallbackThemes(): void {
+  compiled('_shared', 'react', ['404']);
+  compiled('default', 'react', ['404']);
+}
+
 describe('theme catalog', () => {
-  it('defaults to template and resolves same-engine templates', () => {
-    theme('default', {}, { 'single.astro': 'DEFAULT', '404.astro': '404' });
-    theme('child', { parent: 'default' }, { 'single.astro': 'CHILD' });
+  beforeEach(() => {
+    createFallbackThemes();
+  });
+
+  it('defaults to react and resolves same-engine templates', () => {
+    compiled('child', 'react', ['single'], 'default');
 
     const catalog = loadThemeCatalog(root, 'child');
     // The project chain always includes `_shared` and `default`.
-    expect(catalog.entries.map((entry) => entry.engine)).toEqual(['template', 'template', 'template']);
-    expect(findTemplateProvider(catalog, 'single', 'template')?.name).toBe('child');
-    expect(findTemplateProvider(catalog, '404', 'template')?.name).toBe('default');
+    expect(catalog.entries.map((entry) => entry.engine)).toEqual(['react', 'react', 'react']);
+    expect(findTemplateProvider(catalog, 'single', 'react')?.name).toBe('child');
+    expect(findTemplateProvider(catalog, '404', 'react')?.name).toBe('default');
   });
 
   it('does not mix engines across a parent chain', () => {
-    theme('default', {}, { 'home.astro': 'DEFAULT', '404.astro': '404' });
     compiled('react-child', 'react', ['home'], 'default');
 
     const catalog = loadThemeCatalog(root, 'react-child');
     expect(findTemplateProvider(catalog, 'home', 'react')?.name).toBe('react-child');
     expect(findTemplateProvider(catalog, 'single', 'react')).toBeNull();
-    expect(findTemplateProvider(catalog, 'home', 'template')?.name).toBe('default');
+    expect(findTemplateProvider(catalog, 'home', 'solid')).toBeNull();
   });
 
   it('reports a missing artifact instead of silently falling back', () => {

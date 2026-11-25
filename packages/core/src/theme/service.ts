@@ -17,8 +17,8 @@ function requireThemeTenant(tenantId?: string): string {
 }
 
 export interface ThemeBuildStatus {
-  engine: 'template' | 'react' | 'solid';
-  status: 'not-applicable' | 'ok' | 'missing' | 'invalid' | 'incompatible' | 'stale';
+  engine: 'react' | 'solid';
+  status: 'ok' | 'missing' | 'invalid' | 'incompatible' | 'stale';
   buildId?: string;
   expectedBuildId?: string;
   builtAt?: string;
@@ -36,7 +36,7 @@ export function describeThemeBuild(theme: {
   const manifest = theme.manifest as { render?: { engine?: string } } | null | undefined;
   const engine = manifest?.render?.engine;
   if (engine !== 'react' && engine !== 'solid') {
-    return { engine: 'template', status: 'not-applicable', problems: [] };
+    throw new Error(`Invalid theme render engine: ${engine}. Must be 'react' or 'solid'.`);
   }
 
   const themeDir = join(resolveExtensionDirectory('theme'), theme.name);

@@ -1,4 +1,4 @@
-// @oktis-works/cms - Theme scaffolding in the runtime format (.astro at the root)
+// @oktis-works/cms - Theme scaffolding in the runtime format (React/Solid SSR)
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -16,17 +16,18 @@ afterEach(() => {
   rmSync(baseDir, { recursive: true, force: true });
 });
 
-describe('scaffoldTheme (runtime web format)', () => {
-  it('generates .astro templates at the ROOT (no templates/*.html — the web runtime does not read that)', () => {
-    const { dir } = scaffoldTheme('meu-tema', baseDir);
+describe('scaffoldTheme (runtime web format — engine: react)', () => {
+  it('generates .tsx templates at the ROOT (no templates/*.html — the web runtime does not read that)', () => {
+    const { dir } = scaffoldTheme('meu-tema', baseDir, 'css', 'react');
 
     for (const file of [
-      'page-home.astro',
-      'index.astro',
-      'single.astro',
-      'page.astro',
-      'archive.astro',
-      '404.astro',
+      'home.tsx',
+      'index.tsx',
+      'single.tsx',
+      'page.tsx',
+      'archive.tsx',
+      '404.tsx',
+      'src/entry-server.tsx',
     ]) {
       expect(existsSync(join(dir, file)), file).toBe(true);
     }
@@ -34,23 +35,29 @@ describe('scaffoldTheme (runtime web format)', () => {
     expect(existsSync(join(dir, 'templates', 'index.html'))).toBe(false);
   });
 
-  it('theme.json is born with type + compatibility + provides.layouts (layout editor works)', () => {
-    const { manifest } = scaffoldTheme('meu-tema', baseDir);
+  it('theme.json is born with type + compatibility + provides.layouts + render config (layout editor works)', () => {
+    const { manifest } = scaffoldTheme('meu-tema', baseDir, 'css', 'react');
 
     expect(manifest['type']).toBe('theme');
     expect(manifest['compatibility']).toEqual({ okcms: expect.stringMatching(/^\^\d+\.\d+\.\d+/) });
-    expect((manifest['provides'] as Record<string, unknown>)['layouts']).toContain('page-home');
+    expect(manifest['render']).toEqual({
+      engine: 'react',
+      apiVersion: 1,
+      hydration: 'none',
+      entry: 'src/entry-server.tsx',
+    });
+    expect((manifest['provides'] as Record<string, unknown>)['layouts']).toContain('home');
   });
 
   it('css engine delivers a servable dist/theme.css (no build)', () => {
-    const { dir } = scaffoldTheme('meu-tema', baseDir, 'css');
+    const { dir } = scaffoldTheme('meu-tema', baseDir, 'css', 'react');
 
     expect(existsSync(join(dir, 'dist', 'theme.css'))).toBe(true);
     expect(existsSync(join(dir, 'style.css'))).toBe(false);
   });
 
   it('css engine re-scopes the embedded stylesheet to the new theme name', () => {
-    const { dir } = scaffoldTheme('meu-tema', baseDir, 'css');
+    const { dir } = scaffoldTheme('meu-tema', baseDir, 'css', 'react');
 
     const css = readFileSync(join(dir, 'dist', 'theme.css'), 'utf-8');
     expect(css).toContain('[data-theme="meu-tema"]');
@@ -60,7 +67,7 @@ describe('scaffoldTheme (runtime web format)', () => {
   });
 
   it('scss engine keeps styles/main.scss + stylesConfig pointing to dist/theme.css', () => {
-    const { dir, manifest } = scaffoldTheme('meu-tema', baseDir, 'scss');
+    const { dir, manifest } = scaffoldTheme('meu-tema', baseDir, 'scss', 'react');
 
     expect(existsSync(join(dir, 'styles', 'main.scss'))).toBe(true);
     const styles = manifest['stylesConfig'] as Record<string, unknown>;
@@ -69,7 +76,7 @@ describe('scaffoldTheme (runtime web format)', () => {
   });
 
   it('tailwind engine generates input.css + a config scanning supported theme source files', () => {
-    const { dir } = scaffoldTheme('meu-tema', baseDir, 'tailwind');
+    const { dir } = scaffoldTheme('meu-tema', baseDir, 'tailwind', 'react');
 
     expect(existsSync(join(dir, 'src', 'input.css'))).toBe(true);
     const config = readFileSync(join(dir, 'tailwind.config.js'), 'utf-8');
@@ -78,10 +85,10 @@ describe('scaffoldTheme (runtime web format)', () => {
   });
 
   it('templates use items (the real context) and not posts', () => {
-    const { dir } = scaffoldTheme('meu-tema', baseDir);
-    const home = readFileSync(join(dir, 'page-home.astro'), 'utf-8');
+    const { dir } = scaffoldTheme('meu-tema', baseDir, 'css', 'react');
+    const home = readFileSync(join(dir, 'home.tsx'), 'utf-8');
 
-    expect(home).toContain('{{#each items}}');
+    expect(home).toContain('items.map');
     // The runtime collection is `items` — a `posts` data variable does not
     // exist (UI copy may still contain the word, e.g. "Browse posts").
     expect(home).not.toContain('{{posts');

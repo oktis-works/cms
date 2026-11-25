@@ -242,7 +242,7 @@ export async function buildTheme(opts: BuildThemeOptions): Promise<ThemeBuildRes
 
   let styleReport: ThemeStyleReport | undefined;
 
-  const buildId = engine === 'template' ? null : computeBuildId(themeDir, manifest);
+  const buildId = computeBuildId(themeDir, manifest);
   const generation = buildId ? buildId.replace(/[^A-Za-z0-9_-]/g, '_') : null;
   const generationRoot = generation ? join(themeDir, 'dist', '.versions', generation) : null;
   const stagingRoot = generation
@@ -279,20 +279,6 @@ export async function buildTheme(opts: BuildThemeOptions): Promise<ThemeBuildRes
       discardStaging();
       throw new Error(`No style entry found for ${report.engine} theme "${themeName}"`);
     }
-  }
-
-  if (engine === 'template') {
-    return {
-      theme: themeName,
-      engine,
-      themeDir,
-      buildId: null,
-      templates: [],
-      entry: null,
-      styles: [],
-      ...(styleReport ? { styleReport } : {}),
-      warnings,
-    };
   }
 
   const entrySource = manifest.render?.entry ?? 'src/entry-server.tsx';

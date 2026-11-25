@@ -381,18 +381,18 @@ Run 'okcms wp import --help' or 'okcms wp validate --help' for subcommand option
   },
   {
     name: 'theme:create',
-    description: 'Scaffold a compatible theme (--engine template|react|solid --style css|scss|tailwind)',
+    description: 'Scaffold a compatible theme (--engine react|solid --style css|scss|tailwind)',
     options: [
       { name: 'name', alias: 'n', description: 'Theme name', required: true },
       { name: 'dir', alias: 'd', description: 'Base directory (default: ./themes)', required: false },
       { name: 'style', alias: 's', description: 'Style engine: css|scss|tailwind', required: false, valueKind: 'enum', choices: ['css', 'scss', 'tailwind'] },
-      { name: 'engine', alias: 'e', description: 'Render engine: template|react|solid', required: false, valueKind: 'enum', choices: ['template', 'react', 'solid'] },
+      { name: 'engine', alias: 'e', description: 'Render engine: react|solid', required: false, valueKind: 'enum', choices: ['react', 'solid'] },
     ],
     handler: async (_args, options) => {
       const { scaffoldTheme } = await import('./extension-scaffold.js');
       const name = options['name'];
       const style = (options['style'] ?? 'css') as 'css' | 'scss' | 'tailwind';
-      const engine = (options['engine'] ?? 'template') as 'template' | 'react' | 'solid';
+      const engine = (options['engine'] ?? 'react') as 'react' | 'solid';
       if (!name) {
         console.error('Theme name is required (--name)');
         process.exit(1);
@@ -401,8 +401,8 @@ Run 'okcms wp import --help' or 'okcms wp validate --help' for subcommand option
         console.error('--style must be css|scss|tailwind');
         process.exit(1);
       }
-      if (!['template', 'react', 'solid'].includes(engine)) {
-        console.error('--engine must be template|react|solid');
+      if (!['react', 'solid'].includes(engine)) {
+        console.error('--engine must be react|solid');
         process.exit(1);
       }
       try {

@@ -3,9 +3,9 @@
 // These files are written verbatim by `okcms theme:create --engine react|solid`.
 // They are intentionally self-contained and mirror the public template keys.
 
-export type ScaffoldThemeEngine = 'template' | 'react' | 'solid';
+export type ScaffoldThemeEngine = 'react' | 'solid';
 
-const TEMPLATE_KEYS = ['home', 'index', 'single', 'page', 'archive', '404'] as const;
+export const TEMPLATE_KEYS = ['home', 'index', 'single', 'page', 'archive', '404'] as const;
 
 function packageJson(name: string, engine: 'react' | 'solid'): string {
   const framework =
@@ -348,5 +348,3 @@ export function compiledThemeFiles(name: string, engine: 'react' | 'solid'): Rec
   }
   return files;
 }
-
-export { TEMPLATE_KEYS };
