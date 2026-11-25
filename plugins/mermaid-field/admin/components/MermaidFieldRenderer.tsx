@@ -1,30 +1,60 @@
-// @oktis-works/mermaid-field - Componente de renderização do campo Mermaid
-// Usado no editor de conteúdo: /content/*/edit
+// @oktis-works/mermaid-field - Mermaid field renderer component
 
-import { createSignal, createEffect } from 'solid-js';
+import { Show, createEffect, createSignal } from 'solid-js';
 import mermaid from 'mermaid';
 
-export default function MermaidFieldRenderer(props) {
-  const { field, value, onChange, disabled, t } = props;
+type Translator = (key: string) => string;
 
-  const [svg, setSvg] = createSignal<string>('');
+interface MermaidFieldRendererProps {
+  field: {
+    name: string;
+    config?: Record<string, unknown>;
+  };
+  value?: unknown;
+  onChange?: (value: string) => void;
+  disabled?: boolean;
+  t?: Translator;
+  _t?: Translator;
+}
+
+let renderSequence = 0;
+
+export default function MermaidFieldRenderer(props: MermaidFieldRendererProps) {
+  const translate = (key: string, fallback: string): string =>
+    props.t?.(key) ?? props._t?.(key) ?? fallback;
+  const fieldConfig = props.field.config ?? {};
+  const theme = String(fieldConfig['theme'] ?? 'default');
+  const editable = fieldConfig['editable'] !== false;
+
+  const [svg, setSvg] = createSignal('');
   const [error, setError] = createSignal<string | null>(null);
   const [rendered, setRendered] = createSignal(false);
-  const [editorValue, setEditorValue] = createSignal(value ?? field.config?.diagramCode ?? '');
+  const [showSource, setShowSource] = createSignal(true);
+  const [editorValue, setEditorValue] = createSignal(
+    String(props.value ?? fieldConfig['diagramCode'] ?? '')
+  );
+  const [rerenderToken, setRerenderToken] = createSignal(0);
 
-  // Configurações do campo
-  const theme = field.config?.theme ?? 'default';
-  const editable = field.config?.editable !== false;
+  createEffect(() => {
+    const incoming = props.value;
+    if (incoming !== undefined && String(incoming) !== editorValue()) {
+      setEditorValue(String(incoming));
+    }
+  });
 
-  // Renderiza o diagrama quando o valor muda
   createEffect(() => {
     const code = editorValue();
-    if (!code || !code.trim()) {
-      setSvg('');
-      setRendered(false);
-      setError(null);
-      return;
-    }
+    rerenderToken();
+    void renderDiagram(code);
+  });
+
+  async function renderDiagram(code: string): Promise<void> {
+    const request = ++renderSequence;
+    setError(null);
+    setRendered(false);
+    setSvg('');
+
+    if (!code.trim()) return;
 
     try {
       mermaid.initialize({
@@ -33,123 +63,107 @@ export default function MermaidFieldRenderer(props) {
         startOnLoad: false,
         fontFamily: 'inherit',
       });
-
-      const id = `mermaid-${field.name}-${Date.now()}`;
-      const { svg: s } = mermaid.render(id, code);
-      setSvg(s);
+      const result = await mermaid.render(
+        `mermaid-${props.field.name.replace(/[^a-zA-Z0-9_-]/g, '-')}-${request}`,
+        code
+      );
+      if (request !== renderSequence) return;
+      setSvg(result.svg);
       setRendered(true);
-      setError(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-      setRendered(false);
+    } catch (cause) {
+      if (request !== renderSequence) return;
+      setError(cause instanceof Error ? cause.message : String(cause));
     }
-  });
+  }
 
-  const handleEditorChange = (e: Event) => {
-    const newValue = (e.target as HTMLTextAreaElement).value;
-    setEditorValue(newValue);
-    if (onChange) onChange(newValue);
+  const handleEditorChange = (
+    event: InputEvent & { currentTarget: HTMLTextAreaElement }
+  ): void => {
+    const nextValue = event.currentTarget.value;
+    setEditorValue(nextValue);
+    props.onChange?.(nextValue);
   };
 
   return (
     <div class="mermaid-field-renderer">
       <div class="mermaid-toolbar">
         <span class="mermaid-toolbar__label">
-          {t('settings.customFields.mermaid.diagram') ?? 'Diagrama Mermaid'}
+          {translate('settings.customFields.mermaid.diagram', 'Mermaid diagram')}
         </span>
-        <div class="mermaid-toolbar__actions">
-          <Show when={editable}>
+        <Show when={editable}>
+          <div class="mermaid-toolbar__actions">
             <button
               type="button"
               class="btn btn-sm btn-secondary"
               onClick={() => {
-                // Copiar código para clipboard
-                navigator.clipboard.writeText(editorValue());
+                void navigator.clipboard?.writeText(editorValue());
               }}
-              title={t('settings.customFields.mermaid.copyCode') ?? 'Copiar código'}
+              title={translate('settings.customFields.mermaid.copyCode', 'Copy code')}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-              </svg>
+              Copy
             </button>
             <button
               type="button"
               class="btn btn-sm btn-secondary"
-              onClick={() => {
-                // Re-renderizar forçado
-                setEditorValue(editorValue() + '\n');
-              }}
-              title={t('settings.customFields.mermaid.rerender') ?? 'Re-renderizar'}
+              onClick={() => setRerenderToken((token) => token + 1)}
+              title={translate('settings.customFields.mermaid.rerender', 'Render again')}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M23 4v6h-6"></path>
-                <path d="M1 20v-6h6"></path>
-                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-              </svg>
+              Render again
             </button>
-          </Show>
-        </div>
+          </div>
+        </Show>
       </div>
 
       <div class="mermaid-renderer__content">
-        {error() ? (
+        <Show
+          when={error()}
+          fallback={
+            <Show
+              when={rendered()}
+              fallback={
+                <div class="mermaid-loading">
+                  <span>
+                    {editorValue().trim()
+                      ? translate('settings.customFields.mermaid.rendering', 'Rendering diagram…')
+                      : translate(
+                          'settings.customFields.mermaid.empty',
+                          'Enter Mermaid code to render a diagram.'
+                        )}
+                  </span>
+                </div>
+              }
+            >
+              <div class="mermaid-diagram" innerHTML={svg()} />
+            </Show>
+          }
+        >
           <div class="mermaid-error">
-            <div class="mermaid-error__header">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="8" x2="12" y2="12"></line>
-                <line x1="12" y1="16" x2="12.01" y2="16"></line>
-              </svg>
-              <span>{t('settings.customFields.mermaid.renderError') ?? 'Erro ao renderizar'}</span>
-            </div>
+            <strong>{translate('settings.customFields.mermaid.renderError', 'Rendering failed')}</strong>
             <pre class="mermaid-error__details">{error()}</pre>
-            {editable && (
-              <textarea
-                class="input mermaid-source-editor"
-                value={editorValue()}
-                onInput={handleEditorChange}
-                disabled={disabled}
-                rows={10}
-                spellcheck={false}
-                placeholder="graph TD\n  A --> B"
-              />
-            )}
           </div>
-        ) : rendered() ? (
-          <div
-            class="mermaid-diagram"
-            innerHTML={svg()}
-          />
-        ) : (
-          <div class="mermaid-loading">
-            <div class="spinner" aria-hidden="true"></div>
-            <span>{t('settings.customFields.mermaid.rendering') ?? 'Renderizando diagrama...'}</span>
-          </div>
-        )}
+        </Show>
 
-        {editable && (
-          <div class="mermaid-source-section">
-            <Label>
-              <input
-                type="checkbox"
-                checked={true}
-                onChange={(_e) => {}}
-                class="mermaid-source-toggle"
-              />
-              {t('settings.customFields.mermaid.showCode') ?? 'Mostrar código fonte'}
-            </Label>
+        <Show when={editable}>
+          <label class="mermaid-source-toggle">
+            <input
+              type="checkbox"
+              checked={showSource()}
+              onChange={(event) => setShowSource(event.currentTarget.checked)}
+            />
+            {translate('settings.customFields.mermaid.showCode', 'Show source code')}
+          </label>
+          <Show when={showSource()}>
             <textarea
               class="input mermaid-source-editor"
               value={editorValue()}
               onInput={handleEditorChange}
-              disabled={disabled}
+              disabled={props.disabled}
               rows={8}
               spellcheck={false}
-              placeholder="graph TD\n  A --> B"
+              placeholder={'graph TD\n  A --> B'}
             />
-          </div>
-        )}
+          </Show>
+        </Show>
       </div>
     </div>
   );

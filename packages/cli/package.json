@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/cms",
-  "version": "0.19.2",
+  "version": "0.19.3",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -15,8 +15,8 @@
     }
   },
   "scripts": {
-    "build": "node scripts/generate-versions.mjs && node scripts/generate-theme-assets.mjs && tsc && node scripts/copy-migrations.mjs && node scripts/copy-theme-assets.mjs",
-    "prepack": "node scripts/generate-versions.mjs && node scripts/generate-theme-assets.mjs && tsc && node scripts/copy-migrations.mjs && node scripts/copy-theme-assets.mjs",
+    "build": "node scripts/generate-versions.mjs && node scripts/generate-theme-assets.mjs && tsc && node scripts/copy-migrations.mjs && node scripts/copy-theme-assets.mjs && node scripts/copy-plugin-assets.mjs",
+    "prepack": "node scripts/generate-versions.mjs && node scripts/generate-theme-assets.mjs && tsc && node scripts/copy-migrations.mjs && node scripts/copy-theme-assets.mjs && node scripts/copy-plugin-assets.mjs",
     "clean": "rm -rf dist migrations tsconfig.tsbuildinfo dist/themes",
     "wp:import": "node --loader ts-node/esm src/wp-migrate/index.ts import",
     "wp:validate": "node --loader ts-node/esm src/wp-migrate/index.ts validate"

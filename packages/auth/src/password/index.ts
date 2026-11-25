@@ -1,6 +1,8 @@
 // @oktis-works/auth - Password Hashing (bcrypt only)
 
-import { hash, compare } from 'bcryptjs';
+import bcrypt from 'bcryptjs';
+
+const { hash, compare } = bcrypt;
 
 /** Cost factor for bcrypt (12 = secure default). */
 const BCRYPT_COST = 12;

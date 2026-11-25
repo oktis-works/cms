@@ -1,5 +1,11 @@
 # @oktis-works/admin
 
+## 0.27.2
+
+### Patch Changes
+
+- Ship the Mermaid field and editor-slot example as working, compatible extensions. The CLI now bundles mermaid-field into new projects, the admin preserves interactive plugin components, and CommonJS bcrypt imports work during plugin field synchronization.
+
 ## 0.27.1
 
 ### Patch Changes
