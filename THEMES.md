@@ -1,66 +1,302 @@
-# Theme data API
+# Theme System Documentation
 
-O tema não precisa fazer requisições HTTP manuais para montar páginas. Durante
-cada requisição pública, o Web Runtime cria um provider ligado ao banco, carrega
-os dados necessários e executa o tema dentro desse contexto.
+> Complete documentation for OkCMS theme development. Covers both the legacy template engine and the new React/Solid SSR system.
 
-## Fluxo de renderização
+---
 
-1. O runtime resolve a URL para home, conteúdo individual ou archive.
-2. O conteúdo publicado é carregado e colocado no contexto atual.
-3. O provider do tema é criado para aquela requisição.
-4. Menus, content types, taxonomias, termos e settings são disponibilizados.
-5. O template recebe os dados e o Theme SDK fornece as funções de consulta.
+## 1. Overview
 
-O provider é isolado com `AsyncLocalStorage`. Dados de uma requisição não são
-compartilhados com outra requisição concorrente.
+OkCMS supports **two rendering engines** for themes:
 
-## Funções unificadas
+| Engine | Description | Use Case |
+|--------|-------------|----------|
+| `template` | Legacy string-template engine (`.astro` files with `{{#each}}`/`{{variable}}` syntax) | Simple themes, migration from older versions |
+| `react` | React 19 SSR with island hydration | Modern interactive themes, component-based architecture |
+| `solid` | SolidJS SSR with island hydration | Fine-grained reactivity, smaller bundle |
 
-As funções são exportadas por `@oktis-works/theme-sdk`:
+> **Default**: `template` (legacy). Set `"render": { "engine": "react" }` in `theme.json` to use the new system.
 
-```ts
-import {
-  getMenu,
-  getMenus,
-  getContent,
-  getContentById,
-  getContentBySlug,
-  getContentType,
-  getContentTypes,
-  getTaxonomy,
-  getTaxonomies,
-  getTaxonomyTerms,
-  getSettings,
-  getSetting,
-} from '@oktis-works/theme-sdk';
-```
+---
 
-Todas as consultas são assíncronas e retornam Promises.
+## 2. Theme Manifest (`theme.json`)
 
-### Menus
+### 2.1 Core Fields
 
-```ts
-const main = await getMenu('main'); // slug ou nome do menu
-const menus = await getMenus();
-
-for (const item of main?.items ?? []) {
-  console.log(item.label, item.url, item.parentId);
+```json
+{
+  "name": "meu-tema",
+  "version": "1.0.0",
+  "description": "Meu tema personalizado",
+  "type": "theme",
+  "author": "Seu Nome",
+  "compatibility": { "okcms": "^0.42.0" },
+  "screenshots": ["screenshot.png"],
+  "render": {
+    "engine": "react",
+    "apiVersion": 1,
+    "hydration": "islands",
+    "entry": "src/entry-server.tsx"
+  },
+  "stylesConfig": {
+    "engine": "css",
+    "isolation": true,
+    "entry": "src/theme.css",
+    "output": "dist/theme.css"
+  },
+  "provides": {
+    "layouts": ["home", "index", "single", "page", "archive", "404"],
+    "assets": ["dist/theme.css"]
+  },
+  "settings": [
+    { "name": "siteTitle", "type": "text", "label": "Site title", "default": "Meu Site" }
+  ]
 }
 ```
 
-Cada item possui, quando aplicável, `type`, `objectId`, `objectType`, `label`,
-`url`, `parentId`, `order`, `target`, `cssClasses`, `attrTitle`, `xfn` e
-`description`. Os itens são armazenados em lista plana; `parentId` representa a
-hierarquia. Isso permite montar menus simples ou árvores profundas sem perder a
-ordem.
+### 2.2 Render Configuration (`render`)
 
-### Conteúdo
+| Field | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `engine` | Yes | `"template"` | `"template" \| "react" \| "solid"` |
+| `apiVersion` | Yes | `1` | Must be `1` |
+| `hydration` | No | `"none"` | `"none" \| "islands"` — enables client-side hydration for interactive components |
+| `entry` | Yes* | — | Relative path to SSR entry point (e.g., `src/entry-server.tsx`). Required for `react`/`solid`. |
+
+> *Required when `engine` is `"react"` or `"solid"`.
+
+### 2.3 Styles Configuration (`stylesConfig`)
+
+| Field | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `engine` | Yes | `"css"` | `"css" \| "scss" \| "tailwind"` |
+| `isolation` | Yes | `true` | `true` = automatic CSS scoping via `[data-theme="nome"]`; `"manual"` = theme handles scoping (legacy default theme) |
+| `entry` | Yes* | — | Source CSS/SCSS/Tailwind entry file. Required for `scss`/`tailwind`; optional for `css` (direct file copy). |
+| `output` | Yes | `"dist/theme.css"` | Output path relative to theme root. Served statically by web runtime. |
+
+> **Note**: For `react`/`solid` themes, `isolation: true` is recommended — CSS is automatically scoped during `okcms theme:build`.
+
+### 2.4 Layout Keys
+
+The `provides.layouts` array declares which templates the theme implements. Valid keys:
+
+| Key | Purpose | Data Available |
+|-----|---------|----------------|
+| `home` | Site homepage | `site`, `items` (latest posts), `settings` |
+| `index` | Static front page | `page`, `content` |
+| `single` | Blog post | `page`, `content` |
+| `page` | Generic page | `page`, `content` |
+| `archive` | Blog listing / taxonomy | `page`, `items` |
+| `404` | Not found | — |
+
+---
+
+## 3. React/Solid Theme Structure
+
+### 3.1 Directory Layout
+
+```
+themes/meu-tema/
+├── theme.json              # Manifest (required)
+├── src/
+│   ├── theme.css           # Styles entry (stylesConfig.entry)
+│   ├── entry-server.tsx    # SSR entry point (render.entry)
+│   ├── home.tsx            # Home template
+│   ├── index.tsx           # Page template
+│   ├── single.tsx          # Post template
+│   ├── page.tsx            # Generic page template
+│   ├── archive.tsx         # Archive template
+│   └── 404.tsx             # 404 template
+├── dist/
+│   └── theme.css           # Built styles (stylesConfig.output)
+├── package.json            # Auto-generated by scaffold (private)
+├── tsconfig.json           # Auto-generated
+├── vite.config.ts          # Auto-generated
+└── screenshot.png          # Theme preview
+```
+
+### 3.2 SSR Entry Point (`src/entry-server.tsx`)
+
+```tsx
+import Home from '../home';
+import Index from '../index';
+import Single from '../single';
+import Page from '../page';
+import Archive from '../archive';
+import NotFound from '../404';
+import { renderToStaticMarkup } from 'react-dom/server'; // or renderToString from 'solid-js/web'
+import type { ComponentType } from 'react'; // or Component from 'solid-js'
+import type { ThemePageData, ThemeRenderContext, ThemeRenderOutput } from '@oktis-works/theme-sdk';
+
+const templates: Record<string, ComponentType<ThemePageData>> = {
+  'home': Home,
+  'index': Index,
+  'single': Single,
+  'page': Page,
+  'archive': Archive,
+  '404': NotFound,
+};
+
+export const templateKeys = Object.keys(templates);
+
+export function render(
+  key: string,
+  data: ThemePageData,
+  _ctx?: ThemeRenderContext
+): ThemeRenderOutput {
+  const Component = templates[key] ?? templates['404'];
+  return { html: renderToStaticMarkup(<Component {...data} />) };
+}
+```
+
+### 3.3 Template Components
+
+Each template receives `ThemePageData` — a unified type with all page context:
+
+```ts
+interface ThemePageData {
+  site: SiteInfo;              // { title, description, url, locale }
+  page: PageInfo | null;       // Current page/post metadata
+  content: ContentData | null; // Rendered content body (html, fields)
+  items: ContentItem[];        // List items (home, archive)
+  menus: MenusData;            // All menus by slug
+  contentTypes: ContentTypeInfo[];
+  taxonomies: TaxonomyInfo[];
+  terms: Record<string, TaxonomyTerm[]>;
+  settings: SettingsData;      // Theme settings + site settings
+}
+```
+
+**Example: `home.tsx`**
+```tsx
+import type { ThemePageData } from '@oktis-works/theme-sdk';
+
+export default function Home({ site, items, settings }: ThemePageData) {
+  const theme = (settings.theme ?? {}) as Record<string, unknown>;
+  return (
+    <main className="site">
+      <header className="site-header">
+        <div className="container">
+          <h1>{String(theme.siteTitle ?? site.title)}</h1>
+          <p>{site.description}</p>
+        </div>
+      </header>
+      <section className="posts">
+        <div className="container">
+          <div className="posts-grid">
+            {items.map((item) => (
+              <article className="post-card" key={String(item.slug)}>
+                <h2><a href={`/${String(item.slug)}`}>{String(item.title ?? '')}</a></h2>
+                {item.excerpt ? <p>{String(item.excerpt)}</p> : null}
+                <a href={`/${String(item.slug)}`} className="btn btn-outline">Read More</a>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}
+```
+
+### 3.4 CSS Isolation
+
+With `isolation: true` (default for new themes), the build automatically wraps all CSS selectors with `[data-theme="meu-tema"]`:
+
+```css
+/* Source: src/theme.css */
+.container { max-width: 1200px; }
+
+/* Built: dist/theme.css */
+[data-theme="meu-tema"] .container { max-width: 1200px; }
+```
+
+The web runtime injects `<div data-theme="meu-tema">` around the rendered HTML.
+
+---
+
+## 4. Commands
+
+### 4.1 Create a New Theme
+
+```bash
+# Legacy template engine
+okcms theme:create --name meu-tema
+
+# React SSR with island hydration
+okcms theme:create --name meu-tema --engine react
+
+# SolidJS SSR with island hydration
+okcms theme:create --name meu-tema --engine solid
+```
+
+Options:
+- `--style css|scss|tailwind` — CSS engine (default: `css`)
+- `--engine template|react|solid` — Render engine (default: `template`)
+
+### 4.2 Build Theme
+
+```bash
+# Build styles + SSR bundle (for react/solid)
+okcms theme:build --name meu-tema
+```
+
+Produces:
+- `dist/theme.css` — compiled and scoped stylesheet
+- `dist/server/entry.js` — SSR bundle (react/solid only)
+- `dist/theme-build.json` — build manifest with `buildId`, template keys, warnings
+
+### 4.3 Development Mode
+
+```bash
+# Watch mode with HMR (React/Solid only)
+okcms theme:dev --name meu-tema
+```
+
+- Rebuilds on file changes
+- Updates `dist/theme-build.json` for hot reload in web runtime
+
+### 4.4 List / Manage
+
+```bash
+okcms theme:list
+okcms theme:manage --name meu-tema --info
+```
+
+---
+
+## 5. Theme Data API (Theme SDK)
+
+The `@oktis-works/theme-sdk` provides unified data access. Works identically in both legacy and React/Solid templates.
+
+```ts
+import {
+  getMenu, getMenus,
+  getContent, getContentById, getContentBySlug,
+  getContentType, getContentTypes,
+  getTaxonomy, getTaxonomies, getTaxonomyTerms,
+  getSettings, getSetting,
+  getField, getFields, getFieldsAsync, getFlexibleLayouts
+} from '@oktis-works/theme-sdk';
+```
+
+### 5.1 Menus
+
+```ts
+const main = await getMenu('main');        // by slug or name
+const menus = await getMenus();            // all menus
+
+// Item shape: { label, url, type, objectId, objectType, parentId, order, target, cssClasses, attrTitle, xfn, description }
+for (const item of main?.items ?? []) {
+  console.log(item.label, item.url);
+}
+```
+
+### 5.2 Content
 
 ```ts
 const latest = await getContent({
   type: 'post',
-  status: 'PUBLISHED',
+  status: 'PUBLISHED',      // default for public queries
   limit: 12,
   page: 1,
   search: 'cms',
@@ -69,97 +305,76 @@ const latest = await getContent({
 });
 
 const page = await getContentBySlug('sobre', 'page');
-const sameContent = page?.data ?? page?.body ?? {};
+const byId = await getContentById('uuid');
 ```
 
-`getContent()` retorna:
+Returns: `{ data: ContentItem[], total: number, page: number, limit: number, pages: number }`
 
-```ts
-{
-  data: [],
-  total: 0,
-  page: 1,
-  limit: 20,
-  pages: 0
-}
-```
-
-Por segurança, as consultas públicas usam `PUBLISHED` como status padrão.
-Também existem `getContentById()` e `getContentBySlug()`.
-
-### Content types
+### 5.3 Content Types & Taxonomies
 
 ```ts
 const types = await getContentTypes();
-const product = await getContentType('produto');
+const postType = await getContentType('post');
 
-if (product?.hasArchive) {
-  console.log(`Arquivo disponível em /${product.slug}`);
-}
-```
-
-### Taxonomias e termos
-
-```ts
 const taxonomies = await getTaxonomies();
 const category = await getTaxonomy('category');
 const terms = await getTaxonomyTerms('category');
 ```
 
-No conteúdo atual, os termos relacionados também aparecem enriquecidos em
-`content._terms`, agrupados pelo slug da taxonomia.
-
-### Settings
+### 5.4 Settings & Current Content Fields
 
 ```ts
-const settings = await getSettings();
-const siteTitle = await getSetting('siteTitle', 'Meu site');
-const general = await getSettings('general');
-```
+const settings = await getSettings();           // all settings
+const siteTitle = await getSetting('siteTitle', 'Default');
 
-## Campos do conteúdo atual
-
-Para o conteúdo que está sendo renderizado, o SDK já possui funções síncronas e
-assíncronas:
-
-```ts
-import {
-  getField,
-  getFields,
-  getFieldsAsync,
-  getFlexibleLayouts,
-} from '@oktis-works/theme-sdk';
-
+// In templates, current content fields:
 const title = getField('title');
 const price = getField('price');
-const allFields = getFields();
+const all = getFields();
 const sections = getFlexibleLayouts('sections');
-const filteredFields = await getFieldsAsync();
 ```
 
-Campos padrão (`title`, `slug`, `excerpt`, `status`, SEO, mídia destacada etc.)
-e campos personalizados são entregues pela mesma API. Um campo personalizado
-com o mesmo nome tem prioridade sobre o campo nativo.
+---
 
-## Dados já disponíveis nos templates HTML
+## 6. Legacy Template Engine (`engine: "template"`)
 
-Os templates legados do OkCMS usam variáveis e `#each`. O runtime injeta:
+### 6.1 Template Syntax
 
-```text
-site
-page
-content
-fields
-items
-menus
-contentTypes
-taxonomies
-terms
-settings
-themeData
+Legacy templates use `.astro` files with simple variable interpolation and loops:
+
+```html
+<!-- home.astro -->
+<header>
+  <h1>{{site.title}}</h1>
+  <p>{{site.description}}</p>
+</header>
+
+<section class="posts">
+  {{#each items}}
+    <article>
+      <h2><a href="/{{slug}}">{{title}}</a></h2>
+      <p>{{excerpt}}</p>
+    </article>
+  {{/each}}
+</section>
 ```
 
-Exemplo de menu:
+### 6.2 Available Variables
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `site` | `{ title, description, url, locale }` | Site metadata |
+| `page` | `{ title, slug, excerpt, content, publishedAt }` | Current page |
+| `content` | `{ html, fields }` | Rendered body + custom fields |
+| `items` | `Array<{ title, slug, excerpt, publishedAt }>` | Post listings |
+| `menus` | `{ slug: { items: [...] } }` | All menus |
+| `contentTypes` | `Array` | Registered content types |
+| `taxonomies` | `Array` | Registered taxonomies |
+| `terms` | `{ taxonomySlug: [...] }` | Taxonomy terms |
+| `settings` | `{ theme: {...}, general: {...} }` | Theme + site settings |
+| `fields` | `Record<string, unknown>` | Current content custom fields |
+
+### 6.3 Menu Example
 
 ```html
 <nav>
@@ -169,19 +384,7 @@ Exemplo de menu:
 </nav>
 ```
 
-Exemplo de listagem:
-
-```html
-{{#each items}}
-  <article>
-    <h2><a href="/{{slug}}">{{title}}</a></h2>
-    <p>{{excerpt}}</p>
-  </article>
-{{/each}}
-```
-
-Todos os menus também estão em `menus.all`, e a taxonomia pode ser percorrida
-com `terms.category`, por exemplo:
+### 6.4 Taxonomy Terms
 
 ```html
 {{#each terms.category}}
@@ -189,51 +392,135 @@ com `terms.category`, por exemplo:
 {{/each}}
 ```
 
-## Uso avançado
+---
 
-Em código server-side do tema, as funções podem ser combinadas:
+## 7. Migration: Legacy → React/Solid
 
-```ts
-const [menu, posts, products, settings] = await Promise.all([
-  getMenu('primary'),
-  getContent({ type: 'post', limit: 5 }),
-  getContent({ type: 'produto', limit: 8, orderBy: 'title', order: 'asc' }),
-  getSettings('general'),
-]);
+### 7.1 Update `theme.json`
+
+```json
+{
+  "render": {
+    "engine": "react",
+    "apiVersion": 1,
+    "hydration": "islands",
+    "entry": "src/entry-server.tsx"
+  },
+  "stylesConfig": {
+    "engine": "css",
+    "isolation": true,
+    "entry": "src/theme.css",
+    "output": "dist/theme.css"
+  }
+}
 ```
 
-Para menus hierárquicos, agrupe os itens por `parentId` e ordene por `order`.
-Para widgets e componentes reutilizáveis, passe o resultado dessas funções
-como props; não é necessário conhecer as rotas `/api/v1`.
+### 7.2 Convert Templates
 
-## Provider para integrações
+| Legacy (`.astro`) | React (`.tsx`) |
+|-------------------|----------------|
+| `{{variable}}` | `{variable}` |
+| `{{#each items}}...{{/each}}` | `{items.map(item => ...)}` |
+| `{{#if condition}}...{{/if}}` | `{condition ? ... : null}` |
+| `{{{html}}}` (raw) | `<div dangerouslySetInnerHTML={{ __html: html }} />` |
+| `class="..."` | `className="..."` |
 
-O runtime oficial registra automaticamente o provider de banco. Plugins ou
-ambientes especiais podem fornecer uma implementação compatível:
+### 7.3 Run Scaffold (Optional)
 
-```ts
-import {
-  runWithThemeDataProvider,
-  setThemeDataProvider,
-  type ThemeDataProvider,
-} from '@oktis-works/theme-sdk';
+```bash
+okcms theme:create --name meu-tema --engine react
+# Copy your CSS to src/theme.css
+# Adapt templates from scaffold output
+okcms theme:build --name meu-tema
 ```
 
-Uma implementação deve atender aos métodos de `ThemeDataProvider`. Use
-`runWithThemeDataProvider(provider, fn)` para manter o provider isolado por
-requisição. `setThemeDataProvider` existe para fallback global em processos
-controlados; não use estado mutável global para dados específicos de usuários.
+---
 
-## Limites e segurança
+## 8. Advanced Topics
 
-- O tema recebe conteúdo público por padrão; rascunhos não são expostos sem
-  solicitar explicitamente outro status em um ambiente controlado.
-- As consultas passam pelo contexto de tenant estabelecido pelo Web Runtime.
-- O tema não deve consultar diretamente o banco nem montar URLs internas da
-  API.
-- Dados externos devem ser escapados no template. Use interpolação normal para
-  texto e a forma raw somente quando o valor for HTML confiável.
-- Isolamento de CSS (`[data-theme="nome"]`): engines com build (`scss`/
-  `tailwind`) são escopados automaticamente no build; no engine `css` o tema
-  declara `isolation: "manual"` e entrega o `dist/theme.css` já escopado
-  (é o caso do tema default). `isolation: false` é rejeitado.
+### 8.1 Island Hydration (`hydration: "islands"`)
+
+Enables client-side interactivity for specific components:
+
+```tsx
+// In template
+import { InteractiveComponent } from './components/InteractiveComponent';
+
+export default function Home({ items }: ThemePageData) {
+  return (
+    <main>
+      {/* Static SSR */}
+      <section>{items.map(...)}</section>
+      {/* Hydrated on client */}
+      <InteractiveComponent data={items} />
+    </main>
+  );
+}
+```
+
+### 8.2 Custom Theme Components
+
+Declare reusable components in `theme.json`:
+
+```json
+{
+  "render": {
+    "components": [
+      { "name": "Hero", "file": "components/Hero.tsx" },
+      { "name": "PostCard", "file": "components/PostCard.tsx" }
+    ]
+  }
+}
+```
+
+Components are available to templates via `import { Hero } from '@theme/components'`.
+
+### 8.3 Theme Inheritance (`parent`)
+
+```json
+{
+  "parent": "base-theme",
+  "render": { "engine": "react", "entry": "src/entry-server.tsx" }
+}
+```
+
+Child themes inherit templates, styles, and settings from parent. Override by providing same file.
+
+---
+
+## 9. Security & Limits
+
+- **Public queries only** — Draft content not exposed by default
+- **Tenant isolation** — All queries scoped to current tenant via RLS
+- **No direct DB access** — Use Theme SDK functions only
+- **XSS protection** — Use `dangerouslySetInnerHTML` only for trusted HTML
+- **CSS isolation** — Automatic with `isolation: true`; manual otherwise
+
+---
+
+## 10. Troubleshooting
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `dist/theme-build.json is missing` | Theme not built | Run `okcms theme:build --name meu-tema` |
+| `stale build (artifact X, sources Y)` | Source files changed | Re-run `okcms theme:build --name meu-tema` |
+| `render.engine must be one of: template, react, solid` | Invalid engine | Use valid engine in `theme.json` |
+| `render.entry must be a safe relative path` | Entry path invalid | Use relative path inside theme (e.g., `src/entry-server.tsx`) |
+| CSS not applied | `isolation` mismatch | Ensure `isolation: true` in `stylesConfig` and `data-theme` wrapper present |
+
+---
+
+## 11. Default Theme Reference
+
+The built-in `default` theme (`themes/default/`) is a **React SSR theme** with island hydration:
+
+- `theme.json`: `render.engine = "react"`, `hydration = "islands"`
+- Templates: `home.tsx`, `index.tsx`, `single.tsx`, `page.tsx`, `archive.tsx`, `404.tsx`
+- Styles: `src/theme.css` → `dist/theme.css` (auto-scoped)
+- Entry: `src/entry-server.tsx`
+
+Run `okcms theme:build --name default` to compile.
+
+---
+
+*For the Theme SDK API reference, see `@oktis-works/theme-sdk` package docs.*

@@ -175,6 +175,6 @@ export async function buildThemeOnDisk(
       };
   return {
     styles,
-    render: render.engine === 'template' ? null : render,
+    render,
   };
 }

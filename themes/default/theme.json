@@ -1,7 +1,7 @@
 {
   "name": "default",
-  "version": "0.36.2",
-  "description": "Default OkCMS theme — hierarchical templates with real content interpolation + Static Front Page",
+  "version": "0.37.0",
+  "description": "Default OkCMS theme — React SSR with island hydration",
   "type": "theme",
   "author": "Oktis Works",
   "compatibility": {
@@ -10,29 +10,30 @@
   "screenshots": [
     "screenshot.png"
   ],
+  "render": {
+    "engine": "react",
+    "apiVersion": 1,
+    "hydration": "islands",
+    "entry": "src/entry-server.tsx"
+  },
+  "stylesConfig": {
+    "engine": "css",
+    "isolation": true,
+    "entry": "src/theme.css",
+    "output": "dist/theme.css"
+  },
   "provides": {
     "layouts": [
-      "page-home",
-      "page-about",
-      "page-contact",
-      "page-blog",
-      "post-first-post",
-      "post-second-post",
-      "page",
-      "single",
-      "archive",
+      "home",
       "index",
+      "single",
+      "page",
+      "archive",
       "404"
     ],
     "assets": [
       "dist/theme.css"
     ]
-  },
-  "stylesConfig": {
-    "engine": "css",
-    "isolation": "manual",
-    "entry": "src/theme.css",
-    "output": "dist/theme.css"
   },
   "settings": [
     {

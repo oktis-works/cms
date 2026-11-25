@@ -62,7 +62,7 @@ describe('default theme assets (generated parity)', () => {
   it('classifies binary assets by their generated map', () => {
     expect(isBinaryThemeAsset('screenshot.png')).toBe(true);
     expect(isBinaryThemeAsset('theme.json')).toBe(false);
-    expect(isBinaryThemeAsset('index.astro')).toBe(false);
+    expect(isBinaryThemeAsset('index.tsx')).toBe(false);
   });
 
   it('readThemeFiles reads the real theme directory byte-exact', async () => {
@@ -86,7 +86,7 @@ describe('default theme assets (generated parity)', () => {
     expect(manifest.version).toMatch(/^\d+\.\d+\.\d+$/);
     expect(() => assertCompatible('theme', manifest, CMS_VERSION)).not.toThrow();
     for (const layout of manifest.provides.layouts) {
-      expect(DEFAULT_THEME_FILES[`${layout}.astro`], layout).toBeDefined();
+      expect(DEFAULT_THEME_FILES[`${layout}.tsx`], layout).toBeDefined();
     }
     expect(manifest.stylesConfig.entry).toBe('src/theme.css');
     expect(manifest.stylesConfig.output).toBe('dist/theme.css');

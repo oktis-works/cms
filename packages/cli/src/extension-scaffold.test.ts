@@ -16,9 +16,9 @@ afterEach(() => {
   rmSync(baseDir, { recursive: true, force: true });
 });
 
-describe('scaffoldTheme (runtime web format)', () => {
+describe('scaffoldTheme (runtime web format — engine: template)', () => {
   it('generates .astro templates at the ROOT (no templates/*.html — the web runtime does not read that)', () => {
-    const { dir } = scaffoldTheme('meu-tema', baseDir);
+    const { dir } = scaffoldTheme('meu-tema', baseDir, 'css', 'template');
 
     for (const file of [
       'page-home.astro',
@@ -35,7 +35,7 @@ describe('scaffoldTheme (runtime web format)', () => {
   });
 
   it('theme.json is born with type + compatibility + provides.layouts (layout editor works)', () => {
-    const { manifest } = scaffoldTheme('meu-tema', baseDir);
+    const { manifest } = scaffoldTheme('meu-tema', baseDir, 'css', 'template');
 
     expect(manifest['type']).toBe('theme');
     expect(manifest['compatibility']).toEqual({ okcms: expect.stringMatching(/^\^\d+\.\d+\.\d+/) });
@@ -43,14 +43,14 @@ describe('scaffoldTheme (runtime web format)', () => {
   });
 
   it('css engine delivers a servable dist/theme.css (no build)', () => {
-    const { dir } = scaffoldTheme('meu-tema', baseDir, 'css');
+    const { dir } = scaffoldTheme('meu-tema', baseDir, 'css', 'template');
 
     expect(existsSync(join(dir, 'dist', 'theme.css'))).toBe(true);
     expect(existsSync(join(dir, 'style.css'))).toBe(false);
   });
 
   it('css engine re-scopes the embedded stylesheet to the new theme name', () => {
-    const { dir } = scaffoldTheme('meu-tema', baseDir, 'css');
+    const { dir } = scaffoldTheme('meu-tema', baseDir, 'css', 'template');
 
     const css = readFileSync(join(dir, 'dist', 'theme.css'), 'utf-8');
     expect(css).toContain('[data-theme="meu-tema"]');
@@ -60,7 +60,7 @@ describe('scaffoldTheme (runtime web format)', () => {
   });
 
   it('scss engine keeps styles/main.scss + stylesConfig pointing to dist/theme.css', () => {
-    const { dir, manifest } = scaffoldTheme('meu-tema', baseDir, 'scss');
+    const { dir, manifest } = scaffoldTheme('meu-tema', baseDir, 'scss', 'template');
 
     expect(existsSync(join(dir, 'styles', 'main.scss'))).toBe(true);
     const styles = manifest['stylesConfig'] as Record<string, unknown>;
@@ -69,7 +69,7 @@ describe('scaffoldTheme (runtime web format)', () => {
   });
 
   it('tailwind engine generates input.css + a config scanning supported theme source files', () => {
-    const { dir } = scaffoldTheme('meu-tema', baseDir, 'tailwind');
+    const { dir } = scaffoldTheme('meu-tema', baseDir, 'tailwind', 'template');
 
     expect(existsSync(join(dir, 'src', 'input.css'))).toBe(true);
     const config = readFileSync(join(dir, 'tailwind.config.js'), 'utf-8');
@@ -78,7 +78,7 @@ describe('scaffoldTheme (runtime web format)', () => {
   });
 
   it('templates use items (the real context) and not posts', () => {
-    const { dir } = scaffoldTheme('meu-tema', baseDir);
+    const { dir } = scaffoldTheme('meu-tema', baseDir, 'css', 'template');
     const home = readFileSync(join(dir, 'page-home.astro'), 'utf-8');
 
     expect(home).toContain('{{#each items}}');

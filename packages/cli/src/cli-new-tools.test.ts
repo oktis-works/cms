@@ -263,8 +263,8 @@ describe('scaffoldPlugin / scaffoldTheme', () => {
     expect(() => scaffoldPlugin('meu-plugin', join(dir, 'plugins'))).toThrow('already exists');
   });
 
-  it('theme: theme.json + templates *.astro na raiz (formato do runtime)', () => {
-    const result = scaffoldTheme('meu-tema', join(dir, 'themes'));
+  it('theme: theme.json + templates *.astro na raiz (formato do runtime — engine template)', () => {
+    const result = scaffoldTheme('meu-tema', join(dir, 'themes'), 'css', 'template');
 
     expect(existsSync(join(result.dir, 'theme.json'))).toBe(true);
     expect(existsSync(join(result.dir, 'index.astro'))).toBe(true);

@@ -7,66 +7,50 @@
 
 /** Complete default theme written by `okcms init` (paths relative to themes/default/). */
 export const DEFAULT_THEME_FILES: Record<string, string> = {
-  "404.astro": `<main data-template="404" class="error-404">
-  <div class="container">
-    <h1>404</h1>
-    <h2>Page not found</h2>
-    <p>The page you are looking for does not exist or has been moved.</p>
-    <a href="/" class="btn btn-primary">Back to the home page</a>
-  </div>
-</main>`,
-  "archive.astro": `<main data-template="archive" data-type="{{page.type}}" class="archive">
-  <header class="archive-header">
-    <div class="container">
-      <h1 class="archive-title">{{page.title}}</h1>
-      {{#if settings.theme.siteDescription}}
-      <p class="archive-description">{{settings.theme.siteDescription}}</p>
-      {{/if}}
-    </div>
-  </header>
+  "404.tsx": `export default function NotFound() {
+  return (
+    <main className="site error-404">
+      <h1>404</h1>
+      <h2>Page Not Found</h2>
+      <p>Sorry, we couldn't find the page you're looking for.</p>
+      <a href="/" className="btn btn-primary">Go Home</a>
+    </main>
+  );
+}`,
+  "archive.tsx": `import type { ThemePageData } from '@oktis-works/theme-sdk';
 
-  <section class="posts-section" aria-labelledby="posts-title">
-    <div class="container">
-      {{#if items}}
-      <div class="posts-grid">
-        {{#each items}}
-        <article class="post-card">
-          {{#if thumbnail.url}}
-          <figure class="post-card__image">
-            <a href="{{url}}">
-              <img src="{{thumbnail.url}}" alt="{{thumbnail.alt}}" loading="lazy" />
-            </a>
-          </figure>
-          {{/if}}
-          <div class="post-card__content">
-            <header class="post-card__header">
-              <time class="post-card__date" datetime="{{published_at}}">
-                {{#if published_at}}
-                {{formatDate published_at}}
-                {{/if}}
-              </time>
-            </header>
-            <h2 class="post-card__title"><a href="{{url}}">{{title}}</a></h2>
-            {{#if excerpt}}
-            <p class="post-card__excerpt">{{excerpt}}</p>
-            {{/if}}
-            <a href="{{url}}" class="btn btn-outline">Continue reading</a>
+export default function Archive({ page, items }: ThemePageData) {
+  return (
+    <main className="site archive">
+      <header className="archive-header">
+        <div className="container">
+          <h1 className="archive-title">{page.title}</h1>
+          {page.excerpt && <p className="archive-description">{page.excerpt}</p>}
+        </div>
+      </header>
+      <div className="container">
+        <section className="posts">
+          <div className="posts-grid">
+            {items.map((item) => (
+              <article className="post-card" key={String(item.slug)}>
+                <div className="post-card__content">
+                  <div className="post-card__header">
+                    <time className="post-card__date">{item.publishedAt ? new Date(item.publishedAt).toLocaleDateString() : ''}</time>
+                  </div>
+                  <h2 className="post-card__title">
+                    <a href={\`/\${String(item.slug)}\`}>{String(item.title ?? '')}</a>
+                  </h2>
+                  {item.excerpt ? <p className="post-card__excerpt">{String(item.excerpt)}</p> : null}
+                  <a href={\`/\${String(item.slug)}\`} className="btn btn-outline">Read More</a>
+                </div>
+              </article>
+            ))}
           </div>
-        </article>
-        {{/each}}
+        </section>
       </div>
-
-      {{#if pagination}}
-      <nav class="pagination" aria-label="Pagination">
-        {{pagination}}
-      </nav>
-      {{/if}}
-      {{else}}
-      <p class="no-posts">No content published yet.</p>
-      {{/if}}
-    </div>
-  </section>
-</main>`,
+    </main>
+  );
+}`,
   "dist/theme.css": `/**
  * Tema Default do OkCMS — Design System CSS
  * Engine: css | Isolation: manual
@@ -1083,495 +1067,160 @@ export const DEFAULT_THEME_FILES: Record<string, string> = {
   }
 }
 `,
-  "index.astro": `<main data-template="index" data-type="{{page.type}}" class="page">
-  <header class="page-header">
-    <div class="container">
-      <h1>{{settings.theme.siteTitle || page.title}}</h1>
-      {{#if settings.theme.siteDescription}}
-      <p class="page-description">{{settings.theme.siteDescription}}</p>
-      {{/if}}
-    </div>
-  </header>
+  "home.tsx": `import type { ThemePageData } from '@oktis-works/theme-sdk';
 
-  <div class="page-content container">
-    {{#if (field "content")}}
-    <div class="entry-content">{{{field "content"}}}</div>
-    {{else if content.text}}
-    <p>{{content.text}}</p>
-    {{/if}}
-
-    {{#if items}}
-    <section class="listing">
-      {{#each items}}
-      <article class="card entry entry--item">
-        <h2 class="entry__title"><a href="/{{slug}}">{{title}}</a></h2>
-        {{#if excerpt}}<p class="entry__excerpt">{{excerpt}}</p>{{/if}}
-      </article>
-      {{/each}}
-    </section>
-    {{/if}}
-  </div>
-</main>
-`,
-  "page-about.astro": `<main data-template="page-about" data-type="page" class="page-about">
-  <header class="site-header">
-    <nav class="nav" role="navigation" aria-label="Main navigation">
-      <a href="/" class="site-brand" aria-label="Home">
-        {{site.title}}
-      </a>
-      <ul class="nav-menu">
-        <li><a href="/about">{{#if menus.header.bySlug.about}}{{menus.header.bySlug.about.label}}{{else}}About{{/if}}</a></li>
-        <li><a href="#contact">Contact</a></li>
-        <li><a href="/blog">{{#if menus.header.bySlug.blog}}{{menus.header.bySlug.blog.label}}{{else}}Blog{{/if}}</a></li>
-      </ul>
-    </nav>
-  </header>
-
-  <section class="page-header">
-    <div class="container">
-      <h1>{{field "title"}}</h1>
-      {{#if (field "excerpt")}}
-      <p class="page-excerpt">{{field "excerpt"}}</p>
-      {{/if}}
-    </div>
-  </header>
-
-  <div class="page-content container">
-    {{#if (field "content")}}
-    <div class="entry-content">{{{field "content"}}}</div>
-    {{else if (field "blocks")}}
-    <div class="entry-content">
-      {{#each fields.blocks}}
-        {{#if (eq type 'heading')}}
-        <h{{level}}>{{content}}</h{{level}}>
-        {{else if (eq type 'paragraph')}}
-        <p>{{content}}</p>
-        {{else if (eq type 'image')}}
-        <figure><img src="{{content.url}}" alt="{{content.alt}}" /></figure>
-        {{/if}}
-      {{/each}}
-    </div>
-    {{/if}}
-  </div>
-</main>
-
-<footer class="site-footer" role="contentinfo">
-  <div class="container">
-    <nav class="footer-nav" aria-label="Footer navigation">
-      {{#each menus.footer.items}}
-      <a href="{{url}}">{{label}}</a>
-      {{/each}}
-    </nav>
-    <p class="copyright">&copy; {{new Date().getFullYear()}} {{site.title}}. All rights reserved.</p>
-  </div>
-</footer>
-`,
-  "page-blog.astro": `<main data-template="page-blog" data-type="page" class="page-blog">
-  <header class="page-header">
-    <div class="container">
-      <h1>{{field "title"}}</h1>
-      {{#if (field "description")}}
-      <p class="page-description">{{field "description"}}</p>
-      {{/if}}
-    </div>
-  </header>
-
-  <section class="posts-section" aria-labelledby="posts-title">
-    <div class="container">
-      {{#if items}}
-      <div class="posts-grid">
-        {{#each items}}
-        <article class="post-card">
-          {{#if thumbnail.url}}
-          <figure class="post-card__image">
-            <a href="{{url}}">
-              <img src="{{thumbnail.url}}" alt="{{thumbnail.alt}}" loading="lazy" />
-            </a>
-          </figure>
-          {{/if}}
-          <div class="post-card__content">
-            <header class="post-card__header">
-              <time class="post-card__date" datetime="{{published_at}}">
-                {{#if published_at}}
-                {{formatDate published_at}}
-                {{/if}}
-              </time>
-            </header>
-            <h2 class="post-card__title"><a href="{{url}}">{{title}}</a></h2>
-            {{#if excerpt}}
-            <p class="post-card__excerpt">{{excerpt}}</p>
-            {{/if}}
-            <a href="{{url}}" class="btn btn-outline">Continue reading</a>
-          </div>
-        </article>
-        {{/each}}
-      </div>
-
-      {{#if pagination}}
-      <nav class="pagination" aria-label="Pagination">
-        {{pagination}}
-      </nav>
-      {{/if}}
-      {{else}}
-      <p class="no-posts">No articles published yet.</p>
-      {{/if}}
-    </div>
-  </section>
-</main>
-`,
-  "page-contact.astro": `<main data-template="page-contact" data-type="page" class="page-contact">
-  <header class="site-header">
-    <nav class="nav" role="navigation" aria-label="Main navigation">
-      <a href="/" class="site-brand" aria-label="Home">
-        {{site.title}}
-      </a>
-      <ul class="nav-menu">
-        <li><a href="/about">{{#if menus.header.bySlug.about}}{{menus.header.bySlug.about.label}}{{else}}About{{/if}}</a></li>
-        <li><a href="#contact">Contact</a></li>
-        <li><a href="/blog">{{#if menus.header.bySlug.blog}}{{menus.header.bySlug.blog.label}}{{else}}Blog{{/if}}</a></li>
-      </ul>
-    </nav>
-  </header>
-
-  <section class="page-header">
-    <div class="container">
-      <h1>{{field "title"}}</h1>
-      {{#if (field "excerpt")}}
-      <p class="page-excerpt">{{field "excerpt"}}</p>
-      {{/if}}
-    </div>
-  </section>
-
-  <section class="contact" id="contact" aria-labelledby="contact-title">
-    <div class="container">
-      <h2 id="contact-title">Get in Touch</h2>
-      <p class="contact-intro">{{settings.contactText || 'Fill out the form or send us an email at hello@example.com — we would love to hear from you.'}}</p>
-      <form class="contact-form" action="mailto:hello@example.com" method="POST" enctype="text/plain">
-        <div class="form-group">
-          <label for="contact-name">Name</label>
-          <input type="text" id="contact-name" name="name" required />
+export default function Home({ site, items, settings }: ThemePageData) {
+  const theme = (settings.theme ?? {}) as Record<string, unknown>;
+  return (
+    <main className="site">
+      <header className="site-header">
+        <div className="container">
+          <h1>{String(theme.siteTitle ?? site.title)}</h1>
+          <p>{site.description}</p>
         </div>
-        <div class="form-group">
-          <label for="contact-email">E-mail</label>
-          <input type="email" id="contact-email" name="email" required />
-        </div>
-        <div class="form-group">
-          <label for="contact-message">Message</label>
-          <textarea id="contact-message" name="message" rows="5" required></textarea>
-        </div>
-        <button type="submit" class="btn btn-primary">Send</button>
-      </form>
-    </div>
-  </section>
-</main>
-
-<footer class="site-footer" role="contentinfo">
-  <div class="container">
-    <nav class="footer-nav" aria-label="Footer navigation">
-      {{#each menus.footer.items}}
-      <a href="{{url}}">{{label}}</a>
-      {{/each}}
-    </nav>
-    <p class="copyright">&copy; {{new Date().getFullYear()}} {{site.title}}. All rights reserved.</p>
-  </div>
-</footer>
-`,
-  "page-home.astro": `<main data-template="page-home" data-type="page" class="page-home">
-  <header class="site-header">
-    <nav class="nav" role="navigation" aria-label="Main navigation">
-      <a href="/" class="site-brand" aria-label="Home">
-        {{site.title}}
-      </a>
-      <ul class="nav-menu">
-        <li><a href="/about">{{#if menus.header.bySlug.about}}{{menus.header.bySlug.about.label}}{{else}}About{{/if}}</a></li>
-        <li><a href="#contact">Contact</a></li>
-        <li><a href="/blog">{{#if menus.header.bySlug.blog}}{{menus.header.bySlug.blog.label}}{{else}}Blog{{/if}}</a></li>
-      </ul>
-    </nav>
-  </header>
-
-  <section class="hero" id="hero" aria-labelledby="hero-title">
-    <div class="hero-content">
-      <h1 id="hero-title">{{field "title"}}</h1>
-      {{#if (field "subtitle")}}
-      <p class="hero-subtitle">{{field "subtitle"}}</p>
-      {{/if}}
-      <a href="/blog" class="btn btn-primary" role="button">View Blog</a>
-    </div>
-  </section>
-
-  <section class="about-preview" id="about" aria-labelledby="about-title">
-    <div class="container">
-      <h2 id="about-title">About Us</h2>
-      {{#if (field "aboutPreview.html")}}
-      <div class="about-content">{{{field "aboutPreview.html"}}}</div>
-      {{else}}
-      <p>About section content will appear here when configured.</p>
-      {{/if}}
-      <a href="/about" class="btn btn-secondary">Read more →</a>
-    </div>
-  </section>
-
-  <section class="latest-posts" aria-labelledby="latest-title">
-    <div class="container">
-      <header class="section-header">
-        <h2 id="latest-title">Latest Articles</h2>
       </header>
-      {{#if items}}
-      <div class="posts-grid">
-        {{#each items}}
-        <article class="post-card">
-          {{#if thumbnail.url}}
-          <figure class="post-card__image">
-            <img src="{{thumbnail.url}}" alt="{{thumbnail.alt}}" loading="lazy" />
-          </figure>
-          {{/if}}
-          <div class="post-card__content">
-            <h3 class="post-card__title"><a href="{{url}}">{{title}}</a></h3>
-            {{#if excerpt}}
-            <p class="post-card__excerpt">{{excerpt}}</p>
-            {{/if}}
-            <a href="{{url}}" class="btn btn-outline">Continue reading</a>
+      <section className="hero">
+        <div className="hero-content">
+          <h1>Welcome to {String(theme.siteTitle ?? site.title)}</h1>
+          <p className="hero-subtitle">{site.description || 'A modern CMS built with React and TypeScript.'}</p>
+          <a href="/blog" className="btn btn-primary">Read the Blog</a>
+        </div>
+      </section>
+      <section className="about-preview">
+        <div className="container">
+          <div className="about-content">
+            <h2>About This Site</h2>
+            <p>This is the default OkCMS theme, rebuilt with React SSR and island hydration.</p>
+            <a href="/about" className="btn btn-secondary">Learn More</a>
           </div>
-        </article>
-        {{/each}}
-      </div>
-      {{else}}
-      <p class="no-posts">No articles published yet.</p>
-      {{/if}}
-    </div>
-  </section>
-
-  <section class="contact" id="contact" aria-labelledby="contact-title">
-    <div class="container">
-      <h2 id="contact-title">Get in Touch</h2>
-      <p class="contact-intro">{{settings.contactText || 'Fill out the form or send us an email at hello@example.com — we would love to hear from you.'}}</p>
-      <form class="contact-form" action="mailto:hello@example.com" method="POST" enctype="text/plain">
-        <div class="form-group">
-          <label for="contact-name">Name</label>
-          <input type="text" id="contact-name" name="name" required />
         </div>
-        <div class="form-group">
-          <label for="contact-email">E-mail</label>
-          <input type="email" id="contact-email" name="email" required />
+      </section>
+      <section className="posts">
+        <div className="container">
+          <header className="section-header">
+            <h2>Latest Posts</h2>
+          </header>
+          <div className="posts-grid">
+            {items.map((item) => (
+              <article className="post-card" key={String(item.slug)}>
+                <div className="post-card__content">
+                  <div className="post-card__header">
+                    <time className="post-card__date">{item.publishedAt ? new Date(item.publishedAt).toLocaleDateString() : ''}</time>
+                  </div>
+                  <h2 className="post-card__title">
+                    <a href={\`/\${String(item.slug)}\`}>{String(item.title ?? '')}</a>
+                  </h2>
+                  {item.excerpt ? <p className="post-card__excerpt">{String(item.excerpt)}</p> : null}
+                  <a href={\`/\${String(item.slug)}\`} className="btn btn-outline">Read More</a>
+                </div>
+              </article>
+            ))}
+          </div>
         </div>
-        <div class="form-group">
-          <label for="contact-message">Message</label>
-          <textarea id="contact-message" name="message" rows="5" required></textarea>
+      </section>
+    </main>
+  );
+}`,
+  "index.tsx": `import type { ThemePageData } from '@oktis-works/theme-sdk';
+
+export default function Index({ page, content }: ThemePageData) {
+  return (
+    <main className="site page">
+      <header className="page-header">
+        <div className="container">
+          <h1>{page.title}</h1>
+          {page.excerpt && <p className="page-excerpt">{page.excerpt}</p>}
         </div>
-        <button type="submit" class="btn btn-primary">Send</button>
-      </form>
-    </div>
-  </section>
-</main>
-
-<footer class="site-footer" role="contentinfo">
-  <div class="container">
-    <nav class="footer-nav" aria-label="Footer navigation">
-      {{#each menus.footer.items}}
-      <a href="{{url}}">{{label}}</a>
-      {{/each}}
-    </nav>
-    <p class="copyright">&copy; {{new Date().getFullYear()}} {{site.title}}. All rights reserved.</p>
-  </div>
-</footer>
-`,
-  "page.astro": `<main data-template="page" data-type="{{page.type}}" class="page">
-  <header class="page-header">
-    <div class="container">
-      <h1>{{field "title"}}</h1>
-      {{#if (field "excerpt")}}
-      <p class="page-excerpt">{{field "excerpt"}}</p>
-      {{/if}}
-      {{#if settings.theme.siteDescription}}
-      <p class="site-description">{{settings.theme.siteDescription}}</p>
-      {{/if}}
-    </div>
-  </header>
-
-  <div class="page-content container">
-    {{#if (field "content")}}
-    <div class="entry-content">{{{field "content"}}}</div>
-    {{else if (field "blocks")}}
-    <div class="entry-content">
-      {{#each fields.blocks}}
-        {{#if (eq type 'heading')}}
-        <h{{level}}>{{content}}</h{{level}}>
-        {{else if (eq type 'paragraph')}}
-        <p>{{content}}</p>
-        {{else if (eq type 'image')}}
-        <figure><img src="{{content.url}}" alt="{{content.alt}}" /></figure>
-        {{/if}}
-      {{/each}}
-    </div>
-    {{/if}}
-  </div>
-</main>
-
-{{#if jsonLd}}
-<script type="application/ld+json">{{{jsonLd}}}</script>
-{{/if}}
-`,
-  "post-first-post.astro": `<article data-template="post-first-post" data-type="post" class="post post-single">
-  <header class="post-header">
-    <div class="container">
-      <h1 class="post-title">{{field "title"}}</h1>
-      <div class="post-meta">
-        <time datetime="{{content.published_at}}" class="post-date">
-          {{#if content.published_at}}
-          {{formatDate content.published_at}}
-          {{/if}}
-        </time>
+      </header>
+      <div className="page-content">
+        <div className="container">
+          <div className="entry-content" dangerouslySetInnerHTML={{ __html: String(content.html ?? '') }} />
+        </div>
       </div>
-    </div>
-  </header>
+    </main>
+  );
+}`,
+  "page.tsx": `import type { ThemePageData } from '@oktis-works/theme-sdk';
 
-  <div class="post-body container">
-    {{#if (field "content")}}
-    <div class="entry-content">{{{field "content"}}}</div>
-    {{else if (field "blocks")}}
-    <div class="entry-content">
-      {{#each fields.blocks}}
-        {{#if (eq type 'heading')}}
-        <h{{level}}>{{content}}</h{{level}}>
-        {{else if (eq type 'paragraph')}}
-        <p>{{content}}</p>
-        {{else if (eq type 'image')}}
-        <figure><img src="{{content.url}}" alt="{{content.alt}}" /></figure>
-        {{/if}}
-      {{/each}}
-    </div>
-    {{/if}}
-  </div>
-
-  <footer class="post-footer">
-    <div class="container">
-      <nav class="post-nav" aria-label="Post navigation">
-        {{#if prevPost}}
-        <a href="/{{page.type}}/{{prevPost.slug}}" class="post-nav__prev" rel="prev">
-          <span class="post-nav__label">Previous article</span>
-          <span class="post-nav__title">{{prevPost.title}}</span>
-        </a>
-        {{/if}}
-        {{#if nextPost}}
-        <a href="/{{page.type}}/{{nextPost.slug}}" class="post-nav__next" rel="next">
-          <span class="post-nav__label">Next article</span>
-          <span class="post-nav__title">{{nextPost.title}}</span>
-        </a>
-        {{/if}}
-      </nav>
-    </div>
-  </footer>
-</article>
-`,
-  "post-second-post.astro": `<article data-template="post-second-post" data-type="post" class="post post-single">
-  <header class="post-header">
-    <div class="container">
-      <h1 class="post-title">{{field "title"}}</h1>
-      <div class="post-meta">
-        <time datetime="{{content.published_at}}" class="post-date">
-          {{#if content.published_at}}
-          {{formatDate content.published_at}}
-          {{/if}}
-        </time>
+export default function Page({ page, content }: ThemePageData) {
+  return (
+    <main className="site page">
+      <header className="page-header">
+        <div className="container">
+          <h1>{page.title}</h1>
+          {page.excerpt && <p className="page-excerpt">{page.excerpt}</p>}
+        </div>
+      </header>
+      <div className="page-content">
+        <div className="container">
+          <div className="entry-content" dangerouslySetInnerHTML={{ __html: String(content.html ?? '') }} />
+        </div>
       </div>
-    </div>
-  </header>
+    </main>
+  );
+}`,
+  "single.tsx": `import type { ThemePageData } from '@oktis-works/theme-sdk';
 
-  <div class="post-body container">
-    {{#if (field "content")}}
-    <div class="entry-content">{{{field "content"}}}</div>
-    {{else if (field "blocks")}}
-    <div class="entry-content">
-      {{#each fields.blocks}}
-        {{#if (eq type 'heading')}}
-        <h{{level}}>{{content}}</h{{level}}>
-        {{else if (eq type 'paragraph')}}
-        <p>{{content}}</p>
-        {{else if (eq type 'image')}}
-        <figure><img src="{{content.url}}" alt="{{content.alt}}" /></figure>
-        {{/if}}
-      {{/each}}
-    </div>
-    {{/if}}
-  </div>
-
-  <footer class="post-footer">
-    <div class="container">
-      <nav class="post-nav" aria-label="Post navigation">
-        {{#if prevPost}}
-        <a href="/{{page.type}}/{{prevPost.slug}}" class="post-nav__prev" rel="prev">
-          <span class="post-nav__label">Previous article</span>
-          <span class="post-nav__title">{{prevPost.title}}</span>
-        </a>
-        {{/if}}
-        {{#if nextPost}}
-        <a href="/{{page.type}}/{{nextPost.slug}}" class="post-nav__next" rel="next">
-          <span class="post-nav__label">Next article</span>
-          <span class="post-nav__title">{{nextPost.title}}</span>
-        </a>
-        {{/if}}
-      </nav>
-    </div>
-  </footer>
-</article>
-`,
-  "single.astro": `<article data-template="single" data-type="{{page.type}}" class="post post-single">
-  <header class="post-header">
-    <div class="container">
-      <h1 class="post-title">{{field "title"}}</h1>
-      <div class="post-meta">
-        <time datetime="{{content.published_at}}" class="post-date">
-          {{#if content.published_at}}
-          {{formatDate content.published_at}}
-          {{/if}}
-        </time>
+export default function Single({ page, content }: ThemePageData) {
+  return (
+    <article className="site single post-single">
+      <div className="container">
+        <header className="post-header">
+          <h1 className="post-title">{page.title}</h1>
+          <div className="post-meta">
+            <time className="post-date">{page.publishedAt ? new Date(page.publishedAt).toLocaleDateString() : ''}</time>
+          </div>
+        </header>
+        <div className="post-body" dangerouslySetInnerHTML={{ __html: String(content.html ?? '') }} />
+        <footer className="post-footer">
+          <nav className="post-nav" aria-label="Post navigation">
+            {page.previous && (
+              <a href={\`/\${String(page.previous.slug)}\`} className="post-nav__prev">
+                <span className="post-nav__label">Previous</span>
+                <span className="post-nav__title">{String(page.previous.title)}</span>
+              </a>
+            )}
+            {page.next && (
+              <a href={\`/\${String(page.next.slug)}\`} className="post-nav__next">
+                <span className="post-nav__label">Next</span>
+                <span className="post-nav__title">{String(page.next.title)}</span>
+              </a>
+            )}
+          </nav>
+        </footer>
       </div>
-    </div>
-  </header>
+    </article>
+  );
+}`,
+  "src/entry-server.tsx": `import Home from '../home';
+import Index from '../index';
+import Single from '../single';
+import Page from '../page';
+import Archive from '../archive';
+import NotFound from '../404';
+import { renderToStaticMarkup } from 'react-dom/server';
+import type { ComponentType } from 'react';
+import type { ThemePageData, ThemeRenderContext, ThemeRenderOutput } from '@oktis-works/theme-sdk';
 
-  <div class="post-body container">
-    {{#if (field "content")}}
-    <div class="entry-content">{{{field "content"}}}</div>
-    {{else if (field "blocks")}}
-    <div class="entry-content">
-      {{#each fields.blocks}}
-        {{#if (eq type 'heading')}}
-        <h{{level}}>{{content}}</h{{level}}>
-        {{else if (eq type 'paragraph')}}
-        <p>{{content}}</p>
-        {{else if (eq type 'image')}}
-        <figure><img src="{{content.url}}" alt="{{content.alt}}" /></figure>
-        {{/if}}
-      {{/each}}
-    </div>
-    {{/if}}
-  </div>
+const templates: Record<string, ComponentType<ThemePageData>> = {
+  'home': Home,
+  'index': Index,
+  'single': Single,
+  'page': Page,
+  'archive': Archive,
+  '404': NotFound,
+};
 
-  <footer class="post-footer">
-    <div class="container">
-      <nav class="post-nav" aria-label="Post navigation">
-        {{#if prevPost}}
-        <a href="{{prevPost.url || ('/' + page.type + '/' + prevPost.slug)}}" class="post-nav__prev" rel="prev">
-          <span class="post-nav__label">Previous article</span>
-          <span class="post-nav__title">{{prevPost.title}}</span>
-        </a>
-        {{/if}}
-        {{#if nextPost}}
-        <a href="{{nextPost.url || ('/' + page.type + '/' + nextPost.slug)}}" class="post-nav__next" rel="next">
-          <span class="post-nav__label">Next article</span>
-          <span class="post-nav__title">{{nextPost.title}}</span>
-        </a>
-        {{/if}}
-      </nav>
-    </div>
-  </footer>
-</article>
+export const templateKeys = Object.keys(templates);
 
-{{#if jsonLd}}
-<script type="application/ld+json">{{{jsonLd}}}</script>
-{{/if}}
-`,
+export function render(
+  key: string,
+  data: ThemePageData,
+  _ctx?: ThemeRenderContext
+): ThemeRenderOutput {
+  const Component = templates[key] ?? templates['404'];
+  return { html: renderToStaticMarkup(<Component {...data} />) };
+}`,
   "src/theme.css": `/**
  * Tema Default do OkCMS — Design System CSS
  * Engine: css | Isolation: manual
@@ -2589,8 +2238,8 @@ export const DEFAULT_THEME_FILES: Record<string, string> = {
 `,
   "theme.json": `{
   "name": "default",
-  "version": "0.36.2",
-  "description": "Default OkCMS theme — hierarchical templates with real content interpolation + Static Front Page",
+  "version": "0.37.0",
+  "description": "Default OkCMS theme — React SSR with island hydration",
   "type": "theme",
   "author": "Oktis Works",
   "compatibility": {
@@ -2599,29 +2248,30 @@ export const DEFAULT_THEME_FILES: Record<string, string> = {
   "screenshots": [
     "screenshot.png"
   ],
+  "render": {
+    "engine": "react",
+    "apiVersion": 1,
+    "hydration": "islands",
+    "entry": "src/entry-server.tsx"
+  },
+  "stylesConfig": {
+    "engine": "css",
+    "isolation": true,
+    "entry": "src/theme.css",
+    "output": "dist/theme.css"
+  },
   "provides": {
     "layouts": [
-      "page-home",
-      "page-about",
-      "page-contact",
-      "page-blog",
-      "post-first-post",
-      "post-second-post",
-      "page",
-      "single",
-      "archive",
+      "home",
       "index",
+      "single",
+      "page",
+      "archive",
       "404"
     ],
     "assets": [
       "dist/theme.css"
     ]
-  },
-  "stylesConfig": {
-    "engine": "css",
-    "isolation": "manual",
-    "entry": "src/theme.css",
-    "output": "dist/theme.css"
   },
   "settings": [
     {

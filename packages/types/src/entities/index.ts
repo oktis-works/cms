@@ -664,11 +664,11 @@ export interface ThemeSettingField {
 }
 
 /**
- * Public theme render engine. `template` is the legacy string-template engine
- * (root `*.astro` files interpreted by ThemeRenderer). `react` and `solid` are
- * compiled component engines; a theme declares exactly one.
+ * Public theme render engine.
+ * - `react` — React 19 SSR with island hydration
+ * - `solid` — SolidJS SSR with island hydration
  */
-export type ThemeRenderEngine = 'template' | 'react' | 'solid';
+export type ThemeRenderEngine = 'react' | 'solid';
 
 export interface ThemeRenderConfig {
   engine: ThemeRenderEngine;

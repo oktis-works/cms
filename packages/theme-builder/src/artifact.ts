@@ -21,5 +21,8 @@ export function writeThemeBuild(themeDir: string, build: ThemeBuildManifest): vo
 
 export function engineOf(manifest: ThemeManifest): ThemeRenderEngine {
   const engine = manifest.render?.engine;
-  return engine === 'react' || engine === 'solid' ? engine : 'template';
+  if (engine !== 'react' && engine !== 'solid') {
+    throw new Error(`Invalid theme render engine: ${engine}. Must be 'react' or 'solid'.`);
+  }
+  return engine;
 }

@@ -3,7 +3,7 @@
 // Shared by core (install/sync), the CLI (scaffold/build), the theme runtime
 // (discovery) and the web app (parent manifests). Pure: no filesystem access.
 
-export type ThemeRenderEngine = 'template' | 'react' | 'solid';
+export type ThemeRenderEngine = 'react' | 'solid';
 
 export interface ThemeRenderConfigLike {
   engine?: unknown;
@@ -21,7 +21,7 @@ export interface ThemeRenderManifestLike {
   components?: unknown;
 }
 
-const VALID_ENGINES: readonly ThemeRenderEngine[] = ['template', 'react', 'solid'];
+const VALID_ENGINES: readonly ThemeRenderEngine[] = ['react', 'solid'];
 
 /** A render entry must stay inside the theme and be a relative path. */
 export function isSafeThemeRenderEntry(value: string): boolean {
@@ -33,17 +33,17 @@ export function isSafeThemeRenderEntry(value: string): boolean {
 
 /**
  * Validates a `theme.json` `render` object.
- * An absent value is valid and means the legacy template engine.
+ * `render.engine` is required and must be 'react' or 'solid'.
  */
 export function validateThemeRenderConfig(render: unknown): string[] {
-  if (render === undefined || render === null) return [];
+  if (render === undefined || render === null) return ['render is required'];
   if (typeof render !== 'object' || Array.isArray(render)) {
     return ['render must be an object'];
   }
 
   const config = render as ThemeRenderConfigLike;
   const issues: string[] = [];
-  const engine = config.engine ?? 'template';
+  const engine = config.engine;
 
   if (typeof engine !== 'string' || !VALID_ENGINES.includes(engine as ThemeRenderEngine)) {
     issues.push(`render.engine must be one of: ${VALID_ENGINES.join(', ')}`);

@@ -3,10 +3,10 @@
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { CMS_VERSION, assertCompatible } from '@oktis-works/validation';
-import { DEFAULT_THEME_CSS, THEME_TEMPLATE_FILES } from './theme-assets.js';
+import { DEFAULT_THEME_CSS } from './theme-assets.js';
 import {
-  TEMPLATE_KEYS,
   compiledThemeFiles,
+  TEMPLATE_KEYS,
   type ScaffoldThemeEngine,
 } from './theme-engine-assets.js';
 
@@ -85,11 +85,11 @@ export function scaffoldTheme(
   name: string,
   baseDir?: string,
   style: ScaffoldThemeStyle = 'css',
-  renderEngine: ScaffoldThemeEngine = 'template'
+  renderEngine: ScaffoldThemeEngine = 'react'
 ): ScaffoldExtensionResult {
   assertSafeName(name);
-  if (renderEngine !== 'template' && renderEngine !== 'react' && renderEngine !== 'solid') {
-    throw new Error(`Invalid render engine: "${renderEngine}" (use template|react|solid)`);
+  if (renderEngine !== 'react' && renderEngine !== 'solid') {
+    throw new Error(`Invalid render engine: "${renderEngine}" (use react|solid)`);
   }
 
   const styleConfig =
@@ -97,9 +97,8 @@ export function scaffoldTheme(
 
   // The manifest must declare exactly the templates being written — the
   // runtime resolves a page to `provides.layouts` entries.
-  const layouts = (renderEngine === 'template' ? Object.keys(THEME_TEMPLATE_FILES) : [...TEMPLATE_KEYS]).map((file) =>
-    file.replace(/\.astro$/, '')
-  );
+  const templateFiles = compiledThemeFiles(name, renderEngine);
+  const layouts = [...TEMPLATE_KEYS];
 
   const manifest: Record<string, unknown> = {
     name,
@@ -112,16 +111,12 @@ export function scaffoldTheme(
       ...(style === 'css' ? { assets: ['dist/theme.css'] } : {}),
     },
     ...(styleConfig ? { stylesConfig: styleConfig } : {}),
-    ...(renderEngine !== 'template'
-      ? {
-          render: {
-            engine: renderEngine,
-            apiVersion: 1,
-            hydration: 'none',
-            entry: 'src/entry-server.tsx',
-          },
-        }
-      : {}),
+    render: {
+      engine: renderEngine,
+      apiVersion: 1,
+      hydration: 'none',
+      entry: 'src/entry-server.tsx',
+    },
     // Example settings for the customizer (demonstrates text, color, select)
     settings: [
       {
@@ -162,16 +157,10 @@ export function scaffoldTheme(
 
   // Template themes use root *.astro files; compiled themes use root *.tsx
   // components with the same logical keys plus a server entry.
-  if (renderEngine === 'template') {
-    for (const [file, content] of Object.entries(THEME_TEMPLATE_FILES)) {
-      writeFileSync(join(dir, file), content);
-    }
-  } else {
-    for (const [file, content] of Object.entries(compiledThemeFiles(name, renderEngine))) {
-      const target = join(dir, file);
-      mkdirSync(dirname(target), { recursive: true });
-      writeFileSync(target, content);
-    }
+  for (const [file, content] of Object.entries(templateFiles)) {
+    const target = join(dir, file);
+    mkdirSync(dirname(target), { recursive: true });
+    writeFileSync(target, content);
   }
 
   if (style === 'scss') {
@@ -213,14 +202,10 @@ export function scaffoldTheme(
       `OkCMS theme.`,
       '',
       `- Manifest: theme.json`,
-      renderEngine === 'template'
-        ? `- Templates: *.astro at the theme root (the hierarchy the runtime resolves)`
-        : `- Render engine: ${renderEngine} (root *.tsx + src/entry-server.tsx)`,
+      `- Render engine: ${renderEngine} (root *.tsx + src/entry-server.tsx)`,
       `- Template context: site.*, page.*, content.*, items, menus, settings`,
       `- Styles: ${style}${style === 'css' ? ' (dist/theme.css served directly)' : ' (okcms theme:build → dist/theme.css)'}`,
-      renderEngine === 'template'
-        ? ''
-        : `- Build: okcms theme:build --name ${name} (emits a validated versioned server artifact and dist/theme-build.json)`,
+      `- Build: okcms theme:build --name ${name} (emits a validated versioned server artifact and dist/theme-build.json)`,
       '',
     ].join('\n')
   );

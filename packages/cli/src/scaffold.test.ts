@@ -77,20 +77,16 @@ describe('scaffoldProject', () => {
       join('plugins', 'mermaid-field', 'index.js'),
       join('plugins', 'mermaid-field', 'admin', 'components', 'MermaidField.tsx'),
       join('plugins', 'mermaid-field', 'admin', 'components', 'MermaidFieldRenderer.tsx'),
-      // tema default pronto: o projeto novo já renderiza de cara
+      // tema default pronto: o projeto novo já renderiza de cara (React SSR)
       join('themes', 'default', 'theme.json'),
       join('themes', 'default', 'screenshot.png'),
-      join('themes', 'default', 'page-home.astro'),
-      join('themes', 'default', 'page-about.astro'),
-      join('themes', 'default', 'page-contact.astro'),
-      join('themes', 'default', 'page-blog.astro'),
-      join('themes', 'default', 'post-first-post.astro'),
-      join('themes', 'default', 'post-second-post.astro'),
-      join('themes', 'default', 'index.astro'),
-      join('themes', 'default', 'single.astro'),
-      join('themes', 'default', 'page.astro'),
-      join('themes', 'default', 'archive.astro'),
-      join('themes', 'default', '404.astro'),
+      join('themes', 'default', 'home.tsx'),
+      join('themes', 'default', 'index.tsx'),
+      join('themes', 'default', 'single.tsx'),
+      join('themes', 'default', 'page.tsx'),
+      join('themes', 'default', 'archive.tsx'),
+      join('themes', 'default', '404.tsx'),
+      join('themes', 'default', 'src', 'entry-server.tsx'),
       join('themes', 'default', 'src', 'theme.css'),
       join('themes', 'default', 'dist', 'theme.css'),
       ...Object.values(DEPLOY_PATHS),
@@ -273,12 +269,12 @@ describe('scaffoldProject', () => {
   it('não sobrescreve o tema default editado no re-init', async () => {
     await scaffoldProject('keep-theme', 'keep-theme');
 
-    const homePath = join(workDir, 'keep-theme', 'themes', 'default', 'page-home.astro');
-    writeFileSync(homePath, '<main>editado por mim</main>');
+    const homePath = join(workDir, 'keep-theme', 'themes', 'default', 'home.tsx');
+    writeFileSync(homePath, 'export default function Home() { return <main>editado por mim</main>; }');
 
     await scaffoldProject('keep-theme', 'keep-theme');
 
-    expect(readFileSync(homePath, 'utf-8')).toBe('<main>editado por mim</main>');
+    expect(readFileSync(homePath, 'utf-8')).toBe('export default function Home() { return <main>editado por mim</main>; }');
   });
 
   it('o tema escrito no init é byte-idêntico ao themes/default do monorepo', async () => {

@@ -32,7 +32,7 @@ export interface ThemeBuildManifest {
   hydration: 'none' | 'islands';
 }
 
-const VALID_ENGINES: readonly ThemeRenderEngine[] = ['template', 'react', 'solid'];
+const VALID_ENGINES: readonly ThemeRenderEngine[] = ['react', 'solid'];
 
 /** Resolves a theme-relative path, rejecting anything that escapes the theme. */
 export function safeThemePath(themeDir: string, relativePath: string): string | null {
