@@ -58,7 +58,7 @@ export interface ThemePageData {
   site: {
     title: string;
     description: string;
-    theme: string;
+    theme: Record<string, unknown>;
     url?: string;
     language?: string;
   };
@@ -74,11 +74,22 @@ export interface ThemePageData {
     canonicalPath: string;
     isPageForPosts: boolean;
     isFrontPage: boolean;
+    excerpt?: string;
+    publishedAt?: string;
+    previous?: { title: string; slug: string; url: string } | null;
+    next?: { title: string; slug: string; url: string } | null;
   };
-  content: Record<string, unknown>;
+  content: { html?: string; [key: string]: unknown };
   fields: Record<string, unknown>;
   record: Record<string, unknown>;
-  items: Array<Record<string, unknown>>;
+  items: Array<{
+    title?: string;
+    slug?: string;
+    excerpt?: string;
+    publishedAt?: string;
+    url?: string;
+    [key: string]: unknown;
+  }>;
   pagination: {
     page: number;
     perPage: number;

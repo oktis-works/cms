@@ -257,18 +257,22 @@ function render(template: string, overrides: Record<string, unknown> = {}): stri
 
 describe('template theme golden HTML (legacy string-template renderer)', () => {
   it('home', async () => {
-    await expect(render('page-home.astro')).toMatchFileSnapshot('__snapshots__/template-home.html');
+    const html = render('page-home.astro');
+    expect(html).toMatchSnapshot();
   });
 
   it('single', async () => {
-    await expect(render('single.astro')).toMatchFileSnapshot('__snapshots__/template-single.html');
+    const html = render('single.astro');
+    expect(html).toMatchSnapshot();
   });
 
   it('archive', async () => {
-    await expect(render('archive.astro')).toMatchFileSnapshot('__snapshots__/template-archive.html');
+    const html = render('archive.astro');
+    expect(html).toMatchSnapshot();
   });
 
   it('404', async () => {
-    await expect(render('404.astro', { contentRow: null })).toMatchFileSnapshot('__snapshots__/template-404.html');
+    const html = render('404.astro', { contentRow: null });
+    expect(html).toMatchSnapshot();
   });
 });

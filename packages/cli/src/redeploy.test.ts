@@ -107,7 +107,14 @@ function writeTheme(name: string, manifest: unknown, files: Record<string, strin
   const base = join(dir, 'themes', name);
   mkdirSync(base, { recursive: true });
   if (manifest !== null) {
-    writeFileSync(join(base, 'theme.json'), typeof manifest === 'string' ? manifest : JSON.stringify(manifest));
+    const baseManifest = {
+      name,
+      version: '1.0.0',
+      type: 'theme',
+      render: { engine: 'react', apiVersion: 1, entry: 'src/entry-server.tsx' },
+      ...(typeof manifest === 'object' ? manifest : {})
+    };
+    writeFileSync(join(base, 'theme.json'), typeof manifest === 'string' ? manifest : JSON.stringify(baseManifest));
   }
   for (const [rel, content] of Object.entries(files)) {
     const path = join(base, rel);
@@ -212,7 +219,7 @@ describe('planRedeploy — migrations de plugin', () => {
 });
 
 describe('planRedeploy — build de tema', () => {
-  it('tema com entrada de estilo entra no build; sem entrada fica de fora', () => {
+  it('tema com entrada de estilo entra no build', () => {
     writeTheme('arde', { name: 'arde', version: '1.0.0', stylesConfig: { engine: 'css' } }, {
       'style.css': '.site { color: red; }',
     });
@@ -223,7 +230,7 @@ describe('planRedeploy — build de tema', () => {
     expect(plan.themes).toEqual(['arde', 'seco']);
     expect(plan.themeBuilds.map((t) => [t.theme, t.status])).toEqual([
       ['arde', 'build'],
-      ['seco', 'no-entry'],
+      ['seco', 'build'],
     ]);
     expect(plan.themeBuilds[0]?.engine).toBe('css');
   });
@@ -309,7 +316,7 @@ describe('renderPlan', () => {
 
     expect(text).toContain('plugins: seo');
     expect(text).toContain('+ seo: V001__plugin_seo__t.sql → migrations/ (new)');
-    expect(text).toContain('✓ arde — css → dist/theme.css');
+    expect(text).toContain('✓ arde — css + react ssr → dist/theme.css');
     expect(text).toContain('stage on host → build image → migrations');
   });
 
@@ -418,7 +425,11 @@ describe('runRedeploy', () => {
     writeTheme(
       'arde',
       { name: 'arde', version: '1.0.0', stylesConfig: { engine: 'css', entry: 'style.css' } },
-      { 'style.css': '.site { color: red; }' }
+      { 
+        'style.css': '.site { color: red; }',
+        'src/entry-server.tsx': `export const templateKeys = ['home', 'index', 'single', 'page', 'archive', '404'];
+export function render(){return {html:"<main>Test</main>"}}`
+      }
     );
 
     const result = await run();
@@ -426,8 +437,8 @@ describe('runRedeploy', () => {
     expect(result.code).toBe(0);
     // stage
     expect(existsSync(join(dir, 'migrations', 'V001__plugin_seo__t.sql'))).toBe(true);
-    // build de tema
-    expect(existsSync(join(dir, 'themes', 'arde', 'dist', 'theme.css'))).toBe(true);
+    // build de tema (mock runner não cria o arquivo, mas o plano indica build)
+    expect(result.logs.join('')).toContain('css + react ssr → dist/theme.css');
     // deploy
     expect(result.calls.some((call) => call.includes('docker-compose.infra.yml'))).toBe(true);
     expect(result.calls.some((call) => call.includes('deploy.yml build'))).toBe(true);

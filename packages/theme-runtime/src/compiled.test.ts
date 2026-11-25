@@ -53,11 +53,11 @@ afterEach(() => {
 });
 
 const pageData: ThemePageData = {
-  site: { title: 'Site', description: '', theme: 'compiled' },
+  site: { title: 'Site', description: '', theme: { siteTitle: 'Compiled Site' } },
   page: {
     title: 'Hello',
     description: '',
-    template: 'home.astro',
+    template: 'home.tsx',
     type: 'page',
     slug: 'hello',
     url: '/hello',

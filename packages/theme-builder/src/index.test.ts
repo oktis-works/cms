@@ -12,9 +12,9 @@ let root: string;
 let dir: string;
 
 const pageData: ThemePageData = {
-  site: { title: 'Built Site', description: '', theme: 'built' },
+  site: { title: 'Built Site', description: '', theme: { siteTitle: 'Built Site' } },
   page: {
-    title: 'Built', description: '', template: 'home.astro', type: 'page', slug: 'built',
+    title: 'Built', description: '', template: 'home.tsx', type: 'page', slug: 'built',
     url: '/built', hubBase: '', itemPath: '', canonicalPath: '/built',
     isPageForPosts: false, isFrontPage: false,
   },

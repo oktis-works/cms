@@ -41,7 +41,7 @@ themes.get('/health', requirePermission('read', 'theme'), async (c) => {
     const rows = await themeService.list()
     const themesWithBuild = withBuildStatus(rows)
     const active = themesWithBuild.find((theme) => theme.status === 'ACTIVE')
-    const ready = Boolean(active && (active.build?.status === 'ok' || active.build?.status === 'not-applicable'))
+    const ready = Boolean(active && active.build?.status === 'ok')
     return c.json({
       ready,
       status: ready ? 'healthy' : 'degraded',

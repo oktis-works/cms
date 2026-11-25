@@ -263,12 +263,12 @@ describe('scaffoldPlugin / scaffoldTheme', () => {
     expect(() => scaffoldPlugin('meu-plugin', join(dir, 'plugins'))).toThrow('already exists');
   });
 
-  it('theme: theme.json + templates *.astro na raiz (formato do runtime — engine template)', () => {
-    const result = scaffoldTheme('meu-tema', join(dir, 'themes'), 'css', 'template');
+  it('theme: theme.json + templates *.tsx na raiz (formato do runtime — engine react)', () => {
+    const result = scaffoldTheme('meu-tema', join(dir, 'themes'), 'css', 'react');
 
     expect(existsSync(join(result.dir, 'theme.json'))).toBe(true);
-    expect(existsSync(join(result.dir, 'index.astro'))).toBe(true);
-    expect(existsSync(join(result.dir, 'single.astro'))).toBe(true);
+    expect(existsSync(join(result.dir, 'index.tsx'))).toBe(true);
+    expect(existsSync(join(result.dir, 'single.tsx'))).toBe(true);
     expect(existsSync(join(result.dir, 'dist', 'theme.css'))).toBe(true);
     // o web não lê templates/*.html — nunca mais gerar esse formato
     expect(existsSync(join(result.dir, 'templates'))).toBe(false);

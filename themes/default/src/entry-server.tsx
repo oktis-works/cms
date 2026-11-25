@@ -5,10 +5,10 @@ import Page from '../page';
 import Archive from '../archive';
 import NotFound from '../404';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { ComponentType } from 'react';
+import type { FC } from 'react';
 import type { ThemePageData, ThemeRenderContext, ThemeRenderOutput } from '@oktis-works/theme-sdk';
 
-const templates: Record<string, ComponentType<ThemePageData>> = {
+const templates: Record<string, FC<ThemePageData>> = {
   'home': Home,
   'index': Index,
   'single': Single,
