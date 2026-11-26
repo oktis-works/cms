@@ -32,37 +32,47 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const sha = context.payload.pull_request.head.sha;
-            const maxWaitMs = 10 * 60 * 1000; // 10 min
-            const pollIntervalMs = 15000; // 15s
-            const start = Date.now();
             const requiredContexts = ['Tests', 'Typecheck', 'Lint', 'Dependency Audit'];
 
-            async function getStatus() {
-              const { data } = await github.rest.repos.getCombinedStatusForRef({
-                owner,
-                repo,
-                ref: sha,
-              });
-              return data;
+            const { data } = await github.rest.repos.getCombinedStatusForRef({
+              owner,
+              repo,
+              ref: sha,
+            });
+
+            console.log(`Combined status for ${sha}: ${data.state}`);
+            data.statuses.forEach(s => console.log(`  ${s.context}: ${s.state}`));
+
+            if (data.state === 'success') {
+              console.log('✅ All checks already passed');
+              return;
             }
 
-            while (Date.now() - start < maxWaitMs) {
-              const status = await getStatus();
-              if (status.state === 'success') {
-                console.log('✅ All checks passed');
-                return;
-              }
-              const pending = requiredContexts.filter(ctx =>
-                !status.statuses.some(s => s.context === ctx && s.state === 'success')
-              );
-              if (pending.length > 0) {
-                console.log(`⏳ Waiting for: ${pending.join(', ')} (state: ${status.state})`);
-              } else {
-                console.log(`⏳ State: ${status.state} — waiting...`);
-              }
-              await new Promise(r => setTimeout(r, pollIntervalMs));
+            const failed = requiredContexts.filter(ctx =>
+              data.statuses.some(s => s.context === ctx && s.state === 'failure')
+            );
+            if (failed.length > 0) {
+              throw new Error(`❌ Required checks failed: ${failed.join(', ')}`);
             }
-            throw new Error('❌ Timeout: PR checks did not pass within 10 minutes');
+
+            const pending = requiredContexts.filter(ctx =>
+              !data.statuses.some(s => s.context === ctx && s.state === 'success')
+            );
+            if (pending.length > 0) {
+              console.log(`⏳ Checks still pending: ${pending.join(', ')} — waiting briefly...`);
+              // Brief wait for any propagation delay (max 30s)
+              for (let i = 0; i < 6; i++) {
+                await new Promise(r => setTimeout(r, 5000));
+                const { data: status } = await github.rest.repos.getCombinedStatusForRef({ owner, repo, ref: sha });
+                if (status.state === 'success') {
+                  console.log('✅ All checks passed after brief wait');
+                  return;
+                }
+              }
+              throw new Error(`❌ Timeout: checks still pending: ${pending.join(', ')}`);
+            }
+
+            throw new Error(`❌ Unexpected state: ${data.state}`);
 
       - name: Trigger publish workflow
         uses: peter-evans/repository-dispatch@v4
