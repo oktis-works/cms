@@ -144,6 +144,32 @@ class LiveBlock {
 }
 
 /**
+ * Rows we may safely paint: the cursor must never reach the bottom row, or the
+ * terminal scrolls and the scrolled-off lines land in the scrollback forever
+ * (the block "repeats" on every repaint — it cannot be erased afterwards).
+ */
+/** Rows we may safely paint (exported for the regression tests). */
+export function maxRows(): number {
+  const rows = process.stdout.rows;
+  return Math.max(4, (typeof rows === 'number' && rows > 0 ? rows : 24) - 1);
+}
+
+/**
+ * Fits a block into `limit` rows, keeping the header and summarizing the rest.
+ * Truncating here (instead of letting the terminal scroll) is what keeps the
+ * `[nA [0J` repaint honest on short terminals.
+ */
+export function fitBlock(lines: string[], limit: number): string[] {
+  if (lines.length <= limit) return lines;
+  const [header = '', ...rest] = lines;
+  if (limit <= 1) return [header];
+  const keep = Math.max(0, limit - 2); // header + rows + "… N more"
+  const shown = rest.slice(0, keep);
+  const hidden = rest.length - shown.length;
+  return [header, ...shown, `    ${style.gray(`… ${hidden} more`)}`];
+}
+
+/**
  * Installs the project dependencies with the best available tool (bun when
  * installed, npm otherwise) and renders the live loader. Never throws: a
  * failed install returns `ok: false` with the output tail — the project files
@@ -175,7 +201,7 @@ export async function installProjectDepsLive(
 
   const block = new LiveBlock();
   const repaint = (): void => {
-    if (interactive) block.render([runningHeader(), ...rows()]);
+    if (interactive) block.render(fitBlock([runningHeader(), ...rows()], maxRows()));
   };
 
   const onChunk = (chunk: string | Buffer): void => {
@@ -204,7 +230,11 @@ export async function installProjectDepsLive(
   (child.stderr as unknown as StreamLike | null)?.on('data', onChunk);
 
   let timer: ReturnType<typeof setInterval> | null = null;
+  // A resize changes how many rows fit: refit immediately so a window shrunk
+  // mid-install never scrolls (and never leaks the block into scrollback).
+  const onResize = (): void => repaint();
   if (interactive) {
+    process.stdout.on('resize', onResize);
     timer = setInterval(() => {
       frame += 1;
       repaint();
@@ -270,7 +300,7 @@ export async function installProjectDepsLive(
       );
     }
 
-    if (interactive) block.render(finalLines);
+    if (interactive) block.render(fitBlock(finalLines, maxRows()));
     else for (const line of finalLines) console.log(line);
 
     return {
@@ -283,6 +313,7 @@ export async function installProjectDepsLive(
     };
   } finally {
     if (timer) clearInterval(timer);
+    if (interactive) process.stdout.off('resize', onResize);
     process.off('SIGINT', onSigint);
   }
 }
