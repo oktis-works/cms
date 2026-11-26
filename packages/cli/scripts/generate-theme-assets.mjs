@@ -15,7 +15,7 @@
 // Runs as part of `bun run build` / `prepack` (before tsc). The generated file
 // is committed, so a fresh checkout type-checks and tests without a prior build.
 
-import { readFileSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, readdirSync, writeFileSync, mkdirSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -43,8 +43,30 @@ function collect(dir) {
   const out = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
-    if (entry.isDirectory()) out.push(...collect(full));
-    else out.push(full);
+    // Use statSync to correctly identify directories, including symlinks to directories
+    const entryStat = statSync(full);
+    if (entryStat.isDirectory()) {
+      // Skip node_modules directory - it is not part of the theme source
+      if (entry.name === 'node_modules') {
+        continue;
+      }
+      // For dist directory, only include theme.css (the built stylesheet)
+      if (entry.name === 'dist') {
+        const distThemeCss = join(full, 'theme.css');
+        try {
+          const distStat = statSync(distThemeCss);
+          if (distStat.isFile()) {
+            out.push(distThemeCss);
+          }
+        } catch {
+          // dist/theme.css doesn't exist, skip
+        }
+        continue;
+      }
+      out.push(...collect(full));
+    } else {
+      out.push(full);
+    }
   }
   return out;
 }

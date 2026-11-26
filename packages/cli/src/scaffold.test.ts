@@ -33,6 +33,18 @@ function walkFiles(dir: string, prefix = ''): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
     if (entry.isDirectory()) {
+      // Skip node_modules directory - it is not part of the theme source
+      if (entry.name === 'node_modules') {
+        continue;
+      }
+      // For dist directory, only include theme.css (the built stylesheet)
+      if (entry.name === 'dist') {
+        const distThemeCss = join(full, 'theme.css');
+        if (existsSync(distThemeCss)) {
+          out.push(`${prefix}dist/theme.css`);
+        }
+        continue;
+      }
       out.push(...walkFiles(full, `${prefix}${entry.name}/`));
     } else {
       out.push(`${prefix}${entry.name}`);

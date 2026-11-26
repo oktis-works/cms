@@ -18,7 +18,27 @@ async function copyDir(src, dest) {
   for (const entry of entries) {
     const srcPath = join(src, entry.name);
     const destPath = join(dest, entry.name);
-    if (entry.isDirectory()) {
+    // Use stat to correctly identify directories, including symlinks to directories
+    const entryStat = await stat(srcPath);
+    if (entryStat.isDirectory()) {
+      // Skip node_modules directory - it is not part of the theme source
+      if (entry.name === 'node_modules') {
+        continue;
+      }
+      // For dist directory, only copy theme.css (the built stylesheet)
+      if (entry.name === 'dist') {
+        const distThemeCss = join(srcPath, 'theme.css');
+        try {
+          const distStat = await stat(distThemeCss);
+          if (distStat.isFile()) {
+            await mkdir(dirname(destPath), { recursive: true });
+            await copyFile(distThemeCss, join(destPath, 'theme.css'));
+          }
+        } catch {
+          // dist/theme.css doesn't exist, skip
+        }
+        continue;
+      }
       await copyDir(srcPath, destPath);
     } else {
       await mkdir(dirname(destPath), { recursive: true });
