@@ -1,5 +1,17 @@
 # @oktis-works/cms
 
+## 0.19.4
+
+### Patch Changes
+
+- fix(cli): resolve visual/UX bugs in okcms init wizard
+  
+  - Fix box repaint leakage on arrow navigation (exact painted-rows bookkeeping)
+  - Fix misaligned right border (ANSI-aware padding via visibleLength/padTo)
+  - Fix install loader repeating blocks in scrollback (maxRows cap + fitBlock)
+  - Fix process hang after init (stdin pause-when-idle + real close/dispose)
+  - Add regression tests for box rendering and loader fitting
+
 ## 0.19.3
 
 ### Patch Changes

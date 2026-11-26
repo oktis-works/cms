@@ -189,6 +189,24 @@ These invariants must hold for every release.
 ## 16. Mandatory Pre-Tag CI/CD Validation
 Before pushing a new release tag to GitHub, the agent MUST execute the full CI/CD test suite locally **repeatedly until zero errors remain**. This prevents burned tags and failed CI runs.
 
+### 16.1. Changeset Version Bump (OBRIGATÓRIO antes de release)
+**SEMPRE** crie changesets para pacotes alterados e rode `bun run version-packages` ANTES de bump da versão root / tag:
+```bash
+# 1. Para cada pacote modificado, crie changeset:
+bun run changeset
+#    - Selecione pacotes alterados (cli, core, database, auth, etc.)
+#    - Tipo: patch (fix), minor (feat), major (breaking)
+#    - Descrição em inglês (conventional commit style)
+
+# 2. Consome changesets e bumpa versões dos pacotes + sincroniza CMS_VERSION:
+bun run version-packages
+#    - Isso roda: changeset version + sync-version --write + generate-versions
+#    - Verifica se root package.json version bate com a release pretendida
+
+# 3. Só DEPOIS disso faça commit + push da release branch
+```
+**NUNCA pule isso** — versões dos pacotes são independentes do root (Changesets). Sem changeset, pacotes não publicam com a fix/feat.
+
 ### Required local validation sequence (run in order, repeat until all pass):
 
 ```bash
