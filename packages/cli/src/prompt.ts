@@ -146,6 +146,37 @@ class SimpleInput {
     stream.on('end', end);
     stream.on('close', end);
     stream.on('error', end);
+
+    // Idle = paused. Attaching a 'data' listener flips stdin into flowing
+    // mode, which refs it on the event loop — the process would never exit
+    // after the last prompt (the classic "CLI hangs, Ctrl+C to get the shell
+    // back" bug). Every read resumes the stream and pauseWhenIdle() stops it
+    // again as soon as nobody is waiting for input.
+    this.stream.pause();
+  }
+
+  /** true while a line/secret/key read is pending. */
+  private get reading(): boolean {
+    return this.waiters.length > 0 || this.rawWaiter !== null || this.keyWaiters.length > 0;
+  }
+
+  /** Pauses stdin when no reader is pending (keeps buffered input intact). */
+  private pauseWhenIdle(): void {
+    if (this.reading) return;
+    this.stream.pause();
+  }
+
+  /**
+   * Releases stdin for good — used by `Prompt.close()`. Deliberately does NOT
+   * call `removeAllListeners()`: dropping the listeners we just added leaves the
+   * TTY handle referenced on Bun (verified), so a plain `pause()` is the release
+   * that actually lets the process exit.
+   */
+  dispose(): void {
+    this.waiters.splice(0);
+    this.keyWaiters.splice(0);
+    this.rawWaiter = null;
+    this.stream.pause();
   }
 
   /** true when the terminal can switch to raw mode (arrow keys + secret mask). */
@@ -191,6 +222,7 @@ class SimpleInput {
       if (waiter) waiter(line);
       else this.queue.push(line);
     }
+    this.pauseWhenIdle();
   }
 
   /** Turns raw mode on/off on the underlying stream (never throws). */
@@ -207,6 +239,7 @@ class SimpleInput {
     const waiter = this.rawWaiter;
     this.rawWaiter = null;
     waiter?.(value);
+    this.pauseWhenIdle();
   }
 
   private onRawData(chunk: string): void {
@@ -256,6 +289,7 @@ class SimpleInput {
     if (this.ended) return Promise.resolve(null);
     return new Promise((resolve) => {
       this.waiters.push(resolve);
+      this.stream.resume();
     });
   }
 
@@ -275,6 +309,7 @@ class SimpleInput {
       this.raw = true;
       this.rawWaiter = resolve;
       this.setRawMode(true);
+      this.stream.resume();
     });
   }
 
@@ -292,6 +327,7 @@ class SimpleInput {
       this.keyMode = true;
       this.keyWaiters.push(resolve);
       this.setRawMode(true);
+      this.stream.resume();
     });
   }
 
@@ -302,6 +338,7 @@ class SimpleInput {
       if (waiter) waiter(key);
       else this.keyQueue.push(key);
     }
+    this.pauseWhenIdle();
   }
 
   /** Leaves key mode: raw mode off, pending waiters released with `eof`. */
@@ -311,6 +348,7 @@ class SimpleInput {
     this.setRawMode(false);
     const waiters = this.keyWaiters.splice(0);
     for (const waiter of waiters) waiter('eof');
+    this.pauseWhenIdle();
   }
 }
 
@@ -412,6 +450,33 @@ export function wrapText(text: string, max = terminalWidth() - 4): string[] {
   }
   if (line) lines.push(truncateText(line, max));
   return lines.length > 0 ? lines : [''];
+}
+
+/**
+ * Cuts text to `max` visible columns without slicing through an ANSI escape
+ * (`String.slice` would cut the sequence in half and leak raw bytes on screen).
+ * A trailing `\x1b[0m` closes any attribute the cut left open.
+ */
+export function truncateAnsi(text: string, max: number): string {
+  if (max < 1 || visibleLength(text) <= max) return text;
+  const escape = /\u001b\[[0-?]*[ -/]*[@-~]/;
+  let out = '';
+  let visible = 0;
+  let i = 0;
+  while (i < text.length && visible < max - 1) {
+    if (text.charCodeAt(i) === 0x1b) {
+      const match = escape.exec(text.slice(i));
+      if (match) {
+        out += match[0];
+        i += match[0].length;
+        continue;
+      }
+    }
+    out += text[i];
+    visible += 1;
+    i += 1;
+  }
+  return colorEnabled() ? `${out}…\u001b[0m` : `${out}…`;
 }
 
 /**
@@ -1088,7 +1153,10 @@ export class Prompt {
 
   close(): void {
     this.closed = true;
-    // Clack não tem ciclo de vida explícito para fechar. No-op para compatibilidade.
+    // Releases stdin (pauses it) so the process can exit. Kept as a real
+    // teardown: the previous no-op meant every WizardPrompt run left stdin
+    // flowing and required Ctrl+C to get the shell back.
+    this.simpleInput?.dispose();
   }
 
   /** Configurações globais do Clack (i18n, mensagens, guide lines). */
@@ -1146,17 +1214,21 @@ export class Prompt {
  * with the main wizard menu.
  */
 export class WizardPrompt extends Prompt {
-  private readonly boxTop = '┌';
-  private readonly boxBottom = '└';
+  private readonly boxTopLeft = '┌';
+  private readonly boxTopRight = '┐';
   private readonly boxSide = '│';
-  private readonly boxTopLeft = '├';
-  private readonly boxTopRight = '┤';
   private readonly boxBottomLeft = '└';
   private readonly boxBottomRight = '┘';
   private readonly promptPrefix = '→';
   private readonly selectionMarker = '●';
   private readonly unselectedMarker = '◇';
   private readonly boxWidth = 60;
+  /**
+   * Terminal rows written by the last draw. The repaint clears EXACTLY this
+   * many rows — a hardcoded count (`choices.length + 4`) leaked the leading
+   * blank line and the top border on every arrow press.
+   */
+  private painted = 0;
 
   constructor(io?: Partial<PromptIO>) {
     // Initialize PromptIO but override the simpleInput creation to always have it
@@ -1173,18 +1245,59 @@ export class WizardPrompt extends Prompt {
     });
   }
 
+  /**
+   * Usable terminal width: the live `columns` of the output stream first,
+   * then the COLUMNS/80 fallback used by the rest of the CLI.
+   */
+  private columns(): number {
+    const fromStream = (this.io.output as { columns?: number }).columns;
+    if (typeof fromStream === 'number' && fromStream >= 40) return fromStream;
+    return terminalWidth();
+  }
+
+  /**
+   * Pads `text` to `width` VISIBLE columns. `String.padEnd` can never be used
+   * here: the lines carry ANSI escapes (bold/dim/color) whose raw length would
+   * silently eat the padding, moving the right border to a different column on
+   * every line. Overlong lines are truncated so a row never wraps — a wrapped
+   * row is two terminal rows and would break the repaint bookkeeping.
+   */
+  private padTo(text: string, width: number): string {
+    const visible = visibleLength(text);
+    if (visible > width) return truncateAnsi(text, width);
+    return text + ' '.repeat(width - visible);
+  }
+
   /** Draws a box with the given lines inside. */
   private drawBox(lines: string[]): void {
-    const width = Math.max(this.boxWidth, ...lines.map(l => visibleLength(l))) + 4;
-    const top = `${this.boxTop}${'─'.repeat(width - 2)}${this.boxTop}`;
-    const bottom = `${this.boxBottom}${'─'.repeat(width - 2)}${this.boxBottom}`;
+    // Row layout: `│` + 2 spaces + inner + 2 spaces + `│` => inner = width - 6.
+    // Never wider than the terminal: autowrap would turn one painted row into
+    // two and leave residue behind on every repaint.
+    const widest = Math.max(0, ...lines.map((l) => visibleLength(l)));
+    const wanted = Math.max(this.boxWidth, widest + 6);
+    const width = Math.max(12, Math.min(wanted, this.columns() - 1));
+    const inner = width - 6;
+    const rule = '─'.repeat(width - 2);
 
-    this.io.output.write(`\n${style.cyan(top)}\n`);
+    const out: string[] = [`\n${style.cyan(`${this.boxTopLeft}${rule}${this.boxTopRight}`)}\n`];
     for (const line of lines) {
-      const padded = line.padEnd(width - 4);
-      this.io.output.write(`${style.cyan(this.boxSide)}  ${padded}  ${style.cyan(this.boxSide)}\n`);
+      out.push(
+        `${style.cyan(this.boxSide)}  ${this.padTo(line, inner)}  ${style.cyan(this.boxSide)}\n`
+      );
     }
-    this.io.output.write(`${style.cyan(bottom)}\n`);
+    out.push(`${style.cyan(`${this.boxBottomLeft}${rule}${this.boxBottomRight}`)}\n`);
+
+    this.io.output.write(out.join(''));
+    // leading blank + top border + content + bottom border
+    this.painted = lines.length + 3;
+  }
+
+  /** Erases exactly the rows `drawBox` painted and returns the cursor to them. */
+  private clearPainted(): void {
+    for (let i = 0; i < this.painted; i++) {
+      this.io.output.write('\x1b[1A\x1b[2K'); // move up, clear line
+    }
+    this.painted = 0;
   }
 
   /** Draws a prompt box with title and input area. */
@@ -1223,13 +1336,6 @@ export class WizardPrompt extends Prompt {
     }
 
     this.drawBox(lines);
-  }
-
-  /** Clears the last N lines from terminal output. */
-  private clearLines(count: number): void {
-    for (let i = 0; i < count; i++) {
-      this.io.output.write('\x1b[1A\x1b[2K'); // move up, clear line
-    }
   }
 
   /** Select with box-drawing style. */
@@ -1277,15 +1383,15 @@ export class WizardPrompt extends Prompt {
 
         if (key === 'up' || key === 'k') {
           index = (index - 1 + choices.length) % choices.length;
-          // Clear and re-render
-          this.clearLines(choices.length + 4); // box height approx
+          // Clear the exact painted block, then re-render
+          this.clearPainted();
           this.renderSelectOptions(title, choices, index, hint);
           continue;
         }
 
         if (key === 'down' || key === 'j') {
           index = (index + 1) % choices.length;
-          this.clearLines(choices.length + 4);
+          this.clearPainted();
           this.renderSelectOptions(title, choices, index, hint);
           continue;
         }
@@ -1357,18 +1463,22 @@ export class WizardPrompt extends Prompt {
         if (key === 'enter' || key === '\r' || key === '\n') {
           inputStream.setRawMode(false);
           this.simpleInput!.raw = false;
-          this.io.output.write('\n');
           const trimmed = value.trim();
           const finalValue = trimmed === '' ? defaultValue : trimmed;
           const problem = opts.validate?.(finalValue);
           if (problem) {
+            // The box is erased BEFORE the error line is printed: the error
+            // replaces the block, a fresh box is drawn below it. Writing the
+            // error first would put it one row past the painted block and the
+            // next repaint would clear the wrong rows (leaked borders).
+            this.clearPainted();
             this.io.output.write(`  ${style.red(symbol.fail)} ${problem}\n`);
-            // Re-draw
             this.drawPromptBox(title, value, hint);
             inputStream.setRawMode(true);
             this.simpleInput!.raw = true;
             continue;
           }
+          this.io.output.write('\n');
           return finalValue;
         }
 
@@ -1384,7 +1494,7 @@ export class WizardPrompt extends Prompt {
           if (value.length > 0) {
             value = value.slice(0, -1);
             // Re-draw with updated value
-            this.clearLines(6); // approx box height
+            this.clearPainted();
             this.drawPromptBox(title, value, hint);
           }
           continue;
@@ -1392,7 +1502,7 @@ export class WizardPrompt extends Prompt {
 
         if (key.length === 1 && key >= ' ' && key <= '~') {
           value += key;
-          this.clearLines(6);
+          this.clearPainted();
           this.drawPromptBox(title, value, hint);
         }
       }
@@ -1437,17 +1547,19 @@ export class WizardPrompt extends Prompt {
         if (key === 'enter' || key === '\r' || key === '\n') {
           inputStream.setRawMode(false);
           this.simpleInput!.raw = false;
-          this.io.output.write('\n');
           const trimmed = value.trim();
           const finalValue = trimmed === '' && defaultValue !== '' ? defaultValue : trimmed;
           const problem = opts.validate?.(finalValue);
           if (problem) {
+            // Erase the box first — see ask() for the repaint bookkeeping.
+            this.clearPainted();
             this.io.output.write(`  ${style.red(symbol.fail)} ${problem}\n`);
             this.drawPromptBox(title, '', hint);
             inputStream.setRawMode(true);
             this.simpleInput!.raw = true;
             continue;
           }
+          this.io.output.write('\n');
           return finalValue;
         }
 
@@ -1462,7 +1574,7 @@ export class WizardPrompt extends Prompt {
         if (key === 'backspace') {
           if (value.length > 0) {
             value = value.slice(0, -1);
-            this.clearLines(6);
+            this.clearPainted();
             this.drawPromptBox(title, '*'.repeat(value.length), hint);
           }
           continue;
@@ -1470,7 +1582,7 @@ export class WizardPrompt extends Prompt {
 
         if (key.length === 1 && key >= ' ' && key <= '~') {
           value += key;
-          this.clearLines(6);
+          this.clearPainted();
           this.drawPromptBox(title, '*'.repeat(value.length), hint);
         }
       }
@@ -1497,13 +1609,16 @@ export class WizardPrompt extends Prompt {
     const hint = defaultValue === undefined ? '[y/n]' : defaultValue ? '[Y/n]' : '[y/N]';
     let value = defaultValue;
 
-    const lines = [
-      style.bold(`◈ ${title}`),
-      style.dim(hint),
-      '',
-      `  ${style.cyan(this.promptPrefix)} ${style.bold(value ? 'Yes' : 'No')}`
-    ];
-    this.drawBox(lines);
+    const draw = (choice: boolean): void => {
+      this.drawBox([
+        style.bold(`◈ ${title}`),
+        style.dim(hint),
+        '',
+        `  ${style.cyan(this.promptPrefix)} ${style.bold(choice ? 'Yes' : 'No')}`,
+      ]);
+    };
+
+    draw(value);
 
     inputStream.setRawMode(true);
     this.simpleInput!.raw = true;
@@ -1535,24 +1650,12 @@ export class WizardPrompt extends Prompt {
         const lower = key.toLowerCase();
         if (lower === 'y' || lower === 'yes') {
           value = true;
-          this.clearLines(5);
-          const newLines = [
-            style.bold(`◈ ${title}`),
-            style.dim(hint),
-            '',
-            `  ${style.cyan(this.promptPrefix)} ${style.bold('Yes')}`
-          ];
-          this.drawBox(newLines);
+          this.clearPainted();
+          draw(value);
         } else if (lower === 'n' || lower === 'no') {
           value = false;
-          this.clearLines(5);
-          const newLines = [
-            style.bold(`◈ ${title}`),
-            style.dim(hint),
-            '',
-            `  ${style.cyan(this.promptPrefix)} ${style.bold('No')}`
-          ];
-          this.drawBox(newLines);
+          this.clearPainted();
+          draw(value);
         }
       }
     } finally {

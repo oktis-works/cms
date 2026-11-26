@@ -125,88 +125,90 @@ Run 'okcms wp import --help' or 'okcms wp validate --help' for subcommand option
       const { WizardPrompt } = await import('./prompt.js');
 
       const prompt = new WizardPrompt();
-
-      // Language of the generated docs (.md only — the code never changes
-      // language). `--lang en|pt` decides without a TTY (CI/script); with a TTY
-      // and no flag, an arrow menu asks; without either, English is the default.
-      const rawLang = options['lang'];
-      let lang: DocsLang;
-      if (rawLang !== undefined && rawLang !== 'true') {
-        const parsed = parseDocsLang(rawLang);
-        if (parsed === null) {
-          throw new Error(`invalid --lang "${rawLang}" — use en or pt`);
-        }
-        lang = parsed;
-      } else if (rawLang === 'true') {
-        throw new Error('--lang requires a value: en or pt');
-      } else if (prompt.interactive) {
-        lang = await prompt.select<DocsLang>(
-          'Docs language (README.md, PLUGIN.md, THEME.md)',
-          [
-            { value: 'en', label: 'English', hint: 'default' },
-            { value: 'pt', label: 'Português (Brasil)' },
-          ],
-          { defaultValue: DEFAULT_DOCS_LANG }
-        );
-      } else {
-        lang = DEFAULT_DOCS_LANG;
-      }
-
-      const dbEngine = options['db-engine'] ?? 'postgres';
-      if (!['postgres', 'mysql', 'mariadb'].includes(dbEngine)) {
-        throw new Error(`invalid --db-engine "${dbEngine}" — use postgres, mysql, or mariadb`);
-      }
-
-      // Install the dependencies now? Same arrow-key menu as the language
-      // selector. `--no-install` answers for scripts/CI; without a TTY the
-      // default is Yes — pipelines keep getting an automatic install.
-      let install = true;
-      if (options['no-install'] !== undefined) {
-        install = false;
-      } else if (prompt.interactive) {
-        install = await prompt.select<boolean>(
-          'Install project dependencies now?',
-          [
-            { value: true, label: 'Yes', hint: 'recommended' },
-            { value: false, label: 'No', hint: 'install later with bun/npm' },
-          ],
-          { defaultValue: true }
-        );
-      }
-
-      // The positional arg wins over -d: `init my-site` must create my-site
-      // (the parser's default '.' would swallow args[0]). Without either, an
-      // interactive run asks where to put the project.
-      let target = args[0] ?? options['dir'];
-      if (target === undefined && prompt.interactive) {
-        target = await prompt.ask('Project directory', { default: '.' });
-      }
-      target ??= '.';
-
-      const name = args[1] ?? basename(resolve(target));
-      const root = resolve(target);
-
-      // Zero config: dependencies are installed right in `init` (bun, or npm
-      // when bun is missing) — and BEFORE the summary, so the next steps are
-      // the last thing on screen. The live loader (spinner + real package
-      // versions) lives in install-loader.ts; without a TTY it prints static.
-      await scaffoldProject(target, name, lang, async () => {
-        if (!install) {
-          console.log(
-            style.gray('  → Dependencies not installed — run "bun install" (or "npm install")')
+      try {
+        // Language of the generated docs (.md only — the code never changes
+        // language). `--lang en|pt` decides without a TTY (CI/script); with a TTY
+        // and no flag, an arrow menu asks; without either, English is the default.
+        const rawLang = options['lang'];
+        let lang: DocsLang;
+        if (rawLang !== undefined && rawLang !== 'true') {
+          const parsed = parseDocsLang(rawLang);
+          if (parsed === null) {
+            throw new Error(`invalid --lang "${rawLang}" — use en or pt`);
+          }
+          lang = parsed;
+        } else if (rawLang === 'true') {
+          throw new Error('--lang requires a value: en or pt');
+        } else if (prompt.interactive) {
+          lang = await prompt.select<DocsLang>(
+            'Docs language (README.md, PLUGIN.md, THEME.md)',
+            [
+              { value: 'en', label: 'English', hint: 'default' },
+              { value: 'pt', label: 'Português (Brasil)' },
+            ],
+            { defaultValue: DEFAULT_DOCS_LANG }
           );
-          return;
+        } else {
+          lang = DEFAULT_DOCS_LANG;
         }
-        const { installProjectDepsLive } = await import('./install-loader.js');
-        const result = await installProjectDepsLive(root, { interactive: prompt.interactive });
-        if (!result.ok) {
-          throw new Error(
-            `Dependency installation failed with ${result.tool}. ` +
-            'The scaffold was preserved; run bun install or npm install and retry.'
+
+        const dbEngine = options['db-engine'] ?? 'postgres';
+        if (!['postgres', 'mysql', 'mariadb'].includes(dbEngine)) {
+          throw new Error(`invalid --db-engine "${dbEngine}" — use postgres, mysql, or mariadb`);
+        }
+
+        // Install the dependencies now? Same arrow-key menu as the language
+        // selector. `--no-install` answers for scripts/CI; without a TTY the
+        // default is Yes — pipelines keep getting an automatic install.
+        let install = true;
+        if (options['no-install'] !== undefined) {
+          install = false;
+        } else if (prompt.interactive) {
+          install = await prompt.select<boolean>(
+            'Install project dependencies now?',
+            [
+              { value: true, label: 'Yes', hint: 'recommended' },
+              { value: false, label: 'No', hint: 'install later with bun/npm' },
+            ],
+            { defaultValue: true }
           );
         }
-      }, { provider: dbEngine as 'postgres' | 'mysql' | 'mariadb' });
-      prompt.close();
+
+        // The positional arg wins over -d: `init my-site` must create my-site
+        // (the parser's default '.' would swallow args[0]). Without either, an
+        // interactive run asks where to put the project.
+        let target = args[0] ?? options['dir'];
+        if (target === undefined && prompt.interactive) {
+          target = await prompt.ask('Project directory', { default: '.' });
+        }
+        target ??= '.';
+
+        const name = args[1] ?? basename(resolve(target));
+        const root = resolve(target);
+
+        // Zero config: dependencies are installed right in `init` (bun, or npm
+        // when bun is missing) — and BEFORE the summary, so the next steps are
+        // the last thing on screen. The live loader (spinner + real package
+        // versions) lives in install-loader.ts; without a TTY it prints static.
+        await scaffoldProject(target, name, lang, async () => {
+          if (!install) {
+            console.log(
+              style.gray('  → Dependencies not installed — run "bun install" (or "npm install")')
+            );
+            return;
+          }
+          const { installProjectDepsLive } = await import('./install-loader.js');
+          const result = await installProjectDepsLive(root, { interactive: prompt.interactive });
+          if (!result.ok) {
+            throw new Error(
+              `Dependency installation failed with ${result.tool}. ` +
+              'The scaffold was preserved; run bun install or npm install and retry.'
+            );
+          }
+        }, { provider: dbEngine as 'postgres' | 'mysql' | 'mariadb' });
+      } finally {
+        prompt.close();
+      }
     },
   },
   {
