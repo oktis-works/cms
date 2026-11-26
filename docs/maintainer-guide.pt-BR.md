@@ -177,7 +177,7 @@ baterem:
    `package.json` da raiz (workspace privado `okcms` — nunca publicado no
    npm, então livre para carregar a semântica de produto). É a versão que
    `compatibility.okcms` de plugins/temas compara, a que aparece no
-   `<meta name="generator">` do site público e a que o `GET /api` reporta.
+   `GET /api` reporta.
    Sincronize com `bun run sync-version --write` (o `bun run version-packages`
    já faz isso). Os pacotes continuam independentes: `@oktis-works/validation`
    tem a sua própria versão de biblioteca — versão de produto NÃO é versão

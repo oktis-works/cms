@@ -14,15 +14,15 @@
 // truth: editing the theme and running `bun run build` keeps them in step,
 // and `theme-assets.test.ts` fails if the generated copy drifts.
 //
-// The renderer supports: {{var}} / {{{raw}}} / {{#if x}} / {{#each path}} —
-// templates are written within that syntax.
+// The default theme is an isolated React/Solid theme. The CLI copies its
+// source components, server entry, manifest, styles, and preview assets.
 
 export {
   DEFAULT_THEME_FILES,
   DEFAULT_THEME_BINARY_FILES,
   DEFAULT_THEME_MANIFEST,
   DEFAULT_THEME_CSS,
-  THEME_TEMPLATE_FILES,
+  THEME_COMPONENT_FILES,
 } from './generated/theme-assets.js';
 
 import { DEFAULT_THEME_BINARY_FILES } from './generated/theme-assets.js';

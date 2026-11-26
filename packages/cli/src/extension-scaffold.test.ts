@@ -42,7 +42,7 @@ describe('scaffoldTheme (runtime web format — engine: react)', () => {
     expect(manifest['compatibility']).toEqual({ okcms: expect.stringMatching(/^\^\d+\.\d+\.\d+/) });
     expect(manifest['render']).toEqual({
       engine: 'react',
-      apiVersion: 1,
+      apiVersion: 2,
       hydration: 'none',
       entry: 'src/entry-server.tsx',
     });
@@ -80,7 +80,7 @@ describe('scaffoldTheme (runtime web format — engine: react)', () => {
 
     expect(existsSync(join(dir, 'src', 'input.css'))).toBe(true);
     const config = readFileSync(join(dir, 'tailwind.config.js'), 'utf-8');
-    expect(config).toContain('./**/*.{astro,html,js,jsx,ts,tsx}');
+    expect(config).toContain('./**/*.{html,js,jsx,ts,tsx}');
     expect(config).not.toContain('templates/**');
   });
 
@@ -107,7 +107,7 @@ describe('scaffoldTheme (runtime web format — engine: react)', () => {
 
     expect(manifest['render']).toEqual({
       engine: 'react',
-      apiVersion: 1,
+      apiVersion: 2,
       hydration: 'none',
       entry: 'src/entry-server.tsx',
     });

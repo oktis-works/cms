@@ -226,7 +226,7 @@ export async function compileScss(entryAbs: string): Promise<string> {
       const res = await sass.compileAsync(entryAbs);
       return res.css as string;
     }
-    // legacy render
+    // Sass compatibility API for older installed Sass versions.
     const res = sass.renderSync({ file: entryAbs });
     return res.css.toString();
   } catch (e: any) {
@@ -249,7 +249,7 @@ export async function compileTailwind(entryAbs: string, themePath: string): Prom
     const tailwindConfigPath =
       [join(themePath, 'tailwind.config.js'), join(themePath, 'tailwind.config.cjs'), join(themePath, 'tailwind.config.mjs')].find((p) => existsSync(p)) ?? null;
     let tailwindConfig: any = {
-      content: [join(themePath, 'templates/**/*.{astro,html,js,jsx,ts,tsx}'), join(themePath, 'src/**/*.{astro,html,js,jsx,ts,tsx}'), join(themePath, 'components/**/*.{astro,html,js,jsx,ts,tsx}')],
+      content: [join(themePath, '**/*.{html,js,jsx,ts,tsx}')],
       corePlugins: { preflight: false },
     };
     if (tailwindConfigPath) tailwindConfig = tailwindConfigPath;

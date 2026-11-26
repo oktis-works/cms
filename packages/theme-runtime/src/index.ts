@@ -1,21 +1,16 @@
 // @oktis-works/theme-runtime - Main Entry Point
 
-export { ThemeRenderer } from './renderer.js';
-export { ThemeResolver } from './resolver.js';
-export type { ResolvedComponent } from './resolver.js';
 export {
-  TemplateHierarchyResolver,
+  ThemeTemplateResolver,
   buildTemplateChain,
   buildTemplateKeyChain,
   templateKeyFromFile,
-  createProjectTemplateResolver,
   resolveProjectThemeChain,
 } from './template-resolver.js';
 export type {
   TemplateContext,
   ResolvedTemplate,
-  TemplateFileChecker,
-  ProjectTemplateResolver,
+  ThemeKeyChecker,
 } from './template-resolver.js';
 export {
   THEME_BUILD_SCHEMA_VERSION,

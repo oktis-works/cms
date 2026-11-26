@@ -69,7 +69,7 @@ describe('theme manifest render contract', () => {
       name: 'theme',
       version: '1.0.0',
       parent: '../outside',
-      components: [{ name: 'Header', file: '../header.astro' }],
+      components: [{ name: 'Header', file: '../header.tsx' }],
     });
     expect(issues.join(' ')).toMatch(/parent|component file/);
   });

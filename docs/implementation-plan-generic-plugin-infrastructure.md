@@ -167,7 +167,7 @@
 - [ ] 4.5.5 Rotas: `GET /my-orders` (auth), `POST /cart` (auth), `POST /webhook/stripe` (público)
 - [ ] 4.5.6 Theme data provider: `getUserOrders()`, `getCart()`
 - [ ] 4.5.7 Hook `theme:data:user` injeta `orders`, `cart`
-- [ ] 4.5.8 Templates de tema: `account.astro`, `cart.astro`
+- [ ] 4.5.8 Theme logical keys: `account`, `cart`
 - [ ] 4.5.9 Admin UI: metaBox SEO, coluna preço, editor customizado
 
 #### 4.6 Documentação

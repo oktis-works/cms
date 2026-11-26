@@ -31,14 +31,15 @@ import {
   serializeThemeHydration,
 } from './rendering.js';
 import { clearCompiledThemeCache } from '@oktis-works/theme-runtime';
+import { createEmptyThemeSdkBridge } from '@oktis-works/theme-sdk';
 
 let themesRoot: string;
 let themeDir: string;
 
 const build = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   engine: 'react',
-  apiVersion: 1,
+  apiVersion: 2,
   buildId: 'sha256:web-test',
   entry: 'dist/server/entry.js',
   templates: ['home', 'index', 'single', 'page', 'archive', '404'],
@@ -65,8 +66,8 @@ beforeAll(() => {
       name: 'react-theme',
       version: '1.0.0',
       type: 'theme',
-      compatibility: { okcms: '^0.42.0' },
-      render: { engine: 'react', apiVersion: 1, hydration: 'none', entry: 'src/entry-server.tsx' },
+      compatibility: { okcms: '^1.0.0' },
+      render: { engine: 'react', apiVersion: 2, hydration: 'none', entry: 'src/entry-server.tsx' },
     })
   );
   writeFileSync(join(themeDir, 'dist', 'theme.css'), '[data-theme="react-theme"] main{color:red}');
@@ -74,11 +75,10 @@ beforeAll(() => {
   writeFileSync(
     join(themeDir, 'dist', 'server', 'entry.js'),
     [
-      "import { getField } from '@oktis-works/theme-sdk';",
       'export const templateKeys = ["home", "index", "single", "page", "archive", "404"];',
-      'export function render(key, data) {',
-      '  const als = getField("subtitle") ?? "none";',
-      '  return { html: `<main data-template="${key}" data-als="${als}" data-field="${data.fields.subtitle ?? ""}"><h1>${data.page.title}</h1><p>${data.settings.siteTitle}</p></main>` };',
+      'export function render(key, data, _ctx, sdk) {',
+      '  const bridgeTenant = sdk.context.tenantId || "none";',
+      '  return { html: `<main data-template="${key}" data-tenant="${bridgeTenant}" data-field="${data.fields.subtitle ?? ""}"><h1>${data.page.title}</h1><p>${data.settings.siteTitle}</p></main>` };',
       '}',
       '',
     ].join('\n')
@@ -92,8 +92,8 @@ beforeAll(() => {
       name: '_shared',
       version: '1.0.0',
       type: 'theme',
-      compatibility: { okcms: '^0.42.0' },
-      render: { engine: 'react', apiVersion: 1, entry: 'src/entry-server.tsx' },
+      compatibility: { okcms: '^1.0.0' },
+      render: { engine: 'react', apiVersion: 2, entry: 'src/entry-server.tsx' },
     })
   );
   writeFileSync(join(sharedDir, 'dist', 'theme.css'), '[data-theme="_shared"] main{}');
@@ -111,8 +111,8 @@ beforeAll(() => {
       name: 'default',
       version: '1.0.0',
       type: 'theme',
-      compatibility: { okcms: '^0.42.0' },
-      render: { engine: 'react', apiVersion: 1, entry: 'src/entry-server.tsx' },
+      compatibility: { okcms: '^1.0.0' },
+      render: { engine: 'react', apiVersion: 2, entry: 'src/entry-server.tsx' },
     })
   );
   writeFileSync(join(defaultDir, 'dist', 'theme.css'), '[data-theme="default"] main{}');
@@ -156,6 +156,7 @@ function render(template: string, overrides: Record<string, unknown> = {}) {
     activeTheme: 'react-theme',
     themesRoot,
     tenantId: 'tenant-1',
+    themeSdk: createEmptyThemeSdkBridge({ tenantId: 'tenant-1', cmsVersion: '0.42.8' }),
     ...overrides,
   });
 }
@@ -168,9 +169,9 @@ describe('renderContentPageAsync — compiled React theme', () => {
     }
   });
 
-  it('keeps getField() working through AsyncLocalStorage', async () => {
+  it('passes the request-scoped SDK bridge into the theme artifact', async () => {
     const html = await render('single');
-    expect(html).toContain('data-als="ALS-value"');
+    expect(html).toContain('data-tenant="tenant-1"');
   });
 
   it('runs theme:before:render before React and theme:after:render on the final HTML', async () => {
@@ -184,7 +185,6 @@ describe('renderContentPageAsync — compiled React theme', () => {
 
     const html = await render('single');
     expect(html).toContain('data-field="HOOKED"');
-    expect(html).toContain('data-als="HOOKED"');
     expect(html.endsWith('<!--after-->')).toBe(true);
   });
 
@@ -194,7 +194,7 @@ describe('renderContentPageAsync — compiled React theme', () => {
       encodeURIComponent(JSON.stringify({ siteTitle: 'Preview Title', ignored: 'x' })),
       ['siteTitle']
     );
-    const html = await render('home.astro', {
+    const html = await render('home', {
       settings: { ...baseSettings, ...preview },
     });
 
@@ -211,8 +211,8 @@ describe('renderContentPageAsync — compiled React theme', () => {
         name: 'mismatch',
         version: '1.0.0',
         type: 'theme',
-        compatibility: { okcms: '^0.42.0' },
-        render: { engine: 'react', apiVersion: 1, entry: 'src/entry-server.tsx' },
+      compatibility: { okcms: '^1.0.0' },
+        render: { engine: 'react', apiVersion: 2, entry: 'src/entry-server.tsx' },
       })
     );
     // Create a build with mismatched engine (solid)
@@ -222,7 +222,7 @@ describe('renderContentPageAsync — compiled React theme', () => {
     );
     writeFileSync(join(mismatch, 'dist', 'server', 'entry.js'), 'export const templateKeys=["mismatch-key"]; export function render(){return {html:"x"}};');
 
-    const html = await renderContentPageAsync({
+    const renderPromise = renderContentPageAsync({
       resolution: { matched: true, template: 'mismatch-key' },
       contentRow: null,
       data: {},
@@ -230,11 +230,10 @@ describe('renderContentPageAsync — compiled React theme', () => {
       activeTheme: 'mismatch',
       themesRoot,
     });
-    // Engine mismatch is recorded as a problem, theme falls back to legacy renderer
-    expect(html).toContain('fallback');
+    await expect(renderPromise).rejects.toThrow(/invalid|engine mismatch|theme/i);
   });
 
-  it('falls back to legacy renderer when artifact is missing', async () => {
+  it('rejects an active theme when the compiled artifact is missing', async () => {
     const broken = join(themesRoot, 'broken');
     mkdirSync(broken, { recursive: true });
     writeFileSync(
@@ -243,12 +242,12 @@ describe('renderContentPageAsync — compiled React theme', () => {
         name: 'broken',
         version: '1.0.0',
         type: 'theme',
-        compatibility: { okcms: '^0.42.0' },
-        render: { engine: 'react', apiVersion: 1, entry: 'src/entry-server.tsx' },
+      compatibility: { okcms: '^1.0.0' },
+        render: { engine: 'react', apiVersion: 2, entry: 'src/entry-server.tsx' },
       })
     );
 
-    const html = await renderContentPageAsync({
+    const renderPromise = renderContentPageAsync({
       resolution: { matched: true, template: 'home' },
       contentRow: null,
       data: {},
@@ -256,12 +255,11 @@ describe('renderContentPageAsync — compiled React theme', () => {
       activeTheme: 'broken',
       themesRoot,
     });
-    // Falls back to legacy renderer which shows fallback page
-    expect(html).toContain('fallback');
+    await expect(renderPromise).rejects.toThrow(/theme-build\.json|invalid/i);
   });
 
   it('emits no module scripts when hydration is none', async () => {
-    const html = await render('home.astro');
+    const html = await render('home');
     expect(html).not.toContain('type="module"');
   });
 

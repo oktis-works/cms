@@ -74,11 +74,9 @@ export type ScaffoldThemeStyle = 'css' | 'scss' | 'tailwind';
 export type { ScaffoldThemeEngine };
 
 /**
- * Gera um tema no formato que o runtime do web realmente renderiza:
- * `*.astro` NA RAIZ do tema (hierarquia home/index/single/page/archive/404),
- * manifesto theme.json completo (type + compatibility + provides.layouts) e
- * estilos conforme engine — no engine `css`, o `dist/theme.css` já sai
- * servível (o site linka somente esse caminho, sem build).
+ * Generates a theme in the React/Solid format consumed by the web runtime:
+ * logical-key TSX components plus `src/entry-server.tsx`, a complete
+ * `theme.json`, and an isolated stylesheet pipeline.
  * @param style escolha exclusiva: css | scss | tailwind (default css)
  */
 export function scaffoldTheme(
@@ -113,7 +111,7 @@ export function scaffoldTheme(
     ...(styleConfig ? { stylesConfig: styleConfig } : {}),
     render: {
       engine: renderEngine,
-      apiVersion: 1,
+      apiVersion: 2,
       hydration: 'none',
       entry: 'src/entry-server.tsx',
     },
@@ -155,8 +153,7 @@ export function scaffoldTheme(
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, 'theme.json'), JSON.stringify(manifest, null, 2));
 
-  // Template themes use root *.astro files; compiled themes use root *.tsx
-  // components with the same logical keys plus a server entry.
+  // React/Solid themes use root TSX components with logical keys plus a server entry.
   for (const [file, content] of Object.entries(templateFiles)) {
     const target = join(dir, file);
     mkdirSync(dirname(target), { recursive: true });
@@ -178,7 +175,7 @@ export function scaffoldTheme(
       [
         `/** @type {import('tailwindcss').Config} */`,
         `module.exports = {`,
-        `  content: ["./**/*.{astro,html,js,jsx,ts,tsx}"],`,
+        `  content: ["./**/*.{html,js,jsx,ts,tsx}"],`,
         `  corePlugins: { preflight: false },`,
         `  // isolamento fino: importante apenas dentro do tema pode ser ativado via important: '[data-theme="${name}"]'`,
         `};`,

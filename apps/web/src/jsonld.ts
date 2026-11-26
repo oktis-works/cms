@@ -183,7 +183,7 @@ export function buildJsonLd(context: JsonLdContext): Record<string, unknown>[] {
 }
 
 /**
- * Renders JSON-LD as a script tag string for Astro templates.
+ * Renders JSON-LD as a script tag string for the host document shell.
  */
 export function renderJsonLdScript(jsonLd: Record<string, unknown>[]): string {
   return `<script type="application/ld+json">${JSON.stringify(jsonLd, null, 2)}</script>`;

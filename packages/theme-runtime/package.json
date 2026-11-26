@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/theme-runtime",
-  "version": "0.14.2",
+  "version": "1.0.0",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -16,8 +16,8 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo"
   },
   "dependencies": {
-    "@oktis-works/types": "^0.11.2",
-    "@oktis-works/theme-sdk": "^0.10.2",
+    "@oktis-works/types": "^1.0.0",
+    "@oktis-works/theme-sdk": "workspace:*",
     "@oktis-works/validation": "workspace:*"
   },
   "peerDependencies": {

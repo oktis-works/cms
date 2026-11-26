@@ -433,12 +433,6 @@ Run 'okcms wp import --help' or 'okcms wp validate --help' for subcommand option
       const themesDir = options['themes-dir'] ?? join(process.cwd(), 'themes');
       try {
         const { buildThemeOnDisk } = await import('./theme-build.js');
-        const { migrateThemeManifests } = await import('./theme-migrate.js');
-        // Unificação theme.json: migra manifesto legado antes do build (o
-        // themeManifestPath só lê o nome canônico).
-        for (const migrated of migrateThemeManifests(themesDir)) {
-          console.log(`migrated theme manifest: ${migrated} -> theme.json`);
-        }
         const { styles, render } = await buildThemeOnDisk(themesDir, name);
         for (const warning of styles.warnings) console.warn(`warn: ${warning}`);
         if (styles.skipped) {
@@ -450,13 +444,11 @@ Run 'okcms wp import --help' or 'okcms wp validate --help' for subcommand option
             `[${name}] ${styles.engine} -> ${styles.output} (${styles.bytes} bytes) isolated=${styles.isolated}`
           );
         }
-        if (render) {
-          for (const warning of render.warnings) console.warn(`warn: ${warning}`);
-          console.log(
-            `[${name}] ${render.engine} ssr -> ${render.entry} (buildId ${render.buildId}) templates=${render.templates.join(',')}`
-          );
-          console.log(`[${name}] artifact -> dist/theme-build.json`);
-        }
+        for (const warning of render.warnings) console.warn(`warn: ${warning}`);
+        console.log(
+          `[${name}] ${render.engine} ssr -> ${render.entry} (buildId ${render.buildId}) templates=${render.templates.join(',')}`
+        );
+        console.log(`[${name}] artifact -> dist/theme-build.json`);
       } catch (e) {
         console.error(e instanceof Error ? e.message : String(e));
         process.exit(1);
@@ -479,10 +471,6 @@ Run 'okcms wp import --help' or 'okcms wp validate --help' for subcommand option
       }
       const themesDir = options['themes-dir'] ?? join(process.cwd(), 'themes');
       try {
-        const { migrateThemeManifests } = await import('./theme-migrate.js');
-        for (const migrated of migrateThemeManifests(themesDir)) {
-          console.log(`migrated theme manifest: ${migrated} -> theme.json`);
-        }
         const { watchTheme } = await import('@oktis-works/theme-builder');
         const stop = await watchTheme({ themesRoot: themesDir, themeName: name }, (event) => {
           if (event.type === 'error') {
@@ -1114,12 +1102,7 @@ Run 'okcms wp import --help' or 'okcms wp validate --help' for subcommand option
         process.exit(1);
       }
 
-      // Unificação theme.json: migra manifesto legado (manifest.json) antes de
-      // qualquer leitura — --info, --set-active (syncFromDirectory) e o
-      // ThemeService só enxergam o nome canônico.
-      const { migrateThemeManifests } = await import('./theme-migrate.js');
       const themesDir = join(process.cwd(), projectConfig.themesDir);
-      migrateThemeManifests(themesDir);
 
       if (options['uninstall'] !== undefined) {
         const tenantOption = options['tenant'];

@@ -49,8 +49,8 @@ export function validateThemeRenderConfig(render: unknown): string[] {
     issues.push(`render.engine must be one of: ${VALID_ENGINES.join(', ')}`);
   }
 
-  if (config.apiVersion !== undefined && config.apiVersion !== 1) {
-    issues.push('render.apiVersion must be 1');
+  if (config.apiVersion !== 2) {
+    issues.push('render.apiVersion must be 2');
   }
 
   if (config.hydration !== undefined && config.hydration !== 'none' && config.hydration !== 'islands') {

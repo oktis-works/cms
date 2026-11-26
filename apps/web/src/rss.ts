@@ -77,7 +77,6 @@ export function generateRssFeed(context: FeedContext): string {
     <language>pt-BR</language>
     <atom:link href="${feedUrl}" rel="self" type="application/rss+xml" />
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
-    <generator>OkCMS</generator>
 ${itemsXml}
   </channel>
 </rss>`;
@@ -126,7 +125,6 @@ export function generateAtomFeed(context: FeedContext): string {
   <link href="${feedUrl}" rel="self" type="application/atom+xml" />
   <id>${hubUrl}</id>
   <updated>${new Date().toISOString()}</updated>
-  <generator uri="https://okcms.dev" version="1.0">OkCMS</generator>
 ${entriesXml}
 </feed>`;
 }

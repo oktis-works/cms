@@ -64,12 +64,31 @@ export function getMermaidPluginAssetDir(
  * theme directory resolves). Exported for the parity test.
  */
 export async function readThemeFiles(dir: string, prefix = ''): Promise<Map<string, string | Buffer>> {
-  const { readdir } = await import('node:fs/promises');
+  const { readdir, stat } = await import('node:fs/promises');
   const files = new Map<string, string | Buffer>();
   const entries = await readdir(dir, { withFileTypes: true });
   for (const entry of entries) {
     const full = join(dir, entry.name);
-    if (entry.isDirectory()) {
+    // Use stat to correctly identify directories, including symlinks to directories
+    const entryStat = await stat(full);
+    if (entryStat.isDirectory()) {
+      // Skip node_modules directory - it is not part of the theme source
+      if (entry.name === 'node_modules') {
+        continue;
+      }
+      // For dist directory, only include theme.css (the built stylesheet)
+      if (entry.name === 'dist') {
+        const distThemeCss = join(full, 'theme.css');
+        try {
+          const distStat = await stat(distThemeCss);
+          if (distStat.isFile()) {
+            files.set(`${prefix}dist/theme.css`, readFileSync(distThemeCss));
+          }
+        } catch {
+          // dist/theme.css doesn't exist, skip
+        }
+        continue;
+      }
       const sub = await readThemeFiles(full, `${prefix}${entry.name}/`);
       for (const [relative, content] of sub) {
         files.set(relative, content);
@@ -338,10 +357,10 @@ export async function scaffoldProject(
 # Database connection — pick ONE format:
 # (a) separate variables (default, used below):
 DB_ENGINE=${provider}
-DB_HOST=${process.env['DB_HOST'] ?? 'localhost'}
-DB_PORT=${process.env['DB_PORT'] ?? dbPort}
-DB_NAME=${process.env['DB_NAME'] ?? 'okcms'}
-DB_USER=${process.env['DB_USER'] ?? dbUser}
+DB_HOST=localhost
+DB_PORT=${dbPort}
+DB_NAME=okcms
+DB_USER=${dbUser}
 DB_PASSWORD=
 # (b) single URL — takes precedence over the DB_* above:
 # DATABASE_URL=${provider === 'postgres' ? 'postgresql://postgres:password@localhost:5432/okcms' : `${provider}://okcms:password@localhost:3306/okcms`}

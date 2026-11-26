@@ -33,7 +33,7 @@ Generalizes "Posts page" to **any content type with `hasArchive`**.
 **Behavior:**
 - Page slug becomes URL base for that type (`/projects/`, `/blog/`)
 - Renaming page slug → auto-creates prefix redirect (`/old-base/*` → `/new-base/*`)
-- Hub page renders listing template (`archive.astro` or type-specific) with `isPageForPosts` flag
+- Hub page renders the logical archive key or a type-specific key with `isPageForPosts` flag
 
 **Back-compat:** `postsPage`/`page_for_posts` still work for type `post`; dynamic hub takes precedence.
 

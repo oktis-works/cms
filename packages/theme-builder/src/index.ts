@@ -72,16 +72,44 @@ function listCss(dir: string, acc: string[] = []): string[] {
   return acc;
 }
 
+function assertThemeDependencies(themeDir: string, engine: ThemeRenderEngine): void {
+  const packageFile = join(themeDir, 'package.json');
+  if (!existsSync(packageFile)) {
+    throw new Error(`Theme "${themeDir}" must provide package.json with its framework and Theme SDK dependencies.`);
+  }
+
+  let packageJson: Record<string, unknown>;
+  try {
+    packageJson = JSON.parse(readFileSync(packageFile, 'utf-8')) as Record<string, unknown>;
+  } catch {
+    throw new Error(`Theme package manifest is invalid: ${packageFile}`);
+  }
+
+  const declared = {
+    ...(packageJson['dependencies'] as Record<string, unknown> | undefined),
+    ...(packageJson['devDependencies'] as Record<string, unknown> | undefined),
+    ...(packageJson['peerDependencies'] as Record<string, unknown> | undefined),
+  };
+  const required = engine === 'react'
+    ? ['react', 'react-dom', '@oktis-works/theme-sdk']
+    : ['solid-js', '@oktis-works/theme-sdk'];
+  const missing = required.filter((name) => typeof declared[name] !== 'string' || declared[name] === '');
+  if (missing.length > 0) {
+    throw new Error(`Theme "${themeDir}" must declare dependencies: ${missing.join(', ')}`);
+  }
+}
+
 /**
  * Themes may live outside the project (or in /tmp during tests). Vite resolves
- * bare imports from the theme root, so provide the builder's own framework
- * copies as an explicit fallback. A theme-local node_modules still wins when
- * the alias is absent.
+ * bare imports from the theme root. Resolve every framework import from the
+ * theme's dependency tree so the host builder cannot silently choose a
+ * different React or Solid version.
  */
 function frameworkAliases(
-  engine: Exclude<ThemeRenderEngine, 'template'>
+  themeDir: string,
+  engine: ThemeRenderEngine
 ): Array<{ find: RegExp; replacement: string }> {
-  const require = createRequire(import.meta.url);
+  const require = createRequire(join(themeDir, 'package.json'));
   const ids =
     engine === 'react'
       ? ['react', 'react/jsx-runtime', 'react/jsx-dev-runtime', 'react-dom', 'react-dom/server', 'react-dom/client']
@@ -91,7 +119,9 @@ function frameworkAliases(
     try {
       aliases.push({ find: new RegExp(`^${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`), replacement: require.resolve(id) });
     } catch {
-      // Optional peer not installed in this environment; leave it unresolved.
+      throw new Error(
+        `Theme "${themeDir}" does not provide the required ${engine} dependency "${id}". Install the framework in the theme package.`
+      );
     }
   }
   return aliases;
@@ -114,7 +144,7 @@ async function withProductionEnv<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 async function loadFrameworkPlugins(
-  engine: Exclude<ThemeRenderEngine, 'template'>
+  engine: ThemeRenderEngine
 ): Promise<PluginOption[]> {
   if (engine === 'react') {
     const { default: react } = await import('@vitejs/plugin-react');
@@ -126,10 +156,11 @@ async function loadFrameworkPlugins(
 
 async function buildClientBundle(
   themeDir: string,
-  engine: Exclude<ThemeRenderEngine, 'template'>,
+  engine: ThemeRenderEngine,
   entry: string,
   outputDir: string
 ): Promise<void> {
+  assertThemeDependencies(themeDir, engine);
   const { build } = await import('vite');
   const plugins = await loadFrameworkPlugins(engine);
   await withProductionEnv(() =>
@@ -139,7 +170,7 @@ async function buildClientBundle(
       root: themeDir,
       logLevel: 'warn',
       plugins,
-      resolve: { alias: frameworkAliases(engine) },
+      resolve: { alias: frameworkAliases(themeDir, engine) },
       build: {
         outDir: outputDir,
         emptyOutDir: true,
@@ -161,10 +192,11 @@ async function buildClientBundle(
 
 async function buildServerBundle(
   themeDir: string,
-  engine: Exclude<ThemeRenderEngine, 'template'>,
+  engine: ThemeRenderEngine,
   entry: string,
   outputDir: string
 ): Promise<void> {
+  assertThemeDependencies(themeDir, engine);
   const { build } = await import('vite');
   const plugins = await loadFrameworkPlugins(engine);
 
@@ -175,7 +207,7 @@ async function buildServerBundle(
       root: themeDir,
       logLevel: 'warn',
       plugins,
-      resolve: { alias: frameworkAliases(engine) },
+      resolve: { alias: frameworkAliases(themeDir, engine) },
       build: {
         ssr: entry,
         outDir: outputDir,
@@ -216,8 +248,7 @@ async function readTemplateKeys(entryFile: string): Promise<string[]> {
 /**
  * Builds a theme on the host.
  *
- * - template themes: styles only (legacy behavior, no artifact);
- * - react/solid themes: styles (unless mode `js`) + Vite SSR bundle + artifact.
+ * - React/Solid themes: styles (unless mode `js`) + Vite SSR bundle + artifact.
  */
 export async function buildTheme(opts: BuildThemeOptions): Promise<ThemeBuildResult> {
   const themeName = opts.themeName;
@@ -350,9 +381,9 @@ export async function buildTheme(opts: BuildThemeOptions): Promise<ThemeBuildRes
   }
 
   const build: ThemeBuildManifest = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     engine,
-    apiVersion: 1,
+    apiVersion: 2,
     buildId: buildId!,
     builtAt: new Date().toISOString(),
     entry: `dist/.versions/${generation}/server/entry.js`,

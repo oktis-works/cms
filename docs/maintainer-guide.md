@@ -177,7 +177,7 @@ line up:
    `package.json` (the private `okcms` workspace — never published, so it
    carries product semantics freely). That's the version plugins/themes
    `compatibility.okcms` compares against, the one in the public site's
-   `<meta name="generator">`, and the one `GET /api` reports. Sync with
+   `GET /api` reports. Sync with
    `bun run sync-version --write` (`bun run version-packages` already does it).
    The packages stay independent: `@oktis-works/validation` has its own
    library version — product version is NOT a package version (that's the

@@ -2,7 +2,7 @@
 //
 // A compiled theme is discovered exclusively through `dist/theme-build.json`.
 // The runtime never knows which framework produced the server bundle: it
-// imports the artifact, calls `render(templateKey, data, ctx)` and validates
+// imports the artifact, calls `render(templateKey, data, ctx, sdk)` and validates
 // the returned shape. Framework code stays in the theme build.
 
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
@@ -14,10 +14,11 @@ import type {
   ThemeRenderEngine,
   ThemeRenderOutput,
   ThemeServerModule,
+  ThemeSdkBridge,
 } from '@oktis-works/theme-sdk';
-import { runWithCurrentContent } from '@oktis-works/theme-sdk';
+import { createEmptyThemeSdkBridge } from '@oktis-works/theme-sdk';
 
-export const THEME_BUILD_SCHEMA_VERSION = 1;
+export const THEME_BUILD_SCHEMA_VERSION = 2;
 
 export interface ThemeBuildManifest {
   schemaVersion: number;
@@ -92,7 +93,7 @@ export function validateThemeBuild(
   if (expectedEngine && build.engine !== expectedEngine) {
     issues.push(`theme build engine "${build.engine}" does not match theme.json engine "${expectedEngine}"`);
   }
-  if (build.apiVersion !== 1) {
+  if (build.apiVersion !== 2) {
     issues.push(`unsupported theme build apiVersion: ${String(build.apiVersion)}`);
   }
   if (build.hydration !== 'none' && build.hydration !== 'islands') {
@@ -244,19 +245,22 @@ export interface RenderCompiledThemeInput {
   data: ThemePageData;
   record: Record<string, unknown>;
   context: ThemeRenderContext;
+  sdk?: ThemeSdkBridge;
   /** True when the surrounding runtime will inject inherited or automatic assets. */
   automaticAssets?: boolean;
 }
 
 /**
- * Renders a compiled theme inside the current-content context so
- * `getField()`/`getFields()` keep working without props.
+ * Renders a compiled theme through the explicit request-scoped SDK bridge.
+ * The host never relies on a duplicated SDK singleton inside the theme bundle.
  */
 export async function renderCompiledTheme(input: RenderCompiledThemeInput): Promise<ThemeRenderOutput> {
   const module = await importCompiledTheme(input.themeDir, input.build);
-  const output = await runWithCurrentContent(input.record ?? {}, () =>
-    module.render(input.templateKey, input.data, input.context)
-  );
+  const sdk = input.sdk ?? createEmptyThemeSdkBridge({
+    tenantId: input.context.tenant,
+    url: input.context.url,
+  });
+  const output = await module.render(input.templateKey, input.data, input.context, sdk);
 
   if (!output || typeof output !== 'object' || typeof output.html !== 'string') {
     throw new Error(`Theme render() must return { html: string } (template: ${input.templateKey})`);

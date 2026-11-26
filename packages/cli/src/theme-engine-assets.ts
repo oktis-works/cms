@@ -14,7 +14,7 @@ function packageJson(name: string, engine: 'react' | 'solid'): string {
           dependencies: {
             react: '^19.0.0',
             'react-dom': '^19.0.0',
-            '@oktis-works/theme-sdk': '^0.8.0',
+          '@oktis-works/theme-sdk': '^1.0.0',
           },
           devDependencies: {
             '@types/react': '^19.0.0',
@@ -27,7 +27,7 @@ function packageJson(name: string, engine: 'react' | 'solid'): string {
       : {
           dependencies: {
             'solid-js': '^1.9.0',
-            '@oktis-works/theme-sdk': '^0.8.0',
+            '@oktis-works/theme-sdk': '^1.0.0',
           },
           devDependencies: {
             'vite-plugin-solid': '^2.11.0',
@@ -294,7 +294,7 @@ function entryServer(engine: 'react' | 'solid'): string {
     return `${imports}
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { ComponentType } from 'react';
-import type { ThemePageData, ThemeRenderContext, ThemeRenderOutput } from '@oktis-works/theme-sdk';
+import type { ThemePageData, ThemeRenderContext, ThemeRenderOutput, ThemeSdkBridge } from '@oktis-works/theme-sdk';
 
 const templates: Record<string, ComponentType<ThemePageData>> = {
 ${mapping}
@@ -305,7 +305,8 @@ export const templateKeys = Object.keys(templates);
 export function render(
   key: string,
   data: ThemePageData,
-  _ctx?: ThemeRenderContext
+  _ctx: ThemeRenderContext,
+  _sdk: ThemeSdkBridge
 ): ThemeRenderOutput {
   const Component = templates[key] ?? templates['404'];
   return { html: renderToStaticMarkup(<Component {...data} />) };
@@ -316,7 +317,7 @@ export function render(
   return `${imports}
 import { renderToString } from 'solid-js/web';
 import type { Component } from 'solid-js';
-import type { ThemePageData, ThemeRenderContext, ThemeRenderOutput } from '@oktis-works/theme-sdk';
+import type { ThemePageData, ThemeRenderContext, ThemeRenderOutput, ThemeSdkBridge } from '@oktis-works/theme-sdk';
 
 const templates: Record<string, Component<ThemePageData>> = {
 ${mapping}
@@ -327,7 +328,8 @@ export const templateKeys = Object.keys(templates);
 export function render(
   key: string,
   data: ThemePageData,
-  _ctx?: ThemeRenderContext
+  _ctx: ThemeRenderContext,
+  _sdk: ThemeSdkBridge
 ): ThemeRenderOutput {
   const Component = templates[key] ?? templates['404'];
   return { html: renderToString(() => <Component {...data} />) };

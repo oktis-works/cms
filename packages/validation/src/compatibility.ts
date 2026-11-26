@@ -15,7 +15,7 @@ export interface CompatibilityIssue {
 }
 
 /** Versão do CMS contra a qual a compatibilidade é avaliada. */
-export const CMS_VERSION = '0.42.9';
+export const CMS_VERSION = '1.0.0';
 
 /**
  * Valida o manifesto de uma extensão (plugin|theme) contra a versão do CMS.

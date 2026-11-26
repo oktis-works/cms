@@ -6,7 +6,7 @@ import Archive from '../archive';
 import NotFound from '../404';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { FC } from 'react';
-import type { ThemePageData, ThemeRenderContext, ThemeRenderOutput } from '@oktis-works/theme-sdk';
+import type { ThemePageData, ThemeRenderContext, ThemeRenderOutput, ThemeSdkBridge } from '@oktis-works/theme-sdk';
 
 const templates: Record<string, FC<ThemePageData>> = {
   'home': Home,
@@ -22,7 +22,8 @@ export const templateKeys = Object.keys(templates);
 export function render(
   key: string,
   data: ThemePageData,
-  _ctx?: ThemeRenderContext
+  _ctx: ThemeRenderContext,
+  _sdk: ThemeSdkBridge
 ): ThemeRenderOutput {
   const Component = templates[key] ?? templates['404'];
   return { html: renderToStaticMarkup(<Component {...data} />) };

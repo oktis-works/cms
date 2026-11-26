@@ -150,7 +150,7 @@ export function ThemeManager() {
                       <span class={`status-badge ${getStatusClass(theme.status)}`}>
                         {getStatusLabel(theme.status)}
                       </span>
-                      <span class="engine-badge">{theme.build?.engine ?? theme.manifest?.render?.engine ?? 'template'}</span>
+                      <span class="engine-badge">{theme.build?.engine ?? theme.manifest?.render?.engine ?? 'unknown'}</span>
                       <Show when={theme.build}>
                         <span class={`build-badge build-${theme.build!.status}`}>
                           build: {theme.build!.status}

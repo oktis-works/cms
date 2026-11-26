@@ -12,7 +12,7 @@
  *      privado `okcms`, nunca publicado) é a âncora. `CMS_VERSION`
  *      (packages/validation/src/compatibility.ts) é derivada dela — é a
  *      versão usada na compatibilidade de plugins/temas (`compatibility.okcms`)
- *      e no `<meta name="generator">` do site. Sincronize com
+ *      e no runtime de compatibilidade dos temas/plugins. Sincronize com
  *      `bun run sync-version --write`.
  *   3. Tag `vX.Y.Z`: é a versão de produto que está saindo — o número tem que
  *      BATER com a âncora (não é mais "só gatilho").

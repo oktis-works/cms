@@ -969,15 +969,12 @@ module.exports.register = function register(api) {
 };
 ```
 
-**Dados injetados no contexto do tema (automaticamente):**
-```astro
----
--- Em qualquer template .astro do tema:
-const { user, userId, isLoggedIn, userRoles } = Astro.props;
----
-
-{isLoggedIn && <span>Bem-vindo, {user.name}</span>}
-{user.orders && <ul>{user.orders.map(o => <li>{o.id}</li>)}</ul>}
+**Theme access:**
+```tsx
+// Themes receive public request data and the explicit ThemeSdkBridge.
+const user = data.record.user;
+const isLoggedIn = sdk.context.authenticated;
+const roles = sdk.context.roles;
 ```
 
 ---

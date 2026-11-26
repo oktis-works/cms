@@ -2,7 +2,7 @@
 
 # OkCMS v2
 
-Hybrid, modular, API-first, extensible CMS with Astro+SolidJS frontend, Node.js/TypeScript backend, PostgreSQL, Docker immutable deployments, plugin and theme extension systems, and multi-tenancy.
+Hybrid, modular, API-first, extensible CMS with an isolated React/Solid theme platform, Node.js/TypeScript backend, PostgreSQL, Docker immutable deployments, plugin and theme extension systems, and multi-tenancy.
 
 ## Documentation
 
@@ -198,10 +198,10 @@ executa o deploy do target escolhido.
 | `okcms plugin:install` | `-n, --name` (obrigatória) | Instala de um caminho local + registra |
 | `okcms plugin:list` · `plugin:search` | `-q, --query` | Lista instalados / busca no npm (`okcms-plugin`) |
 | `okcms plugin:manage` | `-n, --name` (obrigatória) · `-i` · `-e` · `-d` · `-u` | Info; enable/disable (estado local); uninstall |
-| `okcms theme:create` | `-n, --name` (obrigatória) · `-d, --dir` · `-s, --style css\|scss\|tailwind` | Scaffold mínimo de tema |
+| `okcms theme:create` | `-n, --name` (obrigatória) · `--engine react\|solid` · `-d, --dir` · `-s, --style css\|scss\|tailwind` | Scaffold isolado de tema React/Solid |
 | `okcms theme:list` · `theme:search` | `-q, --query` | Consulta de temas |
-| `okcms theme:manage` | `-n, --name` (obrigatória) · `-i` · `-e` · `-d` · `-u` · `-s, --set-active` | Info; enable/disable (estado local); uninstall; ativar |
-| `okcms theme:build` | `-n, --name` (obrigatória) · `-d, --themes-dir` | Compila SCSS/Tailwind → `dist/theme.css` isolado |
+| `okcms theme:manage` | `-n, --name` (obrigatória) · `-i` · `-d` · `-u` · `-s, --set-active` | Info; uninstall; ativação por tenant |
+| `okcms theme:build` | `-n, --name` (obrigatória) · `-d, --themes-dir` | Compila artifact SSR e estilos isolados |
 
 **Conteúdo e sistema**
 
@@ -314,7 +314,7 @@ faz rollback, como sempre. Opções úteis:
 
 ## Architecture
 
-- **Frontend**: Astro (SSR) + SolidJS (reactive islands)
+- **Frontend público**: host neutro + themes SSR isolados em React/Solid
 - **Backend**: Node.js + TypeScript + Hono
 - **Database**: PostgreSQL with Row-Level Security
 - **Cache/Queue**: Redis

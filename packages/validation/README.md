@@ -117,18 +117,12 @@ api.addFieldType({
 });
 ```
 
-## Field Groups in Templates
+## Field Groups in Themes
 
-Available as `fields` object in template context:
+Available through the request-scoped `ThemeSdkBridge`:
 
-```astro
----
-const { fields } = Astro.props;
----
-<div class="hero">
-  <h1>{fields.hero?.title}</h1>
-  <img src={fields.hero?.image?.url} alt={fields.hero?.image?.alt} />
-</div>
+```tsx
+const hero = sdk.fields.get('hero', data.record);
 ```
 
 ## Field Group Positions

@@ -21,10 +21,7 @@ export function readThemeManifest(path: string): any | null {
   }
 }
 
-/**
- * `theme.json` é o nome canônico único. O legado `manifest.json` é unificado
- * pelos entry points do CLI (ver theme-migrate.ts) antes de qualquer leitura.
- */
+/** `theme.json` is the only supported theme manifest filename. */
 export function themeManifestPath(themesDir: string, theme: string): string | null {
   const path = join(themesDir, theme, 'theme.json');
   return existsSync(path) ? path : null;
@@ -131,13 +128,13 @@ export async function buildThemeStylesOnDisk(
 
 export interface ThemeBuildBundleOutcome {
   styles: ThemeBuildOutcome;
-  /** Present for react/solid themes; `null` for template themes. */
-  render: ThemeBuildResult | null;
+  /** Compiled React/Solid server artifact. */
+  render: ThemeBuildResult;
 }
 
 /**
  * Full host build: CSS pipeline + compiled server artifact.
- * Template themes keep the legacy style-only behavior.
+ * Every theme produces a React/Solid server artifact and its style output.
  */
 export async function buildThemeOnDisk(
   themesDir: string,

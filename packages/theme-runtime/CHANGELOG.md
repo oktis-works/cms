@@ -1,5 +1,18 @@
 # @oktis-works/theme-runtime
 
+## 1.0.0
+
+### Major Changes
+
+- Replace legacy theme rendering with isolated React/Solid theme artifacts and a request-scoped Theme SDK bridge. Remove string templates, legacy theme migrations, implicit framework resolution, and public CMS signature output.
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/theme-sdk@1.0.0
+  - @oktis-works/types@1.0.0
+  - @oktis-works/validation@1.0.0
+
 ## 0.14.2
 
 ### Patch Changes

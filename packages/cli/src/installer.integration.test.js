@@ -13,7 +13,7 @@ describe('NPM flow integration: installer', () => {
         pluginSource = mkdtempSync(join(tmpdir(), 'bl-plugin-'));
         mkdirSync(join(projectDir, '.config'), { recursive: true });
         writeFileSync(join(projectDir, 'okcms.config.json'), JSON.stringify({ name: 'projeto-teste', pluginsDir: 'plugins', themesDir: 'themes', activeTheme: '' }));
-        writeFileSync(join(pluginSource, 'manifest.json'), JSON.stringify({ name: 'plugin-integração', version: '1.0.0', type: 'plugin', main: 'index.js', compatibility: { okcms: '>=0.1.0 <1.0.0' } }));
+        writeFileSync(join(pluginSource, 'manifest.json'), JSON.stringify({ name: 'plugin-integração', version: '1.0.0', type: 'plugin', main: 'index.js', compatibility: { okcms: '^1.0.0' } }));
         writeFileSync(join(pluginSource, 'index.js'), 'export default () => "ok";');
     });
     afterEach(() => {

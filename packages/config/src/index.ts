@@ -161,8 +161,6 @@ export interface AppConfig {
   host: string;
   corsOrigins: string[];
   rateLimit: RateLimitSettings;
-  /** Expose X-Powered-By header (default: false) */
-  exposePoweredBy?: boolean;
 }
 
 export interface WorkerConfig {
@@ -435,7 +433,6 @@ export function loadConfig(): Config {
       corsOrigins: getEnv('CORS_ORIGINS', 'http://localhost:3011,http://127.0.0.1:3011').split(','),
       // loadProjectEnv() já carregou o .env do projeto — parser lê process.env.
       rateLimit: parseRateLimitSettings(),
-      exposePoweredBy: getEnvBool('EXPOSE_POWERED_BY', false),
     },
     database: loadDatabaseConfig(),
     redis: {

@@ -1,6 +1,4 @@
-// @oktis-works/theme-sdk - Unified theme data API
-
-import { AsyncLocalStorage } from 'node:async_hooks';
+// @oktis-works/theme-sdk - framework-neutral theme data contracts
 
 export interface ThemeMenuItem {
   id: string;
@@ -63,11 +61,7 @@ export interface ThemeTerm {
   [key: string]: unknown;
 }
 
-export interface ThemeContentRecord extends ContentLikeData {
-  [key: string]: unknown;
-}
-
-export interface ContentLikeData {
+export interface ThemeContentRecord {
   id?: string;
   type?: string;
   title?: string | null;
@@ -120,73 +114,26 @@ export interface ThemeRenderData {
   taxonomies: ThemeTaxonomy[];
   terms: Record<string, ThemeTerm[]>;
   settings: Record<string, unknown>;
-  /** Active plugin block and pattern catalogs available to the theme. */
   pluginBlocks?: Array<Record<string, unknown>>;
   pluginPatterns?: Array<Record<string, unknown>>;
 }
 
-const providerStorage = new AsyncLocalStorage<ThemeDataProvider>();
-let fallbackProvider: ThemeDataProvider | null = null;
-
-/** Registra um provider global de fallback. Prefira runWithThemeDataProvider por request. */
-export function setThemeDataProvider(provider: ThemeDataProvider | null): void {
-  fallbackProvider = provider;
+export interface ThemeField {
+  name: string;
+  label: string;
+  type: string;
+  value: unknown;
+  config?: Record<string, unknown>;
 }
 
-export function getThemeDataProvider(): ThemeDataProvider | null {
-  return providerStorage.getStore() ?? fallbackProvider;
+export interface FlexibleRow {
+  layout: string;
+  data: Record<string, unknown>;
 }
 
-/** Mantém consultas do tema isoladas por request, inclusive em requisições concorrentes. */
-export function runWithThemeDataProvider<T>(provider: ThemeDataProvider, fn: () => T): T {
-  return providerStorage.run(provider, fn);
-}
-
-export async function getMenu(slugOrName: string): Promise<ThemeMenu | null> {
-  return getThemeDataProvider()?.getMenu(slugOrName) ?? null;
-}
-
-export async function getMenus(): Promise<ThemeMenu[]> {
-  return getThemeDataProvider()?.getMenus() ?? [];
-}
-
-export async function getContent(query?: ThemeContentQuery): Promise<ThemeContentResult> {
-  return getThemeDataProvider()?.getContent(query) ?? { data: [], total: 0, page: query?.page ?? 1, limit: query?.limit ?? 20, pages: 0 };
-}
-
-export async function getContentById(id: string): Promise<ThemeContentRecord | null> {
-  return getThemeDataProvider()?.getContentById(id) ?? null;
-}
-
-export async function getContentBySlug(slug: string, type?: string): Promise<ThemeContentRecord | null> {
-  return getThemeDataProvider()?.getContentBySlug(slug, type) ?? null;
-}
-
-export async function getContentType(slug: string): Promise<ThemeContentType | null> {
-  return getThemeDataProvider()?.getContentType(slug) ?? null;
-}
-
-export async function getContentTypes(): Promise<ThemeContentType[]> {
-  return getThemeDataProvider()?.getContentTypes() ?? [];
-}
-
-export async function getTaxonomy(slug: string): Promise<ThemeTaxonomy | null> {
-  return getThemeDataProvider()?.getTaxonomy(slug) ?? null;
-}
-
-export async function getTaxonomies(): Promise<ThemeTaxonomy[]> {
-  return getThemeDataProvider()?.getTaxonomies() ?? [];
-}
-
-export async function getTaxonomyTerms(taxonomy: string): Promise<ThemeTerm[]> {
-  return getThemeDataProvider()?.getTaxonomyTerms(taxonomy) ?? [];
-}
-
-export async function getSettings(group?: string): Promise<Record<string, unknown>> {
-  return getThemeDataProvider()?.getSettings(group) ?? {};
-}
-
-export async function getSetting<T = unknown>(key: string, fallback?: T, group?: string): Promise<T | undefined> {
-  const settings = await getSettings(group);
-  return (settings[key] as T | undefined) ?? fallback;
+export interface FieldTypeCatalogEntry {
+  type: string;
+  category: string;
+  isLayout?: boolean;
+  supportsConditions?: boolean;
 }

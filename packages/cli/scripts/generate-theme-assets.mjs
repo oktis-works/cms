@@ -7,16 +7,15 @@
 // cannot read that directory at runtime (it publishes only `dist/`), so the
 // files are embedded as strings — this script performs that embedding.
 //
-// Why generate instead of maintaining the strings by hand: the hand-written
-// copy drifted silently (missing `page-home.astro`, `page-blog.astro` and
-// `src/theme.css`, stale `theme.json` and `dist/theme.css`), so `okcms init`
-// scaffolded a theme that did not exist in the monorepo. `theme-assets.test.ts`
-// compares this generated file against the directory and fails on any drift.
+// Why generate instead of maintaining the strings by hand: the embedded copy
+// must remain byte-identical to the isolated React/Solid theme shipped by the
+// repository. `theme-assets.test.ts` compares this generated file against the
+// directory and fails on any drift.
 //
 // Runs as part of `bun run build` / `prepack` (before tsc). The generated file
 // is committed, so a fresh checkout type-checks and tests without a prior build.
 
-import { readFileSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, readdirSync, writeFileSync, mkdirSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -44,8 +43,30 @@ function collect(dir) {
   const out = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
-    if (entry.isDirectory()) out.push(...collect(full));
-    else out.push(full);
+    // Use statSync to correctly identify directories, including symlinks to directories
+    const entryStat = statSync(full);
+    if (entryStat.isDirectory()) {
+      // Skip node_modules directory - it is not part of the theme source
+      if (entry.name === 'node_modules') {
+        continue;
+      }
+      // For dist directory, only include theme.css (the built stylesheet)
+      if (entry.name === 'dist') {
+        const distThemeCss = join(full, 'theme.css');
+        try {
+          const distStat = statSync(distThemeCss);
+          if (distStat.isFile()) {
+            out.push(distThemeCss);
+          }
+        } catch {
+          // dist/theme.css doesn't exist, skip
+        }
+        continue;
+      }
+      out.push(...collect(full));
+    } else {
+      out.push(full);
+    }
   }
   return out;
 }
@@ -106,9 +127,9 @@ function main() {
     '/** Default theme stylesheet, served straight from `dist/theme.css` (no build). */',
     "export const DEFAULT_THEME_CSS: string = DEFAULT_THEME_FILES['dist/theme.css'] ?? '';",
     '',
-    '/** `.astro` hierarchy templates of the default theme, at the theme root. */',
-    'export const THEME_TEMPLATE_FILES: Record<string, string> = Object.fromEntries(',
-    "  Object.entries(DEFAULT_THEME_FILES).filter(([file]) => file.endsWith('.astro'))",
+    '/** React/Solid source components of the default theme. */',
+    'export const THEME_COMPONENT_FILES: Record<string, string> = Object.fromEntries(',
+    "  Object.entries(DEFAULT_THEME_FILES).filter(([file]) => file.endsWith('.tsx'))",
     ');',
     ''
   );
