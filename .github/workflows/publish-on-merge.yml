@@ -30,7 +30,8 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const { owner, repo, number } = context.payload.pull_request;
+            const { owner, repo } = context.repo;
+            const sha = context.payload.pull_request.head.sha;
             const maxWaitMs = 10 * 60 * 1000; // 10 min
             const pollIntervalMs = 15000; // 15s
             const start = Date.now();
@@ -40,7 +41,7 @@ jobs:
               const { data } = await github.rest.repos.getCombinedStatusForRef({
                 owner,
                 repo,
-                ref: context.payload.pull_request.head.sha,
+                ref: sha,
               });
               return data;
             }
