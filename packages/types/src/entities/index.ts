@@ -672,8 +672,8 @@ export type ThemeRenderEngine = 'react' | 'solid';
 
 export interface ThemeRenderConfig {
   engine: ThemeRenderEngine;
-  /** Version of the compiled server-entry contract. Currently only 1. */
-  apiVersion?: 1;
+  /** Version of the compiled server-entry and Theme SDK bridge contract. */
+  apiVersion: 2;
   /** Client hydration mode. `islands` is reserved for a later phase. */
   hydration?: 'none' | 'islands';
   /** Source entry used by the theme builder, relative to the theme root. */
@@ -687,10 +687,6 @@ export interface ThemeManifest {
   cmsVersion?: string;
   description?: string;
   author?: string;
-  entrypoints?: {
-    astro?: string;
-    config?: string;
-  };
   compatibility?: { okcms: string };
   screenshots?: string[];
   preview?: string;
@@ -701,8 +697,8 @@ export interface ThemeManifest {
     assets?: string[];
   };
   parent?: string;
-  /** Render engine for the public site. Absent means `template`. */
-  render?: ThemeRenderConfig;
+  /** Render engine for the public site. React and Solid are required. */
+  render: ThemeRenderConfig;
   settings?: ThemeSettingField[];
   components?: Array<{
     name: string;

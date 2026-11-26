@@ -1,5 +1,13 @@
 # @oktis-works/plugin-sdk
 
+## 0.8.3
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/types@1.0.0
+  - @oktis-works/validation@1.0.0
+
 ## 0.8.2
 
 ### Patch Changes

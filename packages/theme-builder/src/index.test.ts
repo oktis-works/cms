@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { buildTheme, verifyThemeBuild, watchTheme, type ThemeWatchEvent } from './index.js';
 import type { ThemeBuildManifest } from '@oktis-works/theme-runtime';
 import { readThemeBuild, validateThemeBuild } from '@oktis-works/theme-runtime';
@@ -10,6 +11,7 @@ import type { ThemePageData } from '@oktis-works/theme-sdk';
 
 let root: string;
 let dir: string;
+const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 
 const pageData: ThemePageData = {
   site: { title: 'Built Site', description: '', theme: { siteTitle: 'Built Site' } },
@@ -29,6 +31,22 @@ function writeBase(engine: 'react' | 'solid'): void {
   dir = join(root, `${engine}-theme`);
   mkdirSync(join(dir, 'src'), { recursive: true });
   mkdirSync(join(dir, 'dist'), { recursive: true });
+  mkdirSync(join(dir, 'node_modules'), { recursive: true });
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({
+    name: `${engine}-theme`,
+    private: true,
+    dependencies: engine === 'react'
+      ? { react: '19', 'react-dom': '19', '@oktis-works/theme-sdk': '1' }
+      : { 'solid-js': '1', '@oktis-works/theme-sdk': '1' },
+  }));
+  const frameworkPackages = engine === 'react' ? ['react', 'react-dom'] : ['solid-js'];
+  for (const packageName of frameworkPackages) {
+    symlinkSync(
+      join(repositoryRoot, 'node_modules', packageName),
+      join(dir, 'node_modules', packageName),
+      'junction'
+    );
+  }
   writeFileSync(join(dir, 'dist', 'theme.css'), `[data-theme="${engine}-theme"] main{color:red}`);
   writeFileSync(
     join(dir, 'theme.json'),
@@ -36,7 +54,7 @@ function writeBase(engine: 'react' | 'solid'): void {
       name: `${engine}-theme`,
       version: '1.0.0',
       type: 'theme',
-      render: { engine, apiVersion: 1, hydration: 'none', entry: 'src/entry-server.tsx' },
+      render: { engine, apiVersion: 2, hydration: 'none', entry: 'src/entry-server.tsx' },
     })
   );
   writeFileSync(join(dir, 'home.tsx'), `export default function Home(props: any) { return <main><h1>{props.page.title}</h1></main>; }`);
@@ -96,7 +114,7 @@ describe('buildTheme — compiled engines', () => {
     writeBase('react');
     const manifestPath = join(dir, 'theme.json');
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8')) as Record<string, unknown>;
-    manifest['render'] = { engine: 'react', apiVersion: 1, hydration: 'islands', entry: 'src/entry-server.tsx' };
+    manifest['render'] = { engine: 'react', apiVersion: 2, hydration: 'islands', entry: 'src/entry-server.tsx' };
     writeFileSync(manifestPath, JSON.stringify(manifest));
     writeFileSync(
       join(dir, 'src', 'entry-client.tsx'),

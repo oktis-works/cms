@@ -1,9 +1,8 @@
 // @oktis-works/theme-runtime - Theme catalog (engine-aware inheritance)
 //
-// Resolves template keys across the project chain (active → _shared → default)
-// without mixing engines. A compiled theme inherits templates only from themes
-// with the same engine; cross-engine parents still contribute settings, styles
-// and assets elsewhere.
+// Resolves logical render keys across the project chain (active → _shared → default)
+// without mixing engines. A parent must use the same React/Solid engine as its
+// child; cross-engine inheritance is invalid and blocks the child.
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -73,6 +72,17 @@ export function loadThemeCatalog(themesRoot: string, activeTheme: string): Theme
     return { name, dir, manifest, engine, build, problems };
   });
 
+  for (const entry of entries) {
+    const parentName = entry.manifest?.parent;
+    if (!parentName) continue;
+    const parent = entries.find((candidate) => candidate.name === parentName);
+    if (parent && parent.engine !== entry.engine) {
+      entry.problems.push(
+        `theme parent "${parentName}" uses render engine "${parent.engine}", but child "${entry.name}" uses "${entry.engine}"`
+      );
+    }
+  }
+
   return { chain, entries };
 }
 
@@ -85,7 +95,7 @@ export function themeSupportsKey(entry: ThemeCatalogEntry, key: string): boolean
 
 /**
  * First theme in the chain that provides `key` for the requested engine.
- * Cross-engine parents are intentionally skipped.
+ * Cross-engine parents are rejected by the catalog and never participate.
  */
 export function findTemplateProvider(
   catalog: ThemeCatalog,

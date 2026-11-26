@@ -8,7 +8,7 @@ let root: string;
 
 function theme(name: string, manifest: Record<string, unknown>, templates: Record<string, string> = {}): void {
   mkdirSync(join(root, name), { recursive: true });
-  const baseRender = { engine: 'react', apiVersion: 1, entry: 'src/entry-server.tsx' };
+  const baseRender = { engine: 'react', apiVersion: 2, entry: 'src/entry-server.tsx' };
   const manifestRender = manifest['render'] as Record<string, unknown> | undefined;
   const mergedRender = manifestRender
     ? { ...baseRender, ...manifestRender }
@@ -17,7 +17,7 @@ function theme(name: string, manifest: Record<string, unknown>, templates: Recor
     name,
     version: '1.0.0',
     type: 'theme',
-    compatibility: { okcms: '^0.42.0' },
+    compatibility: { okcms: '^1.0.0' },
     render: mergedRender,
     ...manifest,
   }));
@@ -34,17 +34,17 @@ function compiled(name: string, engine: 'react' | 'solid', keys: string[], paren
       name,
       version: '1.0.0',
       type: 'theme',
-      compatibility: { okcms: '^0.42.0' },
+      compatibility: { okcms: '^1.0.0' },
       ...(parent ? { parent } : {}),
-      render: { engine, apiVersion: 1, hydration: 'none' },
+      render: { engine, apiVersion: 2, hydration: 'none' },
     })
   );
   writeFileSync(
     join(root, name, 'dist', 'theme-build.json'),
     JSON.stringify({
-      schemaVersion: 1,
+      schemaVersion: 2,
       engine,
-      apiVersion: 1,
+      apiVersion: 2,
       buildId: `sha256:${name}`,
       entry: 'dist/server/entry.js',
       templates: keys,
@@ -93,8 +93,17 @@ describe('theme catalog', () => {
     expect(findTemplateProvider(catalog, 'home', 'solid')).toBeNull();
   });
 
+  it('rejects cross-engine parent inheritance', () => {
+    compiled('solid-parent', 'solid', ['single']);
+    compiled('react-child', 'react', ['home'], 'solid-parent');
+
+    const catalog = loadThemeCatalog(root, 'react-child');
+    expect(catalog.entries[0]?.problems.join(' ')).toMatch(/parent.*solid.*react/i);
+    expect(findTemplateProvider(catalog, 'home', 'react')).toBeNull();
+  });
+
   it('reports a missing artifact instead of silently falling back', () => {
-    theme('broken', { render: { engine: 'solid', apiVersion: 1 } });
+    theme('broken', { render: { engine: 'solid', apiVersion: 2 } });
     const catalog = loadThemeCatalog(root, 'broken');
     expect(catalog.entries[0]?.problems.join(' ')).toMatch(/theme-build\.json/);
     expect(themeEngineOf(catalog.entries[0]?.manifest ?? null)).toBe('solid');

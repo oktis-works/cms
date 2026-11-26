@@ -15,9 +15,9 @@ let themeDir: string;
 
 function writeBuild(overrides: Partial<ThemeBuildManifest> = {}): ThemeBuildManifest {
   const build: ThemeBuildManifest = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     engine: 'react',
-    apiVersion: 1,
+    apiVersion: 2,
     buildId: 'sha256:test',
     entry: 'dist/server/entry.js',
     templates: ['home', '404'],

@@ -7,9 +7,10 @@
 // perto do Docker.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { PassThrough, Writable } from 'node:stream';
 
 import {
@@ -27,6 +28,7 @@ import type { Runner } from './docker.js';
 
 let dir: string;
 let out: string[];
+const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 
 const ENV = 'PORT=3000\nWEB_PORT=3001\nADMIN_PORT=3011\nDB_PASSWORD=postgres\n';
 
@@ -106,12 +108,25 @@ function writePlugin(name: string, files: Record<string, string>): void {
 function writeTheme(name: string, manifest: unknown, files: Record<string, string> = {}): void {
   const base = join(dir, 'themes', name);
   mkdirSync(base, { recursive: true });
+  mkdirSync(join(base, 'node_modules'), { recursive: true });
+  writeFileSync(join(base, 'package.json'), JSON.stringify({
+    name: `${name}-theme`,
+    private: true,
+    dependencies: { react: '19', 'react-dom': '19', '@oktis-works/theme-sdk': '1' },
+  }));
+  for (const packageName of ['react', 'react-dom']) {
+    symlinkSync(
+      join(repositoryRoot, 'node_modules', packageName),
+      join(base, 'node_modules', packageName),
+      'junction'
+    );
+  }
   if (manifest !== null) {
     const baseManifest = {
       name,
       version: '1.0.0',
       type: 'theme',
-      render: { engine: 'react', apiVersion: 1, entry: 'src/entry-server.tsx' },
+      render: { engine: 'react', apiVersion: 2, entry: 'src/entry-server.tsx' },
       ...(typeof manifest === 'object' ? manifest : {})
     };
     writeFileSync(join(base, 'theme.json'), typeof manifest === 'string' ? manifest : JSON.stringify(baseManifest));

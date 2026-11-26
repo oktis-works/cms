@@ -15,9 +15,9 @@ import { CMS_VERSION, checkExtensionCompatibility, normalizeLogicalValues, valid
 import { getConnection, createConnection, runWithTenantTransaction } from '@oktis-works/database';
 import { loadConfig } from '@oktis-works/config';
 import { getHookRegistry } from '@oktis-works/plugin-runtime';
+import type { ThemePluginAsset, ThemePluginBlock, ThemePluginPattern } from '@oktis-works/theme-sdk';
 import {
   createRouter,
-  wireThemeHooks,
   renderContentPageAsync,
   toSiteSettings,
   resolveThemeAssetPath,
@@ -32,8 +32,8 @@ import { buildItemUrl } from './url-helpers.js';
 import { buildJsonLd } from './jsonld.js';
 import { generateFeeds } from './rss.js';
 import { createDatabaseThemeDataProvider, loadThemeRenderData } from './theme-data.js';
+import { createThemeSdkBridge } from './theme-bridge.js';
 import { resolveTenantFromHost } from './tenant-resolver.js';
-import { runWithThemeDataProvider } from '@oktis-works/theme-sdk';
 import { readThemeBuild, validateStyleManifest } from '@oktis-works/theme-runtime';
 
 type Variables = {
@@ -187,7 +187,6 @@ async function resolveActiveTheme(
 async function main() {
   const lifecycle = await bootstrap();
 
-  await wireThemeHooks();
 
   // Garante que a conexão com o banco esteja inicializada neste processo.
   // Quando o web é instalado via npm/bunx (não workspace), pode haver uma
@@ -213,19 +212,6 @@ async function main() {
     c.header('Content-Security-Policy', WEB_CSP);
     await next();
   });
-
-  // Assinatura do produto para detectores (Wappalyzer etc.): X-Powered-By em
-  // TODA resposta do site público. Vale inclusive para temas full-control,
-  // que são donos do próprio <head> e por isso não recebem o
-  // <meta name="generator"> aplicado pelo wrapDocument.
-  // Controlled by EXPOSE_POWERED_BY env (default: false)
-  const config = loadConfig();
-  if (config.app.exposePoweredBy) {
-    app.use('*', async (c, next) => {
-      c.header('X-Powered-By', `OkCMS/${CMS_VERSION}`);
-      await next();
-    });
-  }
 
   // Tenant resolution middleware (loopback → default; senão subdomain/domain)
   app.use('*', async (c, next) => {
@@ -715,7 +701,7 @@ async function main() {
       }
 
       const provider = createDatabaseThemeDataProvider(getConnection(), String(c.get('tenant')['id']));
-      const html = await runWithThemeDataProvider(provider, async () => {
+      const html = await (async () => {
         const themeData = await loadThemeRenderData(provider);
 
         // Item 8: assets enfileirados por plugins (api.assets) — escopo
@@ -746,13 +732,15 @@ async function main() {
         );
         const renderData = renderedBlocks === null ? data : { ...data, html: renderedBlocks };
         let pluginAssetTags: { head: string; footer: string } | undefined;
+        let themePluginAssets: ThemePluginAsset[] = [];
         try {
           const [platformAssets, tenantAssets] = await Promise.all([
             getPluginAssets(null),
             getPluginAssets(tenantId),
           ]);
+          themePluginAssets = [...platformAssets, ...tenantAssets].flatMap((entry) => entry.assets) as ThemePluginAsset[];
           pluginAssetTags = renderAssetTags(
-            [...platformAssets, ...tenantAssets].flatMap((entry) => entry.assets)
+            themePluginAssets
           );
         } catch {
           pluginAssetTags = undefined;
@@ -817,6 +805,27 @@ async function main() {
           }
         }
 
+        const themeSdk = createThemeSdkBridge({
+          provider,
+          context: {
+            cmsVersion: CMS_VERSION,
+            tenantId,
+            locale: String(settings.language ?? 'en'),
+            url: c.req.url,
+            authenticated: Boolean(c.get('userId')),
+            roles: c.get('userRoles') ?? [],
+            route: {
+              templateKey: resolution.template ?? 'index',
+              contentType: resolution.contentType ?? undefined,
+              slug: resolution.slug ?? undefined,
+              canonicalPath: resolution.canonicalPath ?? undefined,
+            },
+          },
+          blocks: themeDataWithPlugins.pluginBlocks as unknown as ThemePluginBlock[],
+          patterns: themeDataWithPlugins.pluginPatterns as unknown as ThemePluginPattern[],
+          assets: themePluginAssets,
+        });
+
         return await renderContentPageAsync({
           resolution,
           contentRow,
@@ -829,8 +838,9 @@ async function main() {
           themesRoot,
           tenantId,
           pluginAssets: pluginAssetTags,
+          themeSdk,
         });
-      });
+      })();
 
       return c.html(html);
     } catch (error) {

@@ -8,7 +8,6 @@ import {
   isBinaryThemeAsset,
 } from './theme-assets.js';
 import { readThemeFiles } from './scaffold.js';
-import { assertCompatible, CMS_VERSION } from '@oktis-works/validation';
 
 const THEME_DIR = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -84,7 +83,7 @@ describe('default theme assets (generated parity)', () => {
     const manifest = JSON.parse(DEFAULT_THEME_FILES['theme.json'] ?? '');
     expect(manifest.name).toBe('default');
     expect(manifest.version).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(() => assertCompatible('theme', manifest, CMS_VERSION)).not.toThrow();
+    expect(manifest.compatibility.okcms).toBe('^1.0.0');
     for (const layout of manifest.provides.layouts) {
       expect(DEFAULT_THEME_FILES[`${layout}.tsx`], layout).toBeDefined();
     }

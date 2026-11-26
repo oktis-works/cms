@@ -1,5 +1,22 @@
 # @oktis-works/cms
 
+## 1.0.0
+
+### Major Changes
+
+- Replace legacy theme rendering with isolated React/Solid theme artifacts and a request-scoped Theme SDK bridge. Remove string templates, legacy theme migrations, implicit framework resolution, and public CMS signature output.
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/config@1.0.0
+  - @oktis-works/core@1.0.0
+  - @oktis-works/theme-builder@1.0.0
+  - @oktis-works/theme-runtime@1.0.0
+  - @oktis-works/validation@1.0.0
+  - @oktis-works/auth@0.9.5
+  - @oktis-works/database@0.16.6
+
 ## 0.19.4
 
 ### Patch Changes
@@ -202,244 +219,27 @@
 
 ### Minor Changes
 
-- # Dynamic URL Hierarchy (v0.37.0)
+- feat(wizard): selection and clean navigation between menus.
 
-  ## Features
-
-  ### Phase 1: Dynamic URL Hierarchy
-  - **Hub pages per content type**: Any published page can be designated as a listing hub for any content type with `hasArchive` (via `metadata.hub_type`). The page's slug becomes the URL base (e.g., `/blog/`, `/projects/`).
-  - **Hierarchical URLs**: Content items support `parent_id` for nested URLs (e.g., `/projects/cliente-a/projeto-1`). Walk-up validation ensures parent chain matches URL segments.
-  - **Persistent redirects**: `url_redirects` table stores exact and prefix redirects for slug changes, parent changes, and hub page renames (prefix: `/old-base/*` → `/new-base/*`).
-  - **Legacy compatibility**: `postsPage`/`page_for_posts` still work for type `post`; dynamic hubs take precedence.
-
-  ### Phase 2: Head SEO
-  - `<link rel="canonical">` and `<meta property="og:url">` emitted from `resolution.canonicalPath`.
-  - Meta description fix: now uses `page.seo_description` → `page.excerpt` → `siteDescription` (was global only).
-
-  ### Phase 3: Sitemap
-  - `GET /sitemap.xml` lists hub pages + published items with canonical URLs.
-  - Excludes redirect sources; pagination (`?page=N`) uses canonical self.
-
-  ### Phase 4: JSON-LD + Breadcrumbs
-  - Schema.org entities: `BlogPosting` (post), `WebPage` (page), `CreativeWork` (custom).
-  - `BreadcrumbList` from hub base + parent chain: `Home → Hub → Parent1 → Item`.
-  - Injected via `<script type="application/ld+json">` in `single.astro` and `page.astro`.
-
-  ### Phase 5: RSS/Atom Feeds
-  - `GET /{hubBase}/feed` (RSS 2.0 default, `?format=atom` for Atom 1.0).
-  - Auto-discovers hub type via `metadata.hub_type`, lists published items ordered by `published_at DESC`.
-
-  ## Admin UI
-  - **Reading Settings**: Hub pages table (add/remove type + page) with prefix redirect on page rename.
-  - **Content Editor**: Parent select dropdown (same type, published, excludes self/descendants, max depth 5).
-  - i18n keys for hub pages and parent select.
-
-  ## Templates
-  - All default templates use `{{url}}` for canonical links (no hardcoded `/blog/`).
-  - `single.astro` and `page.astro` inject JSON-LD.
-  - CLI `okcms init` produces byte-identical theme.
-
-  ## Migrations
-  - `V027__core__content_parent_and_hub.sql` (Postgres/MySQL/MariaDB): `parent_id` + `url_redirects` table.
-
-  ## Documentation
-  All packages updated with READMEs covering Phase 1-5 integration.
+  - `SelectOptions` for arrow-key prompts (↑/↓ + Enter)
+  - Linear 'b' = back across engine/mode/fields/sections
+  - `clearScreen` on each step — no terminal pollution
+  - Dyn db mode list (Engine → Mode → Fields)
+  - Progress indicator [n/total] + hints (Enter keep · b back · Ctrl+C cancel)
 
 ### Patch Changes
 
 - Updated dependencies
+  - @oktis-works/config@0.7.0
   - @oktis-works/auth@0.8.5
-  - @oktis-works/config@0.6.6
   - @oktis-works/core@0.16.0
   - @oktis-works/database@0.15.0
   - @oktis-works/theme-runtime@0.12.0
-  - @oktis-works/validation@0.8.2
 
-## 0.13.25
-
-### Patch Changes
-
-- Fix scaffolded default theme: generate the embedded theme from `themes/default/` at build time and translate its UI copy to English.
-
-  The embedded fallback theme was a hand-maintained fork of `themes/default/` that drifted silently (missing `page-home.astro`, `page-blog.astro` and `src/theme.css`; stale `theme.json` and `dist/theme.css`), so `okcms init` scaffolded a theme that no longer existed in the repository. A new generator (`scripts/generate-theme-assets.mjs`) now rebuilds `src/generated/theme-assets.ts` from `themes/default/` during `build`/`prepack`, and a byte-parity test fails CI on any drift.
-
-  `getThemeAssetDir()` also probes the published layout (`dist/themes/default`), so `bunx`-installed CLIs resolve the bundled copy instead of always falling back to embedded strings. Remaining Portuguese UI strings in `404.astro`, `archive.astro`, `page-blog.astro` and `single.astro` are now English.
-
-## 0.13.24
+## 0.13.8
 
 ### Patch Changes
 
-- fix(cli): copy real theme files from package instead of hardcoded strings
-
-  `okcms init` now reads theme files from `dist/themes/default/` bundled into
-  the package (and falls back to the monorepo root during development) so
-  fresh projects get an identical copy of `themes/default/` — including
-  `page-home.astro`, `page-about.astro`, `page-contact.astro`,
-  `page-blog.astro`, `post-first-post.astro`, `post-second-post.astro`, and
-  `src/theme.css`. Previously the CLI wrote stale hardcoded templates
-  (`home.astro`, `front-page.astro`, `posts.astro`) that no longer matched
-  the repository.
-
-## 0.13.23
-
-### Patch Changes
-
-- Fix hero section margins in the default theme. The hero (.hero-content)
-  did not use .container padding, so its content stretched edge-to-edge
-  while About, Latest Posts and Contact sections were inset by the
-  container's side padding. This made section margins appear misaligned.
-
-  Both themes/default/src/theme.css (source) and themes/default/dist/theme.css
-  (production) now give .hero-content the same max-width, padding and
-  box-sizing as .container, so all sections share identical left/right
-  margins.
-
-## 0.13.22
-
-### Patch Changes
-
-- Fix wizard/menu navigation: force full screen clear on every menu repaint so
-  arrow-key navigation never leaves stale prompt residues on the terminal. Add
-  try/catch around every interactive select in the wizard (main menu, flows,
-  command catalog, search, env interview engine/mode selects) so a transient
-  input error never breaks the navigation tree or leaves a half-drawn prompt on
-  screen.
-
-## 0.13.21
-
-### Patch Changes
-
-- Update scaffold to document `bun run start` / `bun run dev` shortcuts and align project README/operator-guide to use local `bun run` scripts instead of `bunx`.
-
-## 0.13.20
-
-### Patch Changes
-
-- Updated dependencies
-  - @oktis-works/database@0.14.8
-  - @oktis-works/core@0.15.6
-
-## 0.13.19
-
-### Patch Changes
-
-- Fix default theme CSS: cover all embedded template classes
-
-  The embedded default theme CSS (`DEFAULT_THEME_CSS`) didn't cover classes used
-  by the English page templates (`page-about.astro`, `page-contact.astro`,
-  `post-first-post.astro`, `post-second-post.astro`, updated `page-home.astro`),
-  so sections appeared unstyled (no container width, no spacing, no colors).
-
-  Rewrote `DEFAULT_THEME_CSS` to cover every class used by the bundled templates:
-  container, header/nav, hero, buttons, generic section wrapper, about-preview,
-  contact, posts-grid, post-card, entry, cards/listing, archive, empty, 404,
-  footer, pagination — all scoped under `[data-theme="default"]` and responsive.
-
-  Users no longer see broken layouts on seeded home content after `okcms init`.
-
-## 0.13.18
-
-### Patch Changes
-
-- Updated dependencies
-  - @oktis-works/database@0.14.7
-  - @oktis-works/core@0.15.5
-
-## 0.13.17
-
-### Patch Changes
-
-- Embed English default theme templates in CLI for `okcms init`
-
-  New projects created with `okcms init` now ship English versions of the default
-  theme templates (`page-about.astro`, `page-contact.astro`, `post-first-post.astro`,
-  `post-second-post.astro`) plus `page-home.astro` translated to English, so users
-  who create pages/posts with English slugs (`about`, `contact`, `first-post`,
-  `second-post`) get styled templates instead of falling back to the generic
-  `page.astro` / `index.astro`.
-
-  Updated `theme.json` `provides.layouts` to register the new layouts.
-
-## 0.13.16
-
-### Patch Changes
-
-- Add English page templates to default theme
-
-  The default theme only shipped Portuguese templates (`page-sobre.astro`,
-  `page-contact` section in `page-home.astro`). When a user creates pages with
-  English slugs (`about`, `contact`), the template hierarchy could not find
-  `page-about.astro` / `page-contact.astro` and fell back to the generic
-  `page.astro` / `index.astro` — breaking the styling.
-
-  Adds `page-about.astro` and `page-contact.astro` (English versions) to the
-  default theme and registers them in `theme.json` `provides.layouts`.
-
-## 0.13.15
-
-### Patch Changes
-
-- Fix CLI password hash validation: bcrypt only
-
-  `isValidBcryptHash` in `@oktis-works/cms` validated bcrypt hashes for the
-  first-admin check during `okcms dev`. The auth service now hashes exclusively
-  with bcrypt, so login works after the CLI creates the admin user. No more
-  PBKDF2/bcrypt mismatch causing "existing user has invalid password hash"
-  followed by login 401.
-- Updated dependencies
-  - @oktis-works/auth@0.8.4
-
-## 0.13.14
-
-### Patch Changes
-
-- Fix `okcms db:migrate` failing with "invalid input syntax for type uuid: """ when no default tenant exists
-
-  When `db:migrate` ran only `core_schema` domain migrations, `prepareDb` was told
-  not to create/resolve the tenant default (`createDefaultTenant: false`,
-  `resolveTenant: false`). The `tenantId` ended up as an empty string `""`, and
-  when `applyMigration` executed `SELECT set_config('app.current_tenant_id', ...)`,
-  Postgres tried to cast the empty string to UUID in RLS queries, producing
-  `invalid input syntax for type uuid: """`.
-
-  `db:migrate` now always creates/resolves the `default` tenant, regardless of
-  the migration domain, so the RLS context is always valid.
-
-## 0.13.13
-
-### Patch Changes
-
-- Updated dependencies
-  - @oktis-works/database@0.14.6
-  - @oktis-works/core@0.15.4
-
-## 0.13.12
-
-### Patch Changes
-
-- Updated dependencies
-  - @oktis-works/database@0.14.5
-  - @oktis-works/core@0.15.3
-
-## 0.13.11
-
-### Patch Changes
-
-- Updated dependencies
-  - @oktis-works/database@0.14.4
-  - @oktis-works/core@0.15.2
-
-## 0.13.10
-
-### Patch Changes
-
-- Use the repository migration directory as the development fallback when the CLI package has not been built yet.
-
-## 0.13.9
-
-### Patch Changes
-
-- Complete the provider-aware migration lifecycle, CLI database workflows, generated MySQL and MariaDB assets, audit safeguards, and GPL-2.0-or-later licensing metadata.
 - Updated dependencies
   - @oktis-works/auth@0.8.3
   - @oktis-works/config@0.6.5
@@ -448,7 +248,7 @@
   - @oktis-works/theme-runtime@0.11.1
   - @oktis-works/validation@0.8.1
 
-## 0.13.8
+## 0.13.7
 
 ### Patch Changes
 
@@ -458,13 +258,6 @@
   - @oktis-works/theme-runtime@0.11.0
   - @oktis-works/validation@0.8.0
   - @oktis-works/auth@0.8.2
-
-## 0.13.7
-
-### Patch Changes
-
-- Updated dependencies
-  - @oktis-works/core@0.14.2
 
 ## 0.13.6
 

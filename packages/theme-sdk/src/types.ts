@@ -1,22 +1,10 @@
 import type {
   ThemeManifest as CanonicalThemeManifest,
-  ThemeSettingField as CanonicalThemeSettingField,
   ThemeRenderConfig as CanonicalThemeRenderConfig,
   ThemeRenderEngine as CanonicalThemeRenderEngine,
 } from '@oktis-works/types';
-import type { ThemeRenderData } from './data.js';
-
-export type ComponentType = 'layout' | 'component' | 'page' | 'partial';
-
-export type SettingType = NonNullable<CanonicalThemeSettingField['type']>;
-export type ThemeSetting = CanonicalThemeSettingField;
-
-export interface ThemeComponent {
-  name: string;
-  type: ComponentType;
-  file: string;
-  props?: Record<string, unknown>;
-}
+import type { ThemeRenderData } from './contracts.js';
+import type { ThemeSdkBridge } from './bridge.js';
 
 export type StyleEngine = 'tailwind' | 'scss' | 'css';
 
@@ -37,13 +25,6 @@ export interface ThemeStyleConfig {
   isolation?: true | 'manual';
 }
 
-export interface ThemeProvides {
-  layouts?: string[];
-  components?: string[];
-  styles?: string[];
-  assets?: string[];
-}
-
 export type ThemeManifest = CanonicalThemeManifest;
 
 export type ThemeRenderEngine = CanonicalThemeRenderEngine;
@@ -51,8 +32,7 @@ export type ThemeRenderConfig = CanonicalThemeRenderConfig;
 
 /**
  * Normalized data passed to compiled themes (React/Solid).
- * Mirrors the context exposed to string templates so both engines share the
- * same public contract.
+ * Shared normalized data contract for React and Solid server entries.
  */
 export interface ThemePageData {
   site: {
@@ -133,25 +113,8 @@ export interface ThemeServerModule {
   render(
     templateKey: string,
     data: ThemePageData,
-    ctx: ThemeRenderContext
+    ctx: ThemeRenderContext,
+    sdk: ThemeSdkBridge
   ): ThemeRenderOutput | Promise<ThemeRenderOutput>;
-  templates?: string[];
-}
-
-export interface RenderContext {
-  content: string;
-  tenant: string;
-  settings: Record<string, unknown>;
-  components: Record<string, ThemeComponent>;
-  url: string;
-  params: Record<string, string>;
-  /** Row completa do conteúdo sendo renderizado; alimenta a API contextual (getField sem props). */
-  record?: Record<string, unknown>;
-}
-
-export interface PageProps {
-  title: string;
-  content: string;
-  meta?: Record<string, string>;
-  schema?: Record<string, unknown>;
+  templateKeys: string[];
 }

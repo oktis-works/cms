@@ -1,6 +1,6 @@
 {
   "name": "okcms",
-  "version": "0.42.9",
+  "version": "1.0.0",
   "private": true,
   "license": "GPL-2.0-or-later",
   "description": "Hybrid, modular, API-first CMS",
@@ -47,7 +47,11 @@
     "@changesets/changelog-github": "^1.0.1",
     "@changesets/cli": "^3.0.3",
     "@oktis-works/api-client": "workspace:*",
+<<<<<<< HEAD
     "@oktis-works/cms": "^0.19.4",
+=======
+    "@oktis-works/cms": "^1.0.0",
+>>>>>>> 467db62 (chore(release): v1.0.0)
     "@types/node": "22.0.0",
     "@types/react": "19",
     "@types/react-dom": "19",

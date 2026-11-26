@@ -8,8 +8,8 @@ Command-line interface — project scaffolding, theme management, migrations, bu
 
 ```bash
 okcms init [dir]                    # Scaffold new project (copies theme/default)
-okcms theme:create <name>           # Create new theme from default
-okcms theme:build                   # Build active theme (CSS, components)
+okcms theme:create <name>           # Create a React/Solid theme
+okcms theme:build                   # Build SSR artifact and isolated CSS
 okcms theme:activate <name>         # Set active theme in DB
 ```
 
@@ -45,9 +45,9 @@ okcms worker                        # Start job queue worker
 Scaffolds `themes/default/` byte-identical to monorepo theme.
 
 **Verifies:**
-- Theme assets copied (`dist/`, `templates/`, `assets/`)
+- Theme assets copied (`dist/`, source components, and `assets/`)
 - Theme manifest (`theme.json`)
-- No hardcoded `/blog/` URLs — uses `{{url}}` template variable
+- No hardcoded `/blog/` URLs — components receive canonical route data
 
 ### Theme Assets
 
@@ -55,8 +55,8 @@ Built by `scripts/generate-theme-assets.mjs` → `src/generated/theme-assets.ts`
 
 ```typescript
 export const themeAssets = {
-  'themes/default/single.astro': '...',
-  'themes/default/archive.astro': '...',
+  'themes/default/single.tsx': '...',
+  'themes/default/archive.tsx': '...',
   // ...
 };
 ```

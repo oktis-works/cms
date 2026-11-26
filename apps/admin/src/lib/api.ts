@@ -235,8 +235,8 @@ export interface Content {
 }
 
 export interface ThemeBuildStatus {
-  engine: 'template' | 'react' | 'solid';
-  status: 'not-applicable' | 'ok' | 'missing' | 'invalid' | 'incompatible' | 'stale';
+  engine: 'react' | 'solid';
+  status: 'ok' | 'missing' | 'invalid' | 'incompatible' | 'stale';
   buildId?: string;
   expectedBuildId?: string;
   builtAt?: string;

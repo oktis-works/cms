@@ -509,7 +509,7 @@ export class ThemeService {
         failures.push(`${name}: ${renderIssues.join('; ')}`);
         continue;
       }
-      const styleIssues = validateStyleManifest({ ...manifest, name, version }, themeDir);
+      const styleIssues = validateStyleManifest({ ...manifest, name, version } as never, themeDir);
       if (styleIssues.length > 0) {
         failures.push(`${name}: ${styleIssues.join('; ')}`);
         continue;

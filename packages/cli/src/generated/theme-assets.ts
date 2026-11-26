@@ -17,6 +17,14 @@ export const DEFAULT_THEME_FILES: Record<string, string> = {
     </main>
   );
 }`,
+  "CHANGELOG.md": `# okcms-theme-default
+
+## 1.0.0
+
+### Major Changes
+
+- Align the bundled default theme package with the React/Solid Theme SDK bridge release.
+`,
   "archive.tsx": `import type { ThemePageData } from '@oktis-works/theme-sdk';
 
 export default function Archive({ page, items }: ThemePageData) {
@@ -1140,6 +1148,25 @@ export default function Index({ page, content }: ThemePageData) {
     </main>
   );
 }`,
+  "package.json": `{
+  "name": "okcms-theme-default",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@oktis-works/theme-sdk": "^1.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^6.0.0",
+    "typescript": "^5.7.0",
+    "vite": "^8.0.0"
+  }
+}
+`,
   "page.tsx": `import type { ThemePageData } from '@oktis-works/theme-sdk';
 
 export default function Page({ page, content }: ThemePageData) {
@@ -1200,7 +1227,7 @@ import Archive from '../archive';
 import NotFound from '../404';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { FC } from 'react';
-import type { ThemePageData, ThemeRenderContext, ThemeRenderOutput } from '@oktis-works/theme-sdk';
+import type { ThemePageData, ThemeRenderContext, ThemeRenderOutput, ThemeSdkBridge } from '@oktis-works/theme-sdk';
 
 const templates: Record<string, FC<ThemePageData>> = {
   'home': Home,
@@ -1216,11 +1243,13 @@ export const templateKeys = Object.keys(templates);
 export function render(
   key: string,
   data: ThemePageData,
-  _ctx?: ThemeRenderContext
+  _ctx: ThemeRenderContext,
+  _sdk: ThemeSdkBridge
 ): ThemeRenderOutput {
   const Component = templates[key] ?? templates['404'];
   return { html: renderToStaticMarkup(<Component {...data} />) };
-}`,
+}
+`,
   "src/theme.css": `/**
  * Tema Default do OkCMS — Design System CSS
  * Engine: css | Isolation: manual
@@ -2243,14 +2272,14 @@ export function render(
   "type": "theme",
   "author": "Oktis Works",
   "compatibility": {
-    "okcms": "^0.42.0"
+    "okcms": "^1.0.0"
   },
   "screenshots": [
     "screenshot.png"
   ],
   "render": {
     "engine": "react",
-    "apiVersion": 1,
+    "apiVersion": 2,
     "hydration": "islands",
     "entry": "src/entry-server.tsx"
   },
@@ -2293,7 +2322,8 @@ export function render(
       "default": "Fill out the form or send us an email at hello@example.com"
     }
   ]
-}`,
+}
+`,
 };
 
 /**
@@ -2310,7 +2340,7 @@ export const DEFAULT_THEME_MANIFEST: string = DEFAULT_THEME_FILES['theme.json'] 
 /** Default theme stylesheet, served straight from `dist/theme.css` (no build). */
 export const DEFAULT_THEME_CSS: string = DEFAULT_THEME_FILES['dist/theme.css'] ?? '';
 
-/** `.astro` hierarchy templates of the default theme, at the theme root. */
-export const THEME_TEMPLATE_FILES: Record<string, string> = Object.fromEntries(
-  Object.entries(DEFAULT_THEME_FILES).filter(([file]) => file.endsWith('.astro'))
+/** React/Solid source components of the default theme. */
+export const THEME_COMPONENT_FILES: Record<string, string> = Object.fromEntries(
+  Object.entries(DEFAULT_THEME_FILES).filter(([file]) => file.endsWith('.tsx'))
 );

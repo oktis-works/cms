@@ -1,128 +1,64 @@
-// @oktis-works/theme-runtime - Template Hierarchy Resolver
+// @oktis-works/theme-runtime - logical theme template resolution
 
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
-import { join, resolve, sep } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
+/** Request information used to select a logical theme render key. */
 export interface TemplateContext {
   type: string;
   slug?: string;
   isArchive?: boolean;
   isHome?: boolean;
-  /**
-   * Static front page (Reading Settings → homepage). Tries `front-page.astro`
-   * BEFORE the regular page chain — WordPress-like `front-page.php` behavior.
-   */
   isFrontPage?: boolean;
-  /**
-   * Posts page (Reading Settings → posts page). WordPress-like `home.php`
-   * behavior: tries the dedicated `posts.astro` listing BEFORE the regular
-   * page chain, so the blog renders the `items` feed instead of the page's
-   * static body template.
-   */
   isPostsPage?: boolean;
-  /**
-   * Override manual de layout (content.layout): template escolhido no editor.
-   * Quando presente, é tentado ANTES de toda a cadeia automática (TASK-058).
-   */
   layoutOverride?: string;
 }
 
+/** A logical key selected from the active theme's compiled export map. */
 export interface ResolvedTemplate {
-  /** Nome canônico do template na hierarquia. */
   name: string;
-  /** Logical engine-agnostic key (e.g. `single`, `page-about`). */
-  key?: string;
-  /** Arquivo .astro resolvido (relativo ao tema). */
+  key: string;
+  /** Kept as an API-compatible alias; this is never a filesystem path. */
   file: string;
-  /** Próximo fallback da cadeia (para debug/diagnóstico). */
   triedChain: string[];
 }
 
-/** `home.astro` → `home`; leaves keys without an extension untouched. */
-export function templateKeyFromFile(file: string): string {
-  return file.replace(/\.(?:astro|tsx|jsx|js|mjs)$/i, '');
+/** Normalizes an externally supplied logical key. */
+export function templateKeyFromFile(value: string): string {
+  return value.replace(/\.(?:tsx|jsx|js|mjs)$/i, '');
 }
 
-/**
- * Hierarchy as engine-agnostic keys. Template themes map a key to
- * `${key}.astro`; compiled themes map it to a component export.
- */
+/** Builds the engine-independent logical render-key chain. */
 export function buildTemplateKeyChain(context: TemplateContext): string[] {
-  return buildTemplateChain(context).map(templateKeyFromFile);
-}
+  const layoutHead = context.layoutOverride ? [templateKeyFromFile(context.layoutOverride)] : [];
 
-/**
- * Cadeia de hierarquia WordPress-like (FEAT-094):
- *   {type}-{slug}.astro → {type}.astro → single/page.astro (ou archive.astro)
- *   → index.astro → 404
- *
- * Home: home.astro → index.astro → 404
- */
-export function buildTemplateChain(context: TemplateContext): string[] {
-  // Override manual vence a cadeia automática, mas mantém fallback.
-  const layoutHead = context.layoutOverride
-    ? [context.layoutOverride.endsWith('.astro') ? context.layoutOverride : `${context.layoutOverride}.astro`]
-    : [];
-
-  if (context.isHome) {
-    return [...layoutHead, 'home.astro', 'index.astro', '404.astro'];
-  }
+  if (context.isHome) return [...layoutHead, 'home', 'index', '404'];
 
   const chain: string[] = [];
-
-  if (context.slug) {
-    chain.push(`${context.type}-${context.slug}.astro`);
-  }
+  if (context.slug) chain.push(`${context.type}-${context.slug}`);
 
   if (context.isArchive) {
-    if (context.slug) chain.push(`taxonomy-${context.slug}.astro`);
-    chain.push('archive.astro');
+    if (context.slug) chain.push(`taxonomy-${context.slug}`);
+    chain.push('archive');
   } else {
-    chain.push(`${context.type}.astro`);
-
-    const generic = context.type === 'page' ? 'page.astro' : 'single.astro';
-    if (generic !== `${context.type}.astro`) chain.push(generic);
-
-    chain.push('index.astro');
+    chain.push(context.type);
+    const generic = context.type === 'page' ? 'page' : 'single';
+    if (generic !== context.type) chain.push(generic);
+    chain.push('index');
   }
 
-  chain.push('404.astro');
-
-  // Static front page: try the dedicated front-page template first, then the
-  // regular page chain (front-page.astro → {type}-{slug}.astro → {type}.astro
-  // → index.astro → 404.astro).
-  if (context.isFrontPage) {
-    return [...layoutHead, 'front-page.astro', ...chain];
-  }
-
-  // Posts page (WP home.php): the dedicated listing template wins over the
-  // page chain (posts.astro → {type}-{slug}.astro → {type}.astro →
-  // index.astro → 404.astro) — the blog listing shows `items`, never the
-  // page's static body.
-  if (context.isPostsPage) {
-    return [...layoutHead, 'posts.astro', ...chain];
-  }
-
+  chain.push('404');
+  if (context.isFrontPage) return [...layoutHead, 'front-page', ...chain];
+  if (context.isPostsPage) return [...layoutHead, 'posts', ...chain];
   return [...layoutHead, ...chain];
 }
 
-export interface TemplateFileChecker {
-  exists(file: string): Promise<boolean> | boolean;
+/** Backward-compatible name for callers that only need the logical chain. */
+export function buildTemplateChain(context: TemplateContext): string[] {
+  return buildTemplateKeyChain(context);
 }
 
-export interface ProjectTemplateResolver {
-  /** Cadeia de busca de temas: [tema ativo, _shared, default]. */
-  templateChain: string[];
-  /** true quando o arquivo existe em QUALQUER tema da cadeia. */
-  exists(file: string): boolean;
-  /** LÊ o arquivo do primeiro tema da cadeia que o tiver; null se nenhum tiver. */
-  read(file: string): string | null;
-  /** Caminho absoluto resolvido do primeiro candidato existente. */
-  resolvePathFor(file: string): string | null;
-}
-
-/** Estados de tema aceitos na cadeia de fallback do projeto. */
-const PROJECT_FALLBACKS = ['_shared', 'default'] as const;
+/** Validates the active theme plus its declared parent chain. */
 const SAFE_THEME_NAME_RE = /^[A-Za-z0-9_-]+$/;
 
 export function resolveProjectThemeChain(themesRoot: string, activeTheme: string): string[] {
@@ -132,17 +68,10 @@ export function resolveProjectThemeChain(themesRoot: string, activeTheme: string
   const visit = (theme: string): void => {
     if (!theme || !SAFE_THEME_NAME_RE.test(theme) || chain.includes(theme)) return;
     if (visiting.has(theme)) throw new Error(`Theme inheritance cycle detected at "${theme}"`);
-    const themePath = join(themesRoot, theme);
-    if (existsSync(themePath)) {
-      const root = realpathSync(resolve(themesRoot));
-      const realThemePath = realpathSync(themePath);
-      if (realThemePath !== root && !realThemePath.startsWith(root + sep)) {
-        throw new Error(`Theme "${theme}" resolves outside the themes directory`);
-      }
-    }
     visiting.add(theme);
     chain.push(theme);
-    const manifestPath = join(themePath, 'theme.json');
+
+    const manifestPath = join(themesRoot, theme, 'theme.json');
     if (existsSync(manifestPath)) {
       try {
         const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8')) as { parent?: unknown };
@@ -160,9 +89,7 @@ export function resolveProjectThemeChain(themesRoot: string, activeTheme: string
         if (error instanceof Error && (
           error.message.startsWith('Theme "') ||
           error.message.startsWith('Theme inheritance cycle detected')
-        )) {
-          throw error;
-        }
+        )) throw error;
         throw new Error(`Invalid theme manifest: ${manifestPath}`, { cause: error });
       }
     }
@@ -170,86 +97,25 @@ export function resolveProjectThemeChain(themesRoot: string, activeTheme: string
   };
 
   visit(activeTheme);
-  for (const fallback of PROJECT_FALLBACKS) visit(fallback);
+  for (const fallback of ['_shared', 'default']) visit(fallback);
   return chain;
 }
 
-/**
- * Descoberta de templates do PROJETO — fonte única consumida pelo app web
- * (e qualquer outro runtime de projeto), no lugar de reimplementação local.
- *
- * Cadeia: [tema ativo, _shared, default] — "_shared" cobre partials de
- * projeto independentes do tema ativo e "default" é o piso final.
- *
- * Segurança: o `file` chega da hierarquia (sem nome de tema) e os nomes de
- * tema são validados — `..`/paths absolutos são negados explicitamente.
- */
-export function createProjectTemplateResolver(
-  themesRoot: string,
-  activeTheme: string
-): ProjectTemplateResolver {
-  const chain = resolveProjectThemeChain(themesRoot, activeTheme);
-
-  const all = (file: string): string[] =>
-    chain
-      .map((theme) => safeTarget(themesRoot, theme, file))
-      .filter((target): target is string => target !== null);
-
-  return {
-    templateChain: chain,
-    exists(file: string): boolean {
-      return all(file).some((candidate) => existsSync(candidate));
-    },
-    read(file: string): string | null {
-      for (const candidate of all(file)) {
-        if (existsSync(candidate)) return readFileSync(candidate, 'utf-8');
-      }
-      return null;
-    },
-    resolvePathFor(file: string): string | null {
-      return all(file).find((candidate) => existsSync(candidate)) ?? null;
-    },
-  } satisfies ProjectTemplateResolver;
+/** Resolves the first key declared by a valid compiled theme in the chain. */
+export interface ThemeKeyChecker {
+  has(key: string): Promise<boolean> | boolean;
 }
 
-function safeTarget(themesRoot: string, theme: string, file: string): string | null {
-  if (!file || file.includes('..') || file.startsWith('/')) return null;
-  const target = join(themesRoot, theme, file);
-  const lexicalRoot = resolve(themesRoot);
-  const lexicalTarget = resolve(target);
-  if (lexicalTarget !== lexicalRoot && !lexicalTarget.startsWith(lexicalRoot + sep)) return null;
-  if (!existsSync(target)) return target;
-  try {
-    const realRoot = realpathSync(lexicalRoot);
-    const realTarget = realpathSync(target);
-    return realTarget === realRoot || realTarget.startsWith(realRoot + sep) ? realTarget : null;
-  } catch {
-    return null;
-  }
-}
-
-export class TemplateHierarchyResolver {
-  constructor(private readonly fileChecker: TemplateFileChecker) {}
+export class ThemeTemplateResolver {
+  constructor(private readonly keyChecker: ThemeKeyChecker) {}
 
   async resolve(context: TemplateContext): Promise<ResolvedTemplate> {
-    const chain = buildTemplateChain(context);
-
-    for (const candidate of chain) {
-      if (await this.fileChecker.exists(candidate)) {
-        return {
-          name: candidate.replace(/\.astro$/, ''),
-          key: templateKeyFromFile(candidate),
-          file: candidate,
-          triedChain: chain.slice(0, chain.indexOf(candidate) + 1),
-        };
+    const chain = buildTemplateKeyChain(context);
+    for (const key of chain) {
+      if (await this.keyChecker.has(key)) {
+        return { name: key, key, file: key, triedChain: chain.slice(0, chain.indexOf(key) + 1) };
       }
     }
-
-    return {
-      name: '404',
-      key: '404',
-      file: '404.astro',
-      triedChain: chain,
-    };
+    return { name: '404', key: '404', file: '404', triedChain: chain };
   }
 }

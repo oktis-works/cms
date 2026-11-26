@@ -75,8 +75,7 @@ export class ThemeLoader {
   }
 
   private async loadManifest(themePath: string): Promise<ThemeManifest | null> {
-    // theme.json é o nome canônico único; o legado manifest.json é unificado
-    // pelos entry points do CLI (theme-migrate.ts) antes do boot dos apps.
+    // theme.json is the only supported theme manifest filename.
     try {
       const raw = await readFile(join(themePath, 'theme.json'), 'utf-8');
       const manifest = JSON.parse(raw) as Partial<ThemeManifest>;

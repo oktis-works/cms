@@ -5,14 +5,14 @@
   "type": "theme",
   "author": "Oktis Works",
   "compatibility": {
-    "okcms": "^0.42.0"
+    "okcms": "^1.0.0"
   },
   "screenshots": [
     "screenshot.png"
   ],
   "render": {
     "engine": "react",
-    "apiVersion": 1,
+    "apiVersion": 2,
     "hydration": "islands",
     "entry": "src/entry-server.tsx"
   },

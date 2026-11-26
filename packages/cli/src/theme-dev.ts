@@ -9,7 +9,6 @@ import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { loadProjectConfig } from './project-config.js';
-import { migrateThemeManifests } from './theme-migrate.js';
 import { readThemeManifest } from './theme-build.js';
 
 export interface ThemeWatchersOptions {
@@ -19,7 +18,7 @@ export interface ThemeWatchersOptions {
 
 /**
  * Builds compiled themes once and keeps watching their sources. Returns a
- * stop function that closes every watcher. Template themes are skipped.
+ * stop function that closes every watcher. Only React/Solid themes are watched.
  */
 export async function startProjectThemeWatchers(
   opts: ThemeWatchersOptions = {}
@@ -29,10 +28,6 @@ export async function startProjectThemeWatchers(
   const config = loadProjectConfig(cwd);
   const themesDir = join(cwd, config.themesDir);
   if (!existsSync(themesDir)) return () => {};
-
-  for (const migrated of migrateThemeManifests(themesDir)) {
-    log(`[theme:dev] manifest migrated: ${migrated} -> theme.json`);
-  }
 
   const entries = readdirSync(themesDir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory() && !entry.name.startsWith('_') && !entry.name.startsWith('.'))

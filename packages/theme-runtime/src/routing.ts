@@ -1,6 +1,6 @@
 // @oktis-works/theme-runtime - Runtime Routing (catch-all SSR + targeted revalidation)
 
-import type { TemplateHierarchyResolver, TemplateContext } from './template-resolver.js';
+import type { ThemeTemplateResolver, TemplateContext } from './template-resolver.js';
 
 export interface HubInfo {
   type: string;
@@ -67,7 +67,7 @@ export class RuntimeRouter {
 
   constructor(
     private readonly lookup: ContentLookup,
-    private readonly resolver: TemplateHierarchyResolver
+    private readonly resolver: ThemeTemplateResolver
   ) {}
 
   /**
@@ -91,7 +91,7 @@ export class RuntimeRouter {
 
   /**
    * True quando o conteúdo É a página configurada como página de posts: a
-   * listagem do blog precisa do template dedicado (`posts.astro`, WP
+   * listagem do blog precisa do template dedicado (`posts`, WP
    * `home.php`) e do feed de itens publicados (`isPageForPosts`) — em
    * qualquer profundidade de URL, não só no fallback de `/`.
    */
@@ -180,7 +180,7 @@ export class RuntimeRouter {
       }
     }
 
-    // 1b) Type archive (legacy): /{type} where type has hasArchive=true
+    // 1b) Type archive: /{type} where type has hasArchive=true
     // Only if no hub page claimed this segment
     if (segments.length === 1) {
       const first = segments[0]!;
@@ -217,7 +217,7 @@ export class RuntimeRouter {
   }
 
   /**
-   * Raiz: static front page → posts page → posts archive → home.astro
+   * Raiz: static front page → posts page → posts archive → home
    */
   private async resolveRoot(): Promise<RouteResolution> {
     // Static Front Page
@@ -280,7 +280,7 @@ export class RuntimeRouter {
       return { matched: true, template: resolved.file, contentType: postType.slug };
     }
 
-    // Último recurso: home.astro se existir no tema
+    // Último recurso: the home key if it exists in the theme
     const resolved = await this.resolver.resolve({ type: 'page', isHome: true });
     return { matched: true, template: resolved.file };
   }

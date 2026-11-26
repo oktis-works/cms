@@ -32,8 +32,6 @@ import { Prompt, style, symbol } from './prompt.js';
 import { addHistoryEntry } from './history.js';
 import { updateProjectDocs } from './docs-updater.js';
 import { syncMigrations } from './migrations-sync.js';
-import { loadProjectConfig } from './project-config.js';
-import { migrateThemeManifests } from './theme-migrate.js';
 import { beginUpdateProgress, recordUpdateStep } from './update-progress.js';
 
 export type UpdateMode = 'download' | 'deploy';
@@ -486,13 +484,6 @@ export async function runUpdate(opts: UpdateOptions = {}): Promise<number> {
 
     beginUpdateProgress(cwd);
     recordUpdateStep(cwd, 'scan', 'completed');
-
-    // Legacy theme manifests are normalized only when the update will really
-    // execute. Dry-run must remain observational and filesystem-safe.
-    const migratedThemes = migrateThemeManifests(join(cwd, loadProjectConfig(cwd).themesDir));
-    if (migratedThemes.length > 0) {
-      prompt.success(`theme manifest(s) migrated to theme.json: ${migratedThemes.join(', ')}`);
-    }
 
     if (mode === 'download') {
       recordUpdateStep(cwd, 'migrations', 'running');

@@ -1,8 +1,8 @@
 // @oktis-works/web - Runtime Rendering (catch-all SSR com hierarquia de templates)
 
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { realpathSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { join, relative, resolve, sep } from 'node:path';
+import { relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import { getConnection } from '@oktis-works/database';
@@ -11,89 +11,14 @@ import { getHookRegistry } from '@oktis-works/plugin-runtime';
 import { postTypeRegistry, HOOK_POINTS } from '@oktis-works/core';
 import type { EnqueuedAsset } from '@oktis-works/plugin-sdk';
 import {
-  TemplateHierarchyResolver,
+  ThemeTemplateResolver,
   RuntimeRouter,
-  ThemeRenderer,
-  createProjectTemplateResolver,
-  resolveProjectThemeChain,
   loadThemeCatalog,
   findTemplateProvider,
-  templateKeyFromFile,
   renderCompiledTheme,
   type ContentLookup,
-  type ProjectTemplateResolver,
-  type TemplateFileChecker,
 } from '@oktis-works/theme-runtime';
-import type { ThemeHydrationPayload, ThemePageData, ThemeRenderData } from '@oktis-works/theme-sdk';
-import { CMS_VERSION } from '@oktis-works/validation';
-
-/**
- * B1/Unificação (FEAT-095): a cadeia de templates do projeto
- * (tema ativo → `_shared` → `default`), o saneamento dos nomes de tema e o
- * guard contra traversal vivem **apenas** no `@oktis-works/theme-runtime` —
- * este app só consome a fonte única, sem reimplementação local.
- */
-function projectTemplates(themesRoot: string, activeTheme: string): ProjectTemplateResolver {
-  return createProjectTemplateResolver(themesRoot, activeTheme);
-}
-
-/** Adaptador do checker do TemplateHierarchyResolver sobre o resolver único. */
-export function createTemplateChecker(themesRoot: string, activeTheme: string): TemplateFileChecker {
-  const resolver = projectTemplates(themesRoot, activeTheme);
-  return {
-    exists(file: string): boolean {
-      return resolver.exists(file);
-    },
-  };
-}
-
-/**
- * B1 — carrega o ARQUIVO do template do tema ativo (fallback _shared → default).
- * Retorna null quando nenhum candidato existe (rota cai no 404 do tema).
- */
-export function loadTemplateSource(themesRoot: string, activeTheme: string, file: string): string | null {
-  return projectTemplates(themesRoot, activeTheme).read(file);
-}
-
-/** Registers manifest-declared legacy components from parent to child. */
-function registerThemeComponents(themesRoot: string, activeTheme: string): void {
-  const chain = resolveProjectThemeChain(themesRoot, activeTheme);
-  themeRenderer.clearComponents();
-  for (const themeName of [...chain].reverse()) {
-    const themeDir = resolve(themesRoot, themeName);
-    const manifestPath = join(themeDir, 'theme.json');
-    if (!existsSync(manifestPath)) continue;
-    let manifest: Record<string, unknown>;
-    try {
-      manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<string, unknown>;
-    } catch {
-      continue;
-    }
-    const components = Array.isArray(manifest['components']) ? manifest['components'] : [];
-    for (const value of components) {
-      if (!value || typeof value !== 'object' || Array.isArray(value)) continue;
-      const component = value as Record<string, unknown>;
-      const name = typeof component['name'] === 'string' ? component['name'] : '';
-      const file = typeof component['file'] === 'string' ? component['file'] : '';
-      if (!name || !file || file.includes('..') || file.includes('\\') || file.startsWith('/')) continue;
-      const target = resolve(themeDir, file);
-      if (!target.startsWith(themeDir + sep) || !existsSync(target)) continue;
-      try {
-        const realThemeDir = realpathSync(themeDir);
-        const realTarget = realpathSync(target);
-        if (realTarget !== realThemeDir && !realTarget.startsWith(realThemeDir + sep)) continue;
-        themeRenderer.registerComponent({
-          name,
-          type: component['type'] as 'layout' | 'component' | 'page' | 'partial',
-          file: realTarget,
-          props: component['props'] as Record<string, unknown> | undefined,
-        });
-      } catch {
-        continue;
-      }
-    }
-  }
-}
+import type { ThemeHydrationPayload, ThemePageData, ThemeRenderData, ThemeSdkBridge } from '@oktis-works/theme-sdk';
 
 export interface SiteSettings {
   siteTitle: string;
@@ -172,8 +97,6 @@ function toText(value: unknown): string {
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
   return '';
 }
-
-export const themeRenderer = new ThemeRenderer();
 
 /**
  * Deep merge two objects, with source overriding target.
@@ -273,6 +196,8 @@ export interface ContentPageRenderInput {
   themesRoot: string;
   /** Asset tags de plugins (Item 8) — head e footer já renderizados. */
   pluginAssets?: { head: string; footer: string };
+  /** Explicit request-scoped bridge supplied by the web host. */
+  themeSdk?: ThemeSdkBridge;
 }
 
 /**
@@ -378,10 +303,8 @@ function finalizeContentPage(
   themeAssets?: ThemeDocumentAssets
 ): string {
   // Compiled artifacts carry their own versioned stylesheet list. Linking the
-  // legacy stable path as well would defeat cache versioning and may load a
+  // unversioned stable path as well would defeat cache versioning and may load a
   // stale CSS generation.
-  const stylesheet = themeAssets ? null : resolveThemeStylesheets(input.themesRoot, input.activeTheme);
-
   // Build canonical URL for SEO
   const canonicalPath = input.resolution.canonicalPath ?? '';
   const siteUrl = (input.settings['siteUrl'] as string) || '';
@@ -403,7 +326,6 @@ function finalizeContentPage(
     prepared.title,
     input.settings,
     input.activeTheme,
-    stylesheet,
     input.pluginAssets,
     {
       canonicalUrl: pageCanonical ?? canonicalUrl,
@@ -425,46 +347,25 @@ function finalizeContentPage(
   return prepared.registry.applyFilters(HOOK_POINTS.THEME_AFTER_RENDER, html, prepared.hookContext) as string;
 }
 
-export function renderContentPage(input: ContentPageRenderInput): string {
-  const file = input.resolution.template ?? 'index.astro';
-  const template = loadTemplateSource(input.themesRoot, input.activeTheme, file);
-
-  if (!template) {
-    return renderFallbackPage(input, input.pluginAssets);
-  }
-
-  const prepared = prepareContentPage(input, file);
-  registerThemeComponents(input.themesRoot, input.activeTheme);
-  const body = themeRenderer.wrapWithThemeScope(
-    themeRenderer.renderString(template, prepared.context, { ...prepared.themeRecord }),
-    input.activeTheme
-  );
-  return finalizeContentPage(input, prepared, body);
-}
-
 /**
- * Engine-aware render entry point. Template themes keep the synchronous
- * implementation above; React/Solid themes are imported from their build
- * artifact and rendered through the compiled adapter.
+ * Engine-aware render entry point. All themes are compiled React/Solid
+ * modules and are rendered through the explicit SDK bridge.
  */
 export async function renderContentPageAsync(input: ContentPageRenderInput): Promise<string> {
   const catalog = loadThemeCatalog(input.themesRoot, input.activeTheme);
   const active = catalog.entries[0] ?? null;
 
-  // No valid compiled theme: fall back to legacy renderer (should not happen with new themes)
-  if (!active || active.problems.length > 0) {
-    return renderContentPage(input);
+  if (!active) throw new Error(`Active theme "${input.activeTheme}" was not found`);
+  if (active.problems.length > 0) {
+    throw new Error(`Active theme "${input.activeTheme}" is invalid: ${active.problems.join('; ')}`);
   }
 
-  const file = input.resolution.template ?? 'index.astro';
-  const requestedKey = templateKeyFromFile(file);
+  const requestedKey = input.resolution.template ?? 'index';
   const provider =
     findTemplateProvider(catalog, requestedKey, active.engine) ??
     findTemplateProvider(catalog, '404', active.engine);
 
-  if (!provider?.build) {
-    return renderFallbackPage(input, input.pluginAssets);
-  }
+  if (!provider?.build) throw new Error(`No compiled theme provides render key "${requestedKey}"`);
 
   if (provider.build.engine !== active.engine) {
     throw new Error(
@@ -473,24 +374,19 @@ export async function renderContentPageAsync(input: ContentPageRenderInput): Pro
   }
 
   const templateKey = provider.build.templates.includes(requestedKey) ? requestedKey : '404';
-  const prepared = prepareContentPage(input, file);
+  const prepared = prepareContentPage(input, requestedKey);
   const styleAssets = catalog.entries
     .filter((entry) => entry.problems.length === 0)
-    .flatMap((entry) => {
-      if (entry.build) {
-        return [{ themeName: entry.name, styles: entry.build.styles, buildId: entry.build.buildId }];
-      }
-      return existsSync(join(entry.dir, 'dist', 'theme.css'))
-        ? [{ themeName: entry.name, styles: ['dist/theme.css'] }]
-        : [];
-    });
+    .flatMap((entry) => entry.build
+      ? [{ themeName: entry.name, styles: entry.build.styles, buildId: entry.build.buildId }]
+      : []);
   const output = await renderCompiledTheme({
     themeDir: provider.dir,
     build: provider.build,
     templateKey,
     data: prepared.context as unknown as ThemePageData,
-    // `getField()` (ALS) must see the same `theme:before:render` output as
-    // the component props, not the pre-hook row.
+    // The bridge and component props must see the same post-hook public record,
+    // not the pre-hook storage row.
     record: {
       ...prepared.themeRecord,
       body: {
@@ -509,10 +405,11 @@ export async function renderContentPageAsync(input: ContentPageRenderInput): Pro
       templateKey,
       buildId: provider.build.buildId,
     },
+    sdk: input.themeSdk,
     automaticAssets: provider.build.hydration === 'islands' || styleAssets.some((asset) => asset.styles.length > 0),
   });
 
-  const body = themeRenderer.wrapWithThemeScope(output.html, provider.name);
+  const body = output.html;
   const outputScripts = output.scripts ?? [];
   const scripts =
     outputScripts.length > 0
@@ -704,25 +601,8 @@ export async function renderPluginBlocks(
 }
 
 /**
- * Primeiro fornecedor real de `dist/theme.css` na cadeia (tema ativo →
- * _shared → default). `null` quando ninguém compilou estilos — o documento
- * sai sem <link> quebrado (nada de 404 silencioso no console).
- */
-export function resolveThemeStylesheet(themesRoot: string, activeTheme: string): string | null {
-  return resolveThemeStylesheets(themesRoot, activeTheme)[0] ?? null;
-}
-
-/** Returns all inherited legacy styles in parent-to-child order. */
-export function resolveThemeStylesheets(themesRoot: string, activeTheme: string): string[] {
-  return [...resolveProjectThemeChain(themesRoot, activeTheme)]
-    .reverse()
-    .filter((theme) => existsSync(join(themesRoot, theme, 'dist', 'theme.css')));
-}
-
-/**
- * B1 — envolve o fragmento do template num documento completo com title/meta
- * das settings + CSS do tema + injeções de plugins via hook `theme:head`.
- * Template que já emite documento completo passa intocado (temas headless/full-control).
+ * Wraps a theme fragment in the host document with settings, SEO metadata,
+ * compiled theme assets, and plugin head injections.
  */
 export interface ThemeDocumentAssets {
   /** Theme that owns the extra styles/scripts. */
@@ -783,7 +663,6 @@ export function wrapDocument(
   pageTitle: string,
   settings: SiteSettings,
   activeTheme: string,
-  stylesheetTheme: string | string[] | null = null,
   pluginAssets?: { head: string; footer: string },
   seo?: SeoMeta,
   themeAssets?: ThemeDocumentAssets
@@ -794,15 +673,6 @@ export function wrapDocument(
 
   const title = pageTitle && pageTitle !== settings.siteTitle ? `${pageTitle} | ${settings.siteTitle}` : settings.siteTitle;
   const lang = escapeHtml(settings.language || 'pt-BR');
-  const stylesheetNames = stylesheetTheme === null
-    ? []
-    : Array.isArray(stylesheetTheme)
-      ? stylesheetTheme
-      : [stylesheetTheme];
-  const stylesheet = stylesheetNames
-    .map((themeName) => `  <link rel="stylesheet" href="/themes/${escapeHtml(themeName)}/dist/theme.css" data-theme-style="${escapeHtml(themeName)}" />`)
-    .join('\n');
-
   // Compiled themes may emit extra styles/scripts/head from their artifact.
   const styleAssets = themeAssets
     ? themeAssets.styleAssets ?? [{ themeName: themeAssets.themeName, styles: themeAssets.styles ?? [], buildId: themeAssets.buildId }]
@@ -821,7 +691,6 @@ export function wrapDocument(
         `  <link rel="stylesheet" href="/themes/${escapeHtml(asset.themeName)}/${escapeHtml(style)}${asset.buildId ? `?v=${encodeURIComponent(asset.buildId)}` : ''}" data-theme-style="${escapeHtml(asset.themeName)}" />`
       ))
     .join('\n');
-  const legacyStyles = stylesheet ? `${stylesheet}\n` : '';
   const compiledStyles = extraStyles ? `${extraStyles}\n` : '';
   const themeHead = themeAssets?.head ? `${themeAssets.head}\n` : '';
   const themeScripts = themeAssets
@@ -903,14 +772,13 @@ export function wrapDocument(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="generator" content="OkCMS ${CMS_VERSION}">
   <title>${escapeHtml(title)}</title>
   <meta name="description" content="${description}">
   ${robotsTag}
 ${canonicalTag}
 ${ogTags.join('\n')}
 ${twitterTags.join('\n')}
-${seoMetaTags}${legacyStyles}${compiledStyles}${themeHead}${headInjections}${assetHead}</head>  <body>
+${seoMetaTags}${compiledStyles}${themeHead}${headInjections}${assetHead}</head>  <body>
 ${body}${assetFooter}${hydrationScript ? `\n${hydrationScript}` : ''}${themeScripts ? `\n${themeScripts}` : ''}
 </body>
 </html>`;
@@ -953,100 +821,6 @@ function sanitizePublicValue(value: unknown): unknown {
 /** Removes storage-only and credential fields from the public theme contract. */
 function publicContentRecord(row: Record<string, unknown>): Record<string, unknown> {
   return sanitizePublicValue(row) as Record<string, unknown>;
-}
-
-/** Tema sem template para a rota: HTML mínimo com os dados reais (nunca stub). */
-function renderFallbackPage(
-  input: ContentPageRenderInput,
-  pluginAssets?: { head: string; footer: string }
-): string {
-  const title = toText((input.contentRow ?? {})['title']) || input.settings.siteTitle;
-  const lang = escapeHtml(input.settings.language || 'pt-BR');
-
-  // SEO for fallback page
-  const canonicalPath = input.resolution.canonicalPath ?? '';
-  const siteUrl = (input.settings['siteUrl'] as string) || '';
-  const canonicalUrl = canonicalPath && siteUrl ? new URL(canonicalPath, siteUrl).toString() : '';
-  const pageDescription = (input.contentRow
-    ? (input.contentRow['seo_description'] as string) ?? (input.contentRow['excerpt'] as string)
-    : undefined) ?? input.settings.siteDescription;
-
-  const ogTitle = title;
-  const ogDescription = pageDescription;
-  const ogImage = '';
-  const ogType = 'website';
-  const ogSiteName = input.settings.siteTitle;
-  const ogLocale = input.settings.language ?? 'pt-BR';
-  const twitterCard = 'summary_large_image';
-  const twitterTitle = ogTitle;
-  const twitterDescription = ogDescription;
-  const twitterImage = ogImage;
-  const robotsDirective = (input.settings['defaultRobots'] as string) ?? 'index,follow';
-
-  // WP6: ponto de extensão theme:head — plugins injetam tags no <head>
-  const registry = getHookRegistry();
-  const headInjections = registry.applyFilters(
-    HOOK_POINTS.THEME_HEAD,
-    '',
-    { settings: input.settings, activeTheme: input.activeTheme }
-  );
-  const seoMetaTags = String(registry.applyFilters(
-    'okcms.seo.meta.tags',
-    '',
-    { settings: input.settings, activeTheme: input.activeTheme, seo: undefined }
-  ));
-  const assetHead = pluginAssets?.head ? `${pluginAssets.head}\n` : '';
-  const assetFooter = pluginAssets?.footer ? `\n${pluginAssets.footer}` : '';
-
-  const canonicalTag = canonicalUrl ? `  <link rel="canonical" href="${escapeHtml(canonicalUrl)}">\n` : '';
-  const ogTags: string[] = [];
-  if (ogTitle) ogTags.push(`  <meta property="og:title" content="${escapeHtml(ogTitle)}">`);
-  if (ogDescription) ogTags.push(`  <meta property="og:description" content="${escapeHtml(ogDescription)}">`);
-  if (ogImage) ogTags.push(`  <meta property="og:image" content="${escapeHtml(ogImage)}">`);
-  ogTags.push(`  <meta property="og:type" content="${escapeHtml(ogType)}">`);
-  if (ogSiteName) ogTags.push(`  <meta property="og:site_name" content="${escapeHtml(ogSiteName)}">`);
-  if (canonicalUrl) ogTags.push(`  <meta property="og:url" content="${escapeHtml(canonicalUrl)}">`);
-  ogTags.push(`  <meta property="og:locale" content="${escapeHtml(ogLocale)}">`);
-  const twitterTags: string[] = [];
-  twitterTags.push(`  <meta name="twitter:card" content="${escapeHtml(twitterCard)}">`);
-  if (twitterTitle) twitterTags.push(`  <meta name="twitter:title" content="${escapeHtml(twitterTitle)}">`);
-  if (twitterDescription) twitterTags.push(`  <meta name="twitter:description" content="${escapeHtml(twitterDescription)}">`);
-  if (twitterImage) twitterTags.push(`  <meta name="twitter:image" content="${escapeHtml(twitterImage)}">`);
-  const robotsTag = `  <meta name="robots" content="${escapeHtml(robotsDirective)}">`;
-
-  return `<!DOCTYPE html>
-<html lang="${lang}">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${escapeHtml(title)} | ${escapeHtml(input.settings.siteTitle)}</title>
-  <meta name="description" content="${escapeHtml(pageDescription)}">
-  ${robotsTag}
-${canonicalTag}
-${ogTags.join('\n')}
-${twitterTags.join('\n')}
-${seoMetaTags}<style>
-    body { font-family: system-ui, sans-serif; margin: 0; color: #111; }
-    main { max-width: 46rem; margin: 0 auto; padding: 3rem 1.5rem; }
-    .fallback__hint { color: #555; line-height: 1.5; }
-    details { margin-top: 2rem; }
-    summary { cursor: pointer; color: #555; }
-    pre { background: #f5f5f5; border: 1px solid #e3e3e3; border-radius: 6px; padding: 1rem; overflow: auto; font-size: 0.85rem; }
-  </style>
-${headInjections}${assetHead}</head>
-<body>
-  <main data-theme="${escapeHtml(input.activeTheme)}">
-    <article>
-      <h1>${escapeHtml(title)}</h1>
-      <p class="fallback__hint">Este tema não possui template para esta rota — os dados reais do conteúdo estão abaixo.</p>
-      <details>
-        <summary>Dados (JSON)</summary>
-        <pre>${escapeHtml(JSON.stringify(input.data, null, 2))}</pre>
-      </details>
-    </article>
-  </main>${assetFooter}
-</body>
-</html>`;
 }
 
 export function escapeHtml(value: string): string {
@@ -1378,21 +1152,15 @@ export function createContentLookup(): ContentLookup {
 }
 
 export function createRouter(themesRoot: string, activeTheme: string): RuntimeRouter {
-  const resolver = new TemplateHierarchyResolver(createTemplateChecker(themesRoot, activeTheme));
-  return new RuntimeRouter(createContentLookup(), resolver);
-}
-
-/**
- * Registra o hook registry no Theme SDK para habilitar os filtros theme:data:*.
- * Awaited no boot do web — fire-and-forget deixava a janela inicial sem hooks.
- */
-export async function wireThemeHooks(): Promise<void> {
-  const sdk = await import('@oktis-works/theme-sdk');
-  sdk.setThemeHooks({
-    applyFilters: (filter, value, ...args) => getHookRegistry().applyFilters(filter, value, ...args),
-    applyFiltersAsync: (filter, value, ...args) => getHookRegistry().applyFiltersAsync(filter, value, ...args),
+  const catalog = loadThemeCatalog(themesRoot, activeTheme);
+  const active = catalog.entries[0];
+  if (!active) throw new Error(`Active theme "${activeTheme}" was not found`);
+  const resolver = new ThemeTemplateResolver({
+    has: (key) => catalog.entries.some((entry) =>
+      entry.engine === active.engine &&
+      entry.problems.length === 0 &&
+      entry.build?.templates.includes(key)
+    ),
   });
-
-  // Ponto de extensão head: plugins podem injetar tags no <head> do site público.
-  void HOOK_POINTS;
+  return new RuntimeRouter(createContentLookup(), resolver);
 }

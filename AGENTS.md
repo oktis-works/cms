@@ -207,6 +207,22 @@ bun run version-packages
 ```
 **NUNCA pule isso** — versões dos pacotes são independentes do root (Changesets). Sem changeset, pacotes não publicam com a fix/feat.
 
+### 16.2. Release Branch Origin (OBRIGATÓRIO)
+**SEMPRE** crie a branch de release a partir de `main` (atualizada), **nunca** de outra branch secundária:
+
+```bash
+# Correto:
+git checkout main
+git pull origin main
+git checkout -b release/vX.Y.Z
+
+# Incorreto (evita divergências, commits órfãos, conflitos desnecessários):
+git checkout feature/alguma-coisa
+git checkout -b release/vX.Y.Z
+```
+
+**Motivo:** A branch de release deve conter exatamente o que está em `main` + as mudanças da release (changesets, version bump, sync). Origem diferente traz histórico sujo e quebra o fluxo do `create-release-pr.yml` que espera `release/**` vindo de `main`.
+
 ### Required local validation sequence (run in order, repeat until all pass):
 
 ```bash

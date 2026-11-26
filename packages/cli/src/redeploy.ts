@@ -40,7 +40,6 @@ import {
   resolveThemeStyle,
   themeManifestPath,
 } from './theme-build.js';
-import { migrateThemeManifests } from './theme-migrate.js';
 import { resolveDeployChoices } from './update.js';
 
 /**
@@ -74,11 +73,11 @@ export interface ThemeBuildEntry {
   theme: string;
   manifestPath: string | null;
   engine: string;
-  renderEngine: 'template' | 'react' | 'solid';
+  renderEngine: 'react' | 'solid';
   output: string;
   entry: string | null;
   /** 'build' = styles and/or compiled artifact will be built on the host. */
-  status: 'build' | 'no-entry' | 'missing-manifest' | 'invalid-manifest';
+  status: 'build' | 'missing-manifest' | 'invalid-manifest';
   /** Erros do manifest (o runtime recusaria o tema de qualquer forma). */
   problems: string[];
 }
@@ -173,7 +172,7 @@ export function planRedeploy(opts: RedeployPlanOptions = {}): RedeployPlan {
         theme,
         manifestPath: null,
         engine: '-',
-        renderEngine: 'template',
+        renderEngine: 'react',
         output: 'dist/theme.css',
         entry: null,
         status: 'missing-manifest',
@@ -188,7 +187,7 @@ export function planRedeploy(opts: RedeployPlanOptions = {}): RedeployPlan {
         theme,
         manifestPath,
         engine: '-',
-        renderEngine: 'template',
+        renderEngine: 'react',
         output: 'dist/theme.css',
         entry: null,
         status: 'invalid-manifest',
@@ -209,27 +208,29 @@ export function planRedeploy(opts: RedeployPlanOptions = {}): RedeployPlan {
     problems.push(...resolved.report.errors);
 
     const { report } = resolved;
-    const renderEngine: 'template' | 'react' | 'solid' =
+    const renderEngine: 'react' | 'solid' | null =
       resolved.manifest['render'] && typeof resolved.manifest['render'] === 'object'
         ? (resolved.manifest['render'] as { engine?: unknown }).engine === 'react'
           ? 'react'
           : (resolved.manifest['render'] as { engine?: unknown }).engine === 'solid'
             ? 'solid'
-            : 'template'
-        : 'template';
+            : null
+        : null;
+    if (!renderEngine) problems.push('manifest render.engine must be react or solid');
+    const effectiveRenderEngine = renderEngine ?? 'react';
     themeBuilds.push({
       theme,
       manifestPath,
       engine: report.engine,
-      renderEngine,
+      renderEngine: effectiveRenderEngine,
       output: report.output,
       entry: report.entry,
       status:
         problems.length > 0
           ? 'invalid-manifest'
-          : report.entry || renderEngine !== 'template'
+          : renderEngine !== null
             ? 'build'
-            : 'no-entry',
+            : 'invalid-manifest',
       problems,
     });
   }
@@ -324,10 +325,8 @@ export function renderPlan(plan: RedeployPlan, opts: RenderPlanOptions = {}): st
     for (const entry of plan.themeBuilds) {
       if (entry.status === 'build') {
         lines.push(
-          `  ✓ ${entry.theme} — ${entry.engine}${entry.renderEngine !== 'template' ? ` + ${entry.renderEngine} ssr` : ''} → ${entry.output}`
+          `  ✓ ${entry.theme} — ${entry.engine} + ${entry.renderEngine} ssr → ${entry.output}`
         );
-      } else if (entry.status === 'no-entry') {
-        lines.push(`  - ${entry.theme} — no style entry (${entry.engine})`);
       } else if (entry.status === 'missing-manifest') {
         lines.push(`  ! ${entry.theme} — no theme.json`);
       } else {
@@ -413,17 +412,6 @@ export async function runRedeploy(opts: RedeployOptions = {}): Promise<number> {
   try {
     const config = loadProjectConfig(cwd);
     const themesDir = join(cwd, config.themesDir);
-
-    // ---- unificação theme.json ----------------------------------------------
-    // Projetos antigos gravam o manifesto do tema default como `manifest.json`.
-    // Migra para o nome canônico ANTES do plano (só assim o plano enxerga o
-    // tema). `--dry-run` não escreve nada — mantém o estado real do disco.
-    if (!opts.dryRun) {
-      const migratedThemes = migrateThemeManifests(themesDir);
-      if (migratedThemes.length > 0) {
-        prompt.info(`theme manifest(s) migrated to theme.json: ${migratedThemes.join(', ')}`);
-      }
-    }
 
     const plan = planRedeploy({ cwd, plugin: opts.plugin, theme: opts.theme });
 

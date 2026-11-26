@@ -7,7 +7,7 @@
   "manifestVersion": 2,
   "scope": "tenant",
   "permissions": ["blocks:register", "patterns:register", "admin:ui"],
-  "compatibility": { "okcms": "^0.42.0" },
+  "compatibility": { "okcms": "^1.0.0" },
   "admin": {
     "editors": [
       {

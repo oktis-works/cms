@@ -26,7 +26,7 @@ describe('NPM flow integration: ThemeLoader (node_modules layout)', () => {
         name,
         version: '1.0.0',
         type: 'theme',
-        render: { engine: 'react', apiVersion: 1, entry: 'src/entry-server.tsx' },
+        render: { engine: 'react', apiVersion: 2, entry: 'src/entry-server.tsx' },
         ...manifest
       })
     );

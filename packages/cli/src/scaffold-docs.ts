@@ -817,175 +817,6 @@ Empacote o diretório do plugin como pacote npm com a keyword
 `;
 
 /** THEME.md — guia de desenvolvimento de temas (português). */
-const THEME_DOC_PT = `# Desenvolvendo um Tema
-
-Tema é o visual do site público: **templates** (hierarquia de páginas) +
-**estilos**, com isolamento por \`[data-theme]\` para que um tema nunca vaze
-CSS para outro.
-
-> Os comandos usam \`npx\` com a CLI local do projeto (sem instalação
-> global). Com a CLI global (\`bun add -g @oktis-works/cms\`), rode
-> \`okcms ...\` direto.
-
-## Estrutura gerada
-
-\`\`\`bash
-okcms theme:create --name meu-tema --style css   # css | scss | tailwind
-\`\`\`
-
-\`\`\`
-themes/meu-tema/
-├── theme.json               # manifest (type: theme + compatibilidade)
-├── home.astro               # templates da hierarquia NA RAIZ
-├── index.astro
-├── single.astro
-├── page.astro
-├── archive.astro
-├── 404.astro
-├── dist/theme.css           # engine css — já servível
-│                            # (ou styles/main.scss — ou src/input.css)
-└── README.md
-\`\`\`
-
-### theme.json
-
-\`\`\`json
-{
-  "name": "meu-tema",
-  "version": "0.1.0",
-  "description": "Tema meu-tema para OkCMS",
-  "type": "theme",
-  "compatibility": { "okcms": "^${CMS_VERSION}" }
-}
-\`\`\`
-
-Com \`--style scss\` ou \`--style tailwind\`, o manifesto ganha também
-\`stylesConfig\` (\`engine\`, \`entry\`, \`output\`, \`isolation\`) apontando para a
-entrada de estilos. \`compatibility.okcms\` é preenchido e validado
-automaticamente, como nos plugins.
-
-Isolamento (\`stylesConfig.isolation\`): \`scss\`/\`tailwind\` sempre escopam no
-build (\`isolation: true\`); no engine \`css\` o tema pode assumir o isolamento
-com \`isolation: \"manual\"\` — o \`dist/theme.css\` entregue já precisa estar
-escopado (é o caso do tema default). \`isolation: false\` é rejeitado.
-
-### Templates
-
-Templates são arquivos \`*.astro\` **na raiz do tema** — é o formato que o
-runtime do site busca (hierarquia \`home\` → \`index\` → \`404\`, com fallback
-\`_shared\` → \`default\`). Sintaxe com variáveis, HTML cru e laços/condições:
-
-\`\`\`html
-<main class="site">
-  {{#each items}}
-    <article>
-      <h2>{{title}}</h2>
-      <p>{{excerpt}}</p>
-    </article>
-  {{/each}}
-</main>
-\`\`\`
-
-- \`{{variável}}\` — valor com escape HTML; \`{{{html}}}\` — sem escape (HTML do conteúdo)
-- \`{{#each}}\` / \`{{#if}}\` aninhados, caminhos pontuados (\`content.author.name\`)
-- \`home.astro\` — home (\`{{site.title}}\`, \`{{#each items}}\`)
-- \`index.astro\`, \`single.astro\`, \`page.astro\` — conteúdo (\`{{content.*}}\`, \`{{page.title}}\`)
-- \`archive.astro\` — listagem por tipo/taxonomia (\`{{#each items}}\`)
-- \`404.astro\` — última da cadeia
-- Contexto disponível: \`site.*\`, \`page.*\`, \`content.*\` (colunas + campos), \`items\`,
-  \`menus\`, \`contentTypes\`, \`taxonomies\`, \`terms\`, \`settings\`
-
-> **Nota — assinatura do produto:** o runtime envolve seus templates com
-> \`<meta name="generator" content="OkCMS <versão>">\` e envia \`X-Powered-By:
-> OkCMS/<versão>\` em toda resposta pública. Se o tema emite o documento
-> COMPLETO (\`<html>\` no fragmento — full-control), o meta não é injetado (o
-> tema é dono do próprio \`<head>\`), mas o header continua presente.
-
-## Estilos por engine
-
-| \`--style\` | Arquivo gerado | Build |
-|---|---|---|
-| \`css\` (default) | \`dist/theme.css\` | nenhum — servido direto |
-| \`scss\` | \`styles/main.scss\` (+ \`components.scss\`) | \`okcms theme:build -n meu-tema\` |
-| \`tailwind\` | \`src/input.css\` + \`tailwind.config.js\` | \`okcms theme:build -n meu-tema\` |
-
-O site público só linka \`/themes/<tema>/dist/theme.css\` — no engine \`css\` o
-arquivo já nasce em \`dist/\` (servível sem build). Nos demais, o build compila
-para \`dist/theme.css\` **com isolamento \`[data-theme="meu-tema"]\`** (sem vazar
-estilos entre temas; o Tailwind já sai com \`preflight: false\`).
-
-> \`dist/theme.css\` é lido **pronto** pelo container — nada compila SCSS ou
-> Tailwind dentro da imagem. O arquivo existe no host e só chega em
-> produção quando a imagem é reconstruída: \`okcms theme:build\` seguido de
-> \`okcms redeploy\`.
-
-## data-theme no HTML (isolamento automático)
-
-O runtime do site envolve cada página pública com \`<html data-theme="<nome-do-tema>">\`.
-Você **não precisa** adicionar esse atributo nos templates Astro — ele é injetado
-automaticamente pelo servidor web em toda resposta pública.
-
-O que isso significa para seu CSS:
-
-- **Engine \`css\` (isolation: \`manual\`)**: escreva todo o CSS escopado dentro de
-  \`[data-theme="seu-tema"]\`. Exemplo:
-
-  \`\`\`css
-  [data-theme="meu-tema"] .hero {
-    padding: 4rem 0;
-    text-align: center;
-  }
-  \`\`\`
-
-- **Engine \`scss\`/\`tailwind\` (isolation: \`true\`)**: o build já escapa todo o CSS
-  automaticamente com \`[data-theme="seu-tema"]\`. Você escreve CSS puro sem
-  pensar no prefixo.
-
-Se você omitir \`[data-theme="..."]\` no CSS, as regras terão alcance global e
-poderão vazar para outros temas instalados no mesmo site — o isolamento é a
-proteção contra isso.
-
-## Fluxo de desenvolvimento
-
-\`\`\`bash
-# 1. Crie
-okcms theme:create --name meu-tema --style scss
-
-# 2. Edite os templates *.astro na raiz e os estilos
-
-# 3. Compile os estilos (scss/tailwind)
-okcms theme:build --name meu-tema
-
-# 4. Ative (grava activeTheme no okcms.config.json)
-okcms theme:manage --name meu-tema --set-active --tenant <tenant-id>
-#    A tela Temas do admin também ativa — o tema ativo é lido do banco a
-#    cada request, sem restart do site.
-
-# 5. Gestão
-okcms theme:list                               # instalados + status
-okcms theme:manage -n meu-tema --info          # informações do theme.json
-Theme activation is tenant-scoped and stored in the database; themes have no local enable/disable state.
-#    (estado local .okcms/extensions.json; o tema ativo é o --set-active)
-okcms theme:manage -n meu-tema --uninstall --tenant <tenant-id>
-okcms theme:search -q blog                     # busca no npm (keyword okcms-theme)
-
-# Se criou FORA do projeto:
-Copy the complete theme directory into \`themes/meu-tema/\`, synchronize it, and run \`okcms theme:build --name meu-tema\`.
-
-# 6. Depois de mudar templates/estilos: recompila e refaz o deploy
-okcms theme:build --name meu-tema   # (o redeploy já compila sozinho)
-okcms redeploy
-\`\`\`
-
-## Publicando
-
-Publique como pacote npm com a keyword \`okcms-theme\` (alvo do
-\`okcms theme:search\`) e mantenha \`compatibility.okcms\` na linha suportada
-do CMS. O \`theme:build\` deve ser executado no seu processo de release para
-que \`dist/theme.css\` vá junto no pacote.
-`;
-
-/** PLUGIN.md — plugin development guide (English). */
 const PLUGIN_DOC_EN = `# Developing a Plugin
 
 A plugin is the extension that registers with the CMS runtime and takes part
@@ -1125,187 +956,6 @@ Package the plugin directory as an npm package with the keyword
 \`compatibility.okcms\` up to date for the CMS line you support.
 `;
 
-/** THEME.md — theme development guide (English). */
-const THEME_DOC_EN = `# Developing a Theme
-
-A theme is the look of the public site: **templates** (a page hierarchy) +
-**styles**, isolated by \`[data-theme]\` so a theme never leaks CSS into
-another one.
-
-> The commands use \`npx\` with the project's local CLI (no global
-> install). With the global CLI (\`bun add -g @oktis-works/cms\`), run
-> \`okcms ...\` directly.
-
-## Generated structure
-
-\`\`\`bash
-okcms theme:create --name my-theme --style css   # css | scss | tailwind
-\`\`\`
-
-\`\`\`
-themes/my-theme/
-├── theme.json               # manifest (type: theme + compatibility)
-├── home.astro               # hierarchy templates AT THE ROOT
-├── index.astro
-├── single.astro
-├── page.astro
-├── archive.astro
-├── 404.astro
-├── dist/theme.css           # css engine — ready to serve
-│                            # (or styles/main.scss — or src/input.css)
-└── README.md
-\`\`\`
-
-### theme.json
-
-\`\`\`json
-{
-  "name": "my-theme",
-  "version": "0.1.0",
-  "description": "my-theme theme for OkCMS",
-  "type": "theme",
-  "compatibility": { "okcms": "^${CMS_VERSION}" }
-}
-\`\`\`
-
-With \`--style scss\` or \`--style tailwind\`, the manifest also gets
-\`stylesConfig\` (\`engine\`, \`entry\`, \`output\`, \`isolation\`) pointing at the
-style entry. \`compatibility.okcms\` is filled in and validated
-automatically, just like with plugins.
-
-Isolation (\`stylesConfig.isolation\`): \`scss\`/\`tailwind\` always get scoped
-on build (\`isolation: true\`); on the \`css\` engine the theme can take
-responsibility with \`isolation: \"manual\"\` — the shipped \`dist/theme.css\`
-must already be scoped (the bundled default theme is). \`isolation: false\` is
-rejected.
-
-### Templates
-
-Templates are \`*.astro\` files **at the theme root** — that's what the site
-runtime looks up (hierarchy \`home\` → \`index\` → \`404\`, with \`_shared\` →
-\`default\` fallback). Syntax with variables, raw HTML, and nested
-loops/conditionals:
-
-\`\`\`html
-<main class="site">
-  {{#each items}}
-    <article>
-      <h2>{{title}}</h2>
-      <p>{{excerpt}}</p>
-    </article>
-  {{/each}}
-</main>
-\`\`\`
-
-- \`{{variable}}\` — HTML-escaped value; \`{{{html}}}\` — raw (content HTML)
-- \`{{#each}}\` / \`{{#if}}\` nest, dotted paths (\`content.author.name\`)
-- \`home.astro\` — home (\`{{site.title}}\`, \`{{#each items}}\`)
-- \`index.astro\`, \`single.astro\`, \`page.astro\` — content (\`{{content.*}}\`, \`{{page.title}}\`)
-- \`archive.astro\` — type/taxonomy listing (\`{{#each items}}\`)
-- \`404.astro\` — last in the chain
-- Context available: \`site.*\`, \`page.*\`, \`content.*\` (columns + fields), \`items\`,
-  \`menus\`, \`contentTypes\`, \`taxonomies\`, \`terms\`, \`settings\`
-
-> **Note — product signature:** the runtime wraps your templates with
-> \`<meta name="generator" content="OkCMS <version>">\` and sends
-> \`X-Powered-By: OkCMS/<version>\` on every public response. If the theme
-> emits a COMPLETE document (\`<html>\` in the fragment — full-control), the
-> meta is not injected (the theme owns its \`<head>\`), but the header is
-> still there.
-
-## Styles per engine
-
-| \`--style\` | Generated file | Build |
-|---|---|---|
-| \`css\` (default) | \`dist/theme.css\` | none — served as is |
-| \`scss\` | \`styles/main.scss\` (+ \`components.scss\`) | \`okcms theme:build -n my-theme\` |
-| \`tailwind\` | \`src/input.css\` + \`tailwind.config.js\` | \`okcms theme:build -n my-theme\` |
-
-The public site only links \`/themes/<theme>/dist/theme.css\` — on the \`css\`
-engine the file is born in \`dist/\` (served with no build). On the others, the
-build compiles into \`dist/theme.css\` **with \`[data-theme="my-theme"]\`
-isolation** (styles never leak between themes; Tailwind already ships with
-\`preflight: false\`).
-
-> \`dist/theme.css\` is read **ready-made** by the container — nothing compiles
-> SCSS or Tailwind inside the image. The file exists on the host and only
-> reaches production when the image is rebuilt: \`okcms theme:build\` followed by
-> \`okcms redeploy\`.
-
-## data-theme on HTML (automatic isolation)
-
-The site runtime wraps every public page with \`<html data-theme="<theme-name>">\`.
-You **do not need** to add this attribute in your Astro templates — it is injected
-automatically by the web server on every public response.
-
-What this means for your CSS:
-
-- **Engine \`css\` (isolation: \`manual\`)**: write all CSS scoped inside
-  \`[data-theme="your-theme"]\`. Example:
-
-  \`\`\`css
-  [data-theme="my-theme"] .hero {
-    padding: 4rem 0;
-    text-align: center;
-  }
-  \`\`\`
-
-- **Engine \`scss\`/\`tailwind\` (isolation: \`true\`)**: the build already scopes all
-  CSS automatically with \`[data-theme="your-theme"]\`. You write plain CSS without
-  thinking about the prefix.
-
-If you omit \`[data-theme="..."]\` in your CSS, rules will have global scope and
-may leak into other themes installed on the same site — isolation is the
-protection against this.
-
-## Development workflow
-
-\`\`\`bash
-# 1. Create it
-okcms theme:create --name my-theme --style scss
-
-# 2. Edit the root *.astro templates and styles
-
-# 3. Compile the styles (scss/tailwind)
-okcms theme:build --name my-theme
-
-# 4. Activate it (writes activeTheme into okcms.config.json)
-okcms theme:manage --name my-theme --set-active --tenant <tenant-id>
-#    The admin Themes screen activates too — the active theme is read from
-#    the database on every request, no site restart needed.
-
-# 5. Management
-okcms theme:list                               # installed + status
-okcms theme:manage -n my-theme --info          # theme.json information
-Theme activation is tenant-scoped and stored in the database; themes have no local enable/disable state.
-#    (local state .okcms/extensions.json; the active theme is the --set-active)
-okcms theme:manage -n my-theme --uninstall --tenant <tenant-id>
-okcms theme:search -q blog                     # npm search (keyword okcms-theme)
-
-# If you created it OUTSIDE the project:
-Copy the complete theme directory into \`themes/my-theme/\`, synchronize it, and run \`okcms theme:build --name my-theme\`.
-
-# 6. After changing templates/styles: recompile and redo the deploy
-okcms theme:build --name my-theme   # (the redeploy compiles it anyway)
-okcms redeploy
-\`\`\`
-
-## Publishing
-
-Publish as an npm package with the keyword \`okcms-theme\` (the target of
-\`okcms theme:search\`) and keep \`compatibility.okcms\` on the supported CMS
-line. Run \`theme:build\` in your release process so \`dist/theme.css\` ships
-inside the package.
-`;
-
-// ---------------------------------------------------------------------------
-// Superfície pública — uma entrada por documento, com a língua pedida
-// ---------------------------------------------------------------------------
-
-/**
- * README.md do projeto scaffoldado, na língua escolhida no \`okcms init\`.
- * Default \`en\` (Enter do prompt e único valor em modo não-interativo).
- */
 export function projectReadme(
   projectName: string,
   lang: DocsLang = DEFAULT_DOCS_LANG
@@ -1314,14 +964,80 @@ export function projectReadme(
   return readme.replaceAll('npx okcms', 'okcms');
 }
 
-/** PLUGIN.md na língua pedida. */
+/** PLUGIN.md in the selected locale. */
 export function pluginDoc(lang: DocsLang = DEFAULT_DOCS_LANG): string {
   return lang === 'pt' ? PLUGIN_DOC_PT : PLUGIN_DOC_EN;
 }
 
-/** THEME.md na língua pedida. */
-export function themeDoc(lang: DocsLang = DEFAULT_DOCS_LANG): string {
-  return lang === 'pt' ? THEME_DOC_PT : THEME_DOC_EN;
+/** THEME.md — theme development guide (English). */
+const THEME_DOC_V1 = [
+  '# Developing a Theme',
+  '',
+  'OkCMS v1 themes are isolated React or Solid projects. The theme owns its',
+  'framework dependencies and communicates with the host only through the',
+  'request-scoped ThemeSdkBridge.',
+  '',
+  '## Structure',
+  '',
+  '```',
+  'themes/my-theme/',
+  '├── package.json',
+  '├── theme.json',
+  '├── src/entry-server.tsx',
+  '├── home.tsx',
+  '├── index.tsx',
+  '├── single.tsx',
+  '├── page.tsx',
+  '├── archive.tsx',
+  '├── 404.tsx',
+  '└── dist/theme-build.json',
+  '```',
+  '',
+  'The manifest must declare render.engine as react or solid,',
+  'render.apiVersion: 2, and a compatible compatibility.okcms range.',
+  '',
+  '## Server entry',
+  '',
+  '```tsx',
+  "export const templateKeys = ['home', 'index', 'single', 'page', 'archive', '404'];",
+  '',
+  'export function render(key, data, context, sdk) {',
+  "  const Component = components[key] ?? components['404'];",
+  '  return { html: renderComponent(Component, data, context, sdk) };',
+  '}',
+  '```',
+  '',
+  'The host resolves logical keys and passes public normalized data. All CMS and',
+  'plugin operations go through sdk.content, sdk.menus, sdk.taxonomies,',
+  'sdk.settings, sdk.fields, sdk.hooks, sdk.actions, and sdk.plugins. Do not',
+  'import database, core, web, or plugin-runtime modules.',
+  '',
+  '## Build',
+  '',
+  '```bash',
+  'okcms theme:create --name my-theme --engine react --style scss',
+  'okcms theme:build --name my-theme',
+  'okcms theme:manage --name my-theme --set-active --tenant <tenant-id>',
+  '```',
+  '',
+  'The runtime rejects invalid manifests, stale artifacts, unsupported API',
+  'versions, cross-engine inheritance, and assets outside the theme directory.',
+  'There is no string-template renderer and no HTML fallback.',
+  '',
+  '## Inheritance and privacy',
+  '',
+  'Inheritance overrides logical keys only between same-engine themes with a',
+  'compatible SDK contract. It never shares framework dependencies or providers.',
+  'The public host does not add CMS generator metadata, product headers, or RSS',
+  'generator elements. Theme authors control site disclosure and SEO metadata.',
+  '',
+  'Read THEME.md and docs/theme-development.md for the full guide.',
+  '',
+].join('\n');
+
+/** THEME.md in the selected locale. */
+export function themeDoc(_lang: DocsLang = DEFAULT_DOCS_LANG): string {
+  return THEME_DOC_V1;
 }
 
 export function providerMatrixDoc(lang: DocsLang = DEFAULT_DOCS_LANG): string {

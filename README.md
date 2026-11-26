@@ -1,8 +1,8 @@
 > 📄 **English** · [Português](./README.pt-BR.md)
 
-# OkCMS v0.42.9
+# OkCMS v1.0.0
 
-Hybrid, modular, API-first, extensible CMS with Astro+SolidJS frontend, Node.js/TypeScript backend, PostgreSQL, Docker immutable deployments, plugin and theme extension systems, and multi-tenancy. Public themes can use the default string-template engine or compiled **React/Solid SSR** engines (`render.engine`), built on the host with `okcms theme:build` and watched by `okcms dev`.
+Hybrid, modular, API-first, extensible CMS with a React/Solid theme platform, Node.js/TypeScript backend, PostgreSQL, Docker immutable deployments, plugin and theme extension systems, and multi-tenancy. Public themes are isolated React or Solid projects compiled with `okcms theme:build` and connected to the host only through `ThemeSdkBridge`.
 
 ## Documentation
 
@@ -228,10 +228,10 @@ target.
 | `okcms plugin:install` | `-n, --name` (required) | Installs from a local path + registers |
 | `okcms plugin:list` · `plugin:search` | `-q, --query` | Lists installed / searches npm (`okcms-plugin`) |
 | `okcms plugin:manage` | `-n, --name` (required) · `-i` · `-e` · `-d` · `-u` | Info; enable/disable (local state); uninstall |
-| `okcms theme:create` | `-n, --name` (required) · `-d, --dir` · `-s, --style css\|scss\|tailwind` | Minimal theme scaffold |
+| `okcms theme:create` | `-n, --name` (required) · `--engine react\|solid` · `-d, --dir` · `-s, --style css\|scss\|tailwind` | Isolated React/Solid theme scaffold |
 | `okcms theme:list` · `theme:search` | `-q, --query` | Theme lookup |
-| `okcms theme:manage` | `-n, --name` (required) · `-i` · `-e` · `-d` · `-u` · `-s, --set-active` | Info; enable/disable (local state); uninstall; activate |
-| `okcms theme:build` | `-n, --name` (required) · `-d, --themes-dir` | Compiles SCSS/Tailwind → isolated `dist/theme.css` |
+| `okcms theme:manage` | `-n, --name` (required) · `-i` · `-d` · `-u` · `-s, --set-active` | Info; uninstall; tenant-scoped activation |
+| `okcms theme:build` | `-n, --name` (required) · `-d, --themes-dir` | Compiles SSR artifact and isolated styles |
 
 **Content and system**
 
@@ -323,8 +323,8 @@ okcms redeploy
 1. copies `plugins/<n>/migrations/*.sql` to `migrations/` — idempotent, and a
    name outside `V###__owner__nome.sql` is **never** copied (it would break every
    `db:migrate`);
-2. compiles the style of each theme that has an entry, writing
-   `themes/<n>/dist/theme.css`;
+2. compiles each React/Solid theme, writing
+   `themes/<n>/dist/theme-build.json` and isolated styles;
 3. runs the deploy of the chosen target — same as `okcms update --mode deploy`,
    except **without**
    `bun add` — what changed is extension content, not a package version.
@@ -344,7 +344,7 @@ failure rolls back, as always. Useful options:
 
 ## Architecture
 
-- **Frontend**: Astro (SSR) + SolidJS (reactive islands)
+- **Public theme frontend**: framework-neutral host + isolated React/Solid SSR themes
 - **Backend**: Node.js + TypeScript + Hono
 - **Database**: PostgreSQL with Row-Level Security
 - **Cache/Queue**: Redis

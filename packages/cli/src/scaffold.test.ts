@@ -181,7 +181,8 @@ describe('scaffoldProject', () => {
     expect(theme).toContain('okcms theme:create');
     expect(theme).toContain('okcms theme:build');
     expect(theme).toContain('--set-active');
-    expect(theme).toContain('okcms-theme');
+    expect(theme).toContain('ThemeSdkBridge');
+    expect(theme).toContain('render.apiVersion: 2');
   });
 
   it('gera um projeto MySQL com ambiente, compose, assets de deploy e documentação do provider', async () => {
@@ -211,9 +212,7 @@ describe('scaffoldProject', () => {
     expect(readFileSync(join(root, 'PLUGIN.md'), 'utf-8')).toContain(
       '# Desenvolvendo um Plugin'
     );
-    expect(readFileSync(join(root, 'THEME.md'), 'utf-8')).toContain(
-      '# Desenvolvendo um Tema'
-    );
+    expect(readFileSync(join(root, 'THEME.md'), 'utf-8')).toContain('# Developing a Theme');
 
     // o nome do arquivo é estável em ambas as línguas (só o conteúdo muda)
     expect(existsSync(join(root, 'README.en.md'))).toBe(false);
@@ -706,7 +705,7 @@ describe('scaffold-docs bilíngue', () => {
     expect(pluginDoc('en')).toContain('# Developing a Plugin');
     expect(pluginDoc('pt')).toContain('# Desenvolvendo um Plugin');
     expect(themeDoc('en')).toContain('# Developing a Theme');
-    expect(themeDoc('pt')).toContain('# Desenvolvendo um Tema');
+    expect(themeDoc('pt')).toContain('# Developing a Theme');
 
     // default explícito = inglês (Enter do prompt / CI sem TTY)
     expect(pluginDoc()).toBe(pluginDoc('en'));
