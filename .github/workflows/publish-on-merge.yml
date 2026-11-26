@@ -1,7 +1,7 @@
 name: Publish on PR Merge
 
 # Disparado APENAS quando PR é mergeado na main
-# Aguarda TODOS os checks do PR passarem antes de disparar o publish
+# Branch protection garante que checks (Tests/Typecheck/Lint/Audit) já passaram
 # Envia tag vazio para publish.yml fazer checkout de main (refs/heads/main)
 
 on:
@@ -25,44 +25,6 @@ jobs:
       - name: Extract version from package.json
         id: version
         run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
-
-      - name: Wait for PR checks to pass
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const { owner, repo } = context.repo;
-            const sha = context.payload.pull_request.head.sha;
-            const maxWaitMs = 10 * 60 * 1000; // 10 min
-            const pollIntervalMs = 15000; // 15s
-            const start = Date.now();
-            const requiredContexts = ['Tests', 'Typecheck', 'Lint', 'Dependency Audit'];
-
-            async function getStatus() {
-              const { data } = await github.rest.repos.getCombinedStatusForRef({
-                owner,
-                repo,
-                ref: sha,
-              });
-              return data;
-            }
-
-            while (Date.now() - start < maxWaitMs) {
-              const status = await getStatus();
-              if (status.state === 'success') {
-                console.log('✅ All checks passed');
-                return;
-              }
-              const pending = requiredContexts.filter(ctx =>
-                !status.statuses.some(s => s.context === ctx && s.state === 'success')
-              );
-              if (pending.length > 0) {
-                console.log(`⏳ Waiting for: ${pending.join(', ')} (state: ${status.state})`);
-              } else {
-                console.log(`⏳ State: ${status.state} — waiting...`);
-              }
-              await new Promise(r => setTimeout(r, pollIntervalMs));
-            }
-            throw new Error('❌ Timeout: PR checks did not pass within 10 minutes');
 
       - name: Trigger publish workflow
         uses: peter-evans/repository-dispatch@v4
