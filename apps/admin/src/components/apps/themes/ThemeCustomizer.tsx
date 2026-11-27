@@ -101,6 +101,7 @@ export function ThemeCustomizer() {
   const [previewToken, setPreviewToken] = createSignal<string | null>(null);
   const [selectedThemeId, setSelectedThemeId] = createSignal<string | null>(null);
   const [activeTab, setActiveTab] = createSignal<string | null>(null);
+  const [history, setHistory] = createSignal<Array<{ id: string; config: Record<string, unknown>; userId: string | null; changeSummary: string | null; createdAt: string }>>([]);
 
   let debounceHandle: ReturnType<typeof setTimeout> | null = null;
 
@@ -231,6 +232,79 @@ export function ThemeCustomizer() {
       setError(t('customizer.saveError'));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function exportConfig(): Promise<void> {
+    const theme = selectedTheme();
+    if (!theme) return;
+    try {
+      const exported = await apiClient.exportThemeConfig(theme.id);
+      const blob = new Blob([JSON.stringify(exported, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `theme-config-${theme.name}.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setError('Failed to export the theme configuration.');
+    }
+  }
+
+  async function importConfig(file: File | undefined): Promise<void> {
+    const theme = selectedTheme();
+    if (!theme || !file) return;
+    try {
+      const parsed = JSON.parse(await file.text()) as { config?: Record<string, unknown> };
+      if (!parsed.config || typeof parsed.config !== 'object' || Array.isArray(parsed.config)) {
+        throw new Error('The selected file does not contain a valid config object.');
+      }
+      const updated = await apiClient.importThemeConfig(theme.id, parsed.config, 'merge');
+      setThemes(themes().map((item) => (item.id === theme.id ? updated : item)));
+      setSavedConfig(updated.config ?? {});
+      setDraft(updated.config ?? {});
+      setSaved(true);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to import the theme configuration.');
+    }
+  }
+
+  async function loadHistory(): Promise<void> {
+    const theme = selectedTheme();
+    if (!theme) return;
+    try {
+      setHistory(await apiClient.getThemeConfigHistory(theme.id));
+    } catch {
+      setError('Failed to load theme configuration history.');
+    }
+  }
+
+  async function restoreDefaults(): Promise<void> {
+    const theme = selectedTheme();
+    if (!theme || !window.confirm('Restore the theme manifest defaults? This replaces the current saved configuration.')) return;
+    try {
+      const updated = await apiClient.restoreThemeDefaults(theme.id);
+      setThemes(themes().map((item) => (item.id === theme.id ? updated : item)));
+      setSavedConfig(updated.config ?? {});
+      setDraft(updated.config ?? {});
+      setSaved(true);
+    } catch {
+      setError('Failed to restore theme defaults.');
+    }
+  }
+
+  async function restoreVersion(versionId: string): Promise<void> {
+    const theme = selectedTheme();
+    if (!theme || !window.confirm('Restore this saved theme configuration version?')) return;
+    try {
+      const updated = await apiClient.restoreThemeConfig(theme.id, versionId);
+      setThemes(themes().map((item) => (item.id === theme.id ? updated : item)));
+      setSavedConfig(updated.config ?? {});
+      setDraft(updated.config ?? {});
+      setSaved(true);
+    } catch {
+      setError('Failed to restore the selected theme configuration version.');
     }
   }
 
@@ -397,7 +471,32 @@ export function ThemeCustomizer() {
               <button class="btn btn-secondary" onClick={refreshPreviewNow}>
                 {t('customizer.refreshPreview')}
               </button>
+              <button class="btn btn-secondary" onClick={() => void exportConfig()}>
+                Export
+              </button>
+              <label class="btn btn-secondary customizer__file-button">
+                Import
+                <input type="file" accept="application/json,.json" onChange={(event) => void importConfig(event.currentTarget.files?.[0])} />
+              </label>
+              <button class="btn btn-secondary" onClick={() => void restoreDefaults()}>
+                Restore defaults
+              </button>
+              <button class="btn btn-secondary" onClick={() => void loadHistory()}>
+                History
+              </button>
             </div>
+            <Show when={history().length > 0}>
+              <div class="customizer__history">
+                <strong>Configuration history</strong>
+                <For each={history()}>
+                  {(version) => (
+                    <button class="btn btn-secondary btn-sm" onClick={() => void restoreVersion(version.id)}>
+                      {new Date(version.createdAt).toLocaleString()} — Restore
+                    </button>
+                  )}
+                </For>
+              </div>
+            </Show>
             <Show when={saved()}>
               <span class="customizer__saved">{t('customizer.saved')}</span>
             </Show>

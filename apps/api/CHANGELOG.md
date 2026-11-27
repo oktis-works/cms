@@ -1,5 +1,14 @@
 # @oktis-works/api
 
+## 0.19.6
+
+### Patch Changes
+
+- fix: harden tenant settings, provider-neutral public rendering, theme hydration, and release configuration workflows
+- Updated dependencies
+  - @oktis-works/core@1.0.2
+  - @oktis-works/database@0.16.8
+
 ## 0.19.5
 
 ### Patch Changes

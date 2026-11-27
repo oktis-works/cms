@@ -1,5 +1,9 @@
 import type { ThemePageData } from '@oktis-works/theme-sdk';
 
+function relatedUrl(item: Record<string, unknown>): string {
+  return typeof item.url === 'string' && item.url ? item.url : `/${String(item.slug ?? '')}`;
+}
+
 export default function Single({ page, content }: ThemePageData) {
   return (
     <article className="site single post-single">
@@ -14,13 +18,13 @@ export default function Single({ page, content }: ThemePageData) {
         <footer className="post-footer">
           <nav className="post-nav" aria-label="Post navigation">
             {page.previous && (
-              <a href={`/${String(page.previous.slug)}`} className="post-nav__prev">
+              <a href={relatedUrl(page.previous as unknown as Record<string, unknown>)} className="post-nav__prev">
                 <span className="post-nav__label">Previous</span>
                 <span className="post-nav__title">{String(page.previous.title)}</span>
               </a>
             )}
             {page.next && (
-              <a href={`/${String(page.next.slug)}`} className="post-nav__next">
+              <a href={relatedUrl(page.next as unknown as Record<string, unknown>)} className="post-nav__next">
                 <span className="post-nav__label">Next</span>
                 <span className="post-nav__title">{String(page.next.title)}</span>
               </a>

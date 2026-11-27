@@ -791,28 +791,19 @@ export class ThemeService {
     const manifest = existing.manifest as { settings?: any[] } | null;
     const manifestSettings = manifest?.settings ?? [];
 
-    // In replace mode, we allow any keys (full config replacement)
-    // In merge mode, we validate against manifest
-    let validation;
-    if (mode === 'replace') {
-      // In replace mode, we accept any config but still sanitize known fields
-      validation = validateThemeConfig(config, manifestSettings, true);
-    } else {
-      validation = validateThemeConfig(config, manifestSettings);
-    }
+    const validation = validateThemeConfig(config, manifestSettings);
     if (!validation.valid) {
       throw new Error(`Theme config validation failed: ${validation.errors.join('; ')}`);
     }
 
     let newConfig: Record<string, unknown>;
     if (mode === 'replace') {
-      // In replace mode, use the full config (not just sanitized)
-      newConfig = config;
+      newConfig = validation.sanitized;
     } else {
       newConfig = { ...(existing.config ?? {}), ...validation.sanitized };
     }
 
-    return this.updateConfig(id, newConfig, undefined, mode === 'replace', currentTenantId);
+    return this.updateConfig(id, newConfig, undefined, false, currentTenantId);
   }
 
   /** Get config version history for a theme. */

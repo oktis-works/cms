@@ -52,6 +52,8 @@ for (const boundary of manifest.boundaries) {
     }
 
     const state = await target`SELECT schema_version FROM schema_bootstrap WHERE id = 1`;
+    // schema_bootstrap tracks the latest core_schema migration. V030 is a
+    // tenant_data migration, so the core schema boundary remains V029.
     if (state[0]?.schema_version !== 'V029') throw new Error(`${boundary.id}: expected V029, got ${state[0]?.schema_version}`);
     results.push({ id: boundary.id, applied: migrationResult.applied, state: state[0]?.schema_version });
   } finally {

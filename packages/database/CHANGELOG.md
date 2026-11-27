@@ -1,5 +1,11 @@
 # @oktis-works/database
 
+## 0.16.8
+
+### Patch Changes
+
+- fix: harden tenant settings, provider-neutral public rendering, theme hydration, and release configuration workflows
+
 ## 0.16.7
 
 ### Patch Changes

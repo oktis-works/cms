@@ -275,9 +275,9 @@ function scopeKey(tenantId?: string | null): string {
 function createApiDeps(tenantId: string | null): Partial<PluginApiDependencies> {
   return {
     settings: {
-      get: settingsService.get.bind(settingsService),
+      get: (group?: string) => settingsService.get(group, tenantId ?? undefined),
       set: async (key: string, value: unknown, group?: string) => {
-        await settingsService.set(key, value, group);
+        await settingsService.set(key, value, group ?? 'plugin', 'json', tenantId ?? undefined);
       },
     },
     eventBus: {

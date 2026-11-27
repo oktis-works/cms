@@ -29,8 +29,8 @@ export const DEFAULT_ROLES = [
 export const DEFAULT_SETTINGS = [
   { key: 'siteTitle', value: 'My Site', type: 'string' },
   { key: 'siteDescription', value: 'A brand new site built with OkCMS', type: 'string' },
+  { key: 'siteUrl', value: '', type: 'string' },
   { key: 'language', value: 'en', type: 'string' },
-  { key: 'timezone', value: 'UTC', type: 'string' },
 ] as const;
 
 /** Creates (if missing) the policy's global roles (tenant_id NULL). Returns the created count. */

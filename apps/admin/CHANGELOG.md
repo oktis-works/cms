@@ -1,5 +1,11 @@
 # @oktis-works/admin
 
+## 1.0.2
+
+### Patch Changes
+
+- fix: harden tenant settings, provider-neutral public rendering, theme hydration, and release configuration workflows
+
 ## 1.0.1
 
 ### Patch Changes

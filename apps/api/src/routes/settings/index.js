@@ -12,13 +12,16 @@ router.put('/', requirePermission('update', 'setting'), async (c) => {
     try {
         const body = await c.req.json();
         const settings = Array.isArray(body) ? body : [body];
-        await settingsService.setMany(settings.map((s) => ({
+        if (settings.length === 0 || settings.length > 100) {
+            return c.json({ error: 'Settings payload must contain between 1 and 100 items' }, 400);
+        }
+        const result = await settingsService.setMany(settings.map((s) => ({
             key: s['key'],
             value: s['value'],
             group: s['group'],
             type: s['type'],
         })));
-        return c.json({ success: true });
+        return c.json(result);
     }
     catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to update settings';

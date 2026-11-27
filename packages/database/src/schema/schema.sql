@@ -1133,15 +1133,10 @@ BEGIN
   END IF;
 END $$;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies 
-    WHERE policyname = 'tenant_isolation_settings' AND tablename = 'settings'
-  ) THEN
-    CREATE POLICY tenant_isolation_settings ON settings USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid OR tenant_id IS NULL);
-  END IF;
-END $$;
+DROP POLICY IF EXISTS tenant_isolation_settings ON settings;
+CREATE POLICY tenant_isolation_settings ON settings
+  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid OR tenant_id IS NULL)
+  WITH CHECK (tenant_id = current_setting('app.current_tenant_id', true)::uuid OR tenant_id IS NULL);
 
 DO $$
 BEGIN

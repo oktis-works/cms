@@ -18,6 +18,8 @@ export interface FeedContext {
   items: Array<Record<string, unknown>>;
   /** Feed URL (e.g., '/blog/feed') */
   feedUrl: string;
+  /** Site language in BCP 47 format. */
+  language?: string;
 }
 
 /**
@@ -25,10 +27,10 @@ export interface FeedContext {
  */
 function escapeXml(str: string): string {
   return str
-    .replace(/&/g, '&')
-    .replace(/</g, '<')
-    .replace(/>/g, '>')
-    .replace(/"/g, '"')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
 }
 
@@ -36,8 +38,10 @@ function escapeXml(str: string): string {
  * Builds the full canonical URL for a feed item.
  */
 function buildFeedItemUrl(context: FeedContext, item: Record<string, unknown>): string {
-  // For now, use simple slug. Parent chain would require additional lookup.
-  return new URL(`/${context.hubBase}/${item['slug'] as string}`, context.siteUrl).toString();
+  const path = typeof item['url'] === 'string'
+    ? item['url']
+    : `/${context.hubBase}/${item['slug'] as string}`;
+  return new URL(path, context.siteUrl).toString();
 }
 
 /**
@@ -74,7 +78,7 @@ export function generateRssFeed(context: FeedContext): string {
     <title>${escapeXml(context.hubTitle)}</title>
     <link>${new URL(`/${context.hubBase}/`, context.siteUrl).toString()}</link>
     <description>${escapeXml(context.hubDescription ?? context.siteName)}</description>
-    <language>pt-BR</language>
+    <language>${escapeXml(context.language ?? 'en')}</language>
     <atom:link href="${feedUrl}" rel="self" type="application/rss+xml" />
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
 ${itemsXml}
