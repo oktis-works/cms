@@ -349,6 +349,25 @@ Keys can be single-use (`oneTime`) and/or expire at a given date. Only the SHA-2
 - `DELETE /api/v1/content/:id` - Delete content
 - `GET /api/v1/content/:id/versions` - Get content versions
 
+## Read more
+
+Want to go deeper? These guides dive into specific topics:
+
+| What you want to know | Guide |
+|---|---|
+| Full CLI command reference (all commands, options, flags) | [docs/cli-reference.md](./docs/cli-reference.md) |
+| Docker deployment — targets, lanes, rollback, security | [docs/docker-deploy.md](./docs/docker-deploy.md) |
+| Contributing code — local dev, quality, publishing | [docs/maintainer-guide.md](./docs/maintainer-guide.md) |
+| Building plugins — manifest, hooks, admin UI, field types | [docs/plugin-development.md](./docs/plugin-development.md) |
+| Building themes — React/Solid, SDK bridge, inheritance | [docs/theme-development.md](./docs/theme-development.md) |
+| Contracts, migration safety, tenant context, event store | [docs/settings-contract.md](./docs/settings-contract.md) · [docs/theme-preview.md](./docs/theme-preview.md) |
+| WordPress → OkCMS conceptual mapping | [docs/wordpress-conceptual-mapping.md](./docs/wordpress-conceptual-mapping.md) |
+| Database provider matrix | [docs/provider-matrix.md](./docs/provider-matrix.md) |
+| SEO configuration | [docs/seo.md](./docs/seo.md) |
+| Migration recovery procedures | [docs/migration-recovery.md](./docs/migration-recovery.md) |
+
+---
+
 ## License
 
 OkCMS is free software licensed under the GNU General Public License, version 2 or any later version (GPL-2.0-or-later), the same license used by WordPress. See [LICENSE](LICENSE) for the complete license text.

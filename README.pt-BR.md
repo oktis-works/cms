@@ -333,6 +333,23 @@ Keys podem ser de uso único (`oneTime`) e/ou expirar em data definida. Apenas o
 - `DELETE /api/v1/content/:id` - Deleta conteúdo
 - `GET /api/v1/content/:id/versions` - Obtém versões do conteúdo
 
+## Leia mais
+
+Quer se aprofundar? Esses guias entram em detalhes sobre tópicos específicos:
+
+| O que você quer saber | Guia |
+|---|---|
+| Referência completa de comandos CLI (todos, opções, flags) | [docs/cli-reference.pt-BR.md](./docs/cli-reference.pt-BR.md) |
+| Deploy em Docker — targets, lanes, rollback, segurança | [docs/docker-deploy.pt-BR.md](./docs/docker-deploy.pt-BR.md) |
+| Contribuir com código — dev local, qualidade, publicação | [docs/maintainer-guide.pt-BR.md](./docs/maintainer-guide.pt-BR.md) |
+| Construindo plugins — manifest, hooks, admin UI, tipos de campo | [docs/plugin-development.pt-BR.md](./docs/plugin-development.pt-BR.md) |
+| Construindo temas — React/Solid, SDK bridge, herança | [docs/theme-development.pt-BR.md](./docs/theme-development.pt-BR.md) |
+| Contratos, segurança de migração, contexto do tenant, event store | [docs/settings-contract.md](./docs/settings-contract.md) · [docs/theme-preview.md](./docs/theme-preview.md) |
+| Mapeamento conceitual WordPress → OkCMS | [docs/wordpress-conceptual-mapping.md](./docs/wordpress-conceptual-mapping.md) |
+| Matriz de provedores e versões de banco | [docs/provider-matrix.pt-BR.md](./docs/provider-matrix.pt-BR.md) |
+
+---
+
 ## Licença
 
 O OkCMS é software livre licenciado sob a GNU General Public License, versão 2 ou qualquer versão posterior (GPL-2.0-or-later), a mesma licença usada pelo WordPress. Consulte [LICENSE](LICENSE) para o texto completo da licença.
