@@ -1,5 +1,13 @@
 # @oktis-works/ui
 
+## 0.6.6
+
+### Patch Changes
+
+- fix(release): apply gap corrections for v1.0.4 — remove duplicate test files (`.js` in favor of `.ts`), remove duplicate API route files (`index.js` in favor of `index.ts`), consolidate Vitest config to `vitest.config.ts`, migrate ESLint to Oxlint, remove tag-based publish trigger (publish only via PR merge to main), and align AGENTS.md with the PR-driven release flow.
+- Updated dependencies
+  - @oktis-works/validation@1.0.2
+
 ## 0.6.5
 
 ### Patch Changes

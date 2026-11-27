@@ -1,6 +1,6 @@
 > 📄 **English** · [Português](./README.pt-BR.md)
 
-# OkCMS v1.0.3
+# OkCMS v1.0.4
 
 Hybrid, modular, API-first, extensible CMS with a React/Solid theme platform, Node.js/TypeScript backend, PostgreSQL, Docker immutable deployments, plugin and theme extension systems, and multi-tenancy. Public themes are isolated React or Solid projects compiled with `okcms theme:build` and connected to the host only through `ThemeSdkBridge`.
 

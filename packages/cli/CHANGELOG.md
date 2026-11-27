@@ -1,5 +1,19 @@
 # @oktis-works/cms
 
+## 1.0.4
+
+### Patch Changes
+
+- fix(release): apply gap corrections for v1.0.4 — remove duplicate test files (`.js` in favor of `.ts`), remove duplicate API route files (`index.js` in favor of `index.ts`), consolidate Vitest config to `vitest.config.ts`, migrate ESLint to Oxlint, remove tag-based publish trigger (publish only via PR merge to main), and align AGENTS.md with the PR-driven release flow.
+- Updated dependencies
+  - @oktis-works/validation@1.0.2
+  - @oktis-works/config@1.0.2
+  - @oktis-works/database@0.16.10
+  - @oktis-works/auth@0.9.7
+  - @oktis-works/theme-runtime@1.0.3
+  - @oktis-works/core@1.0.4
+  - @oktis-works/theme-builder@1.0.3
+
 ## 1.0.3
 
 ### Patch Changes

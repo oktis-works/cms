@@ -134,7 +134,7 @@ export class PostTypeRegistry {
     const row = existingRow[0] as Record<string, unknown> | undefined;
 
     const coreType = CORE_TYPES.find((type) => type.slug === slug);
-    if (!row && !coreType) throw new Error(`Content type "${slug}" não encontrado`);
+    if (!row && !coreType) throw new Error(`Content type "${slug}" not found`);
 
     if (!row && coreType) {
       const mergedCore = { ...coreType, ...patch, slug };
@@ -192,7 +192,7 @@ export class PostTypeRegistry {
 
   async delete(slug: string): Promise<boolean> {
     if (CORE_TYPES.some((type) => type.slug === slug)) {
-      throw new Error(`Content type "${slug}" é do core e não pode ser removido`);
+      throw new Error(`Content type "${slug}" is from core and cannot be removed`);
     }
 
     const sql = getConnection();

@@ -187,7 +187,7 @@ export async function resolveTenantId(
 
   if (input !== 'default' || options.createDefault === false) {
     throw new Error(
-      `Tenant "${input}" não encontrado. Crie-o no admin ou passe um UUID com --tenant.`
+      `Tenant "${input}" not found. Create it in the admin or pass a UUID with --tenant.`
     );
   }
 

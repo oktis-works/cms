@@ -315,7 +315,7 @@ export class PluginService {
 
     const existing = await this.getById(id);
     if (!existing) return null;
-    if (!tenantId) throw new Error('tenantId é obrigatório para ativar um plugin');
+    if (!tenantId) throw new Error('tenantId is required to activate a plugin');
     if (['UNINSTALLED', 'MISSING'].includes(existing.status)) {
       throw new Error(`Invalid plugin transition: ${existing.status} → ACTIVATED`);
     }
@@ -357,7 +357,7 @@ export class PluginService {
       
       if (!isEnabled) {
         if (!dep.optional) {
-          throw new Error(`ACTIVATION_FAILED: dependência obrigatória "${dep.name}" não está ativada para este tenant`);
+          throw new Error(`ACTIVATION_FAILED: required dependency "${dep.name}" is not activated for this tenant`);
         }
         continue; // Dependência opcional não ativada - apenas avisa
       }
@@ -411,14 +411,14 @@ export class PluginService {
 
     const existing = await this.getById(id);
     if (!existing) return null;
-    if (!tenantId) throw new Error('tenantId é obrigatório para desativar um plugin');
+    if (!tenantId) throw new Error('tenantId is required to deactivate a plugin');
 
     const before = await sql.unsafe(
       `SELECT status FROM plugin_tenants WHERE plugin_id = $1 AND tenant_id = $2`,
       [id, tenantId]
     );
     if ((before as unknown[]).length === 0) {
-      throw new Error('Invalid plugin transition: plugin não está vinculado a este tenant');
+      throw new Error('Invalid plugin transition: plugin is not linked to this tenant');
     }
 
     let dependents: string[];

@@ -15,12 +15,12 @@ export interface CompatibilityIssue {
 }
 
 /** Versão do CMS contra a qual a compatibilidade é avaliada. */
-export const CMS_VERSION = '1.0.3';
+export const CMS_VERSION = '1.0.4';
 
 /**
  * Valida o manifesto de uma extensão (plugin|theme) contra a versão do CMS.
  * BUSI-022: manifest deve conter name, version, type e compatibility.okcms;
- * range incompatível bloqueia instalação/carregamento.
+ * incompatible range blocks installation/loading.
  */
 export function checkExtensionCompatibility(
   kind: 'plugin' | 'theme',
@@ -48,14 +48,14 @@ export function checkExtensionCompatibility(
   }
 
   if (!validRange(range)) {
-    issues.push({ code: 'INVALID_RANGE', message: `"compatibility.okcms" não é um range semver válido: "${range}"` });
+    issues.push({ code: 'INVALID_RANGE', message: `"compatibility.okcms" is not a valid semver range: "${range}"` });
     return issues;
   }
 
   if (!satisfies(cmsVersion, range)) {
     issues.push({
       code: 'INCOMPATIBLE_VERSION',
-      message: `${kind} requer OkCMS ${range}, mas a versão atual é ${cmsVersion}`,
+      message: `${kind} requires OkCMS ${range}, but current version is ${cmsVersion}`,
     });
   }
 
@@ -70,6 +70,6 @@ export function assertCompatible(
 ): void {
   const issues = checkExtensionCompatibility(kind, manifest, cmsVersion);
   if (issues.length > 0) {
-    throw new Error(`Extensão incompatível (${kind}): ${issues.map((i) => i.message).join('; ')}`);
+    throw new Error(`Incompatible extension (${kind}): ${issues.map((i) => i.message).join('; ')}`);
   }
 }

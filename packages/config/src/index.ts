@@ -276,7 +276,7 @@ export function parseDatabaseUrl(url: string): ParsedDatabaseUrl {
   try {
     parsed = new URL(url);
   } catch {
-    throw new Error(`DATABASE_URL inválida: não é uma URL válida — ${url}`);
+    throw new Error(`Invalid DATABASE_URL: not a valid URL — ${url}`);
   }
   const protocol = parsed.protocol.replace(/:$/, '');
   const protocolDrivers: Record<string, DatabaseDriver> = {

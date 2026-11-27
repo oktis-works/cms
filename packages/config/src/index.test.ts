@@ -97,7 +97,7 @@ describe('Config', () => {
 
   it('DATABASE_URL inválida lança erro claro (falha barulhenta)', () => {
     process.env['DATABASE_URL'] = 'não-é-url';
-    expect(() => loadConfig()).toThrow(/DATABASE_URL inválida/);
+    expect(() => loadConfig()).toThrow(/Invalid DATABASE_URL/);
     process.env['DATABASE_URL'] = 'ftp://h/db';
     expect(() => loadConfig()).toThrow(/not supported/);
     process.env['DATABASE_URL'] = 'postgresql://user:pass@host:5432/';

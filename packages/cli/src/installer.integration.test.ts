@@ -50,7 +50,7 @@ describe('NPM flow integration: installer', () => {
       JSON.stringify({ name: 'plugin-integração', version: '1.0.0', type: 'plugin', main: 'index.js', compatibility: { okcms: '^99.0.0' } })
     );
 
-    await expect(installExtension('plugin', pluginSource, { cwd: projectDir })).rejects.toThrow(/incompatível/);
+    await expect(installExtension('plugin', pluginSource, { cwd: projectDir })).rejects.toThrow(/incompatible/i);
     expect(existsSync(join(projectDir, 'plugins'))).toBe(false);
   });
 

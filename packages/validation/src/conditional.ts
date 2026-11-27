@@ -137,15 +137,15 @@ export function findConditionalIssues(fields: Array<FieldRefLike>): Array<{ fiel
         if (targetIndex === undefined) {
           issues.push({
             field: field.name,
-            issue: `Campo condicionante "${rule.field}" não existe no mesmo grupo`,
+            issue: `Conditional field "${rule.field}" does not exist in the same group`,
           });
         } else if (targetIndex >= index) {
           issues.push({
             field: field.name,
             issue:
               targetIndex === index
-                ? 'Auto-referência não permitida'
-                : `Só é possível referenciar campos declarados antes de "${field.name}"`,
+                ? 'Self-reference not allowed'
+                : `Only fields declared before "${field.name}" can be referenced`,
           });
         }
       }

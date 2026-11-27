@@ -367,7 +367,7 @@ export class ContentService {
     const input = (await stripUnsupportedFields(rawInput.type, rawInput)) as CreateContentInput;
 
     const definition = await postTypeRegistry.getBySlug(input.type);
-    if (!definition) throw new Error(`Content type "${input.type}" não encontrado`);
+    if (!definition) throw new Error(`Content type "${input.type}" not found`);
     if (definition.singleton) {
       const existing = await this.getSingleton(input.type, input.tenantId);
       if (existing) {

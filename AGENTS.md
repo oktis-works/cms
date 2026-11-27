@@ -20,38 +20,36 @@ This document defines strict operational rules and workflows that the AI Agent m
 Before preparing or recommending a push to GitHub, evaluate if the updates trigger the CI/CD and Publish workflows.
 
 ### CI triggers (`.github/workflows/ci.yml`)
-* `push` of tags `v*` and `pull_request` to `main` / `develop`.
-* **NO CI on push to `main` / `develop`** — only tags and PRs trigger CI.
+* `pull_request` to `main` / `develop` / `release/**`.
+* **NO CI on push to `main` / `develop`** — only PRs trigger CI.
 * Jobs `test`, `typecheck` (build all packages + `tsc --noEmit`), `lint` run in parallel.
-* On a `v*` tag push with all jobs green, the `trigger-publish` job sends a `repository_dispatch` (`publish-release`) that fires `publish.yml`.
+* **No tag-based trigger:** publishing is triggered exclusively by merging a PR to `main` (via `publish-on-merge.yml` → `repository_dispatch` → `publish.yml`).
 
 ### Publish chain (`.github/workflows/publish.yml`)
-`tag push ou push na main → ci.yml (test + typecheck + lint) → trigger-publish → repository_dispatch → publish.yml`:
-1. Checkout do ref exato (tag `vX.Y.Z` ou branch `main`)
-2. `prepare-publish.mjs --check --tag vX.Y.Z` — validação bloqueante (somente quando há tag; sem tag na main, valida versão do package.json)
+`merge PR to main → ci.yml (test + typecheck + lint) → publish-on-merge.yml → repository_dispatch → publish.yml`:
+1. Checkout da branch `main` (ref do merge)
+2. `prepare-publish.mjs --tag` — reescreve `workspace:*` → `^version` (npm não entende o protocolo workspace)
 3. `bun install --frozen-lockfile` + `bun run build`
-4. `prepare-publish.mjs --tag` reescreve `workspace:*` → `^version` (npm não entende o protocolo workspace)
-5. `npm publish --provenance` (OIDC Trusted Publishing — sem NPM token) para todo pacote não-privado em `. + packages/* + apps/*`, idempotente (pula versões já no registry)
-6. Verificação final: versão esperada vs `npm view` latest para cada pacote
+4. `npm publish --provenance` (OIDC Trusted Publishing — sem NPM token) para todo pacote não-privado em `. + packages/* + apps/*`, idempotente (pula versões já no registry)
+5. Verificação final: versão esperada vs `npm view` latest para cada pacote
 
-Pushes de tag `v*` **ou** push na branch `main` disparam o CI e, se verde, disparam o publish automaticamente — **não é mais necessário criar uma tag manualmente** para publicar; basta fazer merge de um PR para `main` com a versão bumpada.
-
-Pushes de tag `v*` continuam funcionando como antes (disparam CI + publish). Pushes em `main` disparam CI + publish direto via `prepare-publish.mjs --tag` com a versão do root `package.json`.
+Push na branch `main` (via merge de PR) dispara o CI e, se verde, dispara o publish automaticamente — **não é necessário criar uma tag manualmente**; basta fazer merge de um PR para `main` com a versão bumpada.
 
 **Regras:**
-* Nunca reutilize uma tag queimada (CI falhou). Pule para a próxima versão (patch/minor) — nunca re-pushe a mesma tag.
+* Nunca reutilize uma versão já publicada (CI falhou). Pule para a próxima versão (patch/minor).
 * Para publish via `main`, garanta que a versão no root `package.json` esteja correta antes do merge (o changeset e o `version-packages` cuidam disso).
+* Não há gatilho de tag (`push: tags: ['v*']`) no CI; o publish é 100% automatizado via PR + merge na `main`.
 
 ### Release via Branch + Pull Request (fluxo principal)
 
-Quando não se deseja fazer tag direta no `main`, use este fluxo:
+Este é o fluxo padrão de release:
 
 1. Crie uma branch de release a partir de `main`: `git checkout -b release/vX.Y.Z`
 2. Implemente as mudanças, crie changesets em `.changeset/*.md`, bump a versão no root `package.json` e rode `bun run sync-version --write`.
 3. Commit com mensagem conventional (ex: `chore(release): vX.Y.Z`) e faça push da branch: `git push origin release/vX.Y.Z`.
 4. O workflow `.github/workflows/create-release-pr.yml` abre automaticamente um PR da branch de release para `main`. O CI roda no PR (test, typecheck, lint).
 5. Após revisão e aprovação, faça merge do PR para `main`.
-6. O publish dispara automaticamente no merge para `main` via `ci.yml` → `trigger-publish` → `repository_dispatch` → `publish.yml` (npm publish). **Não é mais necessário criar uma tag manualmente.**
+6. O publish dispara automaticamente no merge para `main` via `publish-on-merge.yml` → `repository_dispatch` → `publish.yml` (npm publish). **Não é necessário criar uma tag manualmente.**
 
 **Regras:**
 * O CI é disparado em `pull_request` para `main`, `develop` e `release/**` (veja `.github/workflows/ci.yml`).
@@ -64,12 +62,11 @@ Quando não se deseja fazer tag direta no `main`, use este fluxo:
 2. Consume changesets: `bun run version-packages` (bumps package versions + syncs CMS_VERSION).
 3. Bump the product version in root `package.json` (Patch for fixes, Minor for features, Major for breaking).
 4. Re-sync anchors: `bun run sync-version --write` (then `bun run sync-version` to validate).
-5. Pre-validate the gate locally: `node scripts/prepare-publish.mjs --check --tag vX.Y.Z`.
-6. Run `bun run build`, `bun run test:run`, `bun run lint` and `bun run typecheck` (the same CI gates).
-7. Commit with a conventional commit message (English), e.g. `chore(release): v0.16.2`.
-8. Push the release branch: `git push origin release/vX.Y.Z`.
-9. Merge the PR to `main` — the publish fires automatically via `ci.yml` → `trigger-publish` → `publish.yml` (npm publish).
-10. Watch the main CI run; when green, npm publish runs automatically.
+5. Run `bun run build`, `bun run test:run`, `bun run lint` and `bun run typecheck` (the same CI gates).
+6. Commit with a conventional commit message (English), e.g. `chore(release): v0.16.2`.
+7. Push the release branch: `git push origin release/vX.Y.Z`.
+8. Merge the PR to `main` — the publish fires automatically via `publish-on-merge.yml` → `publish.yml` (npm publish).
+9. Watch the main CI run; when green, npm publish runs automatically.
 
 ## 4. Custom Field Types via Plugins
 When implementing custom field types via plugins, follow these rules:
@@ -95,9 +92,9 @@ When implementing custom field types via plugins, follow these rules:
 - **Example:** See `plugins/mermaid-field/` for complete example.
 
 ## 5. Build & Lint Rules
-* **Build Order:** Always use `bun run build` which builds packages in dependency order.
+* **Build Order:** Always use `bun run build` which builds packages in dependency order (validation → types → config → database → auth → plugin-sdk → plugin-runtime → theme-sdk → theme-runtime → core → api-client → ui → theme-builder → cli).
 * **Typecheck:** Run `bun run typecheck` (excludes plugins directory).
-* **Lint:** Run `bun run lint` (ignores `packages/cli/src/scaffold.test.js`).
+* **Lint:** Run `bun run lint` (Oxlint; ignores `packages/cli/src/scaffold.test.js`).
 * **Tests:** Run `bun run test:run` before committing.
 
 ## 6. Cross-Package Import Rules (fresh-checkout safety)
@@ -186,11 +183,11 @@ These invariants must hold for every release.
 * **Worker process is a separate entry point:** `apps/worker` runs the job queue. It shares the same codebase but has its own `package.json` and build output. Changes to `core` events/queues require worker rebuild.
 * **Admin is a Vite + React SPA:** Built to `apps/admin/dist`. Served statically by the API in production. API routes under `/api/v1/**`, admin under `/admin/**`, public under `/`.
 
-## 16. Mandatory Pre-Tag CI/CD Validation
-Before pushing a new release tag to GitHub, the agent MUST execute the full CI/CD test suite locally **repeatedly until zero errors remain**. This prevents burned tags and failed CI runs.
+## 16. Mandatory Pre-Merge CI/CD Validation
+Before pushing a release branch to GitHub, the agent MUST execute the full CI/CD test suite locally **until zero errors remain**. This prevents failed CI runs and broken PRs.
 
 ### 16.1. Changeset Version Bump (OBRIGATÓRIO antes de release)
-**SEMPRE** crie changesets para pacotes alterados e rode `bun run version-packages` ANTES de bump da versão root / tag:
+**SEMPRE** crie changesets para pacotes alterados e rode `bun run version-packages` ANTES de bump da versão root:
 ```bash
 # 1. Para cada pacote modificado, crie changeset:
 bun run changeset
@@ -264,7 +261,6 @@ bun run lint
 
 ### Rules:
 * **Repeat the entire sequence** if ANY check fails. Fix the root cause, then re-run from step 1.
-* **Minimum 3 consecutive clean runs** required before tagging (proves no flaky tests).
+* **Minimum 3 consecutive clean runs** required before pushing the release branch (proves no flaky tests).
 * **All checks must use the same commands as `.github/workflows/ci.yml`** (see §3).
-* **Never push a tag** until the full sequence passes 3x consecutively.
-* **Burned tags are forbidden:** If a tag's CI fails, skip to the next version (patch/minor) — never re-push the same tag.
+* **Never push the release branch** until the full sequence passes 3x consecutively.

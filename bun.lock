@@ -15,7 +15,7 @@
         "@changesets/changelog-github": "^1.0.1",
         "@changesets/cli": "^3.0.3",
         "@oktis-works/api-client": "workspace:*",
-        "@oktis-works/cms": "^1.0.0",
+        "@oktis-works/cms": "^1.0.4",
         "@types/node": "22.0.0",
         "@types/react": "19",
         "@types/react-dom": "19",
@@ -26,6 +26,7 @@
         "autoprefixer": "^10.6.1",
         "babel-preset-solid": "1.9.16",
         "eslint": "9.0.0",
+        "oxlint": "^1.95.0",
         "playwright": "1.59.1",
         "playwright-core": "1.59.1",
         "postcss": "^8.5.28",
@@ -43,7 +44,7 @@
     },
     "apps/admin": {
       "name": "@oktis-works/admin",
-      "version": "1.0.0",
+      "version": "1.0.4",
       "bin": {
         "okcms-admin": "./bin/admin.js",
       },
@@ -51,10 +52,10 @@
         "@astrojs/node": "11.1.6",
         "@astrojs/solid-js": "7.0.2",
         "@dnd-kit/solid": "0.5.0",
-        "@oktis-works/plugin-sdk": "^0.8.3",
-        "@oktis-works/types": "^1.0.0",
-        "@oktis-works/ui": "^0.6.4",
-        "@oktis-works/validation": "^1.0.0",
+        "@oktis-works/plugin-sdk": "^0.8.5",
+        "@oktis-works/types": "^1.0.3",
+        "@oktis-works/ui": "^0.6.6",
+        "@oktis-works/validation": "^1.0.2",
         "astro": "7.3.5",
         "comlink": "4.4.1",
         "lucide": "^1.52.0",
@@ -68,7 +69,7 @@
     },
     "apps/api": {
       "name": "@oktis-works/api",
-      "version": "0.19.4",
+      "version": "0.19.8",
       "bin": {
         "okcms-api": "./dist/index.js",
       },
@@ -90,19 +91,19 @@
     },
     "apps/web": {
       "name": "@oktis-works/web",
-      "version": "1.0.0",
+      "version": "1.0.4",
       "bin": {
         "okcms-web": "./dist/index.js",
       },
       "dependencies": {
         "@hono/node-server": "1.19.15",
-        "@oktis-works/config": "^1.0.0",
-        "@oktis-works/core": "^1.0.0",
-        "@oktis-works/database": "^0.16.6",
-        "@oktis-works/plugin-runtime": "^0.8.4",
-        "@oktis-works/theme-runtime": "^1.0.0",
+        "@oktis-works/config": "^1.0.2",
+        "@oktis-works/core": "^1.0.4",
+        "@oktis-works/database": "^0.16.10",
+        "@oktis-works/plugin-runtime": "^0.8.6",
+        "@oktis-works/theme-runtime": "^1.0.3",
         "@oktis-works/theme-sdk": "workspace:*",
-        "@oktis-works/types": "^1.0.0",
+        "@oktis-works/types": "^1.0.3",
         "@oktis-works/validation": "workspace:*",
         "hono": "4.13.12",
       },
@@ -114,15 +115,15 @@
     },
     "apps/worker": {
       "name": "@oktis-works/worker",
-      "version": "0.8.21",
+      "version": "0.8.23",
       "bin": {
         "okcms-worker": "./dist/index.js",
       },
       "dependencies": {
-        "@oktis-works/config": "^1.0.0",
-        "@oktis-works/core": "^1.0.0",
-        "@oktis-works/database": "^0.16.6",
-        "@oktis-works/types": "^1.0.0",
+        "@oktis-works/config": "^1.0.2",
+        "@oktis-works/core": "^1.0.4",
+        "@oktis-works/database": "^0.16.10",
+        "@oktis-works/types": "^1.0.3",
         "bullmq": "5.0.0",
         "ioredis": "5.3.0",
         "sharp": "^0.35.5",
@@ -135,9 +136,9 @@
     },
     "packages/api-client": {
       "name": "@oktis-works/api-client",
-      "version": "0.7.8",
+      "version": "0.7.10",
       "dependencies": {
-        "@oktis-works/types": "^1.0.0",
+        "@oktis-works/types": "^1.0.3",
       },
       "devDependencies": {
         "typescript": "5.7.3",
@@ -145,12 +146,12 @@
     },
     "packages/auth": {
       "name": "@oktis-works/auth",
-      "version": "0.9.5",
+      "version": "0.9.7",
       "dependencies": {
-        "@oktis-works/config": "^1.0.0",
-        "@oktis-works/core": "^1.0.0",
-        "@oktis-works/database": "^0.16.6",
-        "@oktis-works/types": "^1.0.0",
+        "@oktis-works/config": "^1.0.2",
+        "@oktis-works/core": "^1.0.4",
+        "@oktis-works/database": "^0.16.10",
+        "@oktis-works/types": "^1.0.3",
         "bcryptjs": "^2.4.3",
       },
       "devDependencies": {
@@ -161,7 +162,7 @@
     },
     "packages/cli": {
       "name": "@oktis-works/cms",
-      "version": "1.0.0",
+      "version": "1.0.4",
       "bin": {
         "okcms": "./dist/index.js",
       },
@@ -182,9 +183,9 @@
     },
     "packages/config": {
       "name": "@oktis-works/config",
-      "version": "1.0.0",
+      "version": "1.0.2",
       "dependencies": {
-        "@oktis-works/types": "^1.0.0",
+        "@oktis-works/types": "^1.0.3",
       },
       "devDependencies": {
         "typescript": "5.7.3",
@@ -192,7 +193,7 @@
     },
     "packages/core": {
       "name": "@oktis-works/core",
-      "version": "1.0.0",
+      "version": "1.0.4",
       "dependencies": {
         "@aws-sdk/client-s3": "3.700.0",
         "@oktis-works/config": "workspace:*",
@@ -211,15 +212,15 @@
         "typescript": "5.7.3",
       },
       "peerDependencies": {
-        "@oktis-works/auth": "^0.9.5",
+        "@oktis-works/auth": "^0.9.7",
       },
     },
     "packages/database": {
       "name": "@oktis-works/database",
-      "version": "0.16.6",
+      "version": "0.16.10",
       "dependencies": {
-        "@oktis-works/config": "^1.0.0",
-        "@oktis-works/types": "^1.0.0",
+        "@oktis-works/config": "^1.0.2",
+        "@oktis-works/types": "^1.0.3",
         "mariadb": "^3.5.4",
         "mysql2": "^3.14.1",
         "postgres": "3.4.0",
@@ -231,11 +232,11 @@
     },
     "packages/plugin-runtime": {
       "name": "@oktis-works/plugin-runtime",
-      "version": "0.8.4",
+      "version": "0.8.6",
       "dependencies": {
-        "@oktis-works/plugin-sdk": "^0.8.3",
-        "@oktis-works/types": "^1.0.0",
-        "@oktis-works/validation": "^1.0.0",
+        "@oktis-works/plugin-sdk": "^0.8.5",
+        "@oktis-works/types": "^1.0.3",
+        "@oktis-works/validation": "^1.0.2",
         "semver": "7",
         "undici": "^8.11.2",
       },
@@ -245,19 +246,19 @@
     },
     "packages/plugin-sdk": {
       "name": "@oktis-works/plugin-sdk",
-      "version": "0.8.3",
+      "version": "0.8.5",
       "dependencies": {
-        "@oktis-works/types": "^1.0.0",
-        "@oktis-works/validation": "^1.0.0",
+        "@oktis-works/types": "^1.0.3",
+        "@oktis-works/validation": "^1.0.2",
       },
       "devDependencies": {
-        "@oktis-works/plugin-runtime": "^0.8.4",
+        "@oktis-works/plugin-runtime": "^0.8.6",
         "typescript": "5.7.3",
       },
     },
     "packages/theme-builder": {
       "name": "@oktis-works/theme-builder",
-      "version": "1.0.0",
+      "version": "1.0.3",
       "dependencies": {
         "@oktis-works/theme-runtime": "workspace:*",
         "@oktis-works/theme-sdk": "workspace:*",
@@ -284,10 +285,10 @@
     },
     "packages/theme-runtime": {
       "name": "@oktis-works/theme-runtime",
-      "version": "1.0.0",
+      "version": "1.0.3",
       "dependencies": {
         "@oktis-works/theme-sdk": "workspace:*",
-        "@oktis-works/types": "^1.0.0",
+        "@oktis-works/types": "^1.0.3",
         "@oktis-works/validation": "workspace:*",
       },
       "devDependencies": {
@@ -308,7 +309,7 @@
     },
     "packages/theme-sdk": {
       "name": "@oktis-works/theme-sdk",
-      "version": "1.0.0",
+      "version": "1.0.3",
       "dependencies": {
         "@oktis-works/types": "workspace:*",
         "@oktis-works/validation": "workspace:*",
@@ -319,9 +320,9 @@
     },
     "packages/types": {
       "name": "@oktis-works/types",
-      "version": "1.0.0",
+      "version": "1.0.3",
       "dependencies": {
-        "@oktis-works/validation": "^1.0.0",
+        "@oktis-works/validation": "^1.0.2",
       },
       "devDependencies": {
         "typescript": "5.7.3",
@@ -329,9 +330,9 @@
     },
     "packages/ui": {
       "name": "@oktis-works/ui",
-      "version": "0.6.4",
+      "version": "0.6.6",
       "dependencies": {
-        "@oktis-works/validation": "^1.0.0",
+        "@oktis-works/validation": "^1.0.2",
         "solid-js": "1.9.18",
       },
       "devDependencies": {
@@ -342,7 +343,7 @@
     },
     "packages/validation": {
       "name": "@oktis-works/validation",
-      "version": "1.0.0",
+      "version": "1.0.2",
       "dependencies": {
         "semver": "7",
       },
@@ -810,6 +811,44 @@
     "@oslojs/encoding": ["@oslojs/encoding@1.1.0", "", {}, "sha512-70wQhgYmndg4GCPxPPxPGevRKqTIJ2Nh4OkiMWmDAVYsTQ+Ta7Sq+rPevXyXGdzr30/qZBnyOalCszoMxlyldQ=="],
 
     "@oxc-project/types": ["@oxc-project/types@0.152.0", "", {}, "sha512-oM/5rLBm2tPkg0iBgkH/FOeR3PCDpY19GTgAZjMFM8h9WI9VW7cLgzp6nwtarYKmovavIQZ+Fe/RKX/8C8O/Rw=="],
+
+    "@oxlint/binding-android-arm-eabi": ["@oxlint/binding-android-arm-eabi@1.95.0", "", { "os": "android", "cpu": "arm" }, "sha512-hJna6w3COWJjfMPxomjZL82klTdrITm56PEpCsfO/xMkzQw/fNtJWauQ/YEwQqVttj0L5vDIa8rCcuhfAE3L4w=="],
+
+    "@oxlint/binding-android-arm64": ["@oxlint/binding-android-arm64@1.95.0", "", { "os": "android", "cpu": "arm64" }, "sha512-uAIGZQ9uJVUeogeWOSboI3F7twOuM4mNuZcHXD9+LdYLcWp7J6kbtRUXJ6GVqcs5E0Cjb4emmSBK9FNrkGuhqQ=="],
+
+    "@oxlint/binding-darwin-arm64": ["@oxlint/binding-darwin-arm64@1.95.0", "", { "os": "darwin", "cpu": "arm64" }, "sha512-Ogh1vfHO5vshKRop/He46r+WqC5BTqonYwhB4fp9e2gvOFvg1Xi6XsHTuM/lBSH85ZcaG+DS99EMAy9GcwDong=="],
+
+    "@oxlint/binding-darwin-x64": ["@oxlint/binding-darwin-x64@1.95.0", "", { "os": "darwin", "cpu": "x64" }, "sha512-kTrE1xfpQUBMMS50Ws6KY92N8OsJ8LE6JqxKqkHEY3KdsmguQ6kKVGSjzyt1HLwsSi0fQCvNRog8YRBBovD1AA=="],
+
+    "@oxlint/binding-freebsd-x64": ["@oxlint/binding-freebsd-x64@1.95.0", "", { "os": "freebsd", "cpu": "x64" }, "sha512-ho7E1VCInK0VnpneRaI1BEpe1ceJE8VjxP2O9THWdReV6bth1Q4+80kYVGGK47mHRyZ2NGztQZ2dWRo6j1lavA=="],
+
+    "@oxlint/binding-linux-arm-gnueabihf": ["@oxlint/binding-linux-arm-gnueabihf@1.95.0", "", { "os": "linux", "cpu": "arm" }, "sha512-94afnouMHcnHr/OtRh07gG5LehC9M0GjiSoik3xxTtrmq6cWxXOTAhYlBtxa67u/GlycbnHlDoGJfYlTshcr/w=="],
+
+    "@oxlint/binding-linux-arm-musleabihf": ["@oxlint/binding-linux-arm-musleabihf@1.95.0", "", { "os": "linux", "cpu": "arm" }, "sha512-LEeclqV1/fafxPgJWN21Bri6HBBBZpEFluq/ZH7Avvu9HjJh/XOn6WwogJqX9X7pG2aITZ2nRH39+sUKEQt2WA=="],
+
+    "@oxlint/binding-linux-arm64-gnu": ["@oxlint/binding-linux-arm64-gnu@1.95.0", "", { "os": "linux", "cpu": "arm64", "libc": "glibc" }, "sha512-EpXpEQKmgtkvc6RyU84LM1e3CrVDWQkgghVzf1hMGgwjBzgKAJ/QntHgnzmu5cNeLBfa7GPCY+gGXxEll8Adcg=="],
+
+    "@oxlint/binding-linux-arm64-musl": ["@oxlint/binding-linux-arm64-musl@1.95.0", "", { "os": "linux", "cpu": "arm64", "libc": "musl" }, "sha512-+96Md8c2BAgFp8nWHrUrpqba87DoU+HVJYIun6qA+QKFoeNd3xAWq1JYE6da4nVli9GgwRpfncfRePcgmQQaIQ=="],
+
+    "@oxlint/binding-linux-ppc64-gnu": ["@oxlint/binding-linux-ppc64-gnu@1.95.0", "", { "os": "linux", "cpu": "ppc64", "libc": "glibc" }, "sha512-6yG99vsXct3Uv536w6Z1s03w2makRKnE0q3eJSmf+W/IwPmO56QLk8XUA6ebu/R5peCbJ67HmcWqACH+kg/6Bg=="],
+
+    "@oxlint/binding-linux-riscv64-gnu": ["@oxlint/binding-linux-riscv64-gnu@1.95.0", "", { "os": "linux", "cpu": "none", "libc": "glibc" }, "sha512-Eir0Z4ldh55AsQUqVDlLF4Pw3lSFXIdAl8ZNgU8tp/gTwT9JVCzWY0o3+ys9pCcpTN0vCqBwwuQfAUxzbIgvcQ=="],
+
+    "@oxlint/binding-linux-riscv64-musl": ["@oxlint/binding-linux-riscv64-musl@1.95.0", "", { "os": "linux", "cpu": "none", "libc": "musl" }, "sha512-ceRx+K2WJ7C3tIv+XjZS28oAoZ7DY29ZcWChPdXG5M100phI72FRDYwGRlWZEeDfmkROnarLTMKnnrQAtsC42Q=="],
+
+    "@oxlint/binding-linux-s390x-gnu": ["@oxlint/binding-linux-s390x-gnu@1.95.0", "", { "os": "linux", "cpu": "s390x", "libc": "glibc" }, "sha512-WbD3sM08ZDk2QE6060wK/omihQKbRm+LVzKIg4W5zNTbEhYJChciqX49UZuqW59RGF+wBUxzAup7egUIESTjUA=="],
+
+    "@oxlint/binding-linux-x64-gnu": ["@oxlint/binding-linux-x64-gnu@1.95.0", "", { "os": "linux", "cpu": "x64", "libc": "glibc" }, "sha512-F4ST2ZkFIiLL9OKyRCyC0KQQpwM5WIv0GTcMiZuYVa6xSRJHR05iVRqst+arOVudEPkhP47EnbuoC9UfVCYDyg=="],
+
+    "@oxlint/binding-linux-x64-musl": ["@oxlint/binding-linux-x64-musl@1.95.0", "", { "os": "linux", "cpu": "x64", "libc": "musl" }, "sha512-hEpYDZatpuxLrWlTlkwhHZ1e8QkL02aFS55BPQX1XA9iOd+yUEADGFF1iY6z+xkw6RkpzXFrtnDFe4/JNOLSRA=="],
+
+    "@oxlint/binding-openharmony-arm64": ["@oxlint/binding-openharmony-arm64@1.95.0", "", { "os": "none", "cpu": "arm64" }, "sha512-+JwIH9/uLgQXfxBvOAKzvp616m5i0fBR5ELEBHm5D+++fStBZ+74T7YW4xBpX13zNU2blr52Swoe3GTF1JyqRg=="],
+
+    "@oxlint/binding-win32-arm64-msvc": ["@oxlint/binding-win32-arm64-msvc@1.95.0", "", { "os": "win32", "cpu": "arm64" }, "sha512-pzJgcp3WkOSchukg5y5pn5mVIQ6P83RDI79YJ9gQZKed1pOgjhrmlc5AMizjuq6/P8VifhxzBsMqYI6LLjO2TA=="],
+
+    "@oxlint/binding-win32-ia32-msvc": ["@oxlint/binding-win32-ia32-msvc@1.95.0", "", { "os": "win32", "cpu": "ia32" }, "sha512-54MeQvLRXkJqF1nEFs7wb73SrnurZJQy9fVK4NdEwumNKVwyUUxpGHhvfDMIY2NqJZS7kz0pY9uVty5664Gt1Q=="],
+
+    "@oxlint/binding-win32-x64-msvc": ["@oxlint/binding-win32-x64-msvc@1.95.0", "", { "os": "win32", "cpu": "x64" }, "sha512-I/Fn+Fed1qzb1k2uRjMe2VRtRN1+ZObyU+E76B6v/Ul3Z6JdeAW5zBHSe0n5d8a0ZyU4iorzVy0Rw9LYgo3MSQ=="],
 
     "@parcel/watcher": ["@parcel/watcher@2.6.0", "", { "dependencies": { "detect-libc": "^2.0.3", "is-glob": "^4.0.3", "node-addon-api": "^7.0.0", "picomatch": "^4.0.4" }, "optionalDependencies": { "@parcel/watcher-android-arm64": "2.6.0", "@parcel/watcher-darwin-arm64": "2.6.0", "@parcel/watcher-darwin-x64": "2.6.0", "@parcel/watcher-freebsd-x64": "2.6.0", "@parcel/watcher-linux-arm-glibc": "2.6.0", "@parcel/watcher-linux-arm-musl": "2.6.0", "@parcel/watcher-linux-arm64-glibc": "2.6.0", "@parcel/watcher-linux-arm64-musl": "2.6.0", "@parcel/watcher-linux-x64-glibc": "2.6.0", "@parcel/watcher-linux-x64-musl": "2.6.0", "@parcel/watcher-win32-arm64": "2.6.0", "@parcel/watcher-win32-x64": "2.6.0" } }, "sha512-7FNeNl8NCE7aINx7WXiKQrPYZWC/hvrTsmk6zmxbI7LTXE7hVek/n8AfVgpe2y82zl3w0HvCHN0bVKMBoJcC0w=="],
 
@@ -1786,6 +1825,8 @@
     "oniguruma-to-es": ["oniguruma-to-es@4.3.6", "", { "dependencies": { "oniguruma-parser": "^0.12.2", "regex": "^6.1.0", "regex-recursion": "^6.0.2" } }, "sha512-csuQ9x3Yr0cEIs/Zgx/OEt9iBw9vqIunAPQkx19R/fiMq2oGVTgcMqO/V3Ybqefr1TBvosI6jU539ksaBULJyA=="],
 
     "optionator": ["optionator@0.9.4", "", { "dependencies": { "deep-is": "^0.1.3", "fast-levenshtein": "^2.0.6", "levn": "^0.4.1", "prelude-ls": "^1.2.1", "type-check": "^0.4.0", "word-wrap": "^1.2.5" } }, "sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g=="],
+
+    "oxlint": ["oxlint@1.95.0", "", { "optionalDependencies": { "@oxlint/binding-android-arm-eabi": "1.95.0", "@oxlint/binding-android-arm64": "1.95.0", "@oxlint/binding-darwin-arm64": "1.95.0", "@oxlint/binding-darwin-x64": "1.95.0", "@oxlint/binding-freebsd-x64": "1.95.0", "@oxlint/binding-linux-arm-gnueabihf": "1.95.0", "@oxlint/binding-linux-arm-musleabihf": "1.95.0", "@oxlint/binding-linux-arm64-gnu": "1.95.0", "@oxlint/binding-linux-arm64-musl": "1.95.0", "@oxlint/binding-linux-ppc64-gnu": "1.95.0", "@oxlint/binding-linux-riscv64-gnu": "1.95.0", "@oxlint/binding-linux-riscv64-musl": "1.95.0", "@oxlint/binding-linux-s390x-gnu": "1.95.0", "@oxlint/binding-linux-x64-gnu": "1.95.0", "@oxlint/binding-linux-x64-musl": "1.95.0", "@oxlint/binding-openharmony-arm64": "1.95.0", "@oxlint/binding-win32-arm64-msvc": "1.95.0", "@oxlint/binding-win32-ia32-msvc": "1.95.0", "@oxlint/binding-win32-x64-msvc": "1.95.0" }, "peerDependencies": { "oxlint-tsgolint": ">=7.0.2008", "vite-plus": "*" }, "optionalPeers": ["oxlint-tsgolint", "vite-plus"], "bin": { "oxlint": "bin/oxlint" } }, "sha512-eNzjFjm1TU02/+ohAJjOB7aekRQgTXhOWxMGscEm8VJMokNnnix+PCZn7kqIuGIqxAoBnHxatqlN3Chz3N6PKA=="],
 
     "p-limit": ["p-limit@7.3.3", "", { "dependencies": { "yocto-queue": "^1.2.1" } }, "sha512-SKgVvDU5TNIxQ4r30U75BNLC6a+6GOEjngrk/ysM5+Zu3oJuk1SC5ApzIzY/7PjCEjoVPMWJ0zho/4QUiEB7TQ=="],
 

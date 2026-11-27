@@ -46,7 +46,7 @@ describe('checkExtensionCompatibility (BUSI-022)', () => {
         expect(() => assertCompatible('plugin', {
             ...valid,
             compatibility: { okcms: '^99.0.0' },
-        })).toThrow(new RegExp(`incompatível \\(plugin\\): .*${CMS_VERSION.replace(/\./g, '\\.')}`));
+        })).toThrow(new RegExp(`incompatible.*\\(plugin\\).*${CMS_VERSION.replace(/\./g, '\\.')}`, 'i'));
         expect(() => assertCompatible('theme', valid)).not.toThrow();
     });
 });
