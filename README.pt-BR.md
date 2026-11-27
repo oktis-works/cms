@@ -178,6 +178,69 @@ Falha no preparo (1 ou 2) aborta antes de tocar no deploy; falha no deploy faz r
 - **Build**: Docker immutable builds com cache de camadas
 - **Monorepo**: Bun workspaces
 
+```mermaid
+flowchart TD
+    subgraph Client ["Camada Cliente"]
+        Browser[Browser / Web]
+        Admin[Painel Admin]
+        APIClient[API Clients / SDKs]
+    end
+
+    subgraph Edge ["Edge / Público (Web)"]
+        Web[Web SSR React/Solid]
+        Themes[Temas Públicos]
+    end
+
+    subgraph API ["Camada API (Hono)"]
+        Auth[Auth & API Keys]
+        Content[Content API]
+        Media[Media API]
+        Plugins[Plugin Routes]
+        Hooks[Hooks / Filters Catalog]
+    end
+
+    subgraph AdminUI ["Admin UI (Astro + Solid)"]
+        Dashboard[Dashboard]
+        Settings[Settings]
+        ThemeCustomizer[Theme Customizer]
+        PluginManager[Plugin Manager]
+    end
+
+    subgraph Core ["Core Services"]
+        Tenant[Tenant Context / RLS]
+        Events[Event Store]
+        Cache[Tagged Cache]
+        Queue[Job Queue]
+        Storage[Storage Drivers]
+    end
+
+    subgraph DB ["Banco de Dados (PostgreSQL)"]
+        Tables[Tabelas + Políticas RLS]
+        Migrations[Migrations]
+    end
+
+    subgraph Infra ["Infraestrutura"]
+        Redis[Redis]
+        Worker[Processo Worker]
+        Docker[Docker Compose]
+    end
+
+    Client --> Edge
+    Client --> API
+    Client --> AdminUI
+    Edge --> API
+    AdminUI --> API
+    API --> Core
+    Core --> DB
+    Core --> Infra
+    API --> Infra
+    Worker --> DB
+    Worker --> Redis
+    Themes --> Edge
+    Plugins --> API
+    Hooks --> API
+```
+
 ## Estrutura do Projeto
 
 ```

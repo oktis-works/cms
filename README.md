@@ -194,6 +194,69 @@ Failure in preparation (1 or 2) aborts before touching the deploy; a deployment 
 - **Build**: Docker immutable builds with layer caching
 - **Monorepo**: Bun workspaces
 
+```mermaid
+flowchart TD
+    subgraph Client ["Client Layer"]
+        Browser[Browser / Web]
+        Admin[Admin Panel]
+        APIClient[API Clients / SDKs]
+    end
+
+    subgraph Edge ["Edge / Public (Web)"]
+        Web[Web SSR React/Solid]
+        Themes[Public Themes]
+    end
+
+    subgraph API ["API Layer (Hono)"]
+        Auth[Auth & API Keys]
+        Content[Content API]
+        Media[Media API]
+        Plugins[Plugin Routes]
+        Hooks[Hooks / Filters Catalog]
+    end
+
+    subgraph AdminUI ["Admin UI (Astro + Solid)"]
+        Dashboard[Dashboard]
+        Settings[Settings]
+        ThemeCustomizer[Theme Customizer]
+        PluginManager[Plugin Manager]
+    end
+
+    subgraph Core ["Core Services"]
+        Tenant[Tenant Context / RLS]
+        Events[Event Store]
+        Cache[Tagged Cache]
+        Queue[Job Queue]
+        Storage[Storage Drivers]
+    end
+
+    subgraph DB ["Database (PostgreSQL)"]
+        Tables[Tables + RLS Policies]
+        Migrations[Migrations]
+    end
+
+    subgraph Infra ["Infrastructure"]
+        Redis[Redis]
+        Worker[Worker Process]
+        Docker[Docker Compose]
+    end
+
+    Client --> Edge
+    Client --> API
+    Client --> AdminUI
+    Edge --> API
+    AdminUI --> API
+    API --> Core
+    Core --> DB
+    Core --> Infra
+    API --> Infra
+    Worker --> DB
+    Worker --> Redis
+    Themes --> Edge
+    Plugins --> API
+    Hooks --> API
+```
+
 ## Project Structure
 
 ```
