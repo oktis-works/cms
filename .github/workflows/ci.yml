@@ -107,6 +107,10 @@ jobs:
         run: bun run lint
       - name: Check plugin-runtime imports (GAP-07)
         run: bun run check:plugin-runtime-imports
+      - name: Check infrastructure drift (GAP-16)
+        run: |
+          bun scripts/sync-infrastructure.ts
+          git diff --exit-code -- infrastructure/
 
   # ============================================================
   # Step 4: Dependency Audit (bun audit)
