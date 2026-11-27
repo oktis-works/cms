@@ -21,6 +21,7 @@ vi.mock('@oktis-works/database', () => ({
       return store.returning;
     }),
   })),
+  runInTransaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
 }));
 
 import { SettingsService } from './service.js';
@@ -33,52 +34,72 @@ beforeEach(() => {
 
 describe('SettingsService.set (INSERT)', () => {
   it('passa a string CRUA como param — sem pre-stringify (uma serialização só)', async () => {
-    await new SettingsService().set('siteTitle', 'Site E2E', 'general', 'string');
+    await new SettingsService().set('siteTitle', 'Site E2E', 'general', 'string', 'tenant-1');
 
     const insert = store.queries.find((q) => q.text.includes('INSERT INTO settings'));
     expect(insert).toBeDefined();
-    expect(insert!.text).toContain('$3::jsonb');
+    expect(insert!.text).toContain('$4::jsonb');
     expect(typeof insert!.values[0]).toBe('string'); // id (uuid)
-    expect(insert!.values[1]).toBe('siteTitle');
-    expect(insert!.values[2]).toBe('Site E2E'); // cru — NÃO '"Site E2E"'
-    expect(insert!.values[3]).toBe('general');
-    expect(insert!.values[4]).toBe('string');
+    expect(insert!.values[1]).toBe('tenant-1');
+    expect(insert!.values[2]).toBe('siteTitle');
+    expect(insert!.values[3]).toBe('Site E2E');
+    expect(insert!.values[4]).toBe('general');
+    expect(insert!.values[5]).toBe('string');
   });
 
   it('boolean vira literal jsonb via CASE WHEN (param segue boolean)', async () => {
-    await new SettingsService().set('maintenance', false, 'general', 'boolean');
+    await new SettingsService().set('maintenance', false, 'general', 'boolean', 'tenant-1');
 
     const insert = store.queries.find((q) => q.text.includes('INSERT INTO settings'));
-    expect(insert!.text).toContain("CASE WHEN $3 THEN 'true'::jsonb ELSE 'false'::jsonb END");
-    expect(insert!.values[2]).toBe(false);
+    expect(insert!.text).toContain("CASE WHEN $4 THEN 'true'::jsonb ELSE 'false'::jsonb END");
+    expect(insert!.values[3]).toBe(false);
   });
 
   it('objeto/array passam crus (driver serializa para jsonb)', async () => {
-    await new SettingsService().set('menuLinks', [{ label: 'Home', url: '/' }], 'general', 'array');
+    await new SettingsService().set('menuLinks', [{ label: 'Home', url: '/' }], 'general', 'array', 'tenant-1');
 
     const insert = store.queries.find((q) => q.text.includes('INSERT INTO settings'));
-    expect(insert!.values[2]).toEqual([{ label: 'Home', url: '/' }]);
+    expect(insert!.values[3]).toEqual([{ label: 'Home', url: '/' }]);
   });
 });
 
 describe('SettingsService.set (UPDATE)', () => {
-  it('atualiza com param cru em value = $1::jsonb', async () => {
+  it('upserts with tenant scope and preserves the raw JSON parameter', async () => {
     store.byKey = [{ key: 'siteTitle', value: 'Antigo' }];
 
-    await new SettingsService().set('siteTitle', 'Novo Título', 'general', 'string');
+    await new SettingsService().set('siteTitle', 'Novo Título', 'general', 'string', 'tenant-1');
 
-    const update = store.queries.find((q) => q.text.includes('UPDATE settings'));
-    expect(update!.text).toContain('value = $1::jsonb');
-    expect(update!.values[0]).toBe('Novo Título');
+    const upsert = store.queries.find((q) => q.text.includes('INSERT INTO settings'));
+    expect(upsert!.text).toContain('ON CONFLICT (key, tenant_id)');
+    expect(upsert!.values[3]).toBe('Novo Título');
   });
 
   it('boolean no UPDATE usa CASE WHEN $1 e param boolean', async () => {
     store.byKey = [{ key: 'maintenance', value: true }];
 
-    await new SettingsService().set('maintenance', false, 'general', 'boolean');
+    await new SettingsService().set('maintenance', false, 'general', 'boolean', 'tenant-1');
 
-    const update = store.queries.find((q) => q.text.includes('UPDATE settings'));
-    expect(update!.text).toContain("CASE WHEN $1 THEN 'true'::jsonb ELSE 'false'::jsonb END");
-    expect(update!.values[0]).toBe(false);
+    const upsert = store.queries.find((q) => q.text.includes('INSERT INTO settings'));
+    expect(upsert!.text).toContain("CASE WHEN $4 THEN 'true'::jsonb ELSE 'false'::jsonb END");
+    expect(upsert!.values[3]).toBe(false);
+  });
+});
+
+describe('SettingsService tenant scope', () => {
+  it('includes the explicit tenant in reads and resolves tenant values before global values', async () => {
+    await new SettingsService().get('general', 'tenant-a');
+    const query = store.queries[0]!;
+    expect(query.text).toContain('tenant_id = $1');
+    expect(query.text).toContain('CASE WHEN tenant_id = $1 THEN 0 ELSE 1 END');
+    expect(query.values).toEqual(['tenant-a', 'general']);
+  });
+
+  it('writes bulk settings inside one transaction and never omits scope metadata', async () => {
+    await new SettingsService().setMany([
+      { key: 'one', value: '1', group: 'general', type: 'string' },
+      { key: 'two', value: '2', group: 'general', type: 'string' },
+    ], 'tenant-a');
+    expect(store.queries.filter((query) => query.text.includes('INSERT INTO settings'))).toHaveLength(2);
+    expect(store.queries.every((query) => query.values[1] === 'tenant-a')).toBe(true);
   });
 });

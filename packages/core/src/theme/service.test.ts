@@ -311,16 +311,10 @@ describe('ThemeService.importConfig', () => {
     expect(result!.config).toEqual({ siteTitle: 'New Title' });
   });
 
-  it('importa config no modo replace (permite chaves extras)', async () => {
-    queue = [
-      [themeRow({ config: { siteTitle: 'Old Title' } })], // getById in importConfig
-      [themeRow({ config: { siteTitle: 'Old Title' } })], // getById in updateConfig
-      [], // INSERT INTO theme_config_versions
-      [themeRow({ config: { siteTitle: 'New Title', customKey: 'customValue' } })], // UPDATE RETURNING
-    ];
-    const result = await new ThemeService().importConfig('id-1', { siteTitle: 'New Title', customKey: 'customValue' }, { mode: 'replace' });
-    expect(result).not.toBeNull();
-    expect(result!.config).toEqual({ siteTitle: 'New Title', customKey: 'customValue' });
+  it('rejects undeclared keys in replace mode', async () => {
+    queue = [[themeRow({ config: { siteTitle: 'Old Title' } })]];
+    await expect(new ThemeService().importConfig('id-1', { siteTitle: 'New Title', customKey: 'customValue' }, { mode: 'replace' }))
+      .rejects.toThrow(/customKey/);
   });
 
   it('rejeita config inválida', async () => {

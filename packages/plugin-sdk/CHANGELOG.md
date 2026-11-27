@@ -1,5 +1,18 @@
 # @oktis-works/plugin-sdk
 
+## 0.8.4
+
+### Patch Changes
+
+- chore: v1.0.1 patch release
+
+  - Add island hydration support to default theme (entry-client.tsx)
+  - Theme default now fully supports hydration: 'islands' with client entry
+  - No breaking changes, patch version bump for all packages
+- Updated dependencies
+  - @oktis-works/types@1.0.1
+  - @oktis-works/validation@1.0.1
+
 ## 0.8.3
 
 ### Patch Changes

@@ -107,7 +107,11 @@ themes.patch('/:id/config', requirePermission('customize', 'theme'), async (c) =
     }
     const current = await themeService.getById(id)
     if (!current) return c.json({ error: 'Theme not found' }, 404)
-    const result = await themeService.updateConfig(id, { ...(current.config ?? {}), ...body.config }, userId)
+    const declared = new Set((current.manifest?.settings ?? []).map((field) => field.name))
+    const currentKnownConfig = Object.fromEntries(
+      Object.entries(current.config ?? {}).filter(([key]) => declared.has(key))
+    )
+    const result = await themeService.updateConfig(id, { ...currentKnownConfig, ...body.config }, userId)
     if (!result) return c.json({ error: 'Theme not found' }, 404)
     return c.json(result)
   } catch (error) {

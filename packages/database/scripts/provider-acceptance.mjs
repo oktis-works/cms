@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import mysql from 'mysql2/promise';
 import mariadb from 'mariadb';
 import { closeConnection, createConnection, ensureCoreSchema, runMigrations } from '../dist/index.js';
@@ -31,11 +32,13 @@ for (const [provider, url] of targets) {
     const target = provider === 'mysql' ? await mysql.createConnection(targetOptions) : await mariadb.createConnection(targetOptions);
     try {
       await target.query(readFileSync(new URL(`schema.${provider}.sql`, schemaDir), 'utf8'));
-      await target.query("INSERT INTO schema_bootstrap (id, schema_version, schema_checksum) VALUES (1, 'V029', REPEAT('0', 64))");
+      await target.query("INSERT INTO schema_bootstrap (id, schema_version, schema_checksum) VALUES (1, 'V030', REPEAT('0', 64))");
       const rows = await target.query('SELECT COUNT(*) AS count FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name IN (\'tenants\', \'core_schema_migrations\', \'tenant_data_migrations\', \'plugin_schema_migrations\')');
       const rowList = Array.isArray(rows) && Array.isArray(rows[0]) ? rows[0] : rows;
       const count = Number(rowList?.[0]?.count ?? 0);
       if (count !== 4) throw new Error(`${provider}: expected four provider ledger tables, got ${count}`);
+      const tenantId = randomUUID();
+      await target.query('INSERT INTO tenants (id, name, slug) VALUES (?, ?, ?)', [tenantId, 'Acceptance', `acceptance-${provider}-${process.pid}`]);
       const lockRows = await target.query("SELECT GET_LOCK('okcms:provider:acceptance', 1) AS locked");
       const lockList = Array.isArray(lockRows) && Array.isArray(lockRows[0]) ? lockRows[0] : lockRows;
       const locked = Number(lockList?.[0]?.locked ?? 0);
@@ -49,10 +52,15 @@ for (const [provider, url] of targets) {
         password: decodeURIComponent(parsed.password),
       });
       await ensureCoreSchema();
-      const migrationResult = await runMigrations('acceptance-tenant', new URL('../../../migrations/', import.meta.url).pathname, { provider });
-      if (migrationResult.applied.length !== 0) throw new Error(`${provider}: fresh baseline unexpectedly applied migrations`);
+      const migrationResult = await runMigrations(tenantId, new URL('../../../migrations/', import.meta.url).pathname, { provider });
+      // Core-schema migrations are represented by the fresh baseline. Tenant-data
+      // migrations still run once per tenant, even on a fresh database, so their
+      // ledger must be populated during acceptance.
+      if (migrationResult.applied.join(',') !== 'canonicalize_timezone_settings') {
+        throw new Error(`${provider}: expected the V030 tenant-data migration, got ${migrationResult.applied.join(',') || 'none'}`);
+      }
       await closeConnection();
-      results.push({ provider, schema: 'ok', lock: 'ok', baseline: 'V029' });
+      results.push({ provider, schema: 'ok', lock: 'ok', baseline: 'V030', tenantData: 'V030' });
     } finally {
       await closeConnection().catch(() => undefined);
       await target.end();

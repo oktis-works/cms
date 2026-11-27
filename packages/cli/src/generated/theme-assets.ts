@@ -27,6 +27,15 @@ export const DEFAULT_THEME_FILES: Record<string, string> = {
 `,
   "archive.tsx": `import type { ThemePageData } from '@oktis-works/theme-sdk';
 
+function itemUrl(item: Record<string, unknown>): string {
+  return typeof item.url === 'string' && item.url ? item.url : \`/\${String(item.slug ?? '')}\`;
+}
+
+function itemDate(item: Record<string, unknown>): string | undefined {
+  const value = item.publishedAt ?? item.published_at;
+  return typeof value === 'string' || value instanceof Date ? String(value) : undefined;
+}
+
 export default function Archive({ page, items }: ThemePageData) {
   return (
     <main className="site archive">
@@ -43,13 +52,13 @@ export default function Archive({ page, items }: ThemePageData) {
               <article className="post-card" key={String(item.slug)}>
                 <div className="post-card__content">
                   <div className="post-card__header">
-                    <time className="post-card__date">{item.publishedAt ? new Date(item.publishedAt).toLocaleDateString() : ''}</time>
+                    <time className="post-card__date">{itemDate(item) ? new Date(itemDate(item)!).toLocaleDateString() : ''}</time>
                   </div>
                   <h2 className="post-card__title">
-                    <a href={\`/\${String(item.slug)}\`}>{String(item.title ?? '')}</a>
+                    <a href={itemUrl(item)}>{String(item.title ?? '')}</a>
                   </h2>
                   {item.excerpt ? <p className="post-card__excerpt">{String(item.excerpt)}</p> : null}
-                  <a href={\`/\${String(item.slug)}\`} className="btn btn-outline">Read More</a>
+                  <a href={itemUrl(item)} className="btn btn-outline">Read More</a>
                 </div>
               </article>
             ))}
@@ -58,7 +67,8 @@ export default function Archive({ page, items }: ThemePageData) {
       </div>
     </main>
   );
-}`,
+}
+`,
   "dist/theme.css": `/**
  * Tema Default do OkCMS — Design System CSS
  * Engine: css | Isolation: manual
@@ -1077,19 +1087,27 @@ export default function Archive({ page, items }: ThemePageData) {
 `,
   "home.tsx": `import type { ThemePageData } from '@oktis-works/theme-sdk';
 
-export default function Home({ site, items, settings }: ThemePageData) {
-  const theme = (settings.theme ?? {}) as Record<string, unknown>;
+function itemUrl(item: Record<string, unknown>): string {
+  return typeof item.url === 'string' && item.url ? item.url : \`/\${String(item.slug ?? '')}\`;
+}
+
+function itemDate(item: Record<string, unknown>): string | undefined {
+  const value = item.publishedAt ?? item.published_at;
+  return typeof value === 'string' || value instanceof Date ? String(value) : undefined;
+}
+
+export default function Home({ site, items }: ThemePageData) {
   return (
     <main className="site">
       <header className="site-header">
         <div className="container">
-          <h1>{String(theme.siteTitle ?? site.title)}</h1>
+          <h1>{site.title}</h1>
           <p>{site.description}</p>
         </div>
       </header>
       <section className="hero">
         <div className="hero-content">
-          <h1>Welcome to {String(theme.siteTitle ?? site.title)}</h1>
+          <h1>Welcome to {site.title}</h1>
           <p className="hero-subtitle">{site.description || 'A modern CMS built with React and TypeScript.'}</p>
           <a href="/blog" className="btn btn-primary">Read the Blog</a>
         </div>
@@ -1113,13 +1131,13 @@ export default function Home({ site, items, settings }: ThemePageData) {
               <article className="post-card" key={String(item.slug)}>
                 <div className="post-card__content">
                   <div className="post-card__header">
-                    <time className="post-card__date">{item.publishedAt ? new Date(item.publishedAt).toLocaleDateString() : ''}</time>
+                  <time className="post-card__date">{itemDate(item) ? new Date(itemDate(item)!).toLocaleDateString() : ''}</time>
                   </div>
                   <h2 className="post-card__title">
-                    <a href={\`/\${String(item.slug)}\`}>{String(item.title ?? '')}</a>
+                    <a href={itemUrl(item)}>{String(item.title ?? '')}</a>
                   </h2>
                   {item.excerpt ? <p className="post-card__excerpt">{String(item.excerpt)}</p> : null}
-                  <a href={\`/\${String(item.slug)}\`} className="btn btn-outline">Read More</a>
+                  <a href={itemUrl(item)} className="btn btn-outline">Read More</a>
                 </div>
               </article>
             ))}
@@ -1128,7 +1146,8 @@ export default function Home({ site, items, settings }: ThemePageData) {
       </section>
     </main>
   );
-}`,
+}
+`,
   "index.tsx": `import type { ThemePageData } from '@oktis-works/theme-sdk';
 
 export default function Index({ page, content }: ThemePageData) {
@@ -1188,6 +1207,10 @@ export default function Page({ page, content }: ThemePageData) {
 }`,
   "single.tsx": `import type { ThemePageData } from '@oktis-works/theme-sdk';
 
+function relatedUrl(item: Record<string, unknown>): string {
+  return typeof item.url === 'string' && item.url ? item.url : \`/\${String(item.slug ?? '')}\`;
+}
+
 export default function Single({ page, content }: ThemePageData) {
   return (
     <article className="site single post-single">
@@ -1202,13 +1225,13 @@ export default function Single({ page, content }: ThemePageData) {
         <footer className="post-footer">
           <nav className="post-nav" aria-label="Post navigation">
             {page.previous && (
-              <a href={\`/\${String(page.previous.slug)}\`} className="post-nav__prev">
+              <a href={relatedUrl(page.previous as unknown as Record<string, unknown>)} className="post-nav__prev">
                 <span className="post-nav__label">Previous</span>
                 <span className="post-nav__title">{String(page.previous.title)}</span>
               </a>
             )}
             {page.next && (
-              <a href={\`/\${String(page.next.slug)}\`} className="post-nav__next">
+              <a href={relatedUrl(page.next as unknown as Record<string, unknown>)} className="post-nav__next">
                 <span className="post-nav__label">Next</span>
                 <span className="post-nav__title">{String(page.next.title)}</span>
               </a>
@@ -1218,7 +1241,41 @@ export default function Single({ page, content }: ThemePageData) {
       </div>
     </article>
   );
-}`,
+}
+`,
+  "src/entry-client.tsx": `import { hydrateRoot } from 'react-dom/client';
+import { readThemeHydrationPayload } from '@oktis-works/theme-sdk';
+import Home from '../home';
+import Index from '../index';
+import Single from '../single';
+import Page from '../page';
+import Archive from '../archive';
+import NotFound from '../404';
+import type { ThemePageData } from '@oktis-works/theme-sdk';
+
+const templates: Record<string, (props: ThemePageData) => JSX.Element> = {
+  home: Home,
+  index: Index,
+  single: Single,
+  page: Page,
+  archive: Archive,
+  404: NotFound,
+};
+
+const payload = readThemeHydrationPayload();
+if (!payload) {
+  throw new Error('Theme hydration payload not found');
+}
+
+const { templateKey, data } = payload;
+const Component = templates[templateKey] ?? templates['404'];
+
+const root = document.getElementById('root');
+if (!root) {
+  throw new Error('Root element not found');
+}
+
+hydrateRoot(root, <Component {...data} />);`,
   "src/entry-server.tsx": `import Home from '../home';
 import Index from '../index';
 import Single from '../single';
@@ -2303,18 +2360,6 @@ export function render(
     ]
   },
   "settings": [
-    {
-      "name": "siteTitle",
-      "type": "text",
-      "label": "Site title",
-      "default": "OkCMS"
-    },
-    {
-      "name": "siteDescription",
-      "type": "text",
-      "label": "Site description",
-      "default": ""
-    },
     {
       "name": "contactText",
       "type": "textarea",

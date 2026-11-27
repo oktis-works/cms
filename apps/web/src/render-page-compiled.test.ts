@@ -270,6 +270,7 @@ describe('renderContentPageAsync — compiled React theme', () => {
 
     const html = await render('single');
     expect(html).toContain('id="okcms-theme-hydration"');
+    expect(html).toContain('<div id="root">');
     expect(html).toContain('<script type="application/json"');
     expect(html).toContain('"templateKey":"single"');
     expect(html).toContain('type="module"');

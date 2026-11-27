@@ -1108,8 +1108,8 @@ export class ApiClient {
 
   async updateSettings(
     items: Array<{ key: string; value: unknown; group?: string; type?: string }>
-  ): Promise<void> {
-    await this.request('PUT', '/api/v1/settings', items);
+  ): Promise<Setting[]> {
+    return this.request('PUT', '/api/v1/settings', items);
   }
 
   // Health
@@ -1159,6 +1159,28 @@ export class ApiClient {
 
   async updateThemeConfig(id: string, config: Record<string, unknown>): Promise<ThemeInfo> {
     return this.request('PATCH', `/api/v1/themes/${id}/config`, { config });
+  }
+
+  async exportThemeConfig(id: string): Promise<{ config: Record<string, unknown>; manifest: Record<string, unknown>; exportedAt: string }> {
+    const response = await this.requestRaw('GET', `/api/v1/themes/${id}/config/export`);
+    if (!response.ok) throw await ApiError.fromResponse(response);
+    return response.json() as Promise<{ config: Record<string, unknown>; manifest: Record<string, unknown>; exportedAt: string }>;
+  }
+
+  async importThemeConfig(id: string, config: Record<string, unknown>, mode: 'merge' | 'replace' = 'merge'): Promise<ThemeInfo> {
+    return this.request('POST', `/api/v1/themes/${id}/config/import`, { config, mode });
+  }
+
+  async getThemeConfigHistory(id: string): Promise<Array<{ id: string; config: Record<string, unknown>; userId: string | null; changeSummary: string | null; createdAt: string }>> {
+    return this.request('GET', `/api/v1/themes/${id}/config/history`);
+  }
+
+  async restoreThemeConfig(id: string, versionId: string): Promise<ThemeInfo> {
+    return this.request('POST', `/api/v1/themes/${id}/config/restore`, { versionId });
+  }
+
+  async restoreThemeDefaults(id: string): Promise<ThemeInfo> {
+    return this.request('POST', `/api/v1/themes/${id}/config/restore-defaults`);
   }
 
   // Plugins

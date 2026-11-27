@@ -42,6 +42,7 @@ export function GeneralSettings() {
   const fields = createMemo<FieldDef[]>(() => [
     { key: 'siteTitle', label: t('settings.general.fields.siteTitle'), type: 'text', placeholder: t('settings.general.fields.siteTitlePlaceholder') },
     { key: 'siteDescription', label: t('settings.general.fields.siteDescription'), type: 'text', placeholder: t('settings.general.fields.siteDescriptionPlaceholder') },
+    { key: 'siteUrl', label: t('settings.seo.fields.siteUrl'), type: 'text', placeholder: t('settings.seo.fields.siteUrlPlaceholder') },
     { key: 'language', label: t('settings.general.fields.language'), type: 'select', options: languageOptions() },
   ]);
 

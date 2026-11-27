@@ -202,7 +202,7 @@ export function createDatabaseThemeDataProvider(
       const rows = await sql.unsafe(
         `SELECT key, value, tenant_id FROM settings
          WHERE (tenant_id = $1 OR tenant_id IS NULL)${groupClause}
-         ORDER BY tenant_id NULLS FIRST, key ASC`,
+         ORDER BY CASE WHEN tenant_id = $1 THEN 1 ELSE 0 END, key ASC`,
         params
       );
       return Object.fromEntries(

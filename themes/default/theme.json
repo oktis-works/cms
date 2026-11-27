@@ -37,18 +37,6 @@
   },
   "settings": [
     {
-      "name": "siteTitle",
-      "type": "text",
-      "label": "Site title",
-      "default": "OkCMS"
-    },
-    {
-      "name": "siteDescription",
-      "type": "text",
-      "label": "Site description",
-      "default": ""
-    },
-    {
       "name": "contactText",
       "type": "textarea",
       "label": "Contact section text",

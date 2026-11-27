@@ -1,5 +1,31 @@
 # @oktis-works/api
 
+## 0.19.6
+
+### Patch Changes
+
+- fix: harden tenant settings, provider-neutral public rendering, theme hydration, and release configuration workflows
+- Updated dependencies
+  - @oktis-works/core@1.0.2
+  - @oktis-works/database@0.16.8
+
+## 0.19.5
+
+### Patch Changes
+
+- chore: v1.0.1 patch release
+
+  - Add island hydration support to default theme (entry-client.tsx)
+  - Theme default now fully supports hydration: 'islands' with client entry
+  - No breaking changes, patch version bump for all packages
+- Updated dependencies
+  - @oktis-works/auth@0.9.6
+  - @oktis-works/config@1.0.1
+  - @oktis-works/core@1.0.1
+  - @oktis-works/database@0.16.7
+  - @oktis-works/types@1.0.1
+  - @oktis-works/validation@1.0.1
+
 ## 0.19.4
 
 ### Patch Changes
@@ -48,7 +74,7 @@
 ### Minor Changes
 
 - Complete the compiled-theme addenda.
-  
+
   Expose engine/build status in the Admin Themes screen, add hydration payloads
   and client-asset validation, cache artifacts by mtime, cover the React/Solid
   route matrix and golden template HTML, and start theme watchers in the

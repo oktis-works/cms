@@ -62,10 +62,10 @@ function bodyOf(row: ContentRow): Record<string, unknown> {
 /** XML escape for sitemap URLs. */
 function escapeXml(str: string): string {
   return str
-    .replace(/&/g, '&')
-    .replace(/</g, '<')
-    .replace(/>/g, '>')
-    .replace(/"/g, '"')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
 }
 
@@ -282,7 +282,7 @@ async function main() {
         WHERE type = 'page'
           AND slug = ${hubBase}
           AND status = 'PUBLISHED'
-          AND metadata ? 'hub_type'
+          AND metadata->>'hub_type' IS NOT NULL
           AND tenant_id = ${tenantId}::uuid
         LIMIT 1
       `;
@@ -298,7 +298,7 @@ async function main() {
 
       // Fetch published items of this type
       const itemRows = await sql`
-        SELECT id, type, slug, title, excerpt, published_at, updated_at
+        SELECT id, type, slug, title, excerpt, published_at, updated_at, parent_id
         FROM content
         WHERE type = ${hubType}
           AND status = 'PUBLISHED'
@@ -307,21 +307,30 @@ async function main() {
         LIMIT 50
       `;
 
+      const feedItems = await Promise.all((itemRows as Array<Record<string, unknown>>).map(async (row) => {
+        const parentChain = await buildParentChain(sql, tenantId, (row['parent_id'] as string | null) ?? null);
+        return {
+          ...row,
+          url: buildItemUrl({ slug: String(row['slug']) }, hubBase, parentChain),
+        };
+      }));
+
       const siteUrl = (await sql`
         SELECT value FROM settings WHERE key = 'siteUrl'
         AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid)
-        ORDER BY tenant_id NULLS LAST LIMIT 1
+        ORDER BY CASE WHEN tenant_id = ${tenantId}::uuid THEN 0 ELSE 1 END LIMIT 1
       `).map((r: any) => r.value)[0] ?? '';
 
       const { rss, atom } = generateFeeds({
         hubBase,
         hubTitle,
         hubDescription,
-        siteName: (await sql`SELECT value FROM settings WHERE key = 'siteTitle' AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid) ORDER BY tenant_id NULLS LAST LIMIT 1`).map((r: any) => r.value)[0] ?? 'OkCMS',
+        siteName: (await sql`SELECT value FROM settings WHERE key = 'siteTitle' AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid) ORDER BY CASE WHEN tenant_id = ${tenantId}::uuid THEN 0 ELSE 1 END LIMIT 1`).map((r: any) => r.value)[0] ?? 'OkCMS',
         siteUrl,
         contentType: hubType,
-        items: itemRows as any[],
+        items: feedItems,
         feedUrl: `/${hubBase}/feed`,
+        language: String((await sql`SELECT value FROM settings WHERE key = 'language' AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid) ORDER BY CASE WHEN tenant_id = ${tenantId}::uuid THEN 0 ELSE 1 END LIMIT 1`).map((r: any) => r.value)[0] ?? 'en'),
       });
 
       const format = c.req.query('format');
@@ -346,14 +355,14 @@ async function main() {
       const siteUrlRow = await sql`
         SELECT value FROM settings WHERE key = 'siteUrl'
         AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid)
-        ORDER BY tenant_id NULLS LAST LIMIT 1
+        ORDER BY CASE WHEN tenant_id = ${tenantId}::uuid THEN 0 ELSE 1 END LIMIT 1
       `;
       const siteUrl = siteUrlRow.map((r: any) => r.value)[0] ?? '';
 
       const robotsEnabledRow = await sql`
         SELECT value FROM settings WHERE key = 'seo.robotsEnabled'
         AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid)
-        ORDER BY tenant_id NULLS LAST LIMIT 1
+        ORDER BY CASE WHEN tenant_id = ${tenantId}::uuid THEN 0 ELSE 1 END LIMIT 1
       `;
       const robotsEnabled =
         robotsEnabledRow.length > 0
@@ -363,14 +372,14 @@ async function main() {
       const robotsRulesRow = await sql`
         SELECT value FROM settings WHERE key = 'seo.robotsRules'
         AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid)
-        ORDER BY tenant_id NULLS LAST LIMIT 1
+        ORDER BY CASE WHEN tenant_id = ${tenantId}::uuid THEN 0 ELSE 1 END LIMIT 1
       `;
       const customRules = robotsRulesRow.length > 0 ? String(robotsRulesRow.map((r: any) => r.value)[0]) : '';
 
       const defaultRobotsRow = await sql`
         SELECT value FROM settings WHERE key = 'seo.defaultRobots'
         AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid)
-        ORDER BY tenant_id NULLS LAST LIMIT 1
+        ORDER BY CASE WHEN tenant_id = ${tenantId}::uuid THEN 0 ELSE 1 END LIMIT 1
       `;
       const defaultRobots = defaultRobotsRow.length > 0 ? String(defaultRobotsRow.map((r: any) => r.value)[0]) : 'index,follow';
 
@@ -406,14 +415,14 @@ async function main() {
     try {
       const sql = getConnection();
       const tenantId = String(c.get('tenant')['id']);
-      const siteUrl = (await sql`SELECT value FROM settings WHERE key = 'siteUrl' AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid) ORDER BY tenant_id NULLS LAST LIMIT 1`)
+      const siteUrl = (await sql`SELECT value FROM settings WHERE key = 'siteUrl' AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid) ORDER BY CASE WHEN tenant_id = ${tenantId}::uuid THEN 0 ELSE 1 END LIMIT 1`)
         .map((r: any) => r.value)[0] ?? '';
 
       // Verifica se o sitemap está habilitado
       const sitemapEnabledRow = await sql`
         SELECT value FROM settings WHERE key = 'seo.sitemapEnabled'
         AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid)
-        ORDER BY tenant_id NULLS LAST LIMIT 1
+        ORDER BY CASE WHEN tenant_id = ${tenantId}::uuid THEN 0 ELSE 1 END LIMIT 1
       `;
       const sitemapEnabled =
         sitemapEnabledRow.length > 0
@@ -432,7 +441,7 @@ async function main() {
       const maxItemsRow = await sql`
         SELECT value FROM settings WHERE key = 'seo.sitemapMaxItems'
         AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid)
-        ORDER BY tenant_id NULLS LAST LIMIT 1
+        ORDER BY CASE WHEN tenant_id = ${tenantId}::uuid THEN 0 ELSE 1 END LIMIT 1
       `;
       const maxItems = maxItemsRow.length > 0 ? Number(maxItemsRow.map((r: any) => r.value)[0]) : 50000;
 
@@ -440,7 +449,7 @@ async function main() {
       const includeTypesRow = await sql`
         SELECT value FROM settings WHERE key = 'seo.sitemapIncludeTypes'
         AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid)
-        ORDER BY tenant_id NULLS LAST LIMIT 1
+        ORDER BY CASE WHEN tenant_id = ${tenantId}::uuid THEN 0 ELSE 1 END LIMIT 1
       `;
       const includeTypesRaw = includeTypesRow.length > 0 ? String(includeTypesRow.map((r: any) => r.value)[0]) : '';
       const includeTypes = includeTypesRaw.split(',').map((s) => s.trim()).filter(Boolean);
@@ -449,14 +458,14 @@ async function main() {
       const defaultChangefreqRow = await sql`
         SELECT value FROM settings WHERE key = 'seo.defaultChangefreq'
         AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid)
-        ORDER BY tenant_id NULLS LAST LIMIT 1
+        ORDER BY CASE WHEN tenant_id = ${tenantId}::uuid THEN 0 ELSE 1 END LIMIT 1
       `;
       const defaultChangefreq = defaultChangefreqRow.length > 0 ? String(defaultChangefreqRow.map((r: any) => r.value)[0]) : 'weekly';
 
       const defaultPriorityRow = await sql`
         SELECT value FROM settings WHERE key = 'seo.defaultPriority'
         AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid)
-        ORDER BY tenant_id NULLS LAST LIMIT 1
+        ORDER BY CASE WHEN tenant_id = ${tenantId}::uuid THEN 0 ELSE 1 END LIMIT 1
       `;
       const defaultPriority = defaultPriorityRow.length > 0 ? String(defaultPriorityRow.map((r: any) => r.value)[0]) : '0.5';
 
@@ -465,14 +474,11 @@ async function main() {
         SELECT slug FROM content
         WHERE type = 'page'
           AND status = 'PUBLISHED'
-          AND metadata ? 'hub_type'
+          AND metadata->>'hub_type' IS NOT NULL
           AND tenant_id = ${tenantId}::uuid
       `;
 
       // 2) Published items (excluindo páginas que são hubs)
-      const hubSlugs = hubRows.map((r: any) => r.slug);
-      const hubSlugCondition = hubSlugs.length > 0 ? `AND slug NOT IN (${hubSlugs.map(() => '?').join(',')})` : '';
-
       let typeCondition = '';
       const typeParams: unknown[] = [tenantId];
       if (includeTypes.length > 0) {
@@ -488,7 +494,7 @@ async function main() {
          WHERE status = 'PUBLISHED'
            AND tenant_id = $1
            ${typeCondition}
-           ${hubSlugCondition}
+           AND NOT (type = 'page' AND metadata->>'hub_type' IS NOT NULL)
          ORDER BY published_at DESC NULLS LAST, updated_at DESC
          LIMIT $${typeParams.length + 1}`,
         [...typeParams, maxItems]
@@ -608,16 +614,17 @@ async function main() {
 
     try {
       // Theme active per request from the tenant-scoped database registry.
+      const tenantId = String(c.get('tenant')['id']);
       const active = await resolveActiveTheme(
         themesRoot,
-        String(c.get('tenant')['id']),
+        tenantId,
         c.req.query('preview_token'),
         c.get('userId')
       );
       const activeTheme = active.name;
       const parentManifests = active.parentManifests;
       const parentConfigs = active.parentConfigs;
-      const router = createRouter(themesRoot, activeTheme);
+      const router = createRouter(themesRoot, activeTheme, tenantId);
       const resolution = await router.resolve(path);
 
       if (!resolution.matched) {

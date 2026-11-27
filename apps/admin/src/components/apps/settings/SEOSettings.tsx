@@ -53,12 +53,6 @@ export function SEOSettings() {
   ]);
 
   const fields = createMemo<FieldDef[]>(() => [
-    // Site-wide
-    { key: 'seo.siteTitle', label: t('settings.seo.fields.siteTitle'), type: 'text', placeholder: t('settings.seo.fields.siteTitlePlaceholder') },
-    { key: 'seo.siteDescription', label: t('settings.seo.fields.siteDescription'), type: 'text', placeholder: t('settings.seo.fields.siteDescriptionPlaceholder') },
-    { key: 'seo.siteUrl', label: t('settings.seo.fields.siteUrl'), type: 'text', placeholder: t('settings.seo.fields.siteUrlPlaceholder') },
-    { key: 'seo.language', label: t('settings.seo.fields.language'), type: 'text', placeholder: t('settings.seo.fields.languagePlaceholder') },
-
     // Robots
     { key: 'seo.robotsEnabled', label: t('settings.seo.robots.enabled'), hint: t('settings.seo.robots.enabledHint'), type: 'toggle' },
     { key: 'seo.robotsRules', label: t('settings.seo.robots.rules'), type: 'textarea', placeholder: t('settings.seo.robots.rulesPlaceholder') },

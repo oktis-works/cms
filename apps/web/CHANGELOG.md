@@ -1,5 +1,28 @@
 # @oktis-works/web
 
+## 1.0.2
+
+### Patch Changes
+
+- fix: harden tenant settings, provider-neutral public rendering, theme hydration, and release configuration workflows
+- Updated dependencies
+  - @oktis-works/core@1.0.2
+  - @oktis-works/database@0.16.8
+
+## 1.0.1
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/config@1.0.1
+  - @oktis-works/core@1.0.1
+  - @oktis-works/database@0.16.7
+  - @oktis-works/plugin-runtime@0.8.5
+  - @oktis-works/theme-runtime@1.0.1
+  - @oktis-works/theme-sdk@1.0.1
+  - @oktis-works/types@1.0.1
+  - @oktis-works/validation@1.0.1
+
 ## 1.0.0
 
 ### Major Changes
@@ -51,7 +74,7 @@
 ### Minor Changes
 
 - Complete the compiled-theme addenda.
-  
+
   Expose engine/build status in the Admin Themes screen, add hydration payloads
   and client-asset validation, cache artifacts by mtime, cover the React/Solid
   route matrix and golden template HTML, and start theme watchers in the

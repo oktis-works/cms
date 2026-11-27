@@ -19,6 +19,11 @@ ALTER TABLE taxonomy_terms FORCE ROW LEVEL SECURITY;
 ALTER TABLE content_taxonomy_terms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE content_taxonomy_terms FORCE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS tenant_isolation_settings ON settings;
+CREATE POLICY tenant_isolation_settings ON settings
+  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid OR tenant_id IS NULL)
+  WITH CHECK (tenant_id = current_setting('app.current_tenant_id', true)::uuid OR tenant_id IS NULL);
+
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -52,3 +57,4 @@ ALTER TABLE taxonomy_terms NO FORCE ROW LEVEL SECURITY;
 ALTER TABLE content_taxonomy_terms NO FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation_taxonomy_terms ON taxonomy_terms;
 DROP POLICY IF EXISTS tenant_isolation_content_taxonomy_terms ON content_taxonomy_terms;
+DROP POLICY IF EXISTS tenant_isolation_settings ON settings;

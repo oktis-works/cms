@@ -32,10 +32,10 @@ export interface SiteSettings {
 
 export function toSiteSettings(raw: Record<string, unknown>): SiteSettings {
   return {
-    siteTitle: toText(raw['siteTitle']) || 'OkCMS',
-    siteDescription: toText(raw['siteDescription']) || '',
-    siteUrl: toText(raw['siteUrl']) || '',
-    language: toText(raw['language']) || 'pt-BR',
+    siteTitle: toText(raw['siteTitle'] ?? raw['seo.siteTitle']) || 'OkCMS',
+    siteDescription: toText(raw['siteDescription'] ?? raw['seo.siteDescription']) || '',
+    siteUrl: toText(raw['siteUrl'] ?? raw['seo.siteUrl']) || '',
+    language: toText(raw['language'] ?? raw['seo.language']) || 'pt-BR',
   };
 }
 
@@ -319,7 +319,7 @@ function finalizeContentPage(
   const pageRobots = (input.contentRow?.['seo_robots'] as string) ?? undefined;
   const pageCanonical = (input.contentRow?.['seo_canonical_url'] as string) ?? undefined;
   const pageOgImage = (input.contentRow?.['seo_og_image'] as string) ?? undefined;
-  const configuredOgImage = toText(input.settings['ogImage']) || undefined;
+  const configuredOgImage = toText(input.settings['ogImage'] ?? input.settings['seo.ogImage']) || undefined;
 
   const html = wrapDocument(
     body,
@@ -333,14 +333,14 @@ function finalizeContentPage(
       ogTitle: prepared.title,
       ogDescription: pageDescription,
       ogImage: pageOgImage ?? configuredOgImage,
-      ogType: (input.settings['ogType'] as string) ?? 'website',
+      ogType: (input.settings['ogType'] ?? input.settings['seo.ogType']) as string ?? 'website',
       ogSiteName: input.settings.siteTitle,
       ogLocale: input.settings.language ?? 'pt-BR',
-      twitterCard: (input.settings['twitterCard'] as string) ?? 'summary_large_image',
+      twitterCard: (input.settings['twitterCard'] ?? input.settings['seo.twitterCard']) as string ?? 'summary_large_image',
       twitterTitle: prepared.title,
       twitterDescription: pageDescription,
       twitterImage: pageOgImage ?? configuredOgImage,
-      robots: pageRobots ?? (input.settings['defaultRobots'] as string) ?? 'index,follow',
+      robots: pageRobots ?? (input.settings['defaultRobots'] ?? input.settings['seo.defaultRobots']) as string ?? 'index,follow',
     },
     themeAssets
   );
@@ -704,6 +704,7 @@ export function wrapDocument(
   const hydrationScript = themeAssets?.hydration
     ? `<script type="application/json" id="okcms-theme-hydration">${serializeThemeHydration(themeAssets.hydration)}</script>`
     : '';
+  const renderedBody = hydrationScript ? `<div id="root">${body}</div>` : body;
 
   // WP6: ponto de extensão theme:head — plugins injetam tags no <head>
   const registry = getHookRegistry();
@@ -779,7 +780,7 @@ ${canonicalTag}
 ${ogTags.join('\n')}
 ${twitterTags.join('\n')}
 ${seoMetaTags}${compiledStyles}${themeHead}${headInjections}${assetHead}</head>  <body>
-${body}${assetFooter}${hydrationScript ? `\n${hydrationScript}` : ''}${themeScripts ? `\n${themeScripts}` : ''}
+${renderedBody}${assetFooter}${hydrationScript ? `\n${hydrationScript}` : ''}${themeScripts ? `\n${themeScripts}` : ''}
 </body>
 </html>`;
 }
@@ -1002,13 +1003,13 @@ async function attachTerms(sql: ReturnType<typeof getConnection>, contentId: str
  * object. Parses defensively — invalid JSON degrades to an empty body and
  * never breaks the render.
  */
-export function createContentLookup(): ContentLookup {
+export function createContentLookup(tenantId = ''): ContentLookup {
   return {
     async findByPath(path) {
       const sql = getConnection();
       const result = await sql.unsafe(
-        "SELECT * FROM content WHERE slug = $1 AND status = 'PUBLISHED' LIMIT 1",
-        [path]
+        "SELECT * FROM content WHERE slug = $1 AND tenant_id = $2 AND status = 'PUBLISHED' LIMIT 1",
+        [path, tenantId]
       );
 
       const row = result[0] as Record<string, unknown> | undefined;
@@ -1036,8 +1037,8 @@ export function createContentLookup(): ContentLookup {
     async findById(id) {
       const sql = getConnection();
       const result = await sql.unsafe(
-        "SELECT * FROM content WHERE id = $1 AND status = 'PUBLISHED' LIMIT 1",
-        [id]
+        "SELECT * FROM content WHERE id = $1 AND tenant_id = $2 AND status = 'PUBLISHED' LIMIT 1",
+        [id, tenantId]
       );
 
       const row = result[0] as Record<string, unknown> | undefined;
@@ -1064,8 +1065,11 @@ export function createContentLookup(): ContentLookup {
     async getSetting(key) {
       const sql = getConnection();
       const result = await sql.unsafe(
-        `SELECT value FROM settings WHERE key = $1 AND (tenant_id IS NULL OR tenant_id = current_setting('app.current_tenant_id', true)::uuid) ORDER BY tenant_id NULLS LAST LIMIT 1`,
-        [key]
+        `SELECT value FROM settings
+         WHERE key = $1 AND (tenant_id IS NULL OR tenant_id = $2)
+         ORDER BY CASE WHEN tenant_id = $2 THEN 0 ELSE 1 END
+         LIMIT 1`,
+        [key, tenantId]
       );
       const row = result[0] as Record<string, unknown> | undefined;
       if (!row) return null;
@@ -1088,8 +1092,9 @@ export function createContentLookup(): ContentLookup {
          FROM content
          WHERE type = 'page'
            AND status = 'PUBLISHED'
-           AND metadata ? 'hub_type'
-           AND tenant_id = current_setting('app.current_tenant_id', true)::uuid`
+           AND metadata->>'hub_type' IS NOT NULL
+           AND tenant_id = $1`,
+        [tenantId]
       );
       return (result as unknown as Array<{ id: string; slug: string; hub_type: string }>)
         .filter((r) => r.hub_type && r.slug)
@@ -1100,8 +1105,8 @@ export function createContentLookup(): ContentLookup {
     async findParent(parentId) {
       const sql = getConnection();
       const result = await sql.unsafe(
-        `SELECT id, slug, type FROM content WHERE id = $1`,
-        [parentId]
+        `SELECT id, slug, type FROM content WHERE id = $1 AND tenant_id = $2`,
+        [parentId, tenantId]
       );
       const row = result[0] as Record<string, unknown> | undefined;
       if (!row) return null;
@@ -1118,11 +1123,11 @@ export function createContentLookup(): ContentLookup {
       // Exact match
       const exactResult = await sql.unsafe(
         `SELECT target_path, redirect_type FROM url_redirects
-         WHERE tenant_id = current_setting('app.current_tenant_id', true)::uuid
+         WHERE tenant_id = $2
            AND source_path = $1
            AND is_prefix = false
          ORDER BY created_at DESC LIMIT 1`,
-        [sourcePath]
+        [sourcePath, tenantId]
       );
       const exactRow = exactResult[0] as Record<string, unknown> | undefined;
       if (exactRow) {
@@ -1131,9 +1136,10 @@ export function createContentLookup(): ContentLookup {
       // Prefix match: find longest matching prefix (source_path ends with *)
       const prefixResult = await sql.unsafe(
         `SELECT source_path, target_path, redirect_type FROM url_redirects
-         WHERE tenant_id = current_setting('app.current_tenant_id', true)::uuid
+         WHERE tenant_id = $1
            AND is_prefix = true
-         ORDER BY length(source_path) DESC`
+         ORDER BY length(source_path) DESC`,
+        [tenantId]
       );
       for (const row of prefixResult as Array<Record<string, unknown>>) {
         const source = String(row['source_path']);
@@ -1151,7 +1157,7 @@ export function createContentLookup(): ContentLookup {
   };
 }
 
-export function createRouter(themesRoot: string, activeTheme: string): RuntimeRouter {
+export function createRouter(themesRoot: string, activeTheme: string, tenantId: string): RuntimeRouter {
   const catalog = loadThemeCatalog(themesRoot, activeTheme);
   const active = catalog.entries[0];
   if (!active) throw new Error(`Active theme "${activeTheme}" was not found`);
@@ -1162,5 +1168,5 @@ export function createRouter(themesRoot: string, activeTheme: string): RuntimeRo
       entry.build?.templates.includes(key)
     ),
   });
-  return new RuntimeRouter(createContentLookup(), resolver);
+  return new RuntimeRouter(createContentLookup(tenantId), resolver);
 }
