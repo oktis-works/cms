@@ -32,6 +32,12 @@
 
 ---
 
+### Fase 8 — Documentação de tema (bônus executado)
+- [x] `THEME.md` reescrito como guia canônico único de desenvolvimento de temas
+- [x] Conteúdo de `THEMES.md` mesclado em `THEME.md` (mudanças do v1, ciclo de vida, logical keys, SDK bridge, herança, migração)
+- [x] `THEMES.md` deletado (duplicado, não referenciado pelo código ativo)
+- [x] Conteúdo alinhado ao sistema atual (v1.0.4, temas React/Solid isolados, ThemeSdkBridge, apiVersion 2)
+
 ## Checklist de execução (todos concluídos)
 
 ### Fase 0 — Preparação
