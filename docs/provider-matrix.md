@@ -10,7 +10,7 @@ for the other.
 | MySQL | 8.0.36 and 8.4 LTS | `mysql2` 3.24.x | 3306 | disabled, CA, certificate verification |
 | MariaDB | 11.4 LTS | `mariadb` 3.5.x | 3306 | disabled, CA, certificate verification |
 
-The supported application runtimes are Node.js `>=22.17.0` and Bun
+The supported application runtimes are Node.js `>=22.23.0` and Bun
 `>=1.4.4`. The minimum server version is checked before schema mutation. An
 older or unknown server is reported as unsupported and the command stops before
 running migrations or seeds.

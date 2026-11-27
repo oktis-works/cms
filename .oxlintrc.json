@@ -1,0 +1,8 @@
+{
+  "rules": {
+    "no-unused-vars": "warn",
+    "no-explicit-any": "off",
+    "no-non-null-assertion": "off",
+    "no-require-imports": "off"
+  }
+}

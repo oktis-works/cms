@@ -101,7 +101,7 @@ describe('runDoctorChecks', () => {
     const results = await runDoctorChecks({
       tcpProbe: async () => false,
       runner: dockerRunner(),
-      env: { nodeVersion: 'v22.17.0', cwd: dir },
+      env: { nodeVersion: 'v22.23.0', cwd: dir },
     });
 
     const byName = Object.fromEntries(results.map((r) => [r.name, r])) as Record<string, CheckResult>;
@@ -124,7 +124,7 @@ describe('runDoctorChecks', () => {
     const results = await runDoctorChecks({
       tcpProbe: async () => true,
       runner: dockerRunner(),
-      env: { nodeVersion: 'v22.17.0', cwd: dir },
+      env: { nodeVersion: 'v22.23.0', cwd: dir },
     });
 
     const byName = Object.fromEntries(results.map((r) => [r.name, r])) as Record<string, CheckResult>;
@@ -142,7 +142,7 @@ describe('runDoctorChecks', () => {
     const results = await runDoctorChecks({
       tcpProbe: async () => false,
       runner: noDocker(),
-      env: { nodeVersion: 'v22.17.0', cwd: dir },
+      env: { nodeVersion: 'v22.23.0', cwd: dir },
     });
 
     const byName = Object.fromEntries(results.map((r) => [r.name, r])) as Record<string, CheckResult>;
@@ -163,7 +163,7 @@ describe('runDoctorChecks', () => {
     const results = await runDoctorChecks({
       tcpProbe: async () => false,
       runner: noDocker(),
-      env: { nodeVersion: 'v22.17.0', cwd: dir },
+      env: { nodeVersion: 'v22.23.0', cwd: dir },
     });
 
     const byName = Object.fromEntries(results.map((r) => [r.name, r])) as Record<string, CheckResult>;
@@ -180,7 +180,7 @@ describe('runDoctorChecks', () => {
     const results = await runDoctorChecks({
       tcpProbe: async () => false,
       runner: dockerRunner({ composeOk: false }),
-      env: { nodeVersion: 'v22.17.0', cwd: dir },
+      env: { nodeVersion: 'v22.23.0', cwd: dir },
     });
 
     const byName = Object.fromEntries(results.map((r) => [r.name, r])) as Record<string, CheckResult>;
@@ -194,7 +194,7 @@ describe('runDoctorChecks', () => {
     const results = await runDoctorChecks({
       tcpProbe: async () => false,
       runner: dockerRunner({ proxy: false }),
-      env: { nodeVersion: 'v22.17.0', cwd: dir },
+      env: { nodeVersion: 'v22.23.0', cwd: dir },
     });
 
     const byName = Object.fromEntries(results.map((r) => [r.name, r])) as Record<string, CheckResult>;
@@ -214,7 +214,7 @@ describe('runDoctorChecks', () => {
     const results = await runDoctorChecks({
       tcpProbe: async () => false,
       runner: dockerRunner({ proxy: false }),
-      env: { nodeVersion: 'v22.17.0', cwd: dir },
+      env: { nodeVersion: 'v22.23.0', cwd: dir },
     });
 
     const byName = Object.fromEntries(results.map((r) => [r.name, r])) as Record<string, CheckResult>;
@@ -236,7 +236,7 @@ describe('runDoctorChecks', () => {
     const results = await runDoctorChecks({
       tcpProbe: async () => true,
       runner: dockerRunner({ proxy: true }),
-      env: { nodeVersion: 'v22.17.0', cwd: dir },
+      env: { nodeVersion: 'v22.23.0', cwd: dir },
     });
 
     const byName = Object.fromEntries(results.map((r) => [r.name, r])) as Record<string, CheckResult>;

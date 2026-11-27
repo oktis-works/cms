@@ -248,7 +248,7 @@ describe('Ciclo de vida avançado — instalação, ativação e desativação',
       [], // sem vínculo
     ];
 
-    await expect(new PluginService().deactivate('p1', 'tenant-1')).rejects.toThrow('não está vinculado');
+    await expect(new PluginService().deactivate('p1', 'tenant-1')).rejects.toThrow('plugin is not linked to this tenant');
     expect(emittedEvents).toHaveLength(0);
   });
 });

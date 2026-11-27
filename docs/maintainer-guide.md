@@ -28,7 +28,7 @@ okcms-v2/
 ├── scripts/                      # sync-infrastructure, prepare-publish, e2e
 ├── docs/                         # documentation (en) + *.pt-BR.md
 ├── vitest.config.ts              # single test configuration
-└── eslint.config.mjs
+└── .oxlintrc.json                # Oxlint configuration
 ```
 
 Bun workspace (`workspaces` in `package.json`: `apps/*`, `packages/*`,
@@ -71,7 +71,7 @@ if you change one, change both sides (see the next chapter).
 ```bash
 bun run test:run      # vitest run (unit + integration)
 bun run typecheck     # tsc --noEmit (root)
-bun run lint          # eslint .
+bun run lint          # oxlint .
 bun run build         # tsc of the packages + build of the apps
 ```
 
@@ -183,11 +183,12 @@ line up:
    library version — product version is NOT a package version (that's the
    anti-pattern this anchor replaces).
 
-The **`vX.Y.Z` tag is the product version being released**: with `--tag`,
-`prepare-publish.mjs` blocks unless the tag number equals the product anchor
-(it is no longer "just a trigger"). CI runs on the tag and, if it passes,
-dispatches `publish.yml` (tests/typecheck/lint run once, in CI; publish only
-builds and publishes what's missing from the registry).
+The **product version** (root `package.json`, private `okcms` workspace — never
+published) is what `compatibility.okcms` compares against and what the public
+site's `GET /api` reports. Sync with `bun run sync-version --write`
+(`bun run version-packages` already does it). The packages stay independent:
+`@oktis-works/validation` has its own library version — product version is NOT
+a package version (that's the anti-pattern this anchor replaces).
 
 ### Release flow
 
@@ -201,11 +202,11 @@ bun run version-packages
 
 # 3. full validation (never publish with a red gate)
 bun run test:run && bun run typecheck && bun run lint && bun run build
-node scripts/prepare-publish.mjs --check --tag vX.Y.Z
+node scripts/prepare-publish.mjs --check
 
-# 4. commit + tag vX.Y.Z (MUST equal the root anchor) + push
+# 4. commit + push the release branch (no tag needed)
 git commit -am 'chore(release)'
-git tag vX.Y.Z && git push --follow-tags
+git push origin release/vX.Y.Z
 ```
 
 `prepare-publish.mjs` **rewrites** `workspace:*` → `^version` before
@@ -221,7 +222,7 @@ bun run publish:all
 ## Code conventions
 
 - header `// @oktis-works/<package> - <what it is>` on every new file;
-- comments and messages in **Portuguese** (the code talks to the team);
+- comments and messages in **English** (the code talks to the team);
 - pure ESM, `moduleResolution: bundler`, `verbatimModuleSyntax`;
 - `noUncheckedIndexedAccess` + `noPropertyAccessFromIndexSignature` — always
   index with brackets and always with `!`/guard when the context guarantees it;

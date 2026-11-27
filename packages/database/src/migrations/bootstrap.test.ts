@@ -113,7 +113,7 @@ describe('resolveTenantId', () => {
   });
 
   it('slug desconhecido (fora de default) falha com erro claro, sem criar nada', async () => {
-    await expect(resolveTenantId('loja-errada')).rejects.toThrow('não encontrado');
+    await expect(resolveTenantId('loja-errada')).rejects.toThrow('not found');
     expect(
       calls.filter((c) => c.kind === 'tagged' && c.text.includes('INSERT INTO tenants'))
     ).toHaveLength(0);

@@ -25,7 +25,7 @@ export function checkRequired(
     errors.push({
       field,
       code: 'REQUIRED',
-      message: `${field} é obrigatório`,
+      message: `${field} is required`,
     });
     return false;
   }
@@ -49,7 +49,7 @@ export function validateTextLike(
     errors.push({
       field,
       code: 'MIN_LENGTH',
-      message: `${field} deve ter pelo menos ${minLength} caracteres`,
+      message: `${field} must have at least ${minLength} characters`,
     });
   }
 
@@ -57,12 +57,12 @@ export function validateTextLike(
     errors.push({
       field,
       code: 'CHARACTER_LIMIT',
-      message: `${field} excede o limite de ${characterLimit} caracteres`,
+      message: `${field} exceeds the limit of ${characterLimit} characters`,
     });
   }
 }
 
-/** Slug de URL: minúsculas, dígitos e hífens (sem hífen nas pontas). */
+/** URL slug: lowercase, digits and hyphens (no hyphen at the ends). */
 export function validateSlug(value: unknown, field: string, errors: FieldError[]): void {
   if (isEmptyValue(value)) return;
 
@@ -70,7 +70,7 @@ export function validateSlug(value: unknown, field: string, errors: FieldError[]
     errors.push({
       field,
       code: 'INVALID_SLUG',
-      message: `${field} deve ser um slug válido (a-z, 0-9 e hífens)`,
+      message: `${field} must be a valid slug (a-z, 0-9 and hyphens)`,
     });
   }
 }
@@ -83,7 +83,7 @@ export function validateEmail(value: unknown, field: string, errors: FieldError[
     errors.push({
       field,
       code: 'INVALID_EMAIL',
-      message: `${field} não é um e-mail válido`,
+      message: `${field} is not a valid email`,
     });
   }
 }
@@ -98,7 +98,7 @@ export function validateUrl(value: unknown, field: string, errors: FieldError[])
     errors.push({
       field,
       code: 'INVALID_URL',
-      message: `${field} não é uma URL válida (http/https)`,
+      message: `${field} is not a valid URL (http/https)`,
     });
   }
 }
@@ -113,7 +113,7 @@ export function validateNumber(
 
   const num = Number(value);
   if (Number.isNaN(num)) {
-    errors.push({ field, code: 'NOT_A_NUMBER', message: `${field} deve ser um número` });
+    errors.push({ field, code: 'NOT_A_NUMBER', message: `${field} must be a number` });
     return;
   }
 
@@ -134,7 +134,7 @@ export function validateNumber(
       errors.push({
         field,
         code: 'STEP_MISMATCH',
-        message: `${field} deve seguir o incremento de ${step}`,
+        message: `${field} must follow the increment of ${step}`,
       });
     }
   }

@@ -1,0 +1,6 @@
+dist/
+node_modules/
+.astro/
+coverage/
+*.d.ts
+packages/cli/src/scaffold.test.js

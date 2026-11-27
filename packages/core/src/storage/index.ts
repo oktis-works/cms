@@ -61,7 +61,7 @@ export function createStorageDriver(name?: string): StorageDriver {
     case 'minio':
       return new S3StorageDriver(resolveS3LikeConfig(driver));
     default:
-      throw new Error(`Storage driver "${driver}" não suportado (use: local, s3, r2, minio)`);
+      throw new Error(`Storage driver "${driver}" not supported (use: local, s3, r2, minio)`);
   }
 }
 

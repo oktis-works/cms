@@ -18,7 +18,7 @@ function isEmptyValue(value: unknown): boolean {
 function checkRequired(value: unknown, required: boolean | undefined, field: string, errors: FieldError[]): boolean {
   if (!required) return true;
   if (isEmptyValue(value)) {
-    errors.push({ field, code: 'REQUIRED', message: `${field} é obrigatório` });
+    errors.push({ field, code: 'REQUIRED', message: `${field} is required` });
     return false;
   }
   return true;
@@ -30,10 +30,10 @@ function validateTextLike(value: unknown, config: Record<string, unknown>, field
   const minLength = (config['minLength'] ?? config['minimum']) as number | undefined;
   const characterLimit = (config['characterLimit'] ?? config['maxLength']) as number | undefined;
   if (minLength !== undefined && str.length < minLength) {
-    errors.push({ field, code: 'MIN_LENGTH', message: `${field} deve ter pelo menos ${minLength} caracteres` });
+    errors.push({ field, code: 'MIN_LENGTH', message: `${field} must have at least ${minLength} characters` });
   }
   if (characterLimit !== undefined && str.length > characterLimit) {
-    errors.push({ field, code: 'CHARACTER_LIMIT', message: `${field} excede o limite de ${characterLimit} caracteres` });
+    errors.push({ field, code: 'CHARACTER_LIMIT', message: `${field} exceeds the limit of ${characterLimit} characters` });
   }
 }
 
@@ -41,7 +41,7 @@ function validateEmail(value: unknown, field: string, errors: FieldError[]): voi
   if (isEmptyValue(value)) return;
   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailPattern.test(String(value))) {
-    errors.push({ field, code: 'INVALID_EMAIL', message: `${field} não é um e-mail válido` });
+    errors.push({ field, code: 'INVALID_EMAIL', message: `${field} is not a valid email` });
   }
 }
 
@@ -51,7 +51,7 @@ function validateUrl(value: unknown, field: string, errors: FieldError[]): void 
     const parsed = new URL(String(value));
     if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('protocol');
   } catch {
-    errors.push({ field, code: 'INVALID_URL', message: `${field} não é uma URL válida (http/https)` });
+    errors.push({ field, code: 'INVALID_URL', message: `${field} is not a valid URL (http/https)` });
   }
 }
 
@@ -59,14 +59,14 @@ function validateNumber(value: unknown, config: Record<string, unknown>, field: 
   if (isEmptyValue(value)) return;
   const num = Number(value);
   if (Number.isNaN(num)) {
-    errors.push({ field, code: 'NOT_A_NUMBER', message: `${field} deve ser um número` });
+    errors.push({ field, code: 'NOT_A_NUMBER', message: `${field} must be a number` });
     return;
   }
   const minValue = (config['minValue'] ?? config['min']) as number | undefined;
   const maxValue = (config['maxValue'] ?? config['max']) as number | undefined;
   const step = config['step'] as number | undefined;
-  if (minValue !== undefined && num < minValue) errors.push({ field, code: 'MIN_VALUE', message: `${field} deve ser maior ou igual a ${minValue}` });
-  if (maxValue !== undefined && num > maxValue) errors.push({ field, code: 'MAX_VALUE', message: `${field} deve ser menor ou igual a ${maxValue}` });
+  if (minValue !== undefined && num < minValue) errors.push({ field, code: 'MIN_VALUE', message: `${field} must be greater than or equal to ${minValue}` });
+  if (maxValue !== undefined && num > maxValue) errors.push({ field, code: 'MAX_VALUE', message: `${field} must be less than or equal to ${maxValue}` });
   if (step !== undefined && step > 0) {
     const base = minValue ?? 0;
     const remainder = Math.abs((num - base) / step - Math.round((num - base) / step));

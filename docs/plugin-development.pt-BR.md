@@ -35,7 +35,7 @@ plugins/meu-plugin/
   "main": "index.js",
   "scope": "tenant",
   "permissions": [],
-  "compatibility": { "okcms": "^0.5.5" }
+  "compatibility": { "okcms": "^1.0.0" }
 }
 ```
 
