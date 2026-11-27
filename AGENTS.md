@@ -13,8 +13,6 @@ This document defines strict operational rules and workflows that the AI Agent m
 * **README.md title rule:** The title **MUST** always match the product version in root `package.json`. It is `# OkCMS v{version}` (e.g. `# OkCMS v0.36.9`), never `# OkCMS v2` or any other hardcoded string. If you bump `version` in `package.json`, you **MUST** run `bun run sync-version --write` before committing.
 * **No manual README title edits:** Never edit the `# OkCMS v...` line by hand. Always use `bun run sync-version --write` so all three anchors stay identical.
 * **Individual package versions are independent:** managed by Changesets (`.changeset/*.md`), consumed with `bun run version-packages` (which also runs `sync-version --write` at the end).
-* **Release tag = product version:** the tag `vX.Y.Z` must exactly match the root `package.json` version. This is a BLOCKING check (`scripts/prepare-publish.mjs --check --tag`) — if they differ, `publish.yml` fails before publishing anything.
-* **Never reuse a burned tag:** a tag whose CI run failed (e.g. `v0.16.0`, `v0.16.1`) never published anything — skip to the next version instead of re-tagging.
 
 ## 3. GitHub & CI/CD Pipeline Workflow
 Before preparing or recommending a push to GitHub, evaluate if the updates trigger the CI/CD and Publish workflows.
