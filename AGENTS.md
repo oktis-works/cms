@@ -247,7 +247,10 @@ bun run build
 # 7. PostgreSQL historical upgrade acceptance (run with node, not bun)
 OKCMS_ACCEPTANCE_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres node packages/database/scripts/postgres-upgrade-acceptance.mjs
 
-# 8. MySQL & MariaDB acceptance
+# 8. MySQL & MariaDB acceptance (REQUIRES CONTAINERS RUNNING)
+# Start: docker run -d --name okcms-mysql -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=mysql -p 3306:3306 mysql:8.0
+#        docker run -d --name okcms-mariadb -e MARIADB_ROOT_PASSWORD=root -e MARIADB_DATABASE=mysql -p 3307:3306 mariadb:11.4
+# Wait 15s for readiness, then run:
 OKCMS_MYSQL_ACCEPTANCE_URL=mysql://root:root@127.0.0.1:3306/mysql \
 OKCMS_MARIADB_ACCEPTANCE_URL=mariadb://root:root@127.0.0.1:3307/mysql \
 bun run test:providers
