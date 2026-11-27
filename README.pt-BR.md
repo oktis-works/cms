@@ -1,10 +1,10 @@
 > 📄 **Português (Brasil)** · [English](./README.md)
 
-# OkCMS v2
+# OkCMS v1.0.4
 
-Hybrid, modular, API-first, extensible CMS with an isolated React/Solid theme platform, Node.js/TypeScript backend, PostgreSQL, Docker immutable deployments, plugin and theme extension systems, and multi-tenancy.
+Hybrid, modular, API-first, extensible CMS com plataforma de temas isolada em React/Solid, backend Node.js/TypeScript, PostgreSQL, implantações Docker imutáveis, sistemas de extensão de plugins e temas, e multi-tenancy. Temas públicos são projetos isolados em React ou Solid compilados com `okcms theme:build` e conectados ao host apenas através do `ThemeSdkBridge`.
 
-## Documentation
+## Documentação
 
 | Público | Guia |
 |---|---|
@@ -12,16 +12,13 @@ Hybrid, modular, API-first, extensible CMS with an isolated React/Solid theme pl
 | **Operador** (deploy em Docker) | [Docker Deploy](./docs/docker-deploy.pt-BR.md) — targets de deploy, imagem única, lanes blue/green, rollback, segurança |
 | Mantenedor (contribui com o código) | [Maintainer Guide](./docs/maintainer-guide.pt-BR.md) — dev local, qualidade, publicação npm/Docker |
 | Desenvolvedor de extensões | [Plugin Development](./docs/plugin-development.pt-BR.md) · [Theme Development](./docs/theme-development.pt-BR.md) |
+| Referência de comandos CLI | [CLI Reference](./docs/cli-reference.pt-BR.md) — todos os comandos, opções e flags |
 
 ---
 
 ## CLI `okcms`
 
-A CLI é a **única** superfície de operação do sistema: cria o projeto, sobe os
-apps, migra o banco, configura o `.env`, instala extensões e faz deploy. Ela é
-zero-dependências (sem lib de prompt), roda em **Node 22.23+ ou Bun 1.4.4+** e nunca
-executa dentro de um container — deploy e configuração são sempre a partir do
-host.
+A CLI é a **única** superfície de operação do sistema: cria o projeto, sobe os apps, migra o banco, configura o `.env`, instala extensões e faz deploy. Ela é zero-dependências (sem lib de prompt), roda em **Node 22.23+ ou Bun 1.4.4+** e nunca executa dentro de um container — deploy e configuração são sempre a partir do host.
 
 ### Instalação
 
@@ -30,218 +27,75 @@ host.
 npm install -g @oktis-works/cms      # ou: bun add -g @oktis-works/cms
 
 # criar um projeto sem instalação global
-npx @oktis-works/cms@latest --help
-# ou: bunx @oktis-works/cms@latest --help
+npx @oktis-works/cms@latest init meu-site
+# ou: bunx @oktis-works/cms@latest init meu-site
 
 # num projeto scaffoldado, a CLI fica disponível como `okcms`
 okcms doctor
 ```
 
+### Uso local do projeto (recomendado)
+
+```bash
+# 1. Crie um novo projeto
+npx @oktis-works/cms@latest init meu-site
+cd meu-site
+
+# 2. Configure o ambiente (ajuste DB_PASSWORD e JWT_SECRET)
+$EDITOR .env
+
+# 3. Aplique migrações do banco
+bun run migrate
+
+# 4. Suba todos os apps (API + Admin + Web + Worker)
+bun run start
+
+# 5. Execute diagnósticos se algo falhar
+bun run doctor
+```
+
+**Ou faça tudo de uma vez com `bun run dev`:**
+
+```bash
+npx @oktis-works/cms@latest init meu-site
+cd meu-site
+bun run dev
+```
+
+O `bun run dev` completa o `.env` (gera os segredos que faltam, mantém os valores existentes), sobe a infra do projeto (o MESMO compose que o `okcms deploy` reutiliza) e **espera o Postgres aceitar conexões** antes das migrations, deixa o Redis alcançável pelo host (o compose de infra o mantém só na rede interna, por design de produção — o dev grava um override só-de-dev em `.data/dev-infra.override.yml` que o `okcms deploy` nunca lê), aplica schema + seed + migrations, cria o primeiro admin (`SUPER_ADMIN`) quando o banco está vazio, sobe os apps e **imprime os endereços finais** (API · Admin · Web no localhost). É reexecutável — depois de um `docker compose down -v` tudo é recriado na próxima rodada — e fora de TTY exige `--yes` (com `--email/--name/--password` para o primeiro usuário).
+
+O `init` pergunta em que língua escrever as docs (`README.md`, `PLUGIN.md`, `THEME.md`): **inglês** ou **português**. Em script/CI (sem TTY) ele não pergunta e o default é inglês — force com `--lang en` ou `--lang pt`. Só os arquivos Markdown são traduzidos; comandos, flags e código continuam iguais.
+
+Logo depois, ele pergunta se quer instalar as dependências do projeto agora (mesmo menu de setas). Respondendo **Não** — ou passando `--no-install` — a instalação é pulada. Com `bun` disponível ela roda com um loader ao vivo que mostra a versão real de cada pacote conforme instala; sem bun, ele cai para o `npm`.
+
 ### Assistente interativo
 
-Rode `okcms` **sem argumentos num terminal** e o assistente guiado abre —
-todos os comandos, fluxos e campos da CLI, navegados com as setas (e
-atalhos `1`-`9`):
+Rode `okcms` **sem argumentos num terminal** e o assistente guiado abre — todos os comandos, fluxos e campos da CLI, navegados com as setas (e atalhos `1`-`9`):
 
 ```bash
 okcms            # comando puro em TTY → o assistente
 okcms menu       # alias explícito do mesmo assistente
 ```
 
-- **Fluxos guiados** — `init`, `dev`, `deploy` (blue-green · simple · pm2) e
-  `update`, com pré-cheagens (projeto, docker, portas ocupadas pelos apps
-  locais) e escolha de doctor / retry / menu quando uma etapa falha.
-- **Todos os comandos do CLI**, agrupados por área. Os destrutivos
-  (`db:restore`, `db:rollback`, `rollback`, `update`) ganham ⚠ e uma confirmação
-  extra além da normal. Cada execução imprime primeiro a linha exata
-  `$ okcms …`, então tudo que foi feito na tela pode ser scriptado depois.
-- **Entrevista do `.env`** — o schema completo (47 campos), cada um com uma
-  explicação curta, o valor atual (segredos mascarados) e Enter mantendo-o.
-  Nada é gravado até o resumo final ser confirmado uma única vez; Ctrl+C em
-  qualquer ponto descarta o plano inteiro.
-- **Status adaptativo** — o menu sonda docker, serviços do compose, apps
-  rodando e `.env`, e sugere o próximo passo
-  (init → env → infra → apps → deploy).
-- **Idioma** — a UI começa em inglês e pode ser trocada para português (ou
-  de volta) pelo menu; nomes de comandos e flags nunca são traduzidos.
-  Durante um filho longo (`dev`, `start`) o Ctrl+C para o filho e volta ao
-  menu em vez de matar o assistente.
+- **Fluxos guiados** — `init`, `dev`, `deploy` (blue-green · simple · pm2) e `update`, com pré-cheagens (projeto, docker, portas ocupadas pelos apps locais) e escolha de doctor / retry / menu quando uma etapa falha.
+- **Todos os comandos do CLI**, agrupados por área. Os destrutivos (`db:restore`, `db:rollback`, `rollback`, `update`) ganham ⚠ e uma confirmação extra além da normal. Cada execução imprime primeiro a linha exata `$ okcms …`, então tudo que foi feito na tela pode ser scriptado depois.
+- **Entrevista do `.env`** — o schema completo (47 campos), cada um com uma explicação curta, o valor atual (segredos mascarados) e Enter mantendo-o. Nada é gravado até o resumo final ser confirmado uma única vez; Ctrl+C em qualquer ponto descarta o plano inteiro.
+- **Status adaptativo** — o menu sonda docker, serviços do compose, apps rodando e `.env`, e sugere o próximo passo (init → env → infra → apps → deploy).
+- **Idioma** — a UI começa em inglês e pode ser trocada para português (ou de volta) pelo menu; nomes de comandos e flags nunca são traduzidos. Durante um filho longo (`dev`, `start`) o Ctrl+C para o filho e volta ao menu em vez de matar o assistente.
 
-Fora de um TTY (pipes, scripts, CI), `okcms` puro imprime o help estático —
-o comportamento de automação nunca muda.
-
-### Primeiros passos
-
-```bash
-npx @oktis-works/cms@latest init meu-site  # ou: bunx @oktis-works/cms@latest init meu-site
-cd meu-site
-$EDITOR .env                 # ajuste DB_PASSWORD e JWT_SECRET
-bun run migrate             # aplica migrations/
-bun run start                  # api + admin + web + worker
-bun run doctor                 # se algo falhar
-```
-
-Ou faça a sequência inteira em um comando com o **`bun run dev`**: ele completa
-o `.env` (gera os segredos que faltam, mantém os valores existentes), sobe a
-infra do projeto (o MESMO compose que o `okcms deploy` reutiliza) e **espera
-o Postgres aceitar conexões** antes das migrations, deixa o Redis alcançável
-pelo host (o compose de infra o mantém só na rede interna, por design de
-produção — o dev grava um override só-de-dev em `.data/dev-infra.override.yml`
-que o `okcms deploy` nunca lê), aplica schema + seed + migrations, cria o
-primeiro admin (`SUPER_ADMIN`) quando o banco está vazio, sobe os apps e
-**imprime os endereços finais** (API · Admin · Web no localhost). É
-reexecutável — depois de um `docker compose down -v` tudo é recriado na
-próxima rodada — e fora de TTY exige `--yes` (com
-`--email/--name/--password` para o primeiro usuário).
-
-> **Dev → deploy.** O `bun run dev` prepara o MESMO estado que o
-> `okcms deploy` consome (`.env` do projeto, compose de infra compartilhado,
-> migrations versionadas, seed idempotente, o usuário admin) — nada é jogado
-> fora. A única colisão: os processos do `start` ocupam as mesmas portas que
-> os containers precisam, então rode `okcms stop` antes do `okcms deploy`.
-> Sem Docker o passo de infra é pulado com dica (aponte para um Postgres
-> seu); o `okcms dev` nunca grava workarounds "de dev" como
-> `REDIS_HOST=disabled` no `.env` — valores existentes nunca são
-> sobrescritos. O override do Redis fica em `.data/` (gitignored); o deploy
-> roda o compose sem ele, então o Redis volta a ser só interno e o volume
-> nomeado não é tocado.
-
-O `init` pergunta em que língua escrever as docs (`README.md`, `PLUGIN.md`,
-`THEME.md`): **inglês** ou **português**. Em script/CI (sem TTY) ele não
-pergunta e o default é inglês — force com `--lang en` ou `--lang pt`. Só os
-arquivos Markdown são traduzidos; comandos, flags e código continuam iguais.
-
-Logo depois, ele pergunta se quer instalar as dependências do projeto agora
-(mesmo menu de setas). Respondendo **Não** — ou passando `--no-install` — a
-instalação é pulada. Com `bun` disponível ela roda com um loader ao vivo que
-mostra a versão real de cada pacote conforme instala; sem bun, ele cai para o
-`npm`.
-
-### Referência de comandos
-
-**Projeto e execução**
-
-| Comando | Opções | O que faz |
-|---|---|---|
-| `okcms init <dir> [nome]` | `-d, --dir` · `-l, --lang en\|pt` · `-n, --no-install` | Cria o projeto: configs, `.env`, compose, arquivos de deploy Docker, docs (em inglês ou português) e a instalação das dependências (bun, ou npm) |
-| `okcms menu` | — | Abre o assistente interativo (igual a rodar `okcms` puro num terminal) |
-| `okcms start` | `-A, --all` (default) · `-a, --api` · `-m, --admin` · `-w, --web` · `-W, --worker` | Sobe os apps como processos do host (pidfiles em `.data/`) |
-| `okcms stop` | — | Para o que `start` subiu (pidfile + detecção) |
-| `okcms status` | — | Estado dos processos + resumo do projeto |
-| `okcms dev` | `-y, --yes` · `-s, --skip-start` · `-n, --no-infra` · `-e, --email` · `-N, --name` · `-p, --password` · `-F, --force` | Setup + run de dev num comando: completa `.env` → infra (espera o Postgres, publica o Redis em loopback p/ os apps de host) → schema/seed/migrations → primeiro admin → `start` + endereços finais (reexecutável; sem TTY exige `--yes`) |
-| `okcms doctor` | — | Diagnóstico: node, `.env`, banco (`DB_*` ou `DATABASE_URL`), config, **docker, compose v2, lane, proxy** |
-| `okcms config` | `-s, --set K=V` (repetível) · `-l, --list` · `-S, --show-secrets` · `-n, --non-interactive` · `-x, --section <s>` · `-F, --force` | Wizard de edição do `.env` — Enter mantém, Ctrl+C descarta tudo (exit 130) |
-
-`--section` aceita: `app · database · redis · auth · storage · worker · cache ·
-ports · theme · deploy`.
-
-```bash
-okcms config                          # wizard interativo
-okcms config --list                   # chaves com segredos mascarados
-okcms config --set PORT=4000 --set JWT_SECRET=$(openssl rand -hex 32)
-okcms config --section deploy -n      # programático, sem TTY
-```
-
-**Atualização e deploy**
-
-| Comando | Opções | O que faz |
-|---|---|---|
-| `okcms deploy` | `-t, --target blue-green\|simple\|pm2` | **Primeiro deploy**: menu de setas (↑/↓ + Enter) escolhe o target; `--target` pula o menu |
-| `okcms update` | — | Assistente de atualização: y/n por etapa — pacotes → migrations (sincroniza `./migrations`) → deploy |
-| `okcms update -i` | `-i, --install` | Alias legado; a atualização completa já instala os pacotes |
-| `okcms update --mode download` | `-m, --mode download\|deploy` | Pacotes + sync de migrations; nunca inicia o Docker |
-| `okcms update --mode deploy` | `-t, --target blue-green\|simple\|pm2` | Deploy completo do target escolhido (ver abaixo) |
-| `okcms redeploy` | `-p, --plugin <n>` · `-t, --theme <n>` · `-M, --skip-migrations` · `-B, --skip-theme-build` · `-n, --dry-run` · `-T, --target blue-green\|simple\|pm2` | Aplica plugin/tema recém-instalado: SQL do plugin → `migrations/`, `dist/theme.css` do tema e deploy (ver abaixo) |
-| (flags de deploy) | `-c, --no-cache` · `-r, --remove-orphans` · `-k, --keep-orphans` · `-y, --yes` · `-F, --force` | `-c`/`-r`/`-k` valem só para `redeploy` e `update --mode deploy` — o primeiro `deploy` não os expõe, e as opções de órfãos só afetam o blue/green; `-y` e `-F` são para uso sem TTY |
-
-```bash
-okcms deploy --target simple      # primeiro deploy: menu, ou --target para pular
-okcms update                     # assistente: y/n em pacotes → migrations → deploy
-okcms update --mode download     # apenas pacotes
-okcms update --mode deploy       # deploy: target do menu, --target ou salvo
-okcms update --mode deploy --target pm2 --yes # CI: sem prompts, defaults
-
-Copie o diretório completo do tema para `themes/<nome-do-tema>` e sincronize-o com o banco.
-okcms redeploy                  # stage + build + deploy (o que fazer depois de instalar)
-okcms redeploy --dry-run        # só mostra o plano
-```
-
-> **Sem TTY exige confirmação explícita.** Sem `--mode`, scripts precisam de
-> `--yes` para executar a atualização completa. Use `--mode download` para
-> atualizar apenas pacotes. Sem `--target`, um script reutiliza o target salvo
-> (blue/green num projeto que nunca fez deploy) em vez de perguntar.
-
-O `okcms update` pergunta etapa por etapa: instalar os pacotes
-`@oktis-works/*` no host? baixar as migrations pendentes para
-`./migrations`? fazer o deploy agora? Cada `n` pula a etapa — `n` no deploy
-encerra sem tocar em Docker ou PM2. As migrations vêm embutidas no pacote do
-CLI e são sincronizadas sem destruir: só entra o que falta; arquivo editado
-localmente é mantido e o conflito é reportado. Com `y` no deploy, a
-atualização faz o build da nova versão, aplica as migrations no host e
-executa o deploy do target escolhido.
-
-**Banco de dados**
-
-| Comando | Opções | O que faz |
-|---|---|---|
-| `okcms db:migrate` | `-d, --dir` · `-t, --tenant` | Aplica as migrations pendentes de `migrations/` |
-| `okcms db:rollback` | `-d, --dir` · `-t, --tenant` | Reverte a última migration |
-| `okcms db:status` | `-t, --tenant` | Mostra o estado das migrations |
-| `okcms db:backup` | `-o, --out` | Dump custom do Postgres com timestamp |
-| `okcms db:restore` | `-f, --file` (obrigatória) · `-c, --clean` | Restaura um dump, opcionalmente dropando antes |
-
-**Extensões**
-
-| Comando | Opções | O que faz |
-|---|---|---|
-| `okcms plugin:create` | `-n, --name` (obrigatória) · `-d, --dir` | Scaffold mínimo de plugin |
-| `okcms plugin:install` | `-n, --name` (obrigatória) | Instala de um caminho local + registra |
-| `okcms plugin:list` · `plugin:search` | `-q, --query` | Lista instalados / busca no npm (`okcms-plugin`) |
-| `okcms plugin:manage` | `-n, --name` (obrigatória) · `-i` · `-e` · `-d` · `-u` | Info; enable/disable (estado local); uninstall |
-| `okcms theme:create` | `-n, --name` (obrigatória) · `--engine react\|solid` · `-d, --dir` · `-s, --style css\|scss\|tailwind` | Scaffold isolado de tema React/Solid |
-| `okcms theme:list` · `theme:search` | `-q, --query` | Consulta de temas |
-| `okcms theme:manage` | `-n, --name` (obrigatória) · `-i` · `-d` · `-u` · `-s, --set-active` | Info; uninstall; ativação por tenant |
-| `okcms theme:build` | `-n, --name` (obrigatória) · `-d, --themes-dir` | Compila artifact SSR e estilos isolados |
-
-**Conteúdo e sistema**
-
-| Comando | Opções | O que faz |
-|---|---|---|
-| `okcms user:create` | `-e, --email` · `-n, --name` · `-p, --password` (todos obrigatórios) · `-t, --tenant` | Cria usuário e atribui papel no tenant |
-| `okcms seed` | — | Dados iniciais (roles + settings) — idempotente |
-| `okcms system:status` | — | Status do ambiente + saúde do banco |
-| `okcms media:migrate` | `-f, --from` · `-t, --to` (obrigatórios) | Move mídia entre drivers (`local`, `s3`, `r2`, `minio`) |
-| `okcms build` | `-a, --apps api,admin,web` | Build dos apps (só em monorepo) |
-
-**Convenções e exit codes**
-
-- `0` sucesso · `1` erro · `130` interrompido (Ctrl+C) — nenhum artefato gravado.
-- Toda opção booleana é `-x` ou `--long`; opções marcadas *repetível* (`--set`)
-  acumulam ocorrências em vez de sobrescrever.
-- Comandos que alteram estado fora do processo recusam rodar **dentro** de um
-  container (`okcms update`, `okcms redeploy`, `okcms config`); `--force` é o
-  escape consciente.
-- Segredos nunca aparecem em `--list` sem `--show-secrets`, e nunca são
-  impressos de volta em erro.
+Fora de um TTY (pipes, scripts, CI), `okcms` puro imprime o help estático — o comportamento de automação nunca muda.
 
 ---
 
 ## Deploy em Docker
 
-O `okcms init` suporta **três targets de deploy**. Toda execução de
-`okcms deploy`, `okcms update --mode deploy` e `okcms redeploy` pergunta qual
-usar num menu de setas (navegue com ↑/↓, confirme com Enter, última escolha já
-pré-selecionada), e `--target blue-green|simple|pm2` pula o menu — a escolha
-fica guardada em `.deploy/state.json`:
+O `okcms init` suporta **três targets de deploy**. Toda execução de `okcms deploy`, `okcms update --mode deploy` e `okcms redeploy` pergunta qual usar num menu de setas (navegue com ↑/↓, confirme com Enter, última escolha já pré-selecionada), e `--target blue-green|simple|pm2` pula o menu — a escolha fica guardada em `.deploy/state.json`:
 
 - **blue/green** — lanes blue/green atrás do proxy nginx, troca sem downtime;
-- **simple** — um stack só, sem lanes, em `docker-compose.app.yml` (projeto Docker
-  `okcms-app`, containers `okcms-api`/`okcms-web`/`okcms-admin`/`okcms-worker`)
-  com o nginx apontando para ele, restart breve em vez de troca sem downtime;
+- **simple** — um stack só, sem lanes, em `docker-compose.app.yml` (projeto Docker `okcms-app`, containers `okcms-api`/`okcms-web`/`okcms-admin`/`okcms-worker`) com o nginx apontando para ele, restart breve em vez de troca sem downtime;
 - **pm2** — processos no host via `pm2 startOrReload ecosystem.config.js --update-env`.
 
-A sequência abaixo é a do target blue/green — o `okcms init` já escreve tudo
-que o deploy precisa:
+A sequência abaixo é a do target blue/green — o `okcms init` já escreve tudo que o deploy precisa:
 
 ```
 meu-site/
@@ -254,6 +108,19 @@ meu-site/
 ├── deploy/nginx/conf.d/00-upstreams.conf   # reescrito pela CLI no swap
 └── .deploy/state.json             # lane ativa + target + histórico (gitignored)
 ```
+
+> ### `docker/` vs `infrastructure/` — o que é o que
+>
+> Dois diretórios contêm arquivos Docker, e eles são **intencionalmente diferentes**:
+>
+> | Diretório | Propósito | Gerado a partir de |
+> |-----------|-----------|-------------------|
+> | `docker/` (raiz do projeto) | Imagem de desenvolvimento local para checkout do monorepo. Copia todos os workspaces (`apps`, `packages`, `plugins`) e instala com `--filter '@oktis-works/*'`. | `packages/cli/src/assets.ts` (string `DOCKERFILE`) |
+> | `infrastructure/` (monorepo) | Espelho dos mesmos artefatos de deploy, mantido no repositório para auditoria. Regenerado por `bun scripts/sync-infrastructure.ts`. Validado no CI para nunca divergir do `assets.ts`. | `packages/cli/src/assets.ts` (mesmas strings) |
+>
+> **Nunca edite `infrastructure/` ou `docker/` diretamente.** Para mudar qualquer artefato de deploy, edite `packages/cli/src/assets.ts`, rode `bun scripts/sync-infrastructure.ts`, então commite ambos. O CI impõe isso com `git diff --exit-code`.
+>
+> O que o `okcms init` escreve no **seu projeto** (ex.: `meu-site/`) vem de `assets.ts` via `deployAssets()` — `docker/Dockerfile`, `docker/entrypoint.sh`, `docker-compose.infra.yml`, `docker-compose.deploy.yml`, `docker-compose.app.yml`, e `deploy/nginx/`. Ele não copia do `infrastructure/`.
 
 ```bash
 okcms deploy --target blue-green     # primeiro deploy
@@ -268,20 +135,16 @@ O que acontece, nesta ordem (blue/green):
 4. `docker compose build` da lane nova — ainda sem tráfego;
 5. `okcms db:migrate` **no host** — falhou aqui e nada mudou;
 6. sobe o edge (`api`, `web`, `admin`) da lane nova e espera cada healthcheck;
-7. troca o proxy: `00-upstreams.conf` + `nginx -s reload` (conexões vivas);
+7. troca do proxy: `00-upstreams.conf` + `nginx -s reload` (conexões vivas);
 8. **drena** o worker antigo (SIGTERM + `stop_grace_period`), sobe o novo;
 9. derruba a lane antiga com `down` — **sem `-v`**, o volume de mídia é compartilhado;
 10. grava `.deploy/state.json` (a lane antiga vira o caminho de rollback).
 
-Qualquer falha nos passos 4–7 desfaz o que já foi feito e deixa a lane atual
-servindo. Detalhes completos em **[docs/docker-deploy.md](./docs/docker-deploy.pt-BR.md)**.
+Qualquer falha nos passos 4–7 desfaz o que já foi feito e deixa a lane atual servindo. Detalhes completos em **[docs/docker-deploy.md](./docs/docker-deploy.pt-BR.md)**.
 
 ### Aplicando um plugin ou tema novo
 
-Instalar extensão **não muda o que está no ar**: `plugins/` e `themes/`
-entram na imagem pelo `COPY . .` do build, e `themes/<n>/dist/theme.css` é
-compilado **no host** (o container não compila SCSS/Tailwind). Um plugin que
-mexe no banco, além disso, precisa aplicar o SQL dele.
+Instalar extensão **não muda o que está no ar**: `plugins/` e `themes/` entram na imagem pelo `COPY . .` do build, e `themes/<n>/dist/theme.css` é compilado **no host** (o container não compila SCSS/Tailwind). Um plugin que mexe no banco precisa aplicar o SQL dele.
 
 ```bash
 Copie diretórios completos de temas para `themes/`; a instalação de temas é somente por arquivos.
@@ -290,17 +153,11 @@ okcms redeploy
 
 O `okcms redeploy` faz o ciclo completo, nesta ordem:
 
-1. copia `plugins/<n>/migrations/*.sql` para `migrations/` — idempotente, e um
-   nome fora de `V###__owner__nome.sql` **nunca** é copiado (quebraria todo
-   `db:migrate`);
-2. compila o estilo de cada tema que tiver entrada, gravando
-   `themes/<n>/dist/theme.css`;
-3. roda o deploy do target escolhido — o mesmo do `okcms update --mode deploy`,
-   só que **sem**
-   `bun add` — o que mudou é conteúdo de extensão, não versão de pacote.
+1. copia `plugins/<n>/migrations/*.sql` para `migrations/` — idempotente, e um nome fora de `V###__owner__nome.sql` **nunca** é copiado (quebraria todo `db:migrate`);
+2. compila o estilo de cada tema que tiver entrada, gravando `themes/<n>/dist/theme.css`;
+3. roda o deploy do target escolhido — o mesmo do `okcms update --mode deploy`, só que **sem** `bun add` — o que mudou é conteúdo de extensão, não versão de pacote.
 
-Falha no preparo (1 ou 2) aborta antes de tocar no deploy; falha no deploy
-faz rollback, como sempre. Opções úteis:
+Falha no preparo (1 ou 2) aborta antes de tocar no deploy; falha no deploy faz rollback, como sempre. Opções úteis:
 
 | Flag | Efeito |
 |---|---|
@@ -312,16 +169,16 @@ faz rollback, como sempre. Opções úteis:
 
 ---
 
-## Architecture
+## Arquitetura
 
-- **Frontend público**: host neutro + themes SSR isolados em React/Solid
+- **Frontend público**: host neutro + temas SSR isolados em React/Solid
 - **Backend**: Node.js + TypeScript + Hono
-- **Database**: PostgreSQL with Row-Level Security
-- **Cache/Queue**: Redis
-- **Build**: Docker immutable builds with layer caching
+- **Banco de dados**: PostgreSQL com Row-Level Security
+- **Cache/Fila**: Redis
+- **Build**: Docker immutable builds com cache de camadas
 - **Monorepo**: Bun workspaces
 
-## Project Structure
+## Estrutura do Projeto
 
 ```
 okcms-v2/
@@ -348,58 +205,60 @@ okcms-v2/
 ├── infrastructure/    # Espelhos gerados da CLI (docker/, compose/, nginx/)
 ├── plugins/           # Plugin packages
 ├── themes/            # Theme packages
-├── docs/              # Documentation
+├── docs/              # Documentação
 └── tests/             # Integration tests
 ```
 
-`infrastructure/**` é **gerado** a partir de `packages/cli/src/assets.ts` —
-não edite à mão:
+`infrastructure/**` é **gerado** a partir de `packages/cli/src/assets.ts` — não edite à mão:
 
 ```bash
 bun scripts/sync-infrastructure.ts
 ```
 
-## Getting Started
+## Começando
 
-### Prerequisites
+### Pré-requisitos
 
 - Node.js 22.23+
 - Bun 1.4.4+
 - Docker & Docker Compose v2 (para os targets `blue-green` e `simple` — `pm2` não precisa)
 - PostgreSQL 16+
 
-### Development
+### Desenvolvimento
 
-1. Clone the repository
-2. Install dependencies:
+1. Clone o repositório
+2. Instale as dependências:
+
    ```bash
    bun install
    ```
 
-3. Start development environment:
+3. Inicie o ambiente de desenvolvimento:
+
    ```bash
    docker compose up -d
    ```
 
-4. Run API server:
+4. Execute o servidor API:
+
    ```bash
    bun run --filter @oktis-works/api dev
    ```
 
-### Building
+### Build
 
 ```bash
-# Build all packages
+# Build de todos os pacotes
 bun run build
 
-# Build specific package
+# Build de um pacote específico
 bun run --filter @oktis-works/api build
 
-# Docker image (equivalente ao que o deploy usa)
+# Imagem Docker (equivalente à usada no deploy)
 docker build -f infrastructure/docker/Dockerfile -t okcms/app .
 ```
 
-### Testing
+### Testes
 
 ```bash
 bun run test:run
@@ -407,10 +266,10 @@ bun run typecheck
 bun run lint
 ```
 
-## Environment Variables
+## Variáveis de Ambiente
 
 ```bash
-# Database (formato (a) variáveis, ou (b) DATABASE_URL com precedência)
+# Banco de dados (formato (a) variáveis, ou (b) DATABASE_URL com precedência)
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=okcms
@@ -422,27 +281,27 @@ DB_PASSWORD=
 REDIS_HOST=localhost
 REDIS_PORT=6379
 
-# Authentication
+# Autenticação
 JWT_SECRET=your-secret-key
 
-# Application
+# Aplicação
 NODE_ENV=development
 PORT=3000        # api
 WEB_PORT=3001    # site público
-ADMIN_PORT=3011  # painel
+ADMIN_PORT=3011  # painel admin
 ```
 
 Edite com o wizard: `okcms config`.
 
-## API Endpoints
+## Endpoints da API
 
 ### Health
 - `GET /health` - Health check
 - `GET /health/ready` - Readiness check
 - `GET /health/live` - Liveness check
 
-### Authentication
-- `POST /api/v1/auth/register` - Register user
+### Autenticação
+- `POST /api/v1/auth/register` - Registra usuário
 - `POST /api/v1/auth/login` - Login
 - `POST /api/v1/auth/api-key-login` - Troca uma API key por access + refresh JWT (veja abaixo)
 - `POST /api/v1/auth/refresh` - Refresh token
@@ -466,16 +325,14 @@ curl -X POST http://localhost:3000/api/v1/auth/api-key-login \
 Keys podem ser de uso único (`oneTime`) e/ou expirar em data definida. Apenas o hash SHA-256 é persistido; gerencie as keys no admin em **Settings → API keys**.
 
 ### Content
-- `GET /api/v1/content` - List content
-- `GET /api/v1/content/:id` - Get content by ID
-- `GET /api/v1/content/slug/:slug` - Get content by slug
-- `POST /api/v1/content` - Create content
-- `PUT /api/v1/content/:id` - Update content
-- `DELETE /api/v1/content/:id` - Delete content
-- `GET /api/v1/content/:id/versions` - Get content versions
+- `GET /api/v1/content` - Lista conteúdo
+- `GET /api/v1/content/:id` - Obtém conteúdo por ID
+- `GET /api/v1/content/slug/:slug` - Obtém conteúdo por slug
+- `POST /api/v1/content` - Cria conteúdo
+- `PUT /api/v1/content/:id` - Atualiza conteúdo
+- `DELETE /api/v1/content/:id` - Deleta conteúdo
+- `GET /api/v1/content/:id/versions` - Obtém versões do conteúdo
 
-## License
+## Licença
 
-O OkCMS é software livre licenciado sob a GNU General Public License, versão 2
-ou qualquer versão posterior (GPL-2.0-or-later), a mesma licença usada pelo
-WordPress. Consulte [LICENSE](LICENSE) para o texto completo da licença.
+O OkCMS é software livre licenciado sob a GNU General Public License, versão 2 ou qualquer versão posterior (GPL-2.0-or-later), a mesma licença usada pelo WordPress. Consulte [LICENSE](LICENSE) para o texto completo da licença.
