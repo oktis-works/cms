@@ -138,7 +138,20 @@ jobs:
         run: node scripts/prepare-publish.mjs --check
 
   # ============================================================
-  # Step 6: Dry-run Publish on PR (validates publish without publishing)
+  # Step 6: Validate changelog + changeset before merge (CHANGELOG enforcement)
+  # ============================================================
+  check-changelog-and-changeset:
+    name: Check Changelog + Changeset
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-project
+      - name: Validate changelog + changeset for changed packages
+        run: bun run check:changelog-and-changeset
+
+  # ============================================================
+  # Step 7: Dry-run Publish on PR (validates publish without publishing)
   # ============================================================
   dry-run-publish:
     name: Dry-run Publish

@@ -31,6 +31,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
     "check:api-drift": "node scripts/check-api-plugin-source-drift.mjs",
     "check:plugin-runtime-imports": "node scripts/check-plugin-runtime-imports.mjs",
+    "check:changelog-and-changeset": "node scripts/check-changelog-and-changeset.mjs",
     "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules",
     "changeset": "changeset",
     "version-packages": "changeset version; node scripts/sync-version.mjs --write && node packages/cli/scripts/generate-versions.mjs",
