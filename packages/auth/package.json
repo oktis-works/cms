@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/auth",
-  "version": "0.9.5",
+  "version": "0.9.6",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -17,10 +17,10 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo"
   },
   "dependencies": {
-    "@oktis-works/types": "^1.0.0",
-    "@oktis-works/config": "^1.0.0",
-    "@oktis-works/database": "^0.16.6",
-    "@oktis-works/core": "^1.0.0",
+    "@oktis-works/types": "^1.0.1",
+    "@oktis-works/config": "^1.0.1",
+    "@oktis-works/database": "^0.16.7",
+    "@oktis-works/core": "^1.0.1",
     "bcryptjs": "^2.4.3"
   },
   "devDependencies": {

@@ -1,5 +1,15 @@
 # @oktis-works/validation
 
+## 1.0.1
+
+### Patch Changes
+
+- chore: v1.0.1 patch release
+
+  - Add island hydration support to default theme (entry-client.tsx)
+  - Theme default now fully supports hydration: 'islands' with client entry
+  - No breaking changes, patch version bump for all packages
+
 ## 1.0.0
 
 ### Major Changes
