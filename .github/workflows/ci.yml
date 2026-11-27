@@ -105,6 +105,8 @@ jobs:
         run: bun run build
       - name: Lint
         run: bun run lint
+      - name: Check plugin-runtime imports (GAP-07)
+        run: bun run check:plugin-runtime-imports
 
   # ============================================================
   # Step 4: Dependency Audit (bun audit)
