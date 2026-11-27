@@ -31,7 +31,7 @@ describe('Timezone Service (OK CMS)', () => {
   describe('okGetSiteTimezoneConfig', () => {
     it('retorna defaults quando DB falha', async () => {
       const config = okGetSiteTimezoneConfig();
-      expect(config).toEqual({ timezoneString: 'America/Sao_Paulo', gmtOffset: -3 });
+      expect(config).toEqual({ timezoneString: 'UTC', gmtOffset: 0 });
     });
 
     it('cacheia resultado', async () => {
@@ -40,11 +40,17 @@ describe('Timezone Service (OK CMS)', () => {
       expect(c1).toBe(c2); // mesma referência (cache)
     });
 
+    it('does not share the synchronous cache key between tenants', () => {
+      const tenantA = okGetSiteTimezoneConfig('tenant-a');
+      const tenantB = okGetSiteTimezoneConfig('tenant-b');
+      expect(tenantA).not.toBe(tenantB);
+    });
+
     it('okClearTimezoneCache limpa cache', async () => {
       okGetSiteTimezoneConfig();
       okClearTimezoneCache();
       const config = okGetSiteTimezoneConfig();
-      expect(config).toEqual({ timezoneString: 'America/Sao_Paulo', gmtOffset: -3 });
+      expect(config).toEqual({ timezoneString: 'UTC', gmtOffset: 0 });
     });
   });
 

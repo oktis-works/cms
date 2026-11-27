@@ -211,6 +211,7 @@ export interface Setting {
   value: unknown;
   group?: string | null;
   type?: string | null;
+  visibility?: 'public' | 'admin' | 'internal' | 'secret';
   created_at?: string;
   updated_at?: string;
 }

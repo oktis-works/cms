@@ -360,11 +360,10 @@ CREATE TABLE IF NOT EXISTS themes (
 CREATE INDEX idx_themes_tenant ON themes(tenant_id);
 CREATE UNIQUE INDEX idx_themes_name_unique ON themes(tenant_id, name);
 CREATE INDEX idx_themes_status ON themes(status);
--- No more than one active theme per tenant.
 ALTER TABLE themes ADD COLUMN active_scope CHAR(36);
 CREATE UNIQUE INDEX idx_themes_single_active ON themes(active_scope);
-CREATE TRIGGER themes_active_scope_insert BEFORE INSERT ON themes FOR EACH ROW SET NEW.active_scope = IF(NEW.status = 'ACTIVE', NEW.tenant_id, NULL);
-CREATE TRIGGER themes_active_scope_update BEFORE UPDATE ON themes FOR EACH ROW SET NEW.active_scope = IF(NEW.status = 'ACTIVE', NEW.tenant_id, NULL);
+CREATE TRIGGER themes_active_scope_insert BEFORE INSERT ON themes FOR EACH ROW SET NEW.active_scope = IF(NEW.status = 'ACTIVE', IFNULL(NEW.tenant_id, '00000000-0000-0000-0000-000000000000'), NULL);
+CREATE TRIGGER themes_active_scope_update BEFORE UPDATE ON themes FOR EACH ROW SET NEW.active_scope = IF(NEW.status = 'ACTIVE', IFNULL(NEW.tenant_id, '00000000-0000-0000-0000-000000000000'), NULL);
 
 CREATE TABLE IF NOT EXISTS theme_config_versions (
   id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
@@ -611,7 +610,7 @@ CREATE TABLE IF NOT EXISTS content_types (
   `schema` JSON NOT NULL,
   plural_label VARCHAR(255) NOT NULL,
   singular_label VARCHAR(255) NOT NULL,
-  default_fields JSON NOT NULL DEFAULT ('["title","slug","content","excerpt","featured_image","seo_title","seo_description","status","author"]'),
+  default_fields JSON NOT NULL DEFAULT ('[`title`,`slug`,`content`,`excerpt`,`featured_image`,`seo_title`,`seo_description`,`status`,`author`]'),
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

@@ -9,7 +9,11 @@ function itemDate(item: Record<string, unknown>): string | undefined {
   return typeof value === 'string' || value instanceof Date ? String(value) : undefined;
 }
 
-export default function Archive({ page, items }: ThemePageData) {
+function formatDate(value: string, timezone?: string, language?: string): string {
+  return new Intl.DateTimeFormat(language || 'en', { dateStyle: 'medium', timeZone: timezone || 'UTC' }).format(new Date(value));
+}
+
+export default function Archive({ page, site, items }: ThemePageData) {
   return (
     <main className="site archive">
       <header className="archive-header">
@@ -25,7 +29,7 @@ export default function Archive({ page, items }: ThemePageData) {
               <article className="post-card" key={String(item.slug)}>
                 <div className="post-card__content">
                   <div className="post-card__header">
-                    <time className="post-card__date">{itemDate(item) ? new Date(itemDate(item)!).toLocaleDateString() : ''}</time>
+                    <time className="post-card__date">{itemDate(item) ? formatDate(itemDate(item)!, site.timezone, site.language) : ''}</time>
                   </div>
                   <h2 className="post-card__title">
                     <a href={itemUrl(item)}>{String(item.title ?? '')}</a>

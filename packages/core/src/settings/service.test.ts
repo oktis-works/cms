@@ -55,6 +55,15 @@ describe('SettingsService.set (INSERT)', () => {
     expect(insert!.values[3]).toBe(false);
   });
 
+  it('normalizes known setting types and assigns explicit public visibility', async () => {
+    await new SettingsService().set('seo.robotsEnabled', 'false', 'seo', 'string', 'tenant-1');
+
+    const insert = store.queries.find((q) => q.text.includes('INSERT INTO settings'));
+    expect(insert!.values[3]).toBe(false);
+    expect(insert!.values[5]).toBe('boolean');
+    expect(insert!.values[6]).toBe('public');
+  });
+
   it('objeto/array passam crus (driver serializa para jsonb)', async () => {
     await new SettingsService().set('menuLinks', [{ label: 'Home', url: '/' }], 'general', 'array', 'tenant-1');
 
@@ -92,6 +101,18 @@ describe('SettingsService tenant scope', () => {
     expect(query.text).toContain('tenant_id = $1');
     expect(query.text).toContain('CASE WHEN tenant_id = $1 THEN 0 ELSE 1 END');
     expect(query.values).toEqual(['tenant-a', 'general']);
+  });
+
+  it('returns one effective row with tenant precedence over the global row', async () => {
+    store.returning = [
+      { key: 'siteTitle', value: 'Tenant', group: 'general', type: 'string', tenant_id: 'tenant-a' },
+      { key: 'siteTitle', value: 'Global', group: 'general', type: 'string', tenant_id: null },
+    ];
+
+    const result = await new SettingsService().get('general', 'tenant-a');
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.value).toBe('Tenant');
   });
 
   it('writes bulk settings inside one transaction and never omits scope metadata', async () => {

@@ -32,7 +32,7 @@ Settings are saved via `PUT /api/v1/settings?group=seo` and read via `GET /api/v
 
 ### `GET /robots.txt`
 
-Serves the robots.txt file based on tenant SEO settings:
+Serves the robots.txt file based on tenant SEO settings. When `seo.robotsEnabled` is false, the endpoint returns `404`; it does not publish an allow-all robots file.
 
 - If `seo.robotsEnabled` is `false`: `User-agent: *\nDisallow:\n`
 - If `seo.robotsRules` is set: returns the custom content
@@ -47,7 +47,9 @@ Serves the XML sitemap with:
 
 - Hub pages (pages with `metadata.hub_type`)
 - Published content items (excluding pages used as hubs)
-- Configurable via settings: `seo.sitemapEnabled`, `seo.sitemapMaxItems`, `seo.sitemapIncludeTypes`, `seo.defaultChangefreq`, `seo.defaultPriority`
+- Configurable via settings: `seo.sitemapEnabled`, `seo.sitemapMaxItems`, `seo.sitemapIncludeTypes`, `seo.defaultChangefreq`, `seo.defaultPriority`.
+- `seo.sitemapMaxItems` applies to the final URL set, including hub URLs and plugin-provided URLs, and is capped at 50,000.
+- `seo.defaultChangefreq` is restricted to the sitemap protocol values and `seo.defaultPriority` is restricted to `0.0` through `1.0`.
 - Excludes redirect sources from `url_redirects`
 - Content-Type: `application/xml`
 
@@ -97,7 +99,7 @@ Plugins can read/write SEO settings via `api.getSetting('key', 'seo')` and `api.
 
 ## Settings Storage
 
-All SEO settings are stored in the `settings` table with `group = 'seo'`. Keys use dot notation:
+All SEO settings are stored in the `settings` table with `group = 'seo'` and explicit `public` visibility. Keys use dot notation:
 
 - `seo.siteTitle`, `seo.siteDescription`, `seo.siteUrl`, `seo.language`
 - `seo.robotsEnabled`, `seo.robotsRules`, `seo.defaultRobots`

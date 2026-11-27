@@ -62,8 +62,8 @@ export async function seedDefaultSettings(
     // RETURNING: sem ele o driver devolve [] mesmo com insert bem-sucedido
     // (it would count 0 in the log and break idempotency detection).
     const rows = await sql.unsafe(
-      `INSERT INTO settings (tenant_id, key, value, "group", type)
-       VALUES ($1, $2, to_jsonb($3::text), 'general', $4)
+      `INSERT INTO settings (tenant_id, key, value, "group", type, visibility)
+       VALUES ($1, $2, to_jsonb($3::text), 'general', $4, 'public')
        ON CONFLICT (key, tenant_id) DO NOTHING
        RETURNING id`,
       [tenantId, s.key, s.value, s.type]

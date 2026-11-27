@@ -11,6 +11,9 @@ function convert(provider) {
     .replace(/GRANT\s+USAGE\s+ON\s+SCHEMA[^;]+;\s*/gi, '')
     .replace(/ALTER\s+TABLE\s+[^;]+\s+(?:ENABLE|DISABLE|FORCE|NO FORCE)\s+ROW\s+LEVEL\s+SECURITY\s*;\s*/gi, '')
     .replace(/DO\s*\$\$[\s\S]*?\$\$\s*;\s*/gi, '')
+    .replace(/DROP\s+POLICY\s+IF\s+EXISTS[\s\S]*?;\s*/gi, '')
+    .replace(/CREATE\s+POLICY[\s\S]*?;\s*/gi, '')
+    .replace(/ALTER\s+TABLE\s+[^;]+\s+(?:ENABLE|DISABLE|FORCE|NO FORCE)\s+ROW\s+LEVEL\s+SECURITY\s*;\s*/gi, '')
     .replace(/\bJSONB\b/gi, 'JSON')
     .replace(/\bUUID\b(?!\s*\()/gi, 'CHAR(36)')
     .replace(/\bgen_random_uuid\(\)/gi, '(UUID())')
@@ -50,7 +53,18 @@ function convert(provider) {
     /CREATE INDEX idx_url_redirects_tenant_source ON url_redirects\(tenant_id, source_path\);/,
     "CREATE INDEX idx_url_redirects_tenant_source ON url_redirects(tenant_id, source_path(255));"
   );
-  sql = sql.replace(/\bkey\b/g, '`key`').replace(/\bschema\b/g, '`schema`');
+  // Convert double-quoted identifiers to backticks (for reserved words like "key", "group", "schema")
+  sql = sql.replace(/"([a-z_][a-z0-9_]*)"/gi, '`$1`');
+  // Apply key/schema replacement only to identifiers not already backticked
+  // Note: regex has capturing group, so callback receives (match, group1, offset, string)
+  sql = sql.replace(/\b(key|schema)\b/g, (match, _group, offset, string) => {
+    // Check if already backticked (preceded by ` and followed by `)
+    const before = string[offset - 1];
+    const after = string[offset + match.length];
+    if (before === '`' && after === '`') return match; // Already backticked
+    if (before === '"' && after === '"') return '`' + match + '`'; // In double quotes, will be converted
+    return '`' + match + '`';
+  });
   return `-- Generated from schema.sql for ${provider}. Do not edit by hand.\n${sql}`;
 }
 

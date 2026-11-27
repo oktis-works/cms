@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/database",
-  "version": "0.16.8",
+  "version": "0.16.9",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@oktis-works/config": "^1.0.1",
-    "@oktis-works/types": "^1.0.1",
+    "@oktis-works/types": "^1.0.2",
     "mariadb": "^3.5.4",
     "mysql2": "^3.14.1",
     "postgres": "3.4.0"

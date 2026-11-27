@@ -27,6 +27,7 @@ export interface SiteSettings {
   siteUrl: string;
   /** Idioma do documento (setting `language`); fallback pt-BR. */
   language: string;
+  timezone?: string;
   [key: string]: unknown;
 }
 
@@ -34,7 +35,7 @@ export function toSiteSettings(raw: Record<string, unknown>): SiteSettings {
   return {
     siteTitle: toText(raw['siteTitle'] ?? raw['seo.siteTitle']) || 'OkCMS',
     siteDescription: toText(raw['siteDescription'] ?? raw['seo.siteDescription']) || '',
-    siteUrl: toText(raw['siteUrl'] ?? raw['seo.siteUrl']) || '',
+    siteUrl: normalizeSiteUrl(raw['siteUrl'] ?? raw['seo.siteUrl']),
     language: toText(raw['language'] ?? raw['seo.language']) || 'pt-BR',
   };
 }
@@ -98,6 +99,18 @@ function toText(value: unknown): string {
   return '';
 }
 
+function normalizeSiteUrl(value: unknown): string {
+  const candidate = toText(value).trim();
+  if (!candidate) return '';
+  try {
+    const parsed = new URL(candidate);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '';
+    return parsed.toString().replace(/\/$/, '');
+  } catch {
+    return '';
+  }
+}
+
 /**
  * Deep merge two objects, with source overriding target.
  * Arrays are replaced, not merged.
@@ -132,6 +145,17 @@ function extractDefaults(settings: unknown[]): Record<string, unknown> {
   return defaults;
 }
 
+function filterThemeConfig(manifest: Record<string, unknown> | null | undefined, config: Record<string, unknown> | null | undefined): Record<string, unknown> {
+  if (!config || typeof config !== 'object' || Array.isArray(config)) return {};
+  const declared = new Set(
+    (Array.isArray(manifest?.['settings']) ? manifest['settings'] : [])
+      .filter((field): field is Record<string, unknown> => Boolean(field) && typeof field === 'object' && !Array.isArray(field))
+      .map((field) => field['name'])
+      .filter((name): name is string => typeof name === 'string' && name.length > 0)
+  );
+  return Object.fromEntries(Object.entries(config).filter(([key]) => declared.has(key)));
+}
+
 /**
  * Configurações do tema para os templates: defaults declarados em
  * `manifest.settings` sobrescritos pelo `config` salvo na tela Temas do
@@ -154,7 +178,7 @@ export function buildThemeSettings(
       settings = deepMerge(settings, extractDefaults(parent['settings'] as unknown[]));
       const configForParent = parentConfigs?.[parents.length - 1 - index];
       if (configForParent && typeof configForParent === 'object' && !Array.isArray(configForParent)) {
-        settings = deepMerge(settings, configForParent);
+        settings = deepMerge(settings, filterThemeConfig(parent, configForParent));
       }
     }
   }
@@ -165,7 +189,7 @@ export function buildThemeSettings(
 
   // 3. Child config (saved config overrides defaults)
   if (config && typeof config === 'object' && !Array.isArray(config)) {
-    settings = deepMerge(settings, config);
+    settings = deepMerge(settings, filterThemeConfig(manifest, config));
   }
 
   return settings;
@@ -186,6 +210,10 @@ export interface ContentPageRenderInput {
     isFrontPage?: boolean;
   };
   contentRow?: Record<string, unknown> | null;
+  navigation?: {
+    previous?: { title: string; slug: string; url: string } | null;
+    next?: { title: string; slug: string; url: string } | null;
+  };
   data: Record<string, unknown>;
   /** Itens de archive/home (conteúdo publicado recente do tipo). */
   items?: Array<Record<string, unknown>>;
@@ -252,6 +280,8 @@ function prepareContentPage(input: ContentPageRenderInput, file: string): Prepar
     hookContext
   ) as Record<string, unknown> | undefined) ?? input.data;
   const publicRenderData = sanitizePublicValue(renderData) as Record<string, unknown>;
+  const excerpt = toText(row['excerpt']) || toText(publicRenderData['excerpt']);
+  const publishedAt = row['published_at'] ?? row['publishedAt'] ?? publicRenderData['publishedAt'] ?? publicRenderData['published_at'];
   const themeRecord = normalizeLogicalValues({
     body: publicRenderData,
     data: publicRow['data'],
@@ -265,10 +295,11 @@ function prepareContentPage(input: ContentPageRenderInput, file: string): Prepar
       theme: input.activeTheme,
       url: input.settings.siteUrl,
       language: input.settings.language,
+      timezone: input.settings.timezone,
     },
     page: {
       title,
-      description: input.settings.siteDescription,
+      description: excerpt || input.settings.siteDescription,
       template: input.resolution.template ?? '',
       type: input.resolution.contentType ?? '',
       slug: input.resolution.slug ?? '',
@@ -278,6 +309,10 @@ function prepareContentPage(input: ContentPageRenderInput, file: string): Prepar
       canonicalPath: input.resolution.canonicalPath ?? '',
       isPageForPosts: input.resolution.isPageForPosts ?? false,
       isFrontPage: input.resolution.isFrontPage ?? false,
+      excerpt: excerpt || undefined,
+      publishedAt: publishedAt ? String(publishedAt) : undefined,
+      previous: input.navigation?.previous ?? null,
+      next: input.navigation?.next ?? null,
     },
     content: { ...plainColumns(publicRow), ...publicRenderData },
     fields: publicRenderData,

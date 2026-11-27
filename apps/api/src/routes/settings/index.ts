@@ -26,6 +26,7 @@ router.put('/', requirePermission('update', 'setting'), async (c) => {
         value: s['value'],
         group: s['group'] as string,
         type: s['type'] as string,
+        visibility: s['visibility'] as string | undefined,
       }))
     );
 

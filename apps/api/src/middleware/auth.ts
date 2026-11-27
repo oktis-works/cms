@@ -5,6 +5,7 @@ import { getCookie } from 'hono/cookie';
 import { AuthService } from '@oktis-works/auth';
 import { loadConfig } from '@oktis-works/config';
 import { runWithTenantTransaction } from '@oktis-works/database';
+import { runWithTenantContext } from '@oktis-works/core';
 
 const config = loadConfig();
 const authService = new AuthService(config.auth);
@@ -36,7 +37,10 @@ export const authMiddleware = async (c: Context, next: Next) => {
   // pelo cliente. A transação mantém o RLS correto em todas as consultas desta
   // requisição, inclusive quando o pool troca de conexão.
   if (!payload.tenantId) return c.json({ error: 'Token has no tenant' }, 401);
-  return runWithTenantTransaction(payload.tenantId, () => next());
+  return runWithTenantContext(
+    { tenantId: payload.tenantId, userId: payload.sub },
+    () => runWithTenantTransaction(payload.tenantId, () => next(), payload.sub)
+  );
 };
 
 export const requirePermission = (action: string, resource: string) => {

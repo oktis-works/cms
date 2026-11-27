@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { getConnection, runInTransaction } from '@oktis-works/database';
+import { getConnection, getDriver, runInTransaction } from '@oktis-works/database';
 import type { Tenant } from '@oktis-works/types';
-import { runWithTenantContext } from './context.js';
+import { getCurrentTenantIdSync, runWithTenantContext } from './context.js';
 
 export class TenantService {
   async list(options: {
@@ -70,11 +70,27 @@ export class TenantService {
       );
 
       const { themeService } = await import('../theme/service.js');
-      const { seedActivateDefaultTheme } = await import('@oktis-works/database');
-      await runWithTenantContext({ tenantId: id }, async () => {
-        await themeService.syncFromDirectory(id);
-        await seedActivateDefaultTheme(id);
-      });
+      const { seedActivateDefaultTheme, seedDefaultSettings } = await import('@oktis-works/database');
+      let previousTenantId: string | undefined;
+      try {
+        previousTenantId = getCurrentTenantIdSync();
+      } catch {
+        previousTenantId = undefined;
+      }
+      if (getDriver() === 'postgres') {
+        await sql.unsafe("SELECT set_config('app.current_tenant_id', $1, true)", [id]);
+      }
+      try {
+        await runWithTenantContext({ tenantId: id }, async () => {
+          await seedDefaultSettings(id, sql);
+          await themeService.syncFromDirectory(id);
+          await seedActivateDefaultTheme(id);
+        });
+      } finally {
+        if (getDriver() === 'postgres' && previousTenantId) {
+          await sql.unsafe("SELECT set_config('app.current_tenant_id', $1, true)", [previousTenantId]);
+        }
+      }
       return result[0] as unknown as Tenant;
     });
   }

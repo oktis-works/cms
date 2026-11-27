@@ -11,6 +11,7 @@ export {
   runInTransaction,
   runWithTenantTransaction,
   isTenantTransactionActive,
+  getDriver,
 } from './connection.js';
 export type { DatabaseAdapter, DatabaseCapabilities, RepoSql } from './connection.js';
 export { setTenantContext, clearTenantContext, getCurrentTenantId, enableRLS } from './rls/index.js';

@@ -6,7 +6,7 @@ import { Hono } from 'hono';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { serve } from '@hono/node-server';
-import { bootstrap, ensureTenantPluginsLoaded, getPluginBlocks, getPluginPatterns, verifyThemePreviewToken } from '@oktis-works/core';
+import { bootstrap, ensureTenantPluginsLoaded, getPluginBlocks, getPluginPatterns, okLoadSiteTimezoneConfig, verifyThemePreviewToken } from '@oktis-works/core';
 import { resolveExtensionDirectory } from '@oktis-works/core';
 import { runWithTenantContext } from '@oktis-works/core';
 import { getPluginAssets } from '@oktis-works/core';
@@ -69,6 +69,32 @@ function escapeXml(str: string): string {
     .replace(/'/g, '&apos;');
 }
 
+const SITEMAP_CHANGEFREQS = new Set(['always', 'hourly', 'daily', 'weekly', 'monthly', 'yearly', 'never']);
+
+function normalizeSiteUrl(value: unknown): string {
+  if (typeof value !== 'string' || !value.trim()) return '';
+  try {
+    const parsed = new URL(value.trim());
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '';
+    return parsed.toString().replace(/\/$/, '');
+  } catch {
+    return '';
+  }
+}
+
+function normalizeSitemapPriority(value: unknown): string {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 1) return '0.5';
+  return parsed.toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
+}
+
+function normalizeSitemapChangefreq(value: unknown): string {
+  const candidate = String(value ?? '').toLowerCase();
+  return SITEMAP_CHANGEFREQS.has(candidate) ? candidate : 'weekly';
+}
+
+type ContentParentNode = { id: string; slug: string; parent_id: string | null };
+
 /** Build parent chain slugs from parent_id (root to immediate parent). */
 async function buildParentChain(
   sql: ReturnType<typeof getConnection>,
@@ -91,6 +117,39 @@ async function buildParentChain(
   return chain;
 }
 
+async function loadContentParentIndex(
+  sql: ReturnType<typeof getConnection>,
+  tenantId: string,
+): Promise<Map<string, ContentParentNode>> {
+  const rows = await sql.unsafe(
+    'SELECT id, slug, parent_id FROM content WHERE tenant_id = $1',
+    [tenantId],
+  );
+  return new Map((rows as unknown as ContentParentNode[]).map((row) => [String(row.id), {
+    id: String(row.id),
+    slug: String(row.slug),
+    parent_id: row.parent_id ? String(row.parent_id) : null,
+  }]));
+}
+
+function buildParentChainFromIndex(
+  index: Map<string, ContentParentNode>,
+  parentId: string | null,
+): string[] {
+  const chain: string[] = [];
+  let currentId = parentId;
+  const visited = new Set<string>();
+  while (currentId) {
+    if (visited.has(currentId)) break;
+    visited.add(currentId);
+    const row = index.get(currentId);
+    if (!row) break;
+    chain.unshift(row.slug);
+    currentId = row.parent_id;
+  }
+  return chain;
+}
+
 /**
  * Tema ativo efetivo: a fonte única é o banco (status ACTIVE, gravado pelo
  * admin ou pela CLI). Não existe fallback global ou por ambiente: uma falha
@@ -107,7 +166,10 @@ async function resolveActiveTheme(
   const preview = previewToken ? verifyThemePreviewToken(previewToken) : null;
   if (previewToken && !preview) throw new Error('Invalid or expired theme preview token');
   if (preview && preview.tenantId !== tenantId) throw new Error('Theme preview token does not belong to the current tenant');
-  if (preview && (!currentUserId || preview.userId !== currentUserId)) {
+  // A signed preview token is the authenticated preview session. The Admin and
+  // web app may use different origins, so relying on a cross-site access cookie
+  // here would make valid previews fail under modern SameSite policies.
+  if (preview && currentUserId && preview.userId !== currentUserId) {
     throw new Error('Theme preview token does not belong to the current user');
   }
 
@@ -208,8 +270,17 @@ async function main() {
 
   // Content Security Policy
   const WEB_CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+  const previewAdminOrigin = (() => {
+    const raw = process.env['PUBLIC_ADMIN_URL']?.trim();
+    if (!raw) return null;
+    try { return new URL(raw).origin; } catch { return null; }
+  })();
   app.use('*', async (c, next) => {
-    c.header('Content-Security-Policy', WEB_CSP);
+    const isPreview = Boolean(c.req.query('preview_token'));
+    const previewCsp = previewAdminOrigin
+      ? WEB_CSP.replace("frame-ancestors 'none'", `frame-ancestors ${previewAdminOrigin}`)
+      : WEB_CSP;
+    c.header('Content-Security-Policy', isPreview ? previewCsp : WEB_CSP);
     await next();
   });
 
@@ -307,19 +378,20 @@ async function main() {
         LIMIT 50
       `;
 
-      const feedItems = await Promise.all((itemRows as Array<Record<string, unknown>>).map(async (row) => {
-        const parentChain = await buildParentChain(sql, tenantId, (row['parent_id'] as string | null) ?? null);
+      const parentIndex = await loadContentParentIndex(sql, tenantId);
+      const feedItems = (itemRows as Array<Record<string, unknown>>).map((row) => {
+        const parentChain = buildParentChainFromIndex(parentIndex, (row['parent_id'] as string | null) ?? null);
         return {
           ...row,
           url: buildItemUrl({ slug: String(row['slug']) }, hubBase, parentChain),
         };
-      }));
+      });
 
-      const siteUrl = (await sql`
+      const siteUrl = normalizeSiteUrl((await sql`
         SELECT value FROM settings WHERE key = 'siteUrl'
         AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid)
         ORDER BY CASE WHEN tenant_id = ${tenantId}::uuid THEN 0 ELSE 1 END LIMIT 1
-      `).map((r: any) => r.value)[0] ?? '';
+      `).map((r: any) => r.value)[0]);
 
       const { rss, atom } = generateFeeds({
         hubBase,
@@ -357,7 +429,7 @@ async function main() {
         AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid)
         ORDER BY CASE WHEN tenant_id = ${tenantId}::uuid THEN 0 ELSE 1 END LIMIT 1
       `;
-      const siteUrl = siteUrlRow.map((r: any) => r.value)[0] ?? '';
+      const siteUrl = normalizeSiteUrl(siteUrlRow.map((r: any) => r.value)[0]);
 
       const robotsEnabledRow = await sql`
         SELECT value FROM settings WHERE key = 'seo.robotsEnabled'
@@ -386,7 +458,7 @@ async function main() {
       let robotsTxt = '';
 
       if (!robotsEnabled) {
-        robotsTxt = 'User-agent: *\nDisallow:\n';
+        return c.text('', 404, { 'Content-Type': 'text/plain; charset=utf-8' });
       } else if (customRules.trim().length > 0) {
         robotsTxt = customRules.trim();
       } else {
@@ -415,8 +487,8 @@ async function main() {
     try {
       const sql = getConnection();
       const tenantId = String(c.get('tenant')['id']);
-      const siteUrl = (await sql`SELECT value FROM settings WHERE key = 'siteUrl' AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid) ORDER BY CASE WHEN tenant_id = ${tenantId}::uuid THEN 0 ELSE 1 END LIMIT 1`)
-        .map((r: any) => r.value)[0] ?? '';
+      const siteUrl = normalizeSiteUrl((await sql`SELECT value FROM settings WHERE key = 'siteUrl' AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid) ORDER BY CASE WHEN tenant_id = ${tenantId}::uuid THEN 0 ELSE 1 END LIMIT 1`)
+        .map((r: any) => r.value)[0]);
 
       // Verifica se o sitemap está habilitado
       const sitemapEnabledRow = await sql`
@@ -443,7 +515,8 @@ async function main() {
         AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid)
         ORDER BY CASE WHEN tenant_id = ${tenantId}::uuid THEN 0 ELSE 1 END LIMIT 1
       `;
-      const maxItems = maxItemsRow.length > 0 ? Number(maxItemsRow.map((r: any) => r.value)[0]) : 50000;
+      const parsedMaxItems = maxItemsRow.length > 0 ? Number(maxItemsRow.map((r: any) => r.value)[0]) : 50000;
+      const maxItems = Number.isInteger(parsedMaxItems) ? Math.min(50000, Math.max(1, parsedMaxItems)) : 50000;
 
       // Tipos de conteúdo incluídos (CSV)
       const includeTypesRow = await sql`
@@ -460,23 +533,29 @@ async function main() {
         AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid)
         ORDER BY CASE WHEN tenant_id = ${tenantId}::uuid THEN 0 ELSE 1 END LIMIT 1
       `;
-      const defaultChangefreq = defaultChangefreqRow.length > 0 ? String(defaultChangefreqRow.map((r: any) => r.value)[0]) : 'weekly';
+      const defaultChangefreq = normalizeSitemapChangefreq(defaultChangefreqRow.length > 0 ? defaultChangefreqRow.map((r: any) => r.value)[0] : 'weekly');
 
       const defaultPriorityRow = await sql`
         SELECT value FROM settings WHERE key = 'seo.defaultPriority'
         AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid)
         ORDER BY CASE WHEN tenant_id = ${tenantId}::uuid THEN 0 ELSE 1 END LIMIT 1
       `;
-      const defaultPriority = defaultPriorityRow.length > 0 ? String(defaultPriorityRow.map((r: any) => r.value)[0]) : '0.5';
+      const defaultPriority = normalizeSitemapPriority(defaultPriorityRow.length > 0 ? defaultPriorityRow.map((r: any) => r.value)[0] : '0.5');
 
       // 1) Hub pages (metadata.hub_type)
       const hubRows = await sql`
-        SELECT slug FROM content
+        SELECT slug, metadata->>'hub_type' AS hub_type FROM content
         WHERE type = 'page'
           AND status = 'PUBLISHED'
           AND metadata->>'hub_type' IS NOT NULL
           AND tenant_id = ${tenantId}::uuid
       `;
+
+      const hubByType = new Map(
+        (hubRows as Array<Record<string, unknown>>)
+          .filter((row) => row['hub_type'])
+          .map((row) => [String(row['hub_type']), String(row['slug'])]),
+      );
 
       // 2) Published items (excluindo páginas que são hubs)
       let typeCondition = '';
@@ -506,6 +585,7 @@ async function main() {
         WHERE tenant_id = ${tenantId}::uuid
       `;
       const redirectSources = new Set(redirectRows.map((r: any) => r.source_path));
+      const parentIndex = await loadContentParentIndex(sql, tenantId);
 
       // Build XML
       const urls: string[] = [];
@@ -516,35 +596,28 @@ async function main() {
         const slug = row['slug'] as string;
         const path = `/${slug}/`;
         if (!redirectSources.has(path.replace(/^\//, ''))) {
-          urls.push(`  <url>\n    <loc>${escapeXml(siteUrl + path)}</loc>\n    <changefreq>${defaultChangefreq}</changefreq>\n    <priority>${defaultPriority}</priority>\n  </url>`);
+          urls.push(`  <url>\n    <loc>${escapeXml(siteUrl + path)}</loc>\n    <changefreq>${escapeXml(defaultChangefreq)}</changefreq>\n    <priority>${escapeXml(defaultPriority)}</priority>\n  </url>`);
         }
       }
 
       // Items
       for (const row of itemRows as Array<Record<string, unknown>>) {
         const hubType = row['type'] as string;
-        // Find hub base for this type
-        const hubRow = await sql`
-          SELECT slug FROM content
-          WHERE type = 'page'
-            AND metadata->>'hub_type' = ${hubType}
-            AND status = 'PUBLISHED'
-            AND tenant_id = ${tenantId}::uuid
-          LIMIT 1
-        `;
-        const hubBase = (hubRow[0] as Record<string, unknown> | undefined)?.['slug'] as string | undefined;
+        const hubBase = hubByType.get(hubType);
         if (!hubBase) continue;
 
         // Build parent chain for canonical path
         const parentId = row['parent_id'] as string | null;
-        const parentChain = await buildParentChain(sql, tenantId, parentId);
+        const parentChain = buildParentChainFromIndex(parentIndex, parentId);
         const itemSlug = row['slug'] as string;
         const itemPath = parentChain.length > 0 ? [...parentChain, itemSlug].join('/') : itemSlug;
         const path = `/${hubBase}/${itemPath}`;
 
         if (!redirectSources.has(path.replace(/^\//, ''))) {
           const lastmod = (row['published_at'] ?? row['updated_at']) as string | null;
-          urls.push(`  <url>\n    <loc>${escapeXml(siteUrl + path)}</loc>\n    <lastmod>${lastmod ? new Date(lastmod).toISOString().split('T')[0] : now}</lastmod>\n    <changefreq>${defaultChangefreq}</changefreq>\n    <priority>${defaultPriority}</priority>\n  </url>`);
+          const parsedLastmod = lastmod ? new Date(lastmod) : null;
+          const lastmodDate = parsedLastmod && !Number.isNaN(parsedLastmod.getTime()) ? parsedLastmod.toISOString().split('T')[0] : now;
+          urls.push(`  <url>\n    <loc>${escapeXml(siteUrl + path)}</loc>\n    <lastmod>${lastmodDate}</lastmod>\n    <changefreq>${escapeXml(defaultChangefreq)}</changefreq>\n    <priority>${escapeXml(defaultPriority)}</priority>\n  </url>`);
         }
       }
 
@@ -554,6 +627,8 @@ async function main() {
       if (Array.isArray(pluginUrls)) {
         urls.push(...pluginUrls);
       }
+
+      urls.splice(maxItems);
 
       const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>`;
       return c.text(xml, 200, { 'Content-Type': 'application/xml' });
@@ -640,9 +715,31 @@ async function main() {
       // _terms) — sem re-consultar a row crua.
       let contentRow: ContentRow | null = null;
       let data: Record<string, unknown> = {};
+      let navigation: { previous?: { title: string; slug: string; url: string } | null; next?: { title: string; slug: string; url: string } | null } | undefined;
       if (resolution.slug && resolution.contentType) {
         contentRow = (resolution.record as ContentRow | undefined) ?? null;
         data = resolution.data ?? {};
+        if (contentRow?.['id']) {
+          const navigationRows = await getConnection().unsafe(
+            `SELECT id, title, slug FROM content
+             WHERE tenant_id = $1 AND type = $2 AND status = 'PUBLISHED'
+             ORDER BY published_at DESC NULLS LAST, updated_at DESC, id DESC
+             LIMIT 1001`,
+            [String(c.get('tenant')['id']), resolution.contentType]
+          ) as unknown as Array<Record<string, unknown>>;
+          const currentIndex = navigationRows.findIndex((row) => String(row['id']) === String(contentRow?.['id']));
+          if (currentIndex >= 0) {
+            const makeNavigation = (row: Record<string, unknown> | undefined) => row && {
+              title: String(row['title'] ?? ''),
+              slug: String(row['slug'] ?? ''),
+              url: buildItemUrl({ slug: String(row['slug'] ?? '') }, resolution.hubBase ?? ''),
+            };
+            navigation = {
+              previous: makeNavigation(navigationRows[currentIndex + 1]),
+              next: makeNavigation(navigationRows[currentIndex - 1]),
+            };
+          }
+        }
       }
 
       // B1 — archives/home/page_for_posts/front page: itens publicados recentes.
@@ -758,6 +855,7 @@ async function main() {
         // vêm do provider do tema (mesma fonte/contrato das demais consultas,
         // com filtro de tenant) — não de uma query ad-hoc sem tenant_id.
         const rawSettings = await provider.getSettings().catch(() => ({}));
+        const timezoneConfig = await okLoadSiteTimezoneConfig(tenantId);
         
         // Extract allowed setting keys from manifest for preview whitelist
         const manifest = active.row?.['manifest'] as Record<string, unknown> | null;
@@ -769,6 +867,7 @@ async function main() {
         
         const settings = {
           ...toSiteSettings(rawSettings),
+          timezone: timezoneConfig.timezoneString ?? 'UTC',
           theme: buildThemeSettings(
             manifest,
             mergePreviewSettings(
@@ -839,6 +938,7 @@ async function main() {
           data: { ...renderData, jsonLd },
           items,
           pagination,
+          navigation,
           settings,
           themeData: themeDataWithPlugins,
           activeTheme,
