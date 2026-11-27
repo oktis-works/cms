@@ -15,41 +15,57 @@ interface FieldDef {
   options?: Array<{ value: string; label: string }>;
 }
 
+type FieldValue = string | boolean | number;
+
+const DEFAULTS: Record<string, FieldValue> = {
+  'seo.robotsEnabled': true,
+  'seo.robotsRules': '',
+  'seo.defaultRobots': 'index,follow',
+  'seo.sitemapEnabled': true,
+  'seo.sitemapMaxItems': 50000,
+  'seo.sitemapIncludeTypes': '',
+  'seo.defaultChangefreq': 'weekly',
+  'seo.defaultPriority': 0.5,
+  'seo.ogType': 'website',
+  'seo.ogImage': '',
+  'seo.twitterCard': 'summary',
+};
+
 export function SEOSettings() {
   const { t } = useTranslation();
-  const [values, setValues] = createSignal<Record<string, string>>({});
+  const [values, setValues] = createSignal<Record<string, FieldValue>>({});
   const [loaded, setLoaded] = createSignal(false);
   const [error, setError] = createSignal('');
   const [info, setInfo] = createSignal('');
   const [saving, setSaving] = createSignal(false);
 
   const robotsOptions = createMemo(() => [
-    { value: 'index,follow', label: 'Index, Follow' },
-    { value: 'noindex,follow', label: 'No Index, Follow' },
-    { value: 'index,nofollow', label: 'Index, No Follow' },
-    { value: 'noindex,nofollow', label: 'No Index, No Follow' },
+    { value: 'index,follow', label: t('settings.seo.options.indexFollow') },
+    { value: 'noindex,follow', label: t('settings.seo.options.noIndexFollow') },
+    { value: 'index,nofollow', label: t('settings.seo.options.indexNoFollow') },
+    { value: 'noindex,nofollow', label: t('settings.seo.options.noIndexNoFollow') },
   ]);
 
   const changefreqOptions = createMemo(() => [
-    { value: 'always', label: 'Always' },
-    { value: 'hourly', label: 'Hourly' },
-    { value: 'daily', label: 'Daily' },
-    { value: 'weekly', label: 'Weekly' },
-    { value: 'monthly', label: 'Monthly' },
-    { value: 'yearly', label: 'Yearly' },
-    { value: 'never', label: 'Never' },
+    { value: 'always', label: t('settings.seo.options.always') },
+    { value: 'hourly', label: t('settings.seo.options.hourly') },
+    { value: 'daily', label: t('settings.seo.options.daily') },
+    { value: 'weekly', label: t('settings.seo.options.weekly') },
+    { value: 'monthly', label: t('settings.seo.options.monthly') },
+    { value: 'yearly', label: t('settings.seo.options.yearly') },
+    { value: 'never', label: t('settings.seo.options.never') },
   ]);
 
   const ogTypeOptions = createMemo(() => [
-    { value: 'website', label: 'Website' },
-    { value: 'article', label: 'Article' },
-    { value: 'profile', label: 'Profile' },
-    { value: 'book', label: 'Book' },
+    { value: 'website', label: t('settings.seo.options.website') },
+    { value: 'article', label: t('settings.seo.options.article') },
+    { value: 'profile', label: t('settings.seo.options.profile') },
+    { value: 'book', label: t('settings.seo.options.book') },
   ]);
 
   const twitterCardOptions = createMemo(() => [
-    { value: 'summary', label: 'Summary' },
-    { value: 'summary_large_image', label: 'Summary with Large Image' },
+    { value: 'summary', label: t('settings.seo.options.summary') },
+    { value: 'summary_large_image', label: t('settings.seo.options.summaryLargeImage') },
   ]);
 
   const fields = createMemo<FieldDef[]>(() => [
@@ -76,12 +92,17 @@ export function SEOSettings() {
   onMount(async () => {
     try {
       const rows = await apiClient.getSettings('seo');
-      const map: Record<string, string> = {};
+      const map: Record<string, FieldValue> = {};
       for (const row of rows) {
-        map[row.key] = typeof row.value === 'string' ? row.value : JSON.stringify(row.value ?? '');
+        const field = fields().find((candidate) => candidate.key === row.key);
+        if (field?.type === 'toggle') map[row.key] = row.value === true || row.value === 'true';
+        else if (field?.type === 'number') {
+          const numberValue = Number(row.value);
+          map[row.key] = Number.isFinite(numberValue) ? numberValue : DEFAULTS[row.key] ?? 0;
+        } else map[row.key] = typeof row.value === 'string' ? row.value : String(row.value ?? '');
       }
       for (const field of fields()) {
-        if (map[field.key] === undefined) map[field.key] = '';
+        if (map[field.key] === undefined) map[field.key] = DEFAULTS[field.key] ?? '';
       }
       setValues(map);
       setLoaded(true);
@@ -105,9 +126,9 @@ export function SEOSettings() {
           const row = existing.get(field.key);
           return {
             key: field.key,
-            value: values()[field.key] ?? '',
+            value: values()[field.key] ?? DEFAULTS[field.key] ?? '',
             group: row?.group ?? 'seo',
-            type: row?.type ?? 'string',
+            type: field.type === 'toggle' ? 'boolean' : field.type === 'number' ? (field.key === 'seo.sitemapMaxItems' ? 'integer' : 'number') : 'string',
           };
         })
       );
@@ -135,7 +156,7 @@ export function SEOSettings() {
             <div class="form-grid">
               {fields().map((field) => {
                 if (field.type === 'toggle') {
-                  const isChecked = values()[field.key] === 'true';
+                  const isChecked = values()[field.key] === true;
                   return (
                     <div class="seo-settings__toggle">
                       <label class="field__label">
@@ -146,7 +167,7 @@ export function SEOSettings() {
                           checked={isChecked}
                           onInput={(event) => {
                             const target = event.target as HTMLInputElement;
-                            setValues({ ...values(), [field.key]: target.checked ? 'true' : 'false' });
+                            setValues({ ...values(), [field.key]: target.checked });
                           }}
                         />
                       </label>
@@ -162,7 +183,7 @@ export function SEOSettings() {
                         name={field.key}
                         class="input"
                         placeholder={field.placeholder ?? ''}
-                        value={values()[field.key] ?? ''}
+                        value={String(values()[field.key] ?? '')}
                         onInput={(event) => {
                           const target = event.target as HTMLTextAreaElement;
                           setValues({ ...values(), [field.key]: target.value });
@@ -177,7 +198,7 @@ export function SEOSettings() {
                     <Select
                       name={field.key}
                       label={field.label}
-                      value={values()[field.key] ?? ''}
+                        value={String(values()[field.key] ?? '')}
                       options={field.options ?? []}
                       onChange={(value: string) => setValues({ ...values(), [field.key]: value })}
                     />
@@ -188,8 +209,9 @@ export function SEOSettings() {
                     name={field.key}
                     label={field.label}
                     placeholder={field.placeholder ?? ''}
-                    value={values()[field.key] ?? ''}
-                    onInput={(value: string) => setValues({ ...values(), [field.key]: value })}
+                    type={field.type === 'number' ? 'number' : 'text'}
+                    value={String(values()[field.key] ?? '')}
+                    onInput={(value: string) => setValues({ ...values(), [field.key]: field.type === 'number' ? (Number(value) || 0) : value })}
                   />
                 );
               })}

@@ -68,7 +68,9 @@ export async function preflightMigration(
   }
 
   // Match UPDATE <table> and DELETE FROM <table> but not ON CONFLICT ... DO UPDATE SET
-  const affectedTables = [...source.matchAll(/\b(?:UPDATE|DELETE\s+FROM)\s+([a-z_][a-z0-9_]*)/gi)]
+  // Strip SQL comments first to avoid matching table names in comments
+  const sourceNoComments = source.replace(/--.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+  const affectedTables = [...sourceNoComments.matchAll(/\b(?:UPDATE|DELETE\s+FROM)\s+([a-z_][a-z0-9_]*)/gi)]
     // `UPDATE SET` (upsert), `UPDATE ON` (trigger syntax), and similar SQL
     // keywords are not table names. Keep the scan conservative because every
     // match becomes a live COUNT query during migration preflight.

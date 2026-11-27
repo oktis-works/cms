@@ -1,5 +1,13 @@
 # @oktis-works/theme-sdk
 
+## 1.0.2
+
+### Patch Changes
+
+- Fix tenant context propagation, typed settings visibility, theme manifest reconciliation, preview security, timezone-aware rendering, and SEO/feed output across the API, Admin, core, database, theme SDK, types, and web packages.
+- Updated dependencies
+  - @oktis-works/types@1.0.2
+
 ## 1.0.1
 
 ### Patch Changes

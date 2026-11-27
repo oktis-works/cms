@@ -44,11 +44,17 @@ function buildFeedItemUrl(context: FeedContext, item: Record<string, unknown>): 
   return new URL(path, context.siteUrl).toString();
 }
 
+function normalizeSiteUrl(value: string): string {
+  const parsed = new URL(value);
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') throw new Error('siteUrl must use HTTP or HTTPS');
+  return parsed.toString().replace(/\/$/, '');
+}
+
 /**
  * Generates RSS 2.0 feed XML.
  */
 export function generateRssFeed(context: FeedContext): string {
-  const siteUrl = context.siteUrl.replace(/\/$/, '');
+  const siteUrl = normalizeSiteUrl(context.siteUrl);
   const feedUrl = new URL(context.feedUrl, siteUrl).toString();
 
   const itemsXml = context.items
@@ -64,10 +70,10 @@ export function generateRssFeed(context: FeedContext): string {
       return `
     <item>
       <title>${title}</title>
-      <link>${itemUrl}</link>
+      <link>${escapeXml(itemUrl)}</link>
       <description>${description}</description>
       <pubDate>${pubDate}</pubDate>
-      <guid isPermaLink="true">${guid}</guid>
+      <guid isPermaLink="true">${escapeXml(guid)}</guid>
     </item>`;
     })
     .join('');
@@ -76,10 +82,10 @@ export function generateRssFeed(context: FeedContext): string {
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>${escapeXml(context.hubTitle)}</title>
-    <link>${new URL(`/${context.hubBase}/`, context.siteUrl).toString()}</link>
+    <link>${escapeXml(new URL(`/${context.hubBase}/`, siteUrl).toString())}</link>
     <description>${escapeXml(context.hubDescription ?? context.siteName)}</description>
     <language>${escapeXml(context.language ?? 'en')}</language>
-    <atom:link href="${feedUrl}" rel="self" type="application/rss+xml" />
+  <atom:link href="${escapeXml(feedUrl)}" rel="self" type="application/rss+xml" />
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
 ${itemsXml}
   </channel>
@@ -90,7 +96,7 @@ ${itemsXml}
  * Generates Atom 1.0 feed XML.
  */
 export function generateAtomFeed(context: FeedContext): string {
-  const siteUrl = context.siteUrl.replace(/\/$/, '');
+  const siteUrl = normalizeSiteUrl(context.siteUrl);
   const feedUrl = new URL(context.feedUrl, siteUrl).toString();
   const hubUrl = new URL(`/${context.hubBase}/`, siteUrl).toString();
 
@@ -109,8 +115,8 @@ export function generateAtomFeed(context: FeedContext): string {
       return `
     <entry>
       <title>${escapeXml((item['title'] as string) ?? '')}</title>
-      <link href="${itemUrl}" rel="alternate" type="text/html" />
-      <id>${itemUrl}</id>
+      <link href="${escapeXml(itemUrl)}" rel="alternate" type="text/html" />
+      <id>${escapeXml(itemUrl)}</id>
       <updated>${updated}</updated>
       <published>${published}</published>
       <summary type="html">${escapeXml((item['excerpt'] as string) ?? '')}</summary>
@@ -125,9 +131,9 @@ export function generateAtomFeed(context: FeedContext): string {
 <feed xmlns="http://www.w3.org/2005/Atom">
   <title>${escapeXml(context.hubTitle)}</title>
   <subtitle>${escapeXml(context.hubDescription ?? context.siteName)}</subtitle>
-  <link href="${hubUrl}" rel="alternate" type="text/html" />
-  <link href="${feedUrl}" rel="self" type="application/atom+xml" />
-  <id>${hubUrl}</id>
+  <link href="${escapeXml(hubUrl)}" rel="alternate" type="text/html" />
+  <link href="${escapeXml(feedUrl)}" rel="self" type="application/atom+xml" />
+  <id>${escapeXml(hubUrl)}</id>
   <updated>${new Date().toISOString()}</updated>
 ${entriesXml}
 </feed>`;

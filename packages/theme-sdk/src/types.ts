@@ -41,6 +41,7 @@ export interface ThemePageData {
     theme: Record<string, unknown>;
     url?: string;
     language?: string;
+    timezone?: string;
   };
   page: {
     title: string;

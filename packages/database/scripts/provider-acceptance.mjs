@@ -56,11 +56,11 @@ for (const [provider, url] of targets) {
       // Core-schema migrations are represented by the fresh baseline. Tenant-data
       // migrations still run once per tenant, even on a fresh database, so their
       // ledger must be populated during acceptance.
-      if (migrationResult.applied.join(',') !== 'canonicalize_timezone_settings') {
-        throw new Error(`${provider}: expected the V030 tenant-data migration, got ${migrationResult.applied.join(',') || 'none'}`);
+      if (migrationResult.applied.join(',') !== 'canonicalize_timezone_settings,settings_contract') {
+        throw new Error(`${provider}: expected the V030/V031 tenant-data migrations, got ${migrationResult.applied.join(',') || 'none'}`);
       }
       await closeConnection();
-      results.push({ provider, schema: 'ok', lock: 'ok', baseline: 'V030', tenantData: 'V030' });
+      results.push({ provider, schema: 'ok', lock: 'ok', baseline: 'V030', tenantData: 'V031' });
     } finally {
       await closeConnection().catch(() => undefined);
       await target.end();

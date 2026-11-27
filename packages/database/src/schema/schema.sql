@@ -275,13 +275,13 @@ CREATE INDEX IF NOT EXISTS idx_menus_tenant ON menus(tenant_id);
 CREATE TABLE IF NOT EXISTS settings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
-  key VARCHAR(255) NOT NULL,
+  "key" VARCHAR(255) NOT NULL,
   value JSONB NOT NULL,
   "group" VARCHAR(255) NOT NULL,
   type VARCHAR(100) NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-  UNIQUE(key, tenant_id)
+  UNIQUE("key", tenant_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_settings_tenant ON settings(tenant_id) WHERE tenant_id IS NOT NULL;

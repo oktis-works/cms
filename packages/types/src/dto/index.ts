@@ -264,6 +264,7 @@ export interface SettingResponse {
   value: unknown;
   group: string;
   type: string;
+  visibility?: 'public' | 'admin' | 'internal' | 'secret';
   createdAt: Date;
 }
 

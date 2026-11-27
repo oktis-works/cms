@@ -1,5 +1,13 @@
 # @oktis-works/database
 
+## 0.16.9
+
+### Patch Changes
+
+- Fix tenant context propagation, typed settings visibility, theme manifest reconciliation, preview security, timezone-aware rendering, and SEO/feed output across the API, Admin, core, database, theme SDK, types, and web packages.
+- Updated dependencies
+  - @oktis-works/types@1.0.2
+
 ## 0.16.8
 
 ### Patch Changes

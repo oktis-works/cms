@@ -208,8 +208,11 @@ themes.post('/:id/config/restore-defaults', requirePermission('customize', 'them
     if (!theme) return c.json({ error: 'Theme not found' }, 404)
 
     const manifest = theme.manifest as { settings?: any[] } | null
-    const defaults: Record<string, unknown> = {}
     const settings = Array.isArray(manifest?.settings) ? manifest.settings : []
+    const declaredNames = new Set(settings.map((field) => field?.name).filter((name): name is string => typeof name === 'string'))
+    const defaults: Record<string, unknown> = Object.fromEntries(
+      Object.entries((theme.config ?? {}) as Record<string, unknown>).filter(([key]) => declaredNames.has(key))
+    )
     for (const field of settings) {
       if (field && typeof field === 'object' && field.default !== undefined) {
         defaults[field.name] = field.default

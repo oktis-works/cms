@@ -4,7 +4,12 @@ import { SUPPORTED_LOCALES, DEFAULT_LOCALE, isRTLLocale } from './i18n/config';
 import { getTranslationsForLocale } from './i18n';
 import { proxyApiRequest } from './lib/api-proxy';
 
-const ADMIN_CSP = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+const previewWebOrigin = (() => {
+  const raw = import.meta.env.PUBLIC_WEB_URL?.trim();
+  if (!raw) return "'self'";
+  try { return new URL(raw).origin; } catch { return "'self'"; }
+})();
+const ADMIN_CSP = `default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-src 'self' ${previewWebOrigin}; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`;
 
 function addCspHeaders(response: Response): Response {
   const newHeaders = new Headers(response.headers);

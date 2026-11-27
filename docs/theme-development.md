@@ -64,7 +64,7 @@ context.
 
 `data` contains:
 
-- `site`: title, description, URL, language, and active theme settings;
+- `site`: title, description, URL, language, timezone, and active theme settings;
 - `page`: logical key, type, slug, canonical path, and route flags;
 - `content` and `fields`: public normalized fields;
 - `items` and `pagination`: collection data;
@@ -73,6 +73,8 @@ context.
 
 Sensitive credentials, tokens, hashes, tenant storage columns, and private
 settings are removed before a theme receives data.
+
+Theme configuration is reconciled against `manifest.settings` when the theme directory is synchronized. Unknown keys are removed into configuration history, defaults are applied, and missing required fields block synchronization or activation until corrected. The page contract exposes normalized `excerpt`, `publishedAt`, `previous`, and `next` values.
 
 ## SDK bridge
 

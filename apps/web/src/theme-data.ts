@@ -1,6 +1,7 @@
 // @oktis-works/web - Database adapter for the unified Theme SDK data API
 
 import {
+  normalizeStoredSetting,
   postTypeRegistry,
 } from '@oktis-works/core';
 import { getConnection } from '@oktis-works/database';
@@ -90,11 +91,6 @@ function taxonomyRow(row: DatabaseRow): ThemeTaxonomy {
 }
 
 const PUBLIC_SETTING_GROUPS = new Set(['general', 'public', 'theme', 'seo']);
-const SENSITIVE_SETTING_KEY = /(password|secret|token|authorization|cookie|api[_-]?key|credential|private[_-]?key|hash)/i;
-
-function publicSetting(row: DatabaseRow): boolean {
-  return !SENSITIVE_SETTING_KEY.test(String(row['key'] ?? ''));
-}
 
 export function createDatabaseThemeDataProvider(
   sql: ReturnType<typeof getConnection> = getConnection(),
@@ -200,16 +196,23 @@ export function createDatabaseThemeDataProvider(
       const groupClause = group ? ` AND "group" = $${params.length + 1}` : ` AND "group" = ANY($${params.length + 1}::text[])`;
       params.push(group ?? [...PUBLIC_SETTING_GROUPS]);
       const rows = await sql.unsafe(
-        `SELECT key, value, tenant_id FROM settings
-         WHERE (tenant_id = $1 OR tenant_id IS NULL)${groupClause}
-         ORDER BY CASE WHEN tenant_id = $1 THEN 1 ELSE 0 END, key ASC`,
+        `SELECT key, value, tenant_id, "group", type, visibility FROM settings
+         WHERE (tenant_id = $1 OR tenant_id IS NULL)
+           AND visibility = 'public'${groupClause}
+         ORDER BY CASE WHEN tenant_id = $1 THEN 0 ELSE 1 END, key ASC`,
         params
       );
-      return Object.fromEntries(
-        (rows as unknown as DatabaseRow[])
-          .filter(publicSetting)
-          .map((row) => [String(row['key']), row['value']])
-      );
+      const effective = new Map<string, unknown>();
+      for (const row of rows as unknown as DatabaseRow[]) {
+        const normalized = normalizeStoredSetting({
+          key: String(row['key']),
+          value: row['value'],
+          type: String(row['type'] ?? 'json'),
+          visibility: String(row['visibility'] ?? 'internal'),
+        });
+        if (!effective.has(normalized.key)) effective.set(normalized.key, normalized.value);
+      }
+      return Object.fromEntries(effective);
     },
   };
 }

@@ -113,7 +113,8 @@ interface ThemeConfigValidationResult {
 function validateThemeConfig(
   config: Record<string, unknown>,
   manifestSettings: unknown[],
-  allowExtraKeys = false
+  allowExtraKeys = false,
+  requireComplete = true
 ): ThemeConfigValidationResult {
   const errors: string[] = [];
   const sanitized: Record<string, unknown> = {};
@@ -121,6 +122,7 @@ function validateThemeConfig(
 
   // Build allowed keys set from manifest
   const declaredSettings = Array.isArray(manifestSettings) ? manifestSettings : [];
+
   for (const field of declaredSettings) {
     if (!field || typeof field !== 'object') continue;
     const record = field as Record<string, unknown>;
@@ -166,7 +168,7 @@ function validateThemeConfig(
     }
 
     // Type-specific validation
-    const validation = validateFieldValue(key, value, fieldDef);
+    const validation = validateFieldValue(key, value, fieldDef, requireComplete);
     if (!validation.valid) {
       errors.push(...validation.errors);
       continue;
@@ -174,14 +176,39 @@ function validateThemeConfig(
     sanitized[key] = validation.sanitized;
   }
 
+  if (!requireComplete) return { valid: errors.length === 0, errors, sanitized };
+
+  for (const field of declaredSettings) {
+    if (!field || typeof field !== 'object') continue;
+    const fieldDef = field as ThemeSettingField;
+    if (!fieldDef.name || Object.prototype.hasOwnProperty.call(config, fieldDef.name)) continue;
+    if (fieldDef.required && fieldDef.default === undefined) {
+      errors.push(`Setting "${fieldDef.name}" is required`);
+    } else if (fieldDef.default !== undefined) {
+      sanitized[fieldDef.name] = fieldDef.default;
+    }
+  }
+
   return { valid: errors.length === 0, errors, sanitized };
+}
+
+function declaredThemeConfig(config: unknown, manifestSettings: unknown[]): Record<string, unknown> {
+  if (!isPlainObject(config)) return {};
+  const declared = new Set(
+    (Array.isArray(manifestSettings) ? manifestSettings : [])
+      .filter((field): field is Record<string, unknown> => isPlainObject(field))
+      .map((field) => field['name'])
+      .filter((name): name is string => typeof name === 'string' && name.length > 0)
+  );
+  return Object.fromEntries(Object.entries(config).filter(([key]) => declared.has(key)));
 }
 
 /** Valida um valor individual contra a definição do campo. */
 function validateFieldValue(
   key: string,
   value: unknown,
-  field: ThemeSettingField
+  field: ThemeSettingField,
+  requireComplete = true
 ): { valid: boolean; errors: string[]; sanitized: unknown } {
   const errors: string[] = [];
   let sanitized: unknown = value;
@@ -357,7 +384,7 @@ function validateFieldValue(
             errors.push(`Setting "${key}[${i}]" must be an object`);
             continue;
           }
-          const rowResult = validateThemeConfig(row, subFields);
+          const rowResult = validateThemeConfig(row, subFields, false, requireComplete);
           if (!rowResult.valid) {
             errors.push(...rowResult.errors.map((e) => `${key}[${i}]: ${e}`));
           }
@@ -394,7 +421,7 @@ function validateFieldValue(
         if (subFields.length > 0) {
           const rowData = { ...row };
           delete rowData['fc_layout'];
-          const rowResult = validateThemeConfig(rowData, subFields);
+          const rowResult = validateThemeConfig(rowData, subFields, false, requireComplete);
           if (!rowResult.valid) {
             errors.push(...rowResult.errors.map((e) => `${key}[${i}]: ${e}`));
           }
@@ -414,7 +441,7 @@ function validateFieldValue(
       }
       const subFields = field.subFields ?? [];
       if (subFields.length > 0) {
-        const groupResult = validateThemeConfig(value as Record<string, unknown>, subFields);
+        const groupResult = validateThemeConfig(value as Record<string, unknown>, subFields, false, requireComplete);
         if (!groupResult.valid) {
           errors.push(...groupResult.errors.map((e) => `${key}: ${e}`));
         }
@@ -536,10 +563,27 @@ export class ThemeService {
       const existing = await this.getByName(name, currentTenantId);
       if (existing) {
         const status = existing.status === 'INACTIVE' || existing.status === 'ACTIVE' ? existing.status : 'INSTALLED';
+        const manifestSettings = Array.isArray(manifest['settings']) ? manifest['settings'] : [];
+        const reconciled = validateThemeConfig(
+          declaredThemeConfig(existing.config, manifestSettings),
+          manifestSettings,
+        );
+        if (!reconciled.valid) {
+          failures.push(`${name}: persisted configuration is incompatible with the new manifest: ${reconciled.errors.join('; ')}`);
+          continue;
+        }
+        const nextConfig = reconciled.sanitized;
+        if (stableJson(existing.config ?? {}) !== stableJson(nextConfig)) {
+          await sql.unsafe(
+            `INSERT INTO theme_config_versions (theme_id, config, user_id, change_summary)
+             VALUES ($1, $2::jsonb, NULL, $3)`,
+            [existing.id, existing.config ?? {}, 'Configuration snapshot before manifest reconciliation']
+          );
+        }
         await sql.unsafe(
-          `UPDATE themes SET version = $1, manifest = $2::jsonb, status = $3, updated_at = NOW()
-           WHERE id = $4 AND tenant_id = $5`,
-          [version, manifest, status, existing.id, currentTenantId]
+          `UPDATE themes SET version = $1, manifest = $2::jsonb, config = $3::jsonb, status = $4, updated_at = NOW()
+           WHERE id = $5 AND tenant_id = $6`,
+          [version, manifest, nextConfig, status, existing.id, currentTenantId]
         );
       } else {
         await sql.unsafe(
@@ -791,17 +835,19 @@ export class ThemeService {
     const manifest = existing.manifest as { settings?: any[] } | null;
     const manifestSettings = manifest?.settings ?? [];
 
-    const validation = validateThemeConfig(config, manifestSettings);
+    const imported = validateThemeConfig(config, manifestSettings, false, false);
+    if (!imported.valid) {
+      throw new Error(`Theme config validation failed: ${imported.errors.join('; ')}`);
+    }
+
+    const candidate = mode === 'replace'
+      ? imported.sanitized
+      : { ...(existing.config ?? {}), ...imported.sanitized };
+    const validation = validateThemeConfig(candidate, manifestSettings);
     if (!validation.valid) {
       throw new Error(`Theme config validation failed: ${validation.errors.join('; ')}`);
     }
-
-    let newConfig: Record<string, unknown>;
-    if (mode === 'replace') {
-      newConfig = validation.sanitized;
-    } else {
-      newConfig = { ...(existing.config ?? {}), ...validation.sanitized };
-    }
+    const newConfig = validation.sanitized;
 
     return this.updateConfig(id, newConfig, undefined, false, currentTenantId);
   }

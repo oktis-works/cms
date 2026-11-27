@@ -248,7 +248,7 @@ export function ThemeCustomizer() {
       anchor.click();
       URL.revokeObjectURL(url);
     } catch {
-      setError('Failed to export the theme configuration.');
+      setError(t('customizer.exportError'));
     }
   }
 
@@ -258,7 +258,7 @@ export function ThemeCustomizer() {
     try {
       const parsed = JSON.parse(await file.text()) as { config?: Record<string, unknown> };
       if (!parsed.config || typeof parsed.config !== 'object' || Array.isArray(parsed.config)) {
-        throw new Error('The selected file does not contain a valid config object.');
+        throw new Error(t('customizer.invalidImport'));
       }
       const updated = await apiClient.importThemeConfig(theme.id, parsed.config, 'merge');
       setThemes(themes().map((item) => (item.id === theme.id ? updated : item)));
@@ -266,7 +266,7 @@ export function ThemeCustomizer() {
       setDraft(updated.config ?? {});
       setSaved(true);
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to import the theme configuration.');
+      setError(error instanceof Error ? error.message : t('customizer.importError'));
     }
   }
 
@@ -276,13 +276,13 @@ export function ThemeCustomizer() {
     try {
       setHistory(await apiClient.getThemeConfigHistory(theme.id));
     } catch {
-      setError('Failed to load theme configuration history.');
+      setError(t('customizer.historyError'));
     }
   }
 
   async function restoreDefaults(): Promise<void> {
     const theme = selectedTheme();
-    if (!theme || !window.confirm('Restore the theme manifest defaults? This replaces the current saved configuration.')) return;
+    if (!theme || !window.confirm(t('customizer.confirmDefaults'))) return;
     try {
       const updated = await apiClient.restoreThemeDefaults(theme.id);
       setThemes(themes().map((item) => (item.id === theme.id ? updated : item)));
@@ -290,13 +290,13 @@ export function ThemeCustomizer() {
       setDraft(updated.config ?? {});
       setSaved(true);
     } catch {
-      setError('Failed to restore theme defaults.');
+      setError(t('customizer.defaultsError'));
     }
   }
 
   async function restoreVersion(versionId: string): Promise<void> {
     const theme = selectedTheme();
-    if (!theme || !window.confirm('Restore this saved theme configuration version?')) return;
+    if (!theme || !window.confirm(t('customizer.confirmVersion'))) return;
     try {
       const updated = await apiClient.restoreThemeConfig(theme.id, versionId);
       setThemes(themes().map((item) => (item.id === theme.id ? updated : item)));
@@ -304,26 +304,29 @@ export function ThemeCustomizer() {
       setDraft(updated.config ?? {});
       setSaved(true);
     } catch {
-      setError('Failed to restore the selected theme configuration version.');
+      setError(t('customizer.restoreError'));
     }
   }
 
   const previewUrl = (): string => {
     const rawBase = previewPath() || '/';
-    // Se o usuário já digitou uma URL absoluta, usa diretamente.
+    const webAppBase = resolveWebAppBaseUrl();
     if (/^https?:\/\//i.test(rawBase)) {
-      const separator = rawBase.includes('?') ? '&' : '?';
-      const encoded = encodeURIComponent(JSON.stringify(draft()));
-      const token = previewToken();
-      const selected = token ? `&preview_token=${encodeURIComponent(token)}` : '';
-      return `${rawBase}${separator}preview_settings=${encoded}${selected}&_=${previewNonce()}`;
+      try {
+        const requested = new URL(rawBase);
+        const allowedOrigin = webAppBase ? new URL(webAppBase).origin : window.location.origin;
+        if (requested.origin !== allowedOrigin) return `${webAppBase || ''}/`;
+      } catch {
+        return `${webAppBase || ''}/`;
+      }
     }
-    const base = rawBase.startsWith('/') ? rawBase : `/${rawBase}`;
+    const base = /^https?:\/\//i.test(rawBase)
+      ? `${new URL(rawBase).pathname}${new URL(rawBase).search}`
+      : rawBase.startsWith('/') ? rawBase : `/${rawBase}`;
     const encoded = encodeURIComponent(JSON.stringify(draft()));
     const separator = base.includes('?') ? '&' : '?';
     const token = previewToken();
     const selected = token ? `&preview_token=${encodeURIComponent(token)}` : '';
-    const webAppBase = resolveWebAppBaseUrl();
     const previewBase = webAppBase ? `${webAppBase}${base}` : base;
     return `${previewBase}${separator}preview_settings=${encoded}${selected}&_=${previewNonce()}`;
   };
@@ -472,26 +475,26 @@ export function ThemeCustomizer() {
                 {t('customizer.refreshPreview')}
               </button>
               <button class="btn btn-secondary" onClick={() => void exportConfig()}>
-                Export
+                {t('customizer.export')}
               </button>
               <label class="btn btn-secondary customizer__file-button">
-                Import
+                {t('customizer.import')}
                 <input type="file" accept="application/json,.json" onChange={(event) => void importConfig(event.currentTarget.files?.[0])} />
               </label>
               <button class="btn btn-secondary" onClick={() => void restoreDefaults()}>
-                Restore defaults
+                {t('customizer.restoreDefaults')}
               </button>
               <button class="btn btn-secondary" onClick={() => void loadHistory()}>
-                History
+                {t('customizer.history')}
               </button>
             </div>
             <Show when={history().length > 0}>
               <div class="customizer__history">
-                <strong>Configuration history</strong>
+                <strong>{t('customizer.configurationHistory')}</strong>
                 <For each={history()}>
                   {(version) => (
                     <button class="btn btn-secondary btn-sm" onClick={() => void restoreVersion(version.id)}>
-                      {new Date(version.createdAt).toLocaleString()} — Restore
+                      {new Date(version.createdAt).toLocaleString()} — {t('customizer.restore')}
                     </button>
                   )}
                 </For>

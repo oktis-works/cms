@@ -2,6 +2,7 @@
 // Isolamento completo do servidor/SO: força UTC no runtime, usa IANA database para DST
 
 import { getConnection } from '@oktis-works/database';
+import { getCurrentTenantIdSync } from '../tenant/context.js';
 
 /**
  * Configuração de fuso horário do site.
@@ -13,7 +14,16 @@ export interface SiteTimezoneConfig {
   gmtOffset: number | null;
 }
 
-let siteTimezoneCache: SiteTimezoneConfig | null = null;
+const siteTimezoneCache = new Map<string, SiteTimezoneConfig>();
+
+function cacheKey(tenantId?: string): string {
+  if (tenantId) return tenantId;
+  try {
+    return getCurrentTenantIdSync();
+  } catch {
+    return '__unscoped__';
+  }
+}
 
 // IANA timezone database (subset das mais comuns)
 // Em produção, usar Intl.DateTimeFormat().resolvedOptions().timeZone ou biblioteca completa
@@ -81,27 +91,38 @@ export function okForceUtcRuntime(): void {
  * Prioridade: timezone_string (IANA) > gmt_offset (manual)
  * Para versão assíncrona que carrega do banco, use okLoadSiteTimezoneConfig().
  */
-export function okGetSiteTimezoneConfig(): SiteTimezoneConfig {
-  if (siteTimezoneCache) return siteTimezoneCache;
+export function okGetSiteTimezoneConfig(tenantId?: string): SiteTimezoneConfig {
+  const key = cacheKey(tenantId);
+  const cached = siteTimezoneCache.get(key);
+  if (cached) return cached;
 
-  // Fallback padrão (Brasil) - o cache será atualizado quando okLoadSiteTimezoneConfig() for chamado
-  siteTimezoneCache = { timezoneString: 'America/Sao_Paulo', gmtOffset: -3 };
-  return siteTimezoneCache;
+  const fallback = { timezoneString: 'UTC', gmtOffset: 0 };
+  siteTimezoneCache.set(key, fallback);
+  return fallback;
 }
 
 /**
  * Carrega configuração do banco de dados (assíncrono).
  * Deve ser chamado quando o tenant context estiver disponível.
  */
-export async function okLoadSiteTimezoneConfig(): Promise<SiteTimezoneConfig> {
+export async function okLoadSiteTimezoneConfig(tenantId?: string): Promise<SiteTimezoneConfig> {
+  const key = cacheKey(tenantId);
   try {
     const sql = getConnection();
-    const rows = await sql.unsafe(
-      `SELECT key, value FROM settings
-       WHERE key IN ('timezone_string', 'gmt_offset')
-         AND (tenant_id IS NULL OR tenant_id = current_setting('app.current_tenant_id', true)::uuid)
-       ORDER BY tenant_id NULLS FIRST`
-    );
+    const rows = tenantId
+      ? await sql.unsafe(
+        `SELECT key, value FROM settings
+         WHERE key IN ('timezone_string', 'gmt_offset')
+           AND (tenant_id IS NULL OR tenant_id = $1)
+         ORDER BY CASE WHEN tenant_id = $1 THEN 0 ELSE 1 END`,
+        [tenantId]
+      )
+      : await sql.unsafe(
+        `SELECT key, value FROM settings
+         WHERE key IN ('timezone_string', 'gmt_offset')
+           AND (tenant_id IS NULL OR tenant_id = current_setting('app.current_tenant_id', true)::uuid)
+         ORDER BY tenant_id NULLS FIRST`
+      );
 
     let timezoneString: string | null = null;
     let gmtOffset: number | null = null;
@@ -116,20 +137,23 @@ export async function okLoadSiteTimezoneConfig(): Promise<SiteTimezoneConfig> {
       }
     }
 
-    siteTimezoneCache = { timezoneString, gmtOffset };
-    return siteTimezoneCache;
-  } catch {
-    // Fallback silencioso
-    siteTimezoneCache = { timezoneString: 'America/Sao_Paulo', gmtOffset: -3 };
-    return siteTimezoneCache;
+    const config = { timezoneString: timezoneString ?? 'UTC', gmtOffset: gmtOffset ?? 0 };
+    siteTimezoneCache.set(key, config);
+    return config;
+  } catch (error) {
+    console.error('[timezone] Failed to load site timezone configuration:', error);
+    const fallback = { timezoneString: 'UTC', gmtOffset: 0 };
+    siteTimezoneCache.set(key, fallback);
+    return fallback;
   }
 }
 
 /**
  * Limpa cache (útil após update de settings)
  */
-export function okClearTimezoneCache(): void {
-  siteTimezoneCache = null;
+export function okClearTimezoneCache(tenantId?: string): void {
+  if (tenantId) siteTimezoneCache.delete(cacheKey(tenantId));
+  else siteTimezoneCache.clear();
 }
 
 /**

@@ -754,6 +754,25 @@
         "title": "Twitter Cards",
         "card": "Tipo do Twitter Card",
         "cardHint": "summary ou summary_large_image"
+      },
+      "options": {
+        "indexFollow": "Indexar, Seguir",
+        "noIndexFollow": "Não indexar, Seguir",
+        "indexNoFollow": "Indexar, Não seguir",
+        "noIndexNoFollow": "Não indexar, Não seguir",
+        "always": "Sempre",
+        "hourly": "A cada hora",
+        "daily": "Diariamente",
+        "weekly": "Semanalmente",
+        "monthly": "Mensalmente",
+        "yearly": "Anualmente",
+        "never": "Nunca",
+        "website": "Site",
+        "article": "Artigo",
+        "profile": "Perfil",
+        "book": "Livro",
+        "summary": "Resumo",
+        "summaryLargeImage": "Resumo com imagem grande"
       }
     }
   },
@@ -1158,7 +1177,21 @@
     "refreshPreview": "Atualizar preview",
     "previewHint": "O preview sobrepõe o rascunho às configurações salvas — vale só para a requisição, nunca persiste.",
     "previewPath": "Caminho do preview",
-    "previewTitle": "Preview do tema"
+    "previewTitle": "Preview do tema",
+    "export": "Exportar",
+    "import": "Importar",
+    "restoreDefaults": "Restaurar padrões",
+    "history": "Histórico",
+    "configurationHistory": "Histórico de configurações",
+    "restore": "Restaurar",
+    "exportError": "Falha ao exportar a configuração do tema.",
+    "importError": "Falha ao importar a configuração do tema.",
+    "invalidImport": "O arquivo selecionado não contém um objeto de configuração válido.",
+    "historyError": "Falha ao carregar o histórico da configuração do tema.",
+    "confirmDefaults": "Restaurar os padrões do manifesto do tema? Isso substituirá a configuração salva atual.",
+    "confirmVersion": "Restaurar esta versão salva da configuração do tema?",
+    "defaultsError": "Falha ao restaurar os padrões do tema.",
+    "restoreError": "Falha ao restaurar a versão selecionada da configuração do tema."
   },
   "comments": {
     "title": "Comentários",

@@ -767,6 +767,25 @@
         "title": "Twitter Cards",
         "card": "Twitter card type",
         "cardHint": "summary or summary_large_image"
+      },
+      "options": {
+        "indexFollow": "Index, Follow",
+        "noIndexFollow": "No Index, Follow",
+        "indexNoFollow": "Index, No Follow",
+        "noIndexNoFollow": "No Index, No Follow",
+        "always": "Always",
+        "hourly": "Hourly",
+        "daily": "Daily",
+        "weekly": "Weekly",
+        "monthly": "Monthly",
+        "yearly": "Yearly",
+        "never": "Never",
+        "website": "Website",
+        "article": "Article",
+        "profile": "Profile",
+        "book": "Book",
+        "summary": "Summary",
+        "summaryLargeImage": "Summary with Large Image"
       }
     }
   },
@@ -1171,7 +1190,21 @@
     "refreshPreview": "Refresh preview",
     "previewHint": "The preview overlays your draft on top of the saved settings — it is request-only and never persists.",
     "previewPath": "Preview path",
-    "previewTitle": "Theme preview"
+    "previewTitle": "Theme preview",
+    "export": "Export",
+    "import": "Import",
+    "restoreDefaults": "Restore defaults",
+    "history": "History",
+    "configurationHistory": "Configuration history",
+    "restore": "Restore",
+    "exportError": "Failed to export the theme configuration.",
+    "importError": "Failed to import the theme configuration.",
+    "invalidImport": "The selected file does not contain a valid config object.",
+    "historyError": "Failed to load theme configuration history.",
+    "confirmDefaults": "Restore the theme manifest defaults? This replaces the current saved configuration.",
+    "confirmVersion": "Restore this saved theme configuration version?",
+    "defaultsError": "Failed to restore theme defaults.",
+    "restoreError": "Failed to restore the selected theme configuration version."
   },
   "comments": {
     "title": "Comments",

@@ -95,6 +95,17 @@ export type { PublishResult } from './content/publisher.js';
 export { mediaService, MediaService } from './media/service.js';
 export { menuService, MenuService } from './menu/service.js';
 export { settingsService, SettingsService } from './settings/service.js';
+export {
+  SETTING_DEFINITIONS,
+  getSettingDefinition,
+  getSettingDefault,
+  normalizeSettingValue,
+  normalizeStoredSetting,
+  resolveSettingVisibility,
+  type CanonicalSettingType,
+  type SettingDefinition,
+  type SettingVisibility,
+} from './settings/contract.js';
 export { categoryService, CategoryService } from './category/service.js';
 export { tagService, TagService } from './tag/service.js';
 export { pluginService, PluginService } from './plugin/service.js';
@@ -103,6 +114,21 @@ export type { PluginsRuntimeState, PluginsScopeState } from './plugin/load.js';
 export { themeService, ThemeService, describeThemeBuild } from './theme/service.js';
 export { createThemePreviewToken, verifyThemePreviewToken } from './theme/preview.js';
 export type { ThemeBuildStatus } from './theme/service.js';
+export {
+  okForceUtcRuntime,
+  okGetSiteTimezoneConfig,
+  okLoadSiteTimezoneConfig,
+  okClearTimezoneCache,
+  okGetTimezoneOffset,
+  okIsDstActive,
+  okConvertToGmt,
+  okConvertFromGmt,
+  okGetTimezoneAbbreviation,
+  okDate,
+  okCurrentTime,
+  okGetCommonTimezones,
+  okGetManualOffsets,
+} from './timezone/index.js';
 export { resolveExtensionDirectory } from './extensions/project-directories.js';
 export { buildService, BuildService } from './build/service.js';
 export { deploymentService, DeploymentService } from './deployment/service.js';
