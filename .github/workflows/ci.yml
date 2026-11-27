@@ -125,7 +125,20 @@ jobs:
         run: bun audit --audit-level=high
 
   # ============================================================
-  # Step 5: Dry-run Publish on PR (validates publish without publishing)
+  # Step 5: Validate release versioning before merge (GAP-18)
+  # ============================================================
+  check-publish-version:
+    name: Check Publish Version
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'release/')
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-project
+      - name: Validate versioning system (prepare-publish --check)
+        run: node scripts/prepare-publish.mjs --check
+
+  # ============================================================
+  # Step 6: Dry-run Publish on PR (validates publish without publishing)
   # ============================================================
   dry-run-publish:
     name: Dry-run Publish
