@@ -95,6 +95,6 @@ This would require setting `app.current_user_role` in the request context, which
 
 ## Related Documentation
 
-- [Multi-Tenant Architecture](../docs/architecture/multi-tenancy.md)
-- [Plugin System](../docs/plugins/README.md)
-- [Settings API](../docs/api/settings.md)
+- [Tenant Context & RLS Rules](../AGENTS.md) — §9 in AGENTS.md covers the RLS and tenant context rules.
+- [Plugin Development](./plugin-development.md) — plugin manifest, permissions, and `compatibility.okcms`.
+- [Settings Contract](./settings-contract.md) — tenant-scoped settings contract and visibility levels.
