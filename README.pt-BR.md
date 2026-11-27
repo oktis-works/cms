@@ -19,7 +19,7 @@ Hybrid, modular, API-first, extensible CMS with an isolated React/Solid theme pl
 
 A CLI é a **única** superfície de operação do sistema: cria o projeto, sobe os
 apps, migra o banco, configura o `.env`, instala extensões e faz deploy. Ela é
-zero-dependências (sem lib de prompt), roda em **Node 22.17+ ou Bun 1.4.4+** e nunca
+zero-dependências (sem lib de prompt), roda em **Node 22.23+ ou Bun 1.4.4+** e nunca
 executa dentro de um container — deploy e configuração são sempre a partir do
 host.
 
@@ -363,7 +363,7 @@ bun scripts/sync-infrastructure.ts
 
 ### Prerequisites
 
-- Node.js 22.17+
+- Node.js 22.23+
 - Bun 1.4.4+
 - Docker & Docker Compose v2 (para os targets `blue-green` e `simple` — `pm2` não precisa)
 - PostgreSQL 16+

@@ -104,7 +104,7 @@ CMS API-first, multi-tenant e extensível. Quatro apps + uma CLI:
 
 ## Começando (desenvolvimento local)
 
-Pré-requisitos: **Node 22.17+** ou **Bun 1.4.4+** · **PostgreSQL 16+, MySQL 8.0.36+/8.4 LTS ou MariaDB 11.4+** ·
+Pré-requisitos: **Node 22.23+** ou **Bun 1.4.4+** · **PostgreSQL 16+, MySQL 8.0.36+/8.4 LTS ou MariaDB 11.4+** ·
 **Redis** (opcional — só para filas do worker).
 
 > **CLI do projeto:** depois do install, os comandos rodam diretamente com
@@ -411,7 +411,7 @@ An API-first, multi-tenant, extensible CMS. Four apps + one CLI:
 
 ## Getting started (local development)
 
-Prerequisites: **Node 22.17+** or **Bun 1.4.4+** · **PostgreSQL 16+, MySQL 8.0.36+/8.4 LTS, or MariaDB 11.4+** ·
+Prerequisites: **Node 22.23+** or **Bun 1.4.4+** · **PostgreSQL 16+, MySQL 8.0.36+/8.4 LTS, or MariaDB 11.4+** ·
 **Redis** (optional — only for the worker queues).
 
 > **Project CLI:** after installation, commands run directly with \`okcms\`.

@@ -14,7 +14,7 @@ extensão, atualizar, fazer backup e diagnosticar.
 
 | Necessário para | Requisito |
 |---|---|
-| sempre | **Node 22.17.0+** ou **Bun 1.4.4+** |
+| sempre | **Node 22.23+** ou **Bun 1.4.4+** |
 | sempre | **PostgreSQL 16+, MySQL 8.0.36+/8.4 LTS ou MariaDB 11.4+** |
 | filas do worker | **Redis** (sem ele: `REDIS_HOST=disabled` — cache em memória, filas não funcionam) |
 | deploy em Docker | **Docker** + **Docker Compose v2** (`docker compose version`) |

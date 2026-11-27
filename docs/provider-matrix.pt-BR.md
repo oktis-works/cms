@@ -9,7 +9,7 @@ independentes; passar nos testes de um não comprova suporte ao outro.
 | MySQL | 8.0.36 e 8.4 LTS | `mysql2` 3.24.x | 3306 | desativado, CA, verificação de certificado |
 | MariaDB | 11.4 LTS | `mariadb` 3.5.x | 3306 | desativado, CA, verificação de certificado |
 
-Os runtimes suportados são Node.js `>=22.17.0` e Bun `>=1.4.4`. A versão
+Os runtimes suportados são Node.js `>=22.23.0` e Bun `>=1.4.4`. A versão
 mínima do servidor é verificada antes de qualquer alteração de schema. Servidor
 antigo ou desconhecido interrompe o comando antes de migrations e seeds.
 

@@ -14,7 +14,7 @@ extensions, update, back up and diagnose.
 
 | Needed for | Requirement |
 |---|---|
-| always | **Node 22.17+** or **Bun 1.4.4+** |
+| always | **Node 22.23+** or **Bun 1.4.4+** |
 | always | **PostgreSQL 16+, MySQL 8.0.36+/8.4 LTS, or MariaDB 11.4+** |
 | worker queues | **Redis** (without it: `REDIS_HOST=disabled` — in-memory cache, queues don't work) |
 | Docker deploy | **Docker** + **Docker Compose v2** (`docker compose version`) |
