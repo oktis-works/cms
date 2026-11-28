@@ -1,5 +1,13 @@
 # @oktis-works/api
 
+## 0.19.11
+
+### Patch Changes
+
+- Updated dependencies [6d252fa]
+  - @oktis-works/validation@1.0.3
+  - @oktis-works/core@1.0.7
+
 ## 0.19.10
 
 ### Patch Changes
