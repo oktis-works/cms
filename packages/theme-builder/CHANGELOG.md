@@ -1,5 +1,11 @@
 # @oktis-works/theme-builder
 
+## 1.0.6
+
+### Patch Changes
+
+- Fix `okcms dev` and `okcms theme:build` failing on scaffolded projects with `Tsconfig not found`: the default theme `tsconfig.json` extended the monorepo root config (`../../tsconfig.json`), which does not exist outside the repository, and Vite 8 (rolldown) aborts the build when a tsconfig `extends` target is missing. The default theme config is now self-contained, and the builder repairs a dangling relative `extends` in themes created by older releases instead of failing the build.
+
 ## 1.0.5
 
 ### Patch Changes

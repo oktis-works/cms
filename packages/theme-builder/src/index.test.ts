@@ -110,6 +110,25 @@ describe('buildTheme — compiled engines', () => {
     expect(module.render('home', pageData).html).toContain('<h1>Built</h1>');
   }, 60_000);
 
+  it('repairs a theme tsconfig that extends a missing file', async () => {
+    writeBase('react');
+    writeFileSync(
+      join(dir, 'tsconfig.json'),
+      JSON.stringify({
+        extends: '../../../missing-root/tsconfig.json',
+        compilerOptions: { strict: true },
+      })
+    );
+
+    const result = await buildTheme({ themesRoot: root, themeName: 'react-theme' });
+
+    expect(result.templates).toEqual(['home']);
+    expect(result.warnings.join('\n')).toContain('self-contained');
+    const repaired = JSON.parse(readFileSync(join(dir, 'tsconfig.json'), 'utf-8')) as Record<string, unknown>;
+    expect(repaired['extends']).toBeUndefined();
+    expect((repaired['compilerOptions'] as Record<string, unknown>)['jsx']).toBe('react-jsx');
+  }, 60_000);
+
   it('preserves the manifest-declared stylesheet at dist/theme.css', async () => {
     writeBase('react');
     rmSync(join(dir, 'dist', 'theme.css'));

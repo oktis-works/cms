@@ -9,5 +9,5 @@ export const APP_VERSIONS: Record<string, string> = {
   '@oktis-works/worker': '0.8.23',
   '@oktis-works/core': '1.0.7',
   '@oktis-works/plugin-runtime': '0.8.6',
-  '@oktis-works/cms': '1.0.9',
+  '@oktis-works/cms': '1.0.10',
 };

@@ -53,6 +53,54 @@ function readManifest(themeDir: string): ThemeManifest {
   return manifest;
 }
 
+/**
+ * Theme tsconfigs must be self-contained. The default theme used to extend the
+ * monorepo root tsconfig, which does not exist once the theme is scaffolded into
+ * a user project, and Vite (rolldown's `builtin:vite-transform`) aborts the
+ * whole build with `Tsconfig not found`. Projects created by older releases keep
+ * that file, so drop the dangling relative `extends` instead of failing.
+ */
+function repairDanglingTsconfigExtends(
+  themeDir: string,
+  engine: ThemeRenderEngine,
+  warnings: string[]
+): void {
+  const file = join(themeDir, 'tsconfig.json');
+  if (!existsSync(file)) return;
+
+  let config: Record<string, unknown>;
+  try {
+    config = JSON.parse(readFileSync(file, 'utf-8')) as Record<string, unknown>;
+  } catch {
+    return;
+  }
+  if (!config || typeof config !== 'object') return;
+
+  const extended = config['extends'];
+  if (typeof extended !== 'string' || !extended.startsWith('.')) return;
+
+  const base = resolve(themeDir, extended);
+  if (existsSync(base) || existsSync(`${base}.json`)) return;
+
+  const compilerOptions = {
+    ...((config['compilerOptions'] as Record<string, unknown> | undefined) ?? {}),
+  };
+  if (engine === 'react') {
+    compilerOptions['jsx'] ??= 'react-jsx';
+    compilerOptions['jsxImportSource'] ??= 'react';
+  } else {
+    compilerOptions['jsx'] ??= 'preserve';
+    compilerOptions['jsxImportSource'] ??= 'solid-js';
+  }
+
+  delete config['extends'];
+  config['compilerOptions'] = compilerOptions;
+  writeFileSync(file, `${JSON.stringify(config, null, 2)}\n`, 'utf-8');
+  warnings.push(
+    `Repaired tsconfig.json: its \`extends\` target "${extended}" does not exist, so the theme config is now self-contained.`
+  );
+}
+
 function assertInside(themeDir: string, file: string): string {
   const root = resolve(themeDir);
   const target = resolve(root, file);
@@ -265,6 +313,7 @@ export async function buildTheme(opts: BuildThemeOptions): Promise<ThemeBuildRes
   const manifest = opts.manifest ?? readManifest(themeDir);
   const engine = engineOf(manifest);
   const warnings: string[] = [];
+  repairDanglingTsconfigExtends(themeDir, engine, warnings);
 
   const manifestIssues = validateThemeManifestRender(manifest);
   if (manifestIssues.length > 0) {

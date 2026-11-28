@@ -2385,11 +2385,21 @@ export function render(
 }
 `,
   "tsconfig.json": `{
-  "extends": "../../tsconfig.json",
   "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM"],
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
     "jsx": "react-jsx",
     "jsxImportSource": "react"
-  }
+  },
+  "include": ["*.tsx", "src/**/*.ts", "src/**/*.tsx"]
 }
 `,
 };
