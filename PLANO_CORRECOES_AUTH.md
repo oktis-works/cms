@@ -2,7 +2,7 @@
 
 **Projeto:** OkCMS  
 **Versão do produto:** conforme root `package.json` / `CMS_VERSION`  
-**Status:** Concluído — código implementado, validado (1375 testes, lint, typecheck, build OK) e commitado na branch `release/v1.1.0`. Pendente: push para GitHub (dispara create-release-pr.yml → CI → publish).  
+**Status:** Concluído — código implementado, validado (1375 testes, lint, typecheck, build OK). Pipeline PR 43 falhou no postgres-upgrade-acceptance (esperava V029, recebeu V032). Corrigido script de aceitação para esperar V032. Commit c85483a + correção pendente de push.  
 **Causa raiz provável:** estado de banco/ambiente herdado (volume Docker compartilhado `okcms-postgres-data` e/ou `DATABASE_URL` residual no `.env`), agravado por fragilidades de código que mascaram o diagnóstico.
 
 ---
@@ -412,7 +412,7 @@ A abordagem mais correta é **adicionar `tenant_id` à tabela `users`** e criar 
 - [ ] Backfill `tenant_id` para usuários existentes
 - [ ] Alterar login, register, createUserAccount para filtrar/inserir com `tenant_id`
 - [ ] Atualizar schema snapshots
-- [ ] Executar testes de aceitação de migração (postgres-upgrade-acceptance)
+- [ ] Executar testes de aceitação de migração (postgres-upgrade-acceptance) — atualizado script para esperar V032 (core_schema boundary avançou com V032)
 
 ### Fase 7 — Segredo JWT e `AUTH_COOKIE_DOMAIN` automático (5.2)
 - [ ] Gerar `JWT_SECRET` aleatório se vazio/default no `okcms dev`
