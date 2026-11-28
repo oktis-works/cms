@@ -1,5 +1,24 @@
 # @oktis-works/cms
 
+## 1.0.6
+
+### Patch Changes
+
+- Keep the bundled MySQL and MariaDB settings migration compatible with their supported DDL syntax while preserving migration-before-seed development setup.
+- Updated dependencies
+  - @oktis-works/database@0.16.12
+  - @oktis-works/core@1.0.6
+
+## 1.0.5
+
+### Patch Changes
+
+- Run database migrations before development seeding and theme synchronization so existing projects receive required schema columns before setup queries execute.
+- Fix fresh and existing database initialization across PostgreSQL, MySQL, and MariaDB by including settings visibility and content GMT timestamps in the canonical baselines. Repair visibility during bootstrap and make the settings contract migration idempotent when the baseline already contains that column.
+- Updated dependencies
+  - @oktis-works/database@0.16.11
+  - @oktis-works/core@1.0.5
+
 ## 1.0.4
 
 ### Patch Changes

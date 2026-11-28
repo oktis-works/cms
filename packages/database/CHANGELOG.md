@@ -1,5 +1,17 @@
 # @oktis-works/database
 
+## 0.16.12
+
+### Patch Changes
+
+- Finalize the provider-compatible settings bootstrap path by repairing `visibility` before tenant-data migrations run on MySQL and MariaDB.
+
+## 0.16.11
+
+### Patch Changes
+
+- Fix fresh and existing database initialization across PostgreSQL, MySQL, and MariaDB by including settings visibility and content GMT timestamps in the canonical baselines. Repair visibility during bootstrap and make the settings contract migration idempotent when the baseline already contains that column.
+
 ## 0.16.10
 
 ### Patch Changes

@@ -74,6 +74,7 @@ describe('ensureCoreSchema', () => {
     expect(unsafeCalls).toHaveLength(1);
     expect(unsafeCalls[0]!.query).toContain('CREATE TABLE IF NOT EXISTS core_schema_migrations');
     expect(unsafeCalls[0]!.query).toContain('CREATE TABLE IF NOT EXISTS schema_bootstrap');
+    expect(unsafeCalls[0]!.query).toContain('ALTER TABLE settings ADD COLUMN IF NOT EXISTS visibility');
     expect(unsafeCalls[0]!.query).not.toContain('CREATE TABLE IF NOT EXISTS tenants');
     // advisory lock antes do DDL (concorrência api/worker/cli no boot)
     const lock = calls.find(

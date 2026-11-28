@@ -283,11 +283,14 @@ async function defaultHooks(log: (message: string) => void): Promise<DevHooks> {
     prepareDatabase: async () => {
       const { getMigrationsDir, prepareDb } = await import('./db-prepare.js');
       const { runMigrations } = await import('@oktis-works/database');
-      const tenantId = await prepareDb({}, { seed: true });
+      // Run migrations before seeding so upgrades can add columns required by
+      // the seed, including databases created by an earlier CLI release.
+      const tenantId = await prepareDb({}, { seed: false, syncTheme: false });
       const result = await runMigrations(tenantId, getMigrationsDir({}));
       if (result.applied.length > 0 || result.skipped.length > 0) {
         log(`✓ migrations: ${result.applied.length} applied, ${result.skipped.length} skipped`);
       }
+      await prepareDb({}, { ensureSchema: false, seed: true });
     },
     anyUserExists: async () => {
       const { anyUserExists } = await import('./users.js');

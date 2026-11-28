@@ -116,6 +116,8 @@ CREATE INDEX IF NOT EXISTS idx_content_status ON content(status);
 CREATE INDEX IF NOT EXISTS idx_content_slug ON content(tenant_id, type, slug);
 CREATE INDEX IF NOT EXISTS idx_content_author ON content(author_id);
 CREATE INDEX IF NOT EXISTS idx_content_published ON content(published_at) WHERE published_at IS NOT NULL;
+ALTER TABLE content ADD COLUMN IF NOT EXISTS published_at_gmt TIMESTAMP WITH TIME ZONE;
+CREATE INDEX IF NOT EXISTS idx_content_published_gmt ON content(published_at_gmt) WHERE published_at_gmt IS NOT NULL;
 ALTER TABLE content ADD COLUMN IF NOT EXISTS data JSONB NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE content ADD COLUMN IF NOT EXISTS layout VARCHAR(255);
 ALTER TABLE content ADD COLUMN IF NOT EXISTS parent_id UUID REFERENCES content(id) ON DELETE SET NULL;
@@ -279,6 +281,7 @@ CREATE TABLE IF NOT EXISTS settings (
   value JSONB NOT NULL,
   "group" VARCHAR(255) NOT NULL,
   type VARCHAR(100) NOT NULL,
+  visibility VARCHAR(20) NOT NULL DEFAULT 'internal',
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
   UNIQUE("key", tenant_id)

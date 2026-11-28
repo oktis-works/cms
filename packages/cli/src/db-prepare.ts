@@ -22,6 +22,7 @@ export interface PrepareDbOptions {
   createDefaultTenant?: boolean;
   resolveTenant?: boolean;
   adoptLegacy?: boolean;
+  syncTheme?: boolean;
 }
 
 /** Prepare the database connection and, when requested, the core schema/seed data. */
@@ -44,7 +45,7 @@ export async function prepareDb(
       createDefault: prepareOptions.createDefaultTenant !== false,
     });
 
-  if (tenantId) {
+  if (tenantId && prepareOptions.syncTheme !== false) {
     const { themeService, runWithTenantContext } = await import('@oktis-works/core');
     await runWithTenantTransaction(tenantId, () => runWithTenantContext({ tenantId }, async () => {
       if (prepareOptions.seed) {

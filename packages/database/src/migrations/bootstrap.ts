@@ -38,6 +38,11 @@ ALTER TABLE migrations ADD COLUMN IF NOT EXISTS destructive BOOLEAN NOT NULL DEF
 ALTER TABLE migrations ADD COLUMN IF NOT EXISTS requires_backup BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE migrations ADD COLUMN IF NOT EXISTS dependencies JSONB NOT NULL DEFAULT '[]'::jsonb;
 
+-- The dev bootstrap seeds settings immediately after this step. Keep this
+-- additive repair here so databases created before the visibility baseline
+-- can complete setup even when their project migration directory is empty.
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS visibility VARCHAR(20) NOT NULL DEFAULT 'internal';
+
 CREATE TABLE IF NOT EXISTS core_schema_migrations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(), owner VARCHAR(255) NOT NULL,
   owner_type VARCHAR(20) NOT NULL, version VARCHAR(50) NOT NULL, name VARCHAR(255) NOT NULL,
