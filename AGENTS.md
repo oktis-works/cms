@@ -19,6 +19,27 @@ This document defines strict operational rules and workflows that the AI Agent m
 * **`CMS_VERSION` must never be used as a package version:** the root `okcms` product version and the `@oktis-works/validation` package version are independent numbers. A mismatch between them is expected; what must never diverge is the `CMS_VERSION` constant and the product version.
 * **Check the validation bump on every release, without exception:** before preparing any release, compare `npm view @oktis-works/validation version` with `packages/validation/package.json`. Whenever the product version changes, the package version must already be ahead of npm; if it is not — even for a documentation-only or diagram-only release — add and consume the `@oktis-works/validation` patch changeset. Future agents (including those without this conversation's context) must repeat this check every time: the published anchor has already lagged silently (`1.0.4` while the product was `1.0.8`).
 
+## 2.7 — Version conflict validation before release (npm registry check)
+
+Before creating any changeset or running `bun run version-packages`, verify that **every package version being bumped does not already exist in the npm registry**. The npm publish workflow is idempotent and **skips versions already published**, meaning code changes will silently fail to reach consumers.
+
+**Mandatory check before every release:**
+
+```bash
+# For each package being changed, compare local version vs npm latest:
+npm view <package-name> version
+```
+
+**Rules:**
+* If local version === npm latest version → **DO NOT publish**. Bump to the next patch/minor version and create a new changeset.
+* If local version > npm latest version → Safe to publish.
+* If local version < npm latest version → Something is wrong; investigate before proceeding.
+* Never reuse a published version. If CI failed on a previous attempt, increment to the next available version.
+
+**Example incident:** `@oktis-works/database` local version was `1.0.0`, npm already had `1.0.0` published. The publish skipped `1.0.0` silently, and consumers never received the code fix. A patch bump to `1.0.1` was required to actually publish the changes.
+
+**This check applies to ALL packages**, not just `@oktis-works/validation`. The `CMS_VERSION` anchor check (section 2) only covers the validation package; this check covers every package in the monorepo.
+
 ## 3. GitHub & CI/CD Pipeline Workflow
 Before preparing or recommending a push to GitHub, evaluate if the updates trigger the CI/CD and Publish workflows.
 
