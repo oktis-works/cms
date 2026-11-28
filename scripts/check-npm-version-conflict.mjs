@@ -1,56 +1,88 @@
 #!/usr/bin/env node
-// @oktis-works - Check that no local package version already exists in npm.
+// @oktis-works - Check that packages WITH CODE CHANGES don't have a version
+// that already exists in npm.
 //
 // npm publish is idempotent: it skips versions already in the registry.
-// If we bump a package to a version that already exists in npm, the new
-// code never reaches consumers. This script fails CI if any workspace
-// package version already exists in npm.
+// If we change code in a package and bump to a version that already exists
+// in npm, the new code never reaches consumers.
+//
+// This script only checks packages that actually had files changed in the
+// current PR (compared to main). Packages without code changes are skipped
+// because their version difference is expected (they were bumped due to
+// internal dependency changes, not code changes).
 //
 // Usage: node scripts/check-npm-version-conflict.mjs
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { execSync } from 'node:child_process';
 
 const root = process.cwd();
-const rootPkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-const workspaces = rootPkg.workspaces || [];
 
-// Resolve workspace globs to directories
-const workspaceDirs = [];
-for (const pattern of workspaces) {
-  const glob = await import('node:fs');
-  const entries = glob.readdirSync(join(root, pattern.replace('*', '')), { withFileTypes: true });
-  for (const entry of entries) {
-    if (entry.isDirectory() && entry.name !== 'node_modules') {
-      workspaceDirs.push(join(root, pattern.replace('*', entry.name)));
-    }
-  }
-}
-
-// Also include root package.json itself if it has a version and is not private-only
-const candidates = [
-  { dir: root, name: rootPkg.name, version: rootPkg.version },
-];
-
-for (const dir of workspaceDirs) {
-  const pkgPath = join(dir, 'package.json');
+// Get list of packages with changed files in this PR (compared to main)
+function getChangedPackageNames(): Set<string> {
+  let diffOutput: string;
   try {
-    const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
-    if (pkg.name && pkg.version && !pkg.private) {
-      candidates.push({ dir, name: pkg.name, version: pkg.version });
-    }
+    diffOutput = execSync('git diff --name-only main...HEAD', {
+      cwd: root,
+      encoding: 'utf8',
+    }).toString();
   } catch {
-    // Ignore malformed package.json
+    // If main...HEAD fails (e.g. no main branch), try main..HEAD
+    diffOutput = execSync('git diff --name-only main..HEAD', {
+      cwd: root,
+      encoding: 'utf8',
+    }).toString();
   }
+
+  const changedFiles = diffOutput
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const changedPackages = new Set<string>();
+
+  for (const file of changedFiles) {
+    // Check if the file is inside a package directory (packages/* or apps/*)
+    const match = file.match(/^(packages|apps)\/([^\/]+)\//);
+    if (match) {
+      const pkgDir = match[1]; // 'packages' or 'apps'
+      const pkgName = match[2]; // e.g. 'database', 'auth', 'cli', 'api', etc.
+
+      // Read package.json to get the actual npm package name
+      try {
+        const pkgJson = JSON.parse(
+          readFileSync(join(root, file.split('/').slice(0, 3).join('/'), 'package.json'), 'utf8')
+        );
+        if (pkgJson.name && !pkgJson.private) {
+          changedPackages.add(pkgJson.name);
+        }
+      } catch {
+        // Ignore unreadable package.json
+      }
+    }
+  }
+
+  return changedPackages;
 }
+
+const changedPackages = getChangedPackageNames();
+
+if (changedPackages.size === 0) {
+  console.log('ℹ️  No packages with code changes detected. Skipping npm version conflict check.');
+  process.exit(0);
+}
+
+console.log(`📦 Packages with code changes: ${[...changedPackages].join(', ')}`);
 
 let failed = 0;
 
-for (const { name, version } of candidates) {
+for (const name of changedPackages) {
   try {
     const res = await fetch(`https://registry.npmjs.org/${name}`);
     if (res.status === 404) {
       // Package not yet published — safe
+      console.log(`✅ ${name} not yet published — safe`);
       continue;
     }
     if (!res.ok) {
@@ -59,16 +91,52 @@ for (const { name, version } of candidates) {
     }
     const data = await res.json();
     const npmVersion = data['dist-tags']?.latest;
-    if (npmVersion === version) {
-      console.error(`❌ ${name}@${version} already exists in npm registry.`);
+
+    // Read local version
+    let localVersion: string | null = null;
+    // Find the package directory
+    for (const dir of ['packages', 'apps']) {
+      try {
+        const entries = await import('node:fs').then((fs) =>
+          fs.readdirSync(join(root, dir), { withFileTypes: true })
+        );
+        for (const entry of entries) {
+          if (entry.isDirectory()) {
+            try {
+              const pkg = JSON.parse(
+                readFileSync(join(root, dir, entry.name, 'package.json'), 'utf8')
+              );
+              if (pkg.name === name) {
+                localVersion = pkg.version;
+                break;
+              }
+            } catch {
+              // Ignore
+            }
+          }
+        }
+      } catch {
+        // Ignore
+      }
+      if (localVersion) break;
+    }
+
+    if (!localVersion) {
+      console.warn(`⚠️  Could not find local version for ${name}`);
+      continue;
+    }
+
+    if (npmVersion === localVersion) {
+      console.error(`❌ ${name}@${localVersion} already exists in npm registry.`);
       console.error(`   npm publish will skip this version silently.`);
+      console.error(`   Code changes in this package will NOT reach consumers.`);
       console.error(`   Bump to the next patch/minor version and create a new changeset.`);
       failed++;
-    } else if (npmVersion && version < npmVersion) {
-      console.error(`❌ ${name} local ${version} is behind npm ${npmVersion}.`);
+    } else if (npmVersion && localVersion < npmVersion) {
+      console.error(`❌ ${name} local ${localVersion} is behind npm ${npmVersion}.`);
       failed++;
     } else {
-      console.log(`✅ ${name}@${version} is safe to publish (npm latest: ${npmVersion ?? 'none'}).`);
+      console.log(`✅ ${name}@${localVersion} is safe to publish (npm latest: ${npmVersion ?? 'none'}).`);
     }
   } catch (error) {
     console.warn(`⚠️  Network error checking ${name}: ${error.message}`);
@@ -81,4 +149,4 @@ if (failed > 0) {
   process.exit(1);
 }
 
-console.log('\nAll package versions are safe to publish.');
+console.log('\nAll changed packages are safe to publish.');
