@@ -1,5 +1,50 @@
 # @oktis-works/database
 
+## 1.0.0
+
+### Major Changes
+
+- Remove MySQL and MariaDB support. PostgreSQL is now the only supported database provider.
+  
+  Rationale: MySQL and MariaDB lack native Row Level Security (RLS). The OkCMS security model relies on FORCE ROW LEVEL SECURITY policies enforced by the database. Without RLS as a backstop, tenant isolation depended solely on application-side WHERE filters, creating a cross-tenant data leak risk on any missed filter.
+  
+  Deletes:
+  - migrations/mysql/ and migrations/mariadb/ (31 migration files each)
+  - packages/database/src/schema/schema.mysql.sql and schema.mariadb.sql
+  - translateProviderSql() and all MySQL/MariaDB connection pool logic
+  - mysql2 and mariadb dependencies
+  - CI services and acceptance matrix for MySQL/MariaDB
+  
+  Simplifies:
+  - DatabaseDriver type reduced to 'postgres' only
+  - Single schema snapshot (schema.sql)
+  - Single migration set (migrations/ root only)
+  - CI matrix reduced to PostgreSQL only
+  
+  Updates:
+  - packages/database/src/connection.ts: removed translateProviderSql(), mysqlConnection(), mysqlError()
+  - packages/config/src/index.ts: DatabaseDriver is now 'postgres' only
+  - packages/cli/src/database-config.ts: parseDatabaseConfig() supports postgres:// only
+  - packages/cli/src/dev.ts: waitForDatabaseReady() uses pg_isready only
+  - packages/cli/src/assets.ts: removed MySQL/MariaDB compose blocks
+  - packages/cli/src/scaffold.ts: removed provider option (postgres only)
+  - packages/cli/src/commands.ts: removed --db-engine mysql/mariadb choices
+  - packages/cli/src/wizard-env.ts: removed MySQL/MariaDB from engine select
+  - packages/cli/src/env-schema.ts: DB_ENGINE options reduced to postgres
+  - packages/cli/src/db-dump.ts: removed mysqldump/mariadb-dump support
+  - packages/cli/src/doctor.ts: simplified engine validation
+  - packages/cli/src/bluegreen.ts: simplified provider validation
+  - packages/cli/src/scaffold-docs.ts: removed MySQL/MariaDB from generated docs
+  - AGENTS.md: removed MySQL/MariaDB from Database Provider Abstraction Rules
+  - README.md, README.pt-BR.md, docs/provider-matrix.md, docs/provider-matrix.pt-BR.md
+  - docs/operator-guide.md, docs/operator-guide.pt-BR.md
+  - packages/database/README.md, packages/config/README.md
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/config@2.0.0
+
 ## 0.16.14
 
 ### Patch Changes

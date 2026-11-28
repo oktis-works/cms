@@ -1,50 +1,32 @@
-// @oktis-works/database - provider-neutral connection adapter
+// @oktis-works/database - PostgreSQL connection adapter
 
 import { AsyncLocalStorage } from 'node:async_hooks';
 import postgres from 'postgres';
-import mysql from 'mysql2/promise';
-import mariadb from 'mariadb';
-import type { DatabaseConfig, DatabaseDriver } from '@oktis-works/config';
+import type { DatabaseConfig } from '@oktis-works/config';
 
 type Row = Record<string, unknown>;
 export type QueryResult<T extends any[]> = T & { count: number };
 export interface DatabaseCapabilities {
-  provider: DatabaseDriver;
+  provider: 'postgres';
   transactionalDdl: boolean;
   rowLevelSecurity: boolean;
   advisoryLocks: boolean;
-  jsonType: 'jsonb' | 'json';
-  namespaceStrategy: 'schema' | 'database';
+  jsonType: 'jsonb';
+  namespaceStrategy: 'schema';
 }
-
-export interface DatabaseAdapter {
-  readonly capabilities: DatabaseCapabilities;
-  connect(config: DatabaseConfig): RepoSql;
-  close(): Promise<void>;
-  healthCheck(): Promise<boolean>;
-  quoteIdentifier(identifier: string): string;
-  normalizeError(error: unknown): Error;
-}
-type RawConnection = {
-  query: (query: string, values?: unknown[]) => Promise<unknown>;
-  beginTransaction?: () => Promise<void>;
-  commit?: () => Promise<void>;
-  rollback?: () => Promise<void>;
-  release?: () => void;
-};
 
 export interface RepoSql {
   <T extends any[] = Row[]>(strings: TemplateStringsArray, ...values: unknown[]): Promise<T>;
   unsafe<T extends any[] = Row[]>(query: string, parameters?: unknown[], queryOptions?: unknown): Promise<QueryResult<T>>;
   begin<T>(fn: (transaction: RepoSql) => Promise<T>): Promise<T>;
   end(options?: { timeout?: number }): Promise<void>;
-  readonly driver: DatabaseDriver;
+  readonly driver: 'postgres';
   reserve?(): Promise<RepoSql>;
 }
 
 let _sql: RepoSql | null = null;
 let _replicaSql: RepoSql | null = null;
-let _driver: DatabaseDriver = 'postgres';
+let _driver: 'postgres' = 'postgres';
 let _connectionKey = '';
 const requestConnection = new AsyncLocalStorage<RepoSql>();
 
@@ -121,11 +103,6 @@ function postgresConnection(config: DatabaseConfig): RepoSql {
   return client as unknown as RepoSql;
 }
 
-function mysqlError(driver: DatabaseDriver, error: unknown): Error {
-  const message = error instanceof Error ? error.message : String(error);
-  return new Error(`[${driver}] ${message}`, { cause: error });
-}
-
 function replacePostgresParameters(query: string, parameters: unknown[]): { query: string; values: unknown[] } {
   const values: unknown[] = [];
   const converted = query.replace(/\$(\d+)/g, (_match, index: string) => {
@@ -139,64 +116,6 @@ function replacePostgresParameters(query: string, parameters: unknown[]): { quer
     return '?';
   });
   return { query: converted, values };
-}
-
-export function translateProviderSql(source: string, driver: 'mysql' | 'mariadb'): string {
-  void driver;
-  let query = source
-    // Translate ANY before removing PostgreSQL casts so the array type suffix
-    // remains part of the predicate match.
-    .replace(/((?:"[^"]+"|`[^`]+`|[a-z_][a-z0-9_.]*))\s*=\s*ANY\(\$(\d+)(?:::[a-z0-9_]+\[\])?\)/gi, (_match, column: string, index: string) => `${column} IN ($${index})`)
-    .replace(/\b([a-z_][a-z0-9_]*)::integer\b/gi, 'CAST($1 AS SIGNED)')
-    .replace(/::(?:jsonb|json|uuid|text|integer|int|boolean|bigint|timestamptz)/gi, '')
-    .replace(/\bgen_random_uuid\(\)/gi, 'UUID()')
-    .replace(/\bDEFAULT\s+UUID\(\)/gi, 'DEFAULT (UUID())')
-    .replace(/\bJSONB\b/gi, 'JSON')
-    .replace(/(\bJSON\s+(?:NOT\s+NULL\s+)?DEFAULT)\s+'([^']*)'/gi, "$1 ('$2')")
-    .replace(/\bUUID\b(?!\s*\()/gi, 'CHAR(36)')
-    .replace(/\bTIMESTAMP\s+WITH\s+TIME\s+ZONE\b/gi, 'TIMESTAMP')
-    .replace(/\bTIMESTAMPTZ\b/gi, 'TIMESTAMP')
-    .replace(/\bBYTEA\b/gi, 'LONGBLOB')
-    .replace(/\bDOUBLE\s+PRECISION\b/gi, 'DOUBLE')
-    .replace(/\bILIKE\b/gi, 'LIKE')
-    .replace(/\s+NULLS\s+LAST\b/gi, '')
-    .replace(/\bCURRENT_ROLE\b/gi, 'CURRENT_USER()')
-    .replace(/\bTRUE\b/gi, '1')
-    .replace(/\bFALSE\b/gi, '0');
-
-  query = query
-    .replace(/CREATE\s+EXTENSION[\s\S]*?;\s*/gi, '')
-    .replace(/CREATE\s+SCHEMA\s+IF\s+NOT\s+EXISTS[^;]+;\s*/gi, '')
-    .replace(/GRANT\s+USAGE\s+ON\s+SCHEMA[^;]+;\s*/gi, '')
-    .replace(/SET\s+(?:LOCAL\s+)?(?:search_path|client_min_messages)[^;]*(?:;|$)\s*/gi, '')
-    .replace(/ALTER\s+TABLE\s+[^;]+\s+(?:ENABLE|DISABLE|FORCE|NO FORCE)\s+ROW\s+LEVEL\s+SECURITY\s*;\s*/gi, '')
-    .replace(/DROP\s+POLICY[\s\S]*?;\s*/gi, '')
-    .replace(/DO\s*\$\$[\s\S]*?\$\$\s*;\s*/gi, '')
-    .replace(/SELECT\s+set_config\([\s\S]*?\)\s*;?/gi, 'SELECT 1')
-    .replace(/SET\s+LOCAL\s+search_path[\s\S]*?;?/gi, '')
-    .replace(/CREATE\s+(UNIQUE\s+)?INDEX\s+IF\s+NOT\s+EXISTS/gi, 'CREATE $1INDEX')
-    .replace(/ALTER\s+TABLE\s+(\w+)\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS/gi, 'ALTER TABLE $1 ADD COLUMN');
-
-  query = query.replace(/SELECT\s+to_regclass\('public\.([^']+)'\)\s+AS\s+exists/gi,
-    "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = '$1') AS `exists`");
-  query = query.replace(/pg_advisory_xact_lock\(hashtext\(([^)]+)\)\)/gi, 'GET_LOCK($1, 60)');
-  query = query.replace(/pg_advisory_lock\(hashtext\(([^)]+)\)\)/gi, 'GET_LOCK($1, 60)');
-  query = query.replace(/pg_advisory_unlock\(hashtext\(([^)]+)\)\)/gi, 'RELEASE_LOCK($1)');
-  query = query.replace(/\bON\s+CONFLICT\s*\([^)]*\)\s+DO\s+NOTHING/gi, '');
-  query = query.replace(/\bON\s+CONFLICT\s*\(([^)]*)\)\s+DO\s+UPDATE\s+SET/gi, 'ON DUPLICATE KEY UPDATE');
-  query = query.replace(/\bEXCLUDED\.([a-zA-Z0-9_]+)/gi, 'VALUES($1)');
-  query = query.replace(/([a-zA-Z0-9_]+)->>'([^']+)'/g, "JSON_UNQUOTE(JSON_EXTRACT($1, '$.$2'))");
-  query = query.replace(/([a-zA-Z0-9_]+)->'([^']+)'/g, "JSON_EXTRACT($1, '$.$2')");
-  query = query.replace(/\bjsonb_build_object\(/gi, 'JSON_OBJECT(');
-  query = query.replace(/\bjsonb_build_array\(/gi, 'JSON_ARRAY(');
-  query = query.replace(/\bjsonb_agg\(/gi, 'JSON_ARRAYAGG(');
-  query = query.replace(/\bjsonb_object_agg\(/gi, 'JSON_OBJECTAGG(');
-  query = query.replace(/\bjsonb_typeof\(/gi, 'JSON_TYPE(');
-  query = query.replace(/\bstrpos\(([^,]+),\s*([^\)]+)\)/gi, 'LOCATE($2, $1)');
-  query = query.replace(/\bcurrent_setting\([^)]*\)/gi, 'NULL');
-  query = query.replace(/"([a-z_][a-z0-9_]*)"/gi, '`$1`').replace(/\bkey\b/g, '`key`').replace(/\bschema\b/g, '`schema`');
-  query = query.replace(/\s+RETURNING\s+[\s\S]*?\s*;?\s*$/i, '');
-  return query;
 }
 
 function normalizeDriverRows(result: unknown): Row[] {
@@ -217,122 +136,16 @@ function stripReturning(query: string): { query: string; returning?: string } {
   return { query: query.slice(0, match.index), returning: match[1]!.trim() };
 }
 
-async function executeMySql(
-  raw: RawConnection,
-  driver: 'mysql' | 'mariadb',
-  source: string,
-  parameters: unknown[] = []
-): Promise<Row[]> {
-  const { query: sourceWithoutReturning, returning } = stripReturning(source);
-  const translated = translateProviderSql(sourceWithoutReturning, driver);
-  if (!translated.trim()) return [];
-  const noReturning = translated;
-  const { query, values } = replacePostgresParameters(noReturning, parameters);
-  try {
-    if (returning && /^(\s*(INSERT|UPDATE|DELETE))/i.test(query)) {
-      const table = /^(?:\s*)(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+`?([a-zA-Z0-9_]+)`?/i.exec(query)?.[1];
-      const where = /\sWHERE\s([\s\S]*)$/i.exec(query)?.[1];
-      const isUpsert = /ON\s+DUPLICATE\s+KEY\s+UPDATE/i.test(query);
-      if (table && where && /^(\s*(UPDATE|DELETE))/i.test(query)) {
-        const before = normalizeDriverRows(await raw.query(`SELECT ${returning} FROM ${table} WHERE ${where}`, values));
-        await raw.query(query, values);
-        return withCount(before as Row[], before.length) as Row[];
-      }
-      if (isUpsert && table) {
-        // For ON DUPLICATE KEY UPDATE, fetch the row after the operation
-        const result = await raw.query(query, values);
-        const header = (Array.isArray(result) ? result[0] : result) as { insertId?: unknown; affectedRows?: number } | undefined;
-        const affectedRows = Number(header?.affectedRows ?? 0);
-        if (affectedRows > 0) {
-          // Try to find the affected row by primary key
-          const pkMatch = query.match(/INSERT\s+INTO\s+`?\w+`?\s*\(([^)]+)\)/i);
-          const insertColumns = pkMatch?.[1]?.split(',').map((c: string) => c.trim().replace(/["`]/g, '')) ?? [];
-          const idIndex = insertColumns.findIndex((column: string) => column === 'id');
-          let selectWhere = '';
-          if (idIndex >= 0 && values[idIndex] !== undefined) {
-            selectWhere = `id = ${values[idIndex]}`;
-          } else if (where) {
-            selectWhere = where;
-          }
-          if (selectWhere) {
-            const rows = normalizeDriverRows(await raw.query(`SELECT ${returning} FROM ${table} WHERE ${selectWhere}`, values));
-            return withCount(rows as Row[], rows.length) as Row[];
-          }
-        }
-        return withCount([], affectedRows);
-      }
-      const result = await raw.query(query, values);
-      const insertColumns = /INSERT\s+INTO\s+[^\s(]+\s*\(([^)]+)\)/i.exec(query)?.[1]?.split(',').map((column) => column.trim().replace(/["`]/g, '')) ?? [];
-      const idIndex = insertColumns.findIndex((column) => column === 'id');
-      if (idIndex >= 0 && values[idIndex] !== undefined) return withCount([{ id: values[idIndex] }], 1);
-      const header = (Array.isArray(result) ? result[0] : result) as { insertId?: unknown } | undefined;
-      return header?.insertId === undefined ? withCount([], Number((header as { affectedRows?: number } | undefined)?.affectedRows ?? 0)) : withCount([{ id: header.insertId }], 1);
-    }
-    const result = await raw.query(query, values);
-    const rows = normalizeDriverRows(result);
-    const header = (Array.isArray(result) ? result[0] : result) as { affectedRows?: number } | undefined;
-    return withCount(rows, Number(header?.affectedRows ?? rows.length));
-  } catch (error) {
-    throw mysqlError(driver, error);
-  }
-}
-
-function mysqlConnection(config: DatabaseConfig, driver: 'mysql' | 'mariadb'): RepoSql {
-  const tls = config.tls?.enabled || config.ssl
-    ? { ca: config.tls?.ca, rejectUnauthorized: config.tls?.rejectUnauthorized ?? true }
-    : undefined;
-  const pool: any = driver === 'mysql'
-    ? mysql.createPool({ host: config.host, port: config.port, database: config.database, user: config.user, password: config.password, ssl: tls, connectionLimit: config.maxConnections ?? 20, connectTimeout: 10_000, multipleStatements: true })
-    : mariadb.createPool({ host: config.host, port: config.port, database: config.database, user: config.user, password: config.password, ssl: tls, connectionLimit: config.maxConnections ?? 20, connectTimeout: 10_000, multipleStatements: true });
-
-  const wrap = (raw: RawConnection, release?: () => void): RepoSql => {
-    const tag = (async <T extends any[]>(strings: TemplateStringsArray, ...values: unknown[]): Promise<T> => {
-      const source = strings.reduce((query, part, index) => `${query}${part}${index < values.length ? `$${index + 1}` : ''}`, '');
-      return executeMySql(raw, driver, source, values) as Promise<T>;
-    }) as RepoSql;
-    tag.unsafe = async <T extends any[]>(query: string, parameters: unknown[] = []): Promise<QueryResult<T>> => executeMySql(raw, driver, query, parameters) as Promise<QueryResult<T>>;
-    tag.begin = async <T>(fn: (transaction: RepoSql) => Promise<T>): Promise<T> => {
-      if (!raw.beginTransaction) {
-        const reserved = await pool.getConnection();
-        const transaction = wrap(reserved, () => reserved.release());
-        try {
-          return await transaction.begin(fn);
-        } finally {
-          reserved.release();
-        }
-      }
-      await raw.beginTransaction?.();
-      const tx = wrap(raw);
-      try {
-        const result = await fn(tx);
-        await raw.commit?.();
-        return result;
-      } catch (error) {
-        await raw.rollback?.().catch(() => undefined);
-        throw error;
-      }
-    };
-    tag.reserve = async () => {
-      const reserved = await pool.getConnection();
-      return wrap(reserved, () => reserved.release());
-    };
-    tag.end = async () => { if (release) release(); else await pool.end(); };
-    Object.defineProperty(tag, 'driver', { value: driver, enumerable: true });
-    return tag;
-  };
-  return wrap({ query: (query, values) => pool.query(query, values) });
-}
-
 export function createConnection(config: DatabaseConfig): RepoSql {
   const key = configKey(config);
   if (_sql && _connectionKey === key) return _sql;
   if (_sql && _connectionKey !== key) throw new Error('A different database configuration is already active; close the current connection first.');
-  _driver = config.driver;
+  _driver = 'postgres';
   _connectionKey = key;
-  _sql = config.driver === 'postgres' ? postgresConnection(config) : mysqlConnection(config, config.driver);
+  _sql = postgresConnection(config);
   if (config.replica?.enabled) {
     const replicaConfig = { ...config, host: config.replica.host, port: config.replica.port, replica: undefined };
-    _replicaSql = config.driver === 'postgres' ? postgresConnection(replicaConfig) : mysqlConnection(replicaConfig, config.driver);
+    _replicaSql = postgresConnection(replicaConfig);
   }
   return _sql;
 }
@@ -369,12 +182,10 @@ export function isTenantTransactionActive(): boolean {
   return Boolean(requestConnection.getStore());
 }
 
-export function getDriver(): DatabaseDriver { return _driver; }
+export function getDriver(): 'postgres' { return _driver; }
 
-export function getDatabaseCapabilities(driver: DatabaseDriver = _driver): DatabaseCapabilities {
-  return driver === 'postgres'
-    ? { provider: driver, transactionalDdl: true, rowLevelSecurity: true, advisoryLocks: true, jsonType: 'jsonb', namespaceStrategy: 'schema' }
-    : { provider: driver, transactionalDdl: false, rowLevelSecurity: false, advisoryLocks: true, jsonType: 'json', namespaceStrategy: 'database' };
+export function getDatabaseCapabilities(): DatabaseCapabilities {
+  return { provider: 'postgres', transactionalDdl: true, rowLevelSecurity: true, advisoryLocks: true, jsonType: 'jsonb', namespaceStrategy: 'schema' };
 }
 
 export async function assertSupportedServerVersion(): Promise<void> {
@@ -384,14 +195,8 @@ export async function assertSupportedServerVersion(): Promise<void> {
   const major = Number(version[1]);
   const minor = Number(version[2]);
   const patch = Number(version[3] ?? 0);
-  const supported = _driver === 'postgres'
-    ? major >= 16
-    : _driver === 'mysql'
-      ? major > 8 || (major === 8 && (minor > 0 || patch >= 36))
-      : major > 11 || (major === 11 && minor >= 4);
-  if (!supported) {
-    const minimum = _driver === 'postgres' ? '16' : _driver === 'mysql' ? '8.0.36' : '11.4';
-    throw new Error(`Unsupported ${_driver} server version ${version[0]}; OkCMS requires ${minimum} or newer.`);
+  if (major < 16 || (major === 16 && minor === 0)) {
+    throw new Error(`Unsupported PostgreSQL server version ${version[0]}; OkCMS requires 16 or newer.`);
   }
 }
 

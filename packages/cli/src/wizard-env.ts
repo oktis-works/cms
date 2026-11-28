@@ -192,17 +192,15 @@ export async function runEnvInterview(
       let result: { type: 'value' } | { type: 'back' } | { type: 'cancel' };
 
       if (step.kind === 'engine') {
-        let pick: 'postgres' | 'mysql' | 'mariadb' | '__back__';
+        let pick: 'postgres' | '__back__';
     try {
-      pick = await prompt.select<'postgres' | 'mysql' | 'mariadb' | '__back__'>(
+      pick = await prompt.select<'postgres' | '__back__'>(
           catalog.envDbEngineChoose,
           [
             { value: 'postgres', label: catalog.envDbEnginePostgres, hint: catalog.envDbEnginePostgresHint },
-            { value: 'mysql', label: catalog.envDbEngineMysql, hint: catalog.envDbEngineMysqlHint },
-            { value: 'mariadb', label: catalog.envDbEngineMariaDb, hint: catalog.envDbEngineMariaDbHint },
             { value: '__back__' as const, label: `← ${catalog.flowBack}`, hint: catalog.flowBackHint },
           ],
-          { defaultValue: (env.get('DB_ENGINE') as 'postgres' | 'mysql' | 'mariadb' | undefined) ?? 'postgres', fullClear: true, cancelValue: '__back__' }
+          { defaultValue: (env.get('DB_ENGINE') as 'postgres' | undefined) ?? 'postgres', fullClear: true, cancelValue: '__back__' }
         );
     } catch (error) {
       prompt.error(`engine select error: ${error instanceof Error ? error.message : String(error)}`);

@@ -495,9 +495,9 @@ export async function runMigrations(
   options: MigrationRunOptions = {}
 ): Promise<{ applied: string[]; skipped: string[]; preflight?: MigrationPreflightReport[] }> {
   const provider = options.provider ?? process.env['DB_ENGINE'] ?? 'postgres';
-  if (!['postgres', 'mysql', 'mariadb'].includes(provider)) {
+  if (provider !== 'postgres') {
     throw new Error(
-      `Database provider "${provider}" is not supported by the migration runner.`
+      `Database provider "${provider}" is not supported by the migration runner. Use postgres.`
     );
   }
   const baseConnection = getConnection();

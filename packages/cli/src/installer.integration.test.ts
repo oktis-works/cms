@@ -23,7 +23,7 @@ describe('NPM flow integration: installer', () => {
 
     writeFileSync(
       join(pluginSource, 'manifest.json'),
-      JSON.stringify({ name: 'plugin-integração', version: '1.0.0', type: 'plugin', main: 'index.js', compatibility: { okcms: '^1.0.0' } })
+      JSON.stringify({ name: 'plugin-integração', version: '2.0.0', type: 'plugin', main: 'index.js', compatibility: { okcms: '^2.0.0' } })
     );
     writeFileSync(join(pluginSource, 'index.js'), 'export default () => "ok";');
   });

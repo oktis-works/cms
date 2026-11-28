@@ -35,8 +35,6 @@ describe('parseDatabaseUrl', () => {
       ssl: false,
     });
     expect(parseDatabaseUrl('postgresql://h/cms')).toMatchObject({ engine: 'postgres', host: 'h', port: 5432, database: 'cms' });
-    expect(parseDatabaseUrl('mysql://h/db')).toMatchObject({ engine: 'mysql', port: 3306, database: 'db' });
-    expect(parseDatabaseUrl('mariadb://h/db')).toMatchObject({ engine: 'mariadb', port: 3306, database: 'db' });
     expect(parseDatabaseUrl('não-é-url')).toBeNull();
     expect(parseDatabaseUrl('http://h/cms')).toBeNull();
   });

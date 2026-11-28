@@ -1,6 +1,6 @@
 > 📄 **English** · [Português](./README.pt-BR.md)
 
-# OkCMS v1.1.0
+# OkCMS v2.0.0
 
 Hybrid, modular, API-first, extensible CMS with a React/Solid theme platform, Node.js/TypeScript backend, PostgreSQL, Docker immutable deployments, plugin and theme extension systems, and multi-tenancy. Public themes are isolated React or Solid projects compiled with `okcms theme:build` and connected to the host only through `ThemeSdkBridge`.
 
@@ -234,7 +234,6 @@ flowchart TD
 
     subgraph Data["Data stores"]
         Pg[("PostgreSQL — primary, RLS")]
-        OtherDb[("MySQL 8 / MariaDB 11.4")]
         Redis[("Redis — cache + BullMQ")]
         Media[("Media — local volume or S3 / R2 / MinIO")]
     end

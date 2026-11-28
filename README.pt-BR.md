@@ -218,7 +218,6 @@ flowchart TD
 
     subgraph Data["Armazenamento de dados"]
         Pg[("PostgreSQL — principal, RLS")]
-        OtherDb[("MySQL 8 / MariaDB 11.4")]
         Redis[("Redis — cache + BullMQ")]
         Media[("Mídia — volume local ou S3 / R2 / MinIO")]
     end

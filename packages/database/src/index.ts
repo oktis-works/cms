@@ -13,7 +13,7 @@ export {
   isTenantTransactionActive,
   getDriver,
 } from './connection.js';
-export type { DatabaseAdapter, DatabaseCapabilities, RepoSql } from './connection.js';
+export type { DatabaseCapabilities, RepoSql } from './connection.js';
 export { setTenantContext, clearTenantContext, getCurrentTenantId, enableRLS } from './rls/index.js';
 export { createUserRlsPolicy, createTenantUserRlsPolicy } from './rls-helpers.js';
 export {

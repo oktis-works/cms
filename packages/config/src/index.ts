@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { generateKeyPairSync } from 'node:crypto';
 
-export type DatabaseDriver = 'postgres' | 'mysql' | 'mariadb';
+export type DatabaseDriver = 'postgres';
 
 export interface DatabaseTlsConfig {
   enabled: boolean;
@@ -268,7 +268,7 @@ export interface ParsedDatabaseUrl {
 }
 
 /**
- * Parses DATABASE_URL for all supported providers. Credentials are decoded
+ * Parses DATABASE_URL for PostgreSQL. Credentials are decoded
  * exactly once and TLS query parameters are preserved for the driver adapter.
  */
 export function parseDatabaseUrl(url: string): ParsedDatabaseUrl {
@@ -279,16 +279,10 @@ export function parseDatabaseUrl(url: string): ParsedDatabaseUrl {
     throw new Error(`Invalid DATABASE_URL: not a valid URL — ${url}`);
   }
   const protocol = parsed.protocol.replace(/:$/, '');
-  const protocolDrivers: Record<string, DatabaseDriver> = {
-    postgres: 'postgres',
-    postgresql: 'postgres',
-    mysql: 'mysql',
-    mariadb: 'mariadb',
-  };
-  const driver = protocolDrivers[protocol];
+  const driver: DatabaseDriver = 'postgres';
   if (!driver) {
     throw new Error(
-      `DATABASE_URL protocol "${protocol}" is not supported (use postgres://, mysql://, or mariadb://)`
+      `DATABASE_URL protocol "${protocol}" is not supported (use postgres:// or postgresql://)`
     );
   }
   const database = decodeURIComponent(parsed.pathname.replace(/^\//, ''));
@@ -299,15 +293,11 @@ export function parseDatabaseUrl(url: string): ParsedDatabaseUrl {
   return {
     driver,
     host: parsed.hostname || 'localhost',
-    port: parsed.port ? Number(parsed.port) : driver === 'postgres' ? 5432 : 3306,
+    port: parsed.port ? Number(parsed.port) : 5432,
     database,
-    user: decodeURIComponent(parsed.username) || (driver === 'postgres' ? 'postgres' : 'root'),
+    user: decodeURIComponent(parsed.username) || 'postgres',
     password: decodeURIComponent(parsed.password),
-    ssl: driver === 'postgres'
-      ? sslmode === 'require' || sslmode === 'verify-ca' || sslmode === 'verify-full' ? true : undefined
-      : ['true', '1', 'require', 'verify-ca', 'verify-full'].includes(parsed.searchParams.get('ssl') ?? '')
-        ? true
-        : undefined,
+    ssl: sslmode === 'require' || sslmode === 'verify-ca' || sslmode === 'verify-full' ? true : undefined,
     tls: parsed.searchParams.has('ssl-ca')
       ? {
           enabled: true,
@@ -329,8 +319,8 @@ function loadDatabaseConfig(): DatabaseConfig {
   const explicitEngine = process.env['DB_ENGINE']?.trim().toLowerCase();
   const explicitDriver = process.env['DB_DRIVER']?.trim().toLowerCase();
   const configuredDriver = explicitEngine ?? explicitDriver;
-  if (configuredDriver && !['postgres', 'mysql', 'mariadb'].includes(configuredDriver)) {
-    throw new Error(`Unsupported database provider "${configuredDriver}". Use postgres, mysql, or mariadb.`);
+  if (configuredDriver && configuredDriver !== 'postgres') {
+    throw new Error(`Unsupported database provider "${configuredDriver}". Use postgres.`);
   }
   if (explicitEngine && explicitDriver && explicitEngine !== explicitDriver) {
     throw new Error('DB_ENGINE and DB_DRIVER must name the same database provider.');
@@ -339,15 +329,13 @@ function loadDatabaseConfig(): DatabaseConfig {
     throw new Error('DATABASE_URL protocol conflicts with DB_ENGINE/DB_DRIVER.');
   }
   const driver: DatabaseConfig['driver'] = fromUrl?.driver ?? (configuredDriver as DatabaseConfig['driver'] | undefined) ?? 'postgres';
-  const defaultPort = driver === 'postgres' ? 5432 : 3306;
-  const defaultUser = driver === 'postgres' ? 'postgres' : 'root';
   return {
     driver,
     host: fromUrl?.host ?? getEnv('DB_HOST', 'localhost'),
-    port: fromUrl?.port ?? getEnvInt('DB_PORT', defaultPort),
+    port: fromUrl?.port ?? getEnvInt('DB_PORT', 5432),
     database: fromUrl?.database ?? getEnv('DB_NAME', 'okcms'),
-    user: fromUrl?.user ?? getEnv('DB_USER', defaultUser),
-    password: fromUrl?.password ?? getEnv('DB_PASSWORD', driver === 'postgres' ? 'postgres' : ''),
+    user: fromUrl?.user ?? getEnv('DB_USER', 'postgres'),
+    password: fromUrl?.password ?? getEnv('DB_PASSWORD', 'postgres'),
     ssl: fromUrl?.ssl ?? getEnvBool('DB_SSL', false),
     tls: fromUrl?.tls ?? {
       enabled: getEnvBool('DB_SSL', false),
@@ -356,7 +344,7 @@ function loadDatabaseConfig(): DatabaseConfig {
     },
     maxConnections: getEnvInt('DB_MAX_CONNECTIONS', 20),
     replica: process.env['DB_REPLICA_HOST']
-      ? { host: getEnv('DB_REPLICA_HOST', ''), port: getEnvInt('DB_REPLICA_PORT', driver === 'postgres' ? 5433 : 3306), enabled: true }
+      ? { host: getEnv('DB_REPLICA_HOST', ''), port: getEnvInt('DB_REPLICA_PORT', 5433), enabled: true }
       : undefined,
   };
 }

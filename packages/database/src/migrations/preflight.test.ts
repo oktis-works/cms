@@ -37,10 +37,10 @@ describe('migration preflight', () => {
     const sql = { unsafe } as unknown as RepoSql;
     const triggerMigration: MigrationFile = {
       ...migration,
-      sql: '-- @okcms domain=core_schema provider=mysql\nCREATE TRIGGER themes_active_scope_update BEFORE UPDATE ON themes FOR EACH ROW SET NEW.active_scope = NULL;',
+      sql: '-- @okcms domain=core_schema provider=postgres\nCREATE TRIGGER themes_active_scope_update BEFORE UPDATE ON themes FOR EACH ROW SET NEW.active_scope = NULL;',
       metadata: {
         domain: 'core_schema',
-        provider: 'mysql',
+        provider: 'postgres',
         reversible: true,
         forwardOnly: false,
         destructive: true,

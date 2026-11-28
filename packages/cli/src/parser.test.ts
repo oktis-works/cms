@@ -78,9 +78,9 @@ describe('CLI Parser', () => {
       ok: false,
       message: 'invalid value for --lang: fr',
     });
-    expect(validateParsedArgs(parseArgs(['bun', 'okcms', 'update', '--target', 'mysql']))).toEqual({
+    expect(validateParsedArgs(parseArgs(['bun', 'okcms', 'update', '--target', 'unsupported']))).toEqual({
       ok: false,
-      message: 'invalid value for --target: mysql',
+      message: 'invalid value for --target: unsupported',
     });
   });
 

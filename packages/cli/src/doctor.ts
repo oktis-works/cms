@@ -81,18 +81,18 @@ export async function runDoctorChecks(
   const database = resolveDatabaseConfig(cwd);
   const parsedUrl = database.parsed;
   const dbVarHost = parsedUrl?.host ?? 'localhost';
-  const dbVarPort = String(parsedUrl?.port ?? (database.engine === 'postgres' ? 5432 : 3306));
+  const dbVarPort = String(parsedUrl?.port ?? 5432);
   const dbName = parsedUrl?.database ?? 'okcms';
   results.push({
     name: 'database-provider',
-    ok: ['postgres', 'mysql', 'mariadb'].includes(database.engine),
-    detail: `provider ${database.engine}; see docs/provider-matrix.md for supported server versions`,
+    ok: database.engine === 'postgres',
+    detail: `provider ${database.engine}; PostgreSQL 16+ required`,
     required: true,
   });
 
   let dbOk: boolean;
   let dbDetail: string;
-  const unsupportedEngine = !['postgres', 'mysql', 'mariadb'].includes(database.engine);
+  const unsupportedEngine = database.engine !== 'postgres';
   if (unsupportedEngine || database.error && !database.error.startsWith('Database connection is incomplete')) {
     dbOk = false;
     dbDetail = database.error ?? 'Database provider configuration is invalid.';

@@ -219,21 +219,6 @@ describe('scaffoldProject', () => {
     expect(theme).toContain('render.apiVersion: 2');
   });
 
-  it('gera um projeto MySQL com ambiente, compose, assets de deploy e documentação do provider', async () => {
-    await scaffoldProject('mysql-test', 'mysql-test', DEFAULT_DOCS_LANG, undefined, { provider: 'mysql' });
-
-    const root = resolve(workDir, 'mysql-test');
-    const env = readFileSync(join(root, '.env'), 'utf-8');
-    const compose = readFileSync(join(root, 'docker-compose.yml'), 'utf-8');
-    const infra = readFileSync(join(root, 'docker-compose.infra.yml'), 'utf-8');
-    expect(env).toContain('DB_ENGINE=mysql');
-    expect(env).toContain('DB_PORT=3306');
-    expect(compose).toContain('mysql:8.0.36');
-    expect(infra).toContain('mysql:8.0.36');
-    expect(readFileSync(join(root, 'docs/provider-matrix.md'), 'utf-8')).toContain('MySQL');
-    expect(validateScaffold(root, { provider: 'mysql' }).ok).toBe(true);
-  });
-
   it('lang=pt gera as mesmas três docs em português, com os mesmos nomes', async () => {
     await scaffoldProject('docs-pt', 'docs-pt', 'pt');
 

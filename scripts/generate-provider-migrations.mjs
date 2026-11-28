@@ -72,14 +72,4 @@ CREATE TRIGGER themes_active_scope_update BEFORE UPDATE ON themes FOR EACH ROW S
 }
 
 const files = (await readdir(sourceDir)).filter((file) => /^V\d+__.*\.sql$/.test(file));
-for (const provider of ['mysql', 'mariadb']) {
-  const targetDir = join(sourceDir, provider);
-  await mkdir(targetDir, { recursive: true });
-  for (const file of files) {
-    const original = await readFile(join(sourceDir, file), 'utf8');
-    const generated = providerMigration(file, provider, original)
-      .replace(/[ \t]+$/gm, '')
-      .replace(/\n+$/g, '\n');
-    await writeFile(join(targetDir, file), generated);
-  }
-}
+// PostgreSQL is the only supported provider. No provider-specific migration files are generated.

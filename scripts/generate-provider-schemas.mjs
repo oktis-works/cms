@@ -68,6 +68,4 @@ function convert(provider) {
   return `-- Generated from schema.sql for ${provider}. Do not edit by hand.\n${sql}`;
 }
 
-for (const provider of ['mysql', 'mariadb']) {
-  await writeFile(join(root, `packages/database/src/schema/schema.${provider}.sql`), convert(provider));
-}
+// PostgreSQL is the only supported provider. No provider-specific schema files are generated.

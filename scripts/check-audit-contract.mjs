@@ -23,10 +23,5 @@ assertCheck('shared command registry', existsSync(join(root, 'packages/cli/src/c
 assertCheck('migration recovery guide', existsSync(join(root, 'docs/migration-recovery.md')), 'operator recovery guide is present');
 assertCheck('Portuguese Node policy', readFileSync(join(root, 'docs/operator-guide.pt-BR.md'), 'utf8').includes('Node 22.23+'), 'operator guide documents Node 22.23+');
 assertCheck('provider matrix', existsSync(join(root, 'docs/provider-matrix.md')) && existsSync(join(root, 'docs/provider-matrix.pt-BR.md')), 'provider matrix documentation is present');
-assertCheck('provider migration sets', ['mysql', 'mariadb'].every((provider) => existsSync(join(root, 'migrations', provider))), 'provider migration directories are present');
-for (const provider of ['mysql', 'mariadb']) {
-  const files = readdirSync(join(root, 'migrations', provider)).filter((file) => file.endsWith('.sql'));
-  assertCheck(`${provider} migration metadata`, files.length === 31 && files.every((file) => readFileSync(join(root, 'migrations', provider, file), 'utf8').includes(`provider=${provider}`)), `${files.length} ${provider} files checked`);
-}
 
 console.log(JSON.stringify({ ok: true, checks }, null, 2));
