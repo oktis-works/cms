@@ -53,19 +53,18 @@ jobs:
           OKCMS_ACCEPTANCE_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
 
   # ============================================================
-  # Step 2: Check npm version conflicts
+  # Step 2: Typecheck
   # ============================================================
-  check-npm-version-conflict:
-    name: Check npm version conflicts
+  typecheck:
+    name: Typecheck
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Check that no local package version already exists in npm
-        run: node scripts/check-npm-version-conflict.mjs
-
-  # ============================================================
-  # Step 3: Typecheck
-  # ============================================================
+      - uses: ./.github/actions/setup-project
+      - name: Build all packages
+        run: bun run build
+      - name: Typecheck
+        run: bun run typecheck
   typecheck:
     name: Typecheck
     runs-on: ubuntu-latest
