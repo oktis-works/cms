@@ -344,6 +344,10 @@ export async function scaffoldProject(
       name: toPackageName(name),
       version: '0.1.0',
       private: true,
+      // The default theme is a private workspace so one install also installs
+      // its React/Vite build dependencies; users do not need a second install
+      // inside themes/default.
+      workspaces: ['themes/*'],
       // Atalhos executáveis sem instalação global: npm/bun injetam
       // node_modules/.bin no PATH de scripts — `bun run migrate` /
       // `npm run start` funcionam logo após o init.

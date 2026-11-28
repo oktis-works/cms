@@ -271,6 +271,37 @@ describe('runDev', () => {
     prompt.close();
   });
 
+  it('builds compiled themes before database synchronization and cleans them up when start is skipped', async () => {
+    const hooks = fakeHooks();
+    const events: string[] = [];
+    hooks.startThemeWatchers = async () => {
+      events.push('themes');
+      return () => events.push('stop-themes');
+    };
+    hooks.prepareDatabase = async () => {
+      events.push('database');
+      hooks.prepared += 1;
+    };
+    hooks.users = true;
+    hooks.firstUser = { email: 'admin@test.com', password_hash: '$2b$10$abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopq' };
+    const prompt = nonTty();
+
+    const code = await runDev({
+      cwd: dir,
+      runner: makeRunner(),
+      prompt,
+      probe: HOST_PROBE,
+      yes: true,
+      noInfra: true,
+      skipStart: true,
+      hooks,
+    });
+
+    expect(code).toBe(0);
+    expect(events).toEqual(['themes', 'database', 'stop-themes']);
+    prompt.close();
+  });
+
   it('recusa rodar dentro de container', async () => {
     const hooks = fakeHooks();
     const prompt = nonTty();

@@ -1,5 +1,13 @@
 # @oktis-works/cms
 
+## 1.0.8
+
+### Patch Changes
+
+- Make the default theme self-contained for fresh projects by installing it as a workspace, exposing a local build script, preserving its stable stylesheet output, and building compiled themes before development synchronization.
+- Updated dependencies
+  - @oktis-works/theme-builder@1.0.4
+
 ## 1.0.7
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @oktis-works/theme-builder
 
+## 1.0.4
+
+### Patch Changes
+
+- Preserve the manifest-declared stylesheet at `dist/theme.css` when building compiled themes so fresh development synchronization can validate and serve the default theme.
+
 ## 1.0.3
 
 ### Patch Changes

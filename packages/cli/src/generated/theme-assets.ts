@@ -1180,6 +1180,9 @@ export default function Index({ page, content }: ThemePageData) {
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "scripts": {
+    "build": "okcms theme:build --name default --themes-dir .."
+  },
   "dependencies": {
     "@oktis-works/theme-sdk": "^1.0.0",
     "react": "^19.0.0",
@@ -2379,6 +2382,14 @@ export function render(
       "default": "Fill out the form or send us an email at hello@example.com"
     }
   ]
+}
+`,
+  "tsconfig.json": `{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "react"
+  }
 }
 `,
 };

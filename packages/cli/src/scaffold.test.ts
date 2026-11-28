@@ -110,6 +110,7 @@ describe('scaffoldProject', () => {
       join('themes', 'default', '404.tsx'),
       join('themes', 'default', 'src', 'entry-server.tsx'),
       join('themes', 'default', 'src', 'theme.css'),
+      join('themes', 'default', 'tsconfig.json'),
       join('themes', 'default', 'dist', 'theme.css'),
       ...Object.values(DEPLOY_PATHS),
     ]) {
@@ -140,6 +141,17 @@ describe('scaffoldProject', () => {
     expect(config.name).toBe('cms-teste');
     // conexão do banco NÃO mora no JSON — fonte única é o .env
     expect(config).not.toHaveProperty('database');
+
+    const projectPackage = JSON.parse(readFileSync(join(root, 'package.json'), 'utf-8')) as {
+      workspaces?: string[];
+    };
+    expect(projectPackage.workspaces).toEqual(['themes/*']);
+    const defaultThemePackage = JSON.parse(
+      readFileSync(join(root, 'themes', 'default', 'package.json'), 'utf-8'),
+    ) as { scripts?: Record<string, string> };
+    expect(defaultThemePackage.scripts?.build).toBe(
+      'okcms theme:build --name default --themes-dir ..',
+    );
 
     // .env documenta os DOIS formatos de conexão (DB_* ativo, DATABASE_URL comentado)
     const env = readFileSync(join(root, '.env'), 'utf-8');
