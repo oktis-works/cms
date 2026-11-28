@@ -1,5 +1,46 @@
 # @oktis-works/cms
 
+## 2.0.1
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/validation@1.0.5
+  - @oktis-works/core@1.0.10
+  - @oktis-works/theme-builder@1.0.8
+  - @oktis-works/theme-runtime@1.0.6
+
+## 2.0.0
+
+### Major Changes
+
+- Remove MySQL and MariaDB provider selection from the CLI. PostgreSQL is now the only supported database.
+  
+  Changes:
+  - Removed --db-engine mysql/mariadb choices from `okcms dev`, `okcms init`, `okcms config`
+  - Removed MySQL/MariaDB from DB_ENGINE wizard select
+  - Removed MySQL/MariaDB compose blocks from generated infrastructure assets
+  - Removed mysqldump/mariadb-dump support from db:dump/db:restore
+  - Simplified waitForDatabaseReady() to PostgreSQL (pg_isready) only
+  - Removed DATABASE_URL precedence warning for non-Postgres protocols
+  - Updated env-schema.ts DB_ENGINE options to postgres only
+  - Removed MySQL/MariaDB from generated scaffold documentation
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @oktis-works/auth@1.0.0
+  - @oktis-works/config@2.0.0
+  - @oktis-works/core@1.0.9
+  - @oktis-works/database@1.0.0
+  - @oktis-works/validation@1.0.4
+  - @oktis-works/theme-builder@1.0.7
+  - @oktis-works/theme-runtime@1.0.5
+
 ## 1.1.0
 
 ### Minor Changes

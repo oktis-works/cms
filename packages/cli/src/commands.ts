@@ -112,10 +112,10 @@ Run 'okcms wp import --help' or 'okcms wp validate --help' for subcommand option
       {
         name: 'db-engine',
         alias: 'e',
-        description: 'Database provider: postgres, mysql, or mariadb',
+        description: 'Database provider: postgres',
         required: false,
         valueKind: 'enum',
-        choices: ['postgres', 'mysql', 'mariadb'],
+        choices: ['postgres'],
       },
     ],
     handler: async (args, options) => {
@@ -153,8 +153,8 @@ Run 'okcms wp import --help' or 'okcms wp validate --help' for subcommand option
         }
 
         const dbEngine = options['db-engine'] ?? 'postgres';
-        if (!['postgres', 'mysql', 'mariadb'].includes(dbEngine)) {
-          throw new Error(`invalid --db-engine "${dbEngine}" — use postgres, mysql, or mariadb`);
+        if (dbEngine !== 'postgres') {
+          throw new Error(`invalid --db-engine "${dbEngine}" — use postgres`);
         }
 
         // Install the dependencies now? Same arrow-key menu as the language
@@ -205,7 +205,7 @@ Run 'okcms wp import --help' or 'okcms wp validate --help' for subcommand option
               'The scaffold was preserved; run bun install or npm install and retry.'
             );
           }
-        }, { provider: dbEngine as 'postgres' | 'mysql' | 'mariadb' });
+        });
       } finally {
         prompt.close();
       }

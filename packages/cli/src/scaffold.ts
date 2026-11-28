@@ -270,12 +270,11 @@ export async function scaffoldProject(
   lang: DocsLang = DEFAULT_DOCS_LANG,
   /** Runs after the files are written and BEFORE the "Next steps" summary. */
   beforeSummary?: () => Promise<void>,
-  options: { provider?: 'postgres' | 'mysql' | 'mariadb' } = {}
 ): Promise<string> {
   const root = resolve(process.cwd(), targetDir);
-  const provider = options.provider ?? (process.env['DB_ENGINE'] as 'postgres' | 'mysql' | 'mariadb' | undefined) ?? 'postgres';
-  const dbPort = provider === 'postgres' ? '5432' : '3306';
-  const dbUser = provider === 'postgres' ? 'postgres' : 'okcms';
+  const provider = 'postgres';
+  const dbPort = '5432';
+  const dbUser = 'postgres';
 
   console.log(`${style.cyan('◈')} ${style.bold('OKCMS')} ${style.dim('· project setup')}`);
   console.log(style.dim(`  Creating ${name} at ${root}`));
@@ -503,18 +502,17 @@ volumes:
   redisdata:
 ` : `services:
   db:
-    image: ${provider === 'mysql' ? 'mysql:8.0.36' : 'mariadb:11.4'}
+    image: postgres:16-alpine
     environment:
-      ${provider === 'mysql' ? 'MYSQL' : 'MARIADB'}_DATABASE: \${DB_NAME:-okcms}
-      ${provider === 'mysql' ? 'MYSQL' : 'MARIADB'}_USER: \${DB_USER:-okcms}
-      ${provider === 'mysql' ? 'MYSQL' : 'MARIADB'}_PASSWORD: \${DB_PASSWORD:-okcms}
-      ${provider === 'mysql' ? 'MYSQL_ROOT_PASSWORD' : 'MARIADB_ROOT_PASSWORD'}: \${DB_ROOT_PASSWORD:-root}
+      POSTGRES_DB: \${DB_NAME:-okcms}
+      POSTGRES_USER: \${DB_USER:-postgres}
+      POSTGRES_PASSWORD: \${DB_PASSWORD:-postgres}
     ports:
-      "\${DB_PORT:-3306}:3306"
+      "\${DB_PORT:-5432}:5432"
     volumes:
-      - ${provider}-data:/var/lib/${provider === 'mysql' ? 'mysql' : 'mysql'}
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "${provider === 'mysql' ? 'mysqladmin' : 'healthcheck.sh'}", "ping", "-h", "localhost"]
+      test: ["CMD", "pg_isready", "-U", "\${DB_USER:-postgres}", "-d", "\${DB_NAME:-okcms}"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -569,7 +567,7 @@ volumes:
       docsWritten += 1;
     }
   }
-  const scaffoldValidation = validateScaffold(root, { allowExistingPackage: true, provider });
+  const scaffoldValidation = validateScaffold(root, { allowExistingPackage: true });
   if (!scaffoldValidation.ok) {
     throw new Error(`Generated project validation failed: ${scaffoldValidation.errors.join('; ')}`);
   }
@@ -636,7 +634,7 @@ export interface ScaffoldValidation {
 /** Validates the generated contract before dependency installation or handoff. */
 export function validateScaffold(
   root: string,
-  options: { allowExistingPackage?: boolean; provider?: 'postgres' | 'mysql' | 'mariadb' } = {}
+  options: { allowExistingPackage?: boolean } = {}
 ): ScaffoldValidation {
   const required = [DEFAULT_CONFIG_FILENAME, '.env', '.env.example', 'package.json', 'migrations'];
   const errors = required.filter((entry) => !existsSync(join(root, entry))).map((entry) => `missing ${entry}`);
@@ -664,8 +662,7 @@ export function validateScaffold(
   }
   if (existsSync(join(root, '.env'))) {
     const env = readFileSync(join(root, '.env'), 'utf-8');
-    const provider = options.provider ?? env.match(/^DB_ENGINE=(postgres|mysql|mariadb)$/m)?.[1];
-    if (!provider || !new RegExp(`^DB_ENGINE=${provider}$`, 'm').test(env)) errors.push('generated environment must select a supported database provider');
+    if (!/^DB_ENGINE=postgres$/m.test(env)) errors.push('generated environment must select postgres as database provider');
   }
   return { ok: errors.length === 0, errors };
 }

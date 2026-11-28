@@ -1,5 +1,19 @@
 # @oktis-works/theme-sdk
 
+## 1.0.6
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/validation@1.0.5
+
+## 1.0.5
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/validation@1.0.4
+
 ## 1.0.4
 
 ### Patch Changes

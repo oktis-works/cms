@@ -1,5 +1,40 @@
 # @oktis-works/api
 
+## 1.0.1
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/validation@1.0.5
+  - @oktis-works/core@1.0.10
+
+## 1.0.0
+
+### Major Changes
+
+- Removed public auth register route and hardened auth responses.
+  
+  Changes:
+  - Removed public POST /api/v1/auth/register route
+  - /auth/login returns 401 invalid_credentials / 500 internal_error with error codes
+  - /auth/refresh returns 401 no_active_session instead of 400
+  - Rate limiting applied to /auth/refresh
+  - CSRF middleware no longer exempts removed /register route
+  - AUTH_COOKIE_DOMAIN defaults to 'localhost' in dev
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @oktis-works/auth@1.0.0
+  - @oktis-works/config@2.0.0
+  - @oktis-works/core@1.0.9
+  - @oktis-works/database@1.0.0
+  - @oktis-works/validation@1.0.4
+
 ## 0.20.0
 
 ### Minor Changes

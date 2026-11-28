@@ -1,4 +1,4 @@
-// @oktis-works/cms - Provider-aware database dump and restore
+// @oktis-works/cms - PostgreSQL database dump and restore
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
@@ -11,8 +11,6 @@ export interface BackupOptions {
   databaseUrl?: string;
   out?: string;
   pgDumpPath?: string;
-  mysqlDumpPath?: string;
-  mariadbDumpPath?: string;
 }
 
 export interface RestoreOptions {
@@ -22,8 +20,6 @@ export interface RestoreOptions {
   expectedDatabase?: string;
   maxAgeMs?: number;
   pgRestorePath?: string;
-  mysqlPath?: string;
-  mariadbPath?: string;
 }
 
 export function resolveTimestampedName(): string {
@@ -40,18 +36,8 @@ export function backupDatabase(options: BackupOptions = {}): { ok: boolean; mess
 
   const file = options.out ?? resolveTimestampedName();
   const parsed = parseDatabaseUrl(databaseUrl);
-  if (!parsed) return { ok: false, message: 'Invalid database URL; use postgres://, mysql://, or mariadb://.' };
-  if (parsed.engine !== 'postgres') {
-    const tool = parsed.engine === 'mysql' ? options.mysqlDumpPath ?? 'mysqldump' : options.mariadbDumpPath ?? 'mariadb-dump';
-    const args = ['--single-transaction', '--routines', '--triggers', '-h', parsed.host, '-P', String(parsed.port), '-u', parsed.user ?? '', parsed.database, '--result-file', file];
-    const result = spawnSync(tool, args, {
-      env: { ...process.env, ...(parsed.password ? { MYSQL_PWD: parsed.password } : {}) },
-      stdio: ['ignore', 'ignore', 'pipe'],
-    });
-    if (result.error) return { ok: false, message: `${tool} failed to start: ${result.error.message}` };
-    if (result.status !== 0) return { ok: false, message: `${tool} exited with ${result.status}: ${result.stderr?.toString().trim()}` };
-    return { ok: true, message: `Backup written to ${file}`, file };
-  }
+  if (!parsed) return { ok: false, message: 'Invalid database URL; use postgres:// or postgresql://.' };
+
   const result = spawnSync(
     options.pgDumpPath ?? 'pg_dump',
     ['-Fc', '--no-owner', '-d', databaseUrl, '-f', file],
@@ -91,21 +77,7 @@ export function restoreDatabase(options: RestoreOptions): { ok: boolean; message
   }
 
   const parsed = parseDatabaseUrl(databaseUrl);
-  if (!parsed) return { ok: false, message: 'Invalid database URL; use postgres://, mysql://, or mariadb://.' };
-  if (parsed.engine !== 'postgres') {
-    const tool = parsed.engine === 'mysql' ? options.mysqlPath ?? 'mysql' : options.mariadbPath ?? 'mariadb';
-    const args = ['-h', parsed.host, '-P', String(parsed.port), '-u', parsed.user ?? '', parsed.database];
-    if (options.clean) args.push('--force');
-    const dump = readFileSync(options.file);
-    const result = spawnSync(tool, args, {
-      env: { ...process.env, ...(parsed.password ? { MYSQL_PWD: parsed.password } : {}) },
-      input: dump,
-      stdio: ['pipe', 'ignore', 'pipe'],
-    });
-    if (result.error) return { ok: false, message: `${tool} failed to start: ${result.error.message}` };
-    if (result.status !== 0) return { ok: false, message: `${tool} exited with ${result.status}: ${result.stderr?.toString().trim()}` };
-    return { ok: true, message: `Restored from ${options.file}` };
-  }
+  if (!parsed) return { ok: false, message: 'Invalid database URL; use postgres:// or postgresql://.' };
 
   const args = ['-Fc', '--no-owner', '-d', databaseUrl];
   if (options.clean) args.push('--clean');

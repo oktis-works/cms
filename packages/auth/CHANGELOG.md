@@ -1,5 +1,28 @@
 # @oktis-works/auth
 
+## 1.0.0
+
+### Major Changes
+
+- Hardened authentication error handling and removed public registration route.
+  
+  Changes:
+  - Removed public POST /auth/register route (security: anonymous self-registration as TENANT_ADMIN)
+  - Added AuthErrorCode enum and typed errors (InvalidCredentialsError, NoActiveSessionError, InternalAuthError)
+  - Login returns 401 invalid_credentials / 500 internal_error with stable error codes
+  - Refresh returns 401 no_active_session instead of 400 Missing refresh token
+  - Added normalizeEmail utility for case-insensitive email comparison
+  - Login filters users by tenant_id for cross-tenant isolation
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @oktis-works/config@2.0.0
+  - @oktis-works/core@1.0.9
+  - @oktis-works/database@1.0.0
+
 ## 0.9.9
 
 ### Patch Changes

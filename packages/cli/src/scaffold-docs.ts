@@ -1042,6 +1042,6 @@ export function themeDoc(_lang: DocsLang = DEFAULT_DOCS_LANG): string {
 
 export function providerMatrixDoc(lang: DocsLang = DEFAULT_DOCS_LANG): string {
   return lang === 'pt'
-    ? `# Matriz de banco\n\n- PostgreSQL 16+ (driver postgres)\n- MySQL 8.0.36+ ou 8.4 LTS (driver mysql2)\n- MariaDB 11.4+ (driver mariadb)\n\nMySQL e MariaDB têm schemas e migrations próprios. Consulte a documentação do operador para a matriz completa e os testes de release.\n`
-    : `# Database provider matrix\n\n- PostgreSQL 16+ (postgres driver)\n- MySQL 8.0.36+ or 8.4 LTS (mysql2 driver)\n- MariaDB 11.4+ (mariadb driver)\n\nMySQL and MariaDB have separate schemas and migration sets. See the operator documentation for the complete matrix and release tests.\n`;
+    ? `# Matriz de banco\n\n- PostgreSQL 16+ (driver postgres)\n\nPostgreSQL é o único provedor de banco de dados suportado.\n`
+    : `# Database provider matrix\n\n- PostgreSQL 16+ (postgres driver)\n\nPostgreSQL 16+ is the only supported database provider.\n`;
 }

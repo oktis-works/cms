@@ -530,24 +530,6 @@ describe('waitForDatabaseReady', () => {
     expect(sleeps).toEqual([]);
     expect(calls[0]).toContain('pg_isready');
   });
-
-  it('probes MySQL-compatible database engines with the provider health command', async () => {
-    const calls: string[] = [];
-    const runner = ((_c: string, args: string[]) => {
-      calls.push(args.join(' '));
-      return res({ stdout: 'mysqld is alive' });
-    }) as Runner;
-    const sleeps: number[] = [];
-
-    const ready = await waitForDatabaseReady(runner, { DB_ENGINE: 'mysql', DB_PASSWORD: 'secret' }, {
-      sleep: async (ms) => { sleeps.push(ms); },
-      tcpProbe: async () => false,
-    });
-
-    expect(ready).toBe(true);
-    expect(sleeps).toEqual([]);
-    expect(calls[0]).toContain('mysqladmin ping');
-  });
 });
 
 describe('ensureRedisOnHost', () => {

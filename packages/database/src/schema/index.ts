@@ -9,14 +9,13 @@ const __dirname = join(__filename, '..');
 
 const schemas = new Map<string, string>();
 
-export function getSchema(provider: 'postgres' | 'mysql' | 'mariadb' = 'postgres'): string {
-  const cached = schemas.get(provider);
+export function getSchema(): string {
+  const cached = schemas.get('postgres');
   if (cached) return cached;
 
-  const filename = provider === 'postgres' ? 'schema.sql' : `schema.${provider}.sql`;
-  const schemaPath = join(__dirname, filename);
+  const schemaPath = join(__dirname, 'schema.sql');
   const loaded = readFileSync(schemaPath, 'utf-8');
-  schemas.set(provider, loaded);
+  schemas.set('postgres', loaded);
   return loaded;
 }
 

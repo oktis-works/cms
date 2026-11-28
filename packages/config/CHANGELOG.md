@@ -1,5 +1,17 @@
 # @oktis-works/config
 
+## 2.0.0
+
+### Major Changes
+
+- Remove MySQL and MariaDB from supported database drivers. DatabaseDriver is now 'postgres' only.
+  
+  Changes:
+  - DATABASE_URL accepts only postgres:// or postgresql:// protocols
+  - parseDatabaseUrl() no longer handles mysql:// or mariadb://
+  - loadDatabaseConfig() no longer has MySQL/MariaDB branches
+  - Removed unsupported provider validation for non-Postgres drivers
+
 ## 1.0.2
 
 ### Patch Changes

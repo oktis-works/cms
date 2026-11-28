@@ -128,8 +128,8 @@ export const WORKER_SERVICE = (lane: Lane): string => `worker-${lane}`;
 
 export function databaseContainerName(record: Record<string, string>): string {
   const engine = record['DB_ENGINE'] ?? 'postgres';
-  if (!['postgres', 'mysql', 'mariadb'].includes(engine)) throw new Error(`Unsupported database provider: ${engine}`);
-  return `okcms-${engine}`;
+  if (engine !== 'postgres') throw new Error(`Unsupported database provider: ${engine}. Use postgres.`);
+  return 'okcms-postgres';
 }
 
 /** URL final da checagem através do proxy. */
@@ -169,11 +169,11 @@ export function writeDeployAssets(
   cwd: string,
   lane: Lane,
   record: Record<string, string>,
-  provider: 'postgres' | 'mysql' | 'mariadb' = (record['DB_ENGINE'] as 'postgres' | 'mysql' | 'mariadb' | undefined) ?? 'postgres'
+  provider: 'postgres' = 'postgres'
 ): string[] {
   const projectConfig = loadProjectConfig(cwd);
   const created: string[] = [];
-  for (const asset of deployAssets(lane, portsFromEnv(record), provider, projectConfig.name)) {
+  for (const asset of deployAssets(lane, portsFromEnv(record), projectConfig.name)) {
     const path = join(cwd, asset.path);
     if (existsSync(path)) continue;
     mkdirSync(dirname(path), { recursive: true });

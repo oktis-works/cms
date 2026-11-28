@@ -212,9 +212,9 @@ describe('runMigrations', () => {
 
   it('rejects a migration whose declared provider differs before ledger access', async () => {
     const dir = withMigrations({
-      'V001__core__mysql_only.sql': '-- @okcms provider=mysql\nCREATE TABLE a();',
+      'V001__core__unsupported.sql': '-- @okcms provider=unsupported\nCREATE TABLE a();',
     });
-    await expect(runMigrations('tenant-1', dir, { provider: 'postgres' })).rejects.toThrow(/requires provider "mysql"/);
+    await expect(runMigrations('tenant-1', dir, { provider: 'postgres' })).rejects.toThrow(/requires provider "unsupported"/);
     expect(calls).toEqual([]);
     rmSync(dir, { recursive: true, force: true });
   });

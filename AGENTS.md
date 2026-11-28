@@ -154,12 +154,12 @@ Semantic versioning governs extension compatibility. The CMS version is the anch
 * **Never hardcode CMS_VERSION in extensions:** Read it from the host at runtime via `api.cmsVersion` or the `PLUGIN_API_VERSION` env var injected by the loader.
 
 ## 12. Database Provider Abstraction Rules
-The database layer supports PostgreSQL (primary), MySQL 8.0.36+, and MariaDB 11.4+.
+The database layer supports **PostgreSQL 16+ only**.
 
-* **All SQL goes through `translateProviderSql()` for non-Postgres:** The function in `connection.ts` strips Postgres-specific syntax (`::cast`, `jsonb`, `ILIKE`, `ON CONFLICT`, advisory locks, etc.). Write migrations in Postgres dialect; the translator handles the rest.
-* **Capabilities dictate feature availability:** Check `getDatabaseCapabilities().rowLevelSecurity`, `.advisoryLocks`, `.transactionalDdl` before using provider-specific features. Do not assume Postgres features exist on MySQL/MariaDB.
-* **Schema snapshots are provider-specific:** `schema.sql` (Postgres), `schema.mysql.sql`, `schema.mariadb.sql`. Update all three when changing the baseline.
-* **Connection pooling defaults differ:** Postgres `max: 10`, MySQL/MariaDB `connectionLimit: 20`. Do not hardcode pool sizes — use `config.maxConnections ?? default`.
+* **All SQL is written in PostgreSQL dialect.** There is no `translateProviderSql()` — migrations and baseline schema target Postgres natively.
+* **Capabilities dictate feature availability:** Check `getDatabaseCapabilities().rowLevelSecurity`, `.advisoryLocks`, `.transactionalDdl` before using provider-specific features. PostgreSQL provides `rowLevelSecurity: true`, `advisoryLocks: true`, `transactionalDdl: true`, `jsonType: 'jsonb'`, `namespaceStrategy: 'schema'`.
+* **Schema snapshot is provider-specific:** `schema.sql` (Postgres). Update it when changing the baseline.
+* **Connection pooling defaults:** Postgres `max: 10`. Use `config.maxConnections ?? 10`.
 
 ## 13. Cache Invalidation Rules
 Tag-based invalidation (`TaggedCacheIndex`) is the primary cache strategy.
@@ -283,15 +283,7 @@ bun run build
 # 7. PostgreSQL historical upgrade acceptance (run with node, not bun)
 OKCMS_ACCEPTANCE_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres node packages/database/scripts/postgres-upgrade-acceptance.mjs
 
-# 8. MySQL & MariaDB acceptance (REQUIRES CONTAINERS RUNNING)
-# Start: docker run -d --name okcms-mysql -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=mysql -p 3306:3306 mysql:8.0
-#        docker run -d --name okcms-mariadb -e MARIADB_ROOT_PASSWORD=root -e MARIADB_DATABASE=mysql -p 3307:3306 mariadb:11.4
-# Wait 15s for readiness, then run:
-OKCMS_MYSQL_ACCEPTANCE_URL=mysql://root:root@127.0.0.1:3306/mysql \
-OKCMS_MARIADB_ACCEPTANCE_URL=mariadb://root:root@127.0.0.1:3307/mysql \
-bun run test:providers
-
-# 9. Typecheck (all packages except plugins)
+# 8. Typecheck (all packages except plugins)
 bun run typecheck
 
 # 10. Lint

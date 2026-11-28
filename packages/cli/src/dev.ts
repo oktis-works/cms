@@ -174,17 +174,11 @@ export async function waitForDatabaseReady(
   const probe = opts.tcpProbe ?? defaultTcpProbe;
   const timeoutMs = opts.postgresWaitMs ?? 60_000;
   const deadline = Date.now() + timeoutMs;
-  const engine = record['DB_ENGINE'] ?? 'postgres';
-  if (!['postgres', 'mysql', 'mariadb'].includes(engine)) return false;
-  const user = record['DB_USER'] || (engine === 'postgres' ? 'postgres' : 'okcms');
+  const user = record['DB_USER'] || 'postgres';
   const db = record['DB_NAME'] || 'okcms';
-  const hostPort = Number(record['DB_HOST_PORT'] || record['DB_PORT'] || (engine === 'postgres' ? 5432 : 3306));
-  const containerName = `okcms-${engine}`;
-  const check = engine === 'postgres'
-    ? ['pg_isready', '-U', user, '-d', db]
-    : engine === 'mysql'
-      ? ['mysqladmin', 'ping', '-h', 'localhost', '-u', user]
-      : ['healthcheck.sh', '--connect'];
+  const hostPort = Number(record['DB_HOST_PORT'] || record['DB_PORT'] || 5432);
+  const containerName = 'okcms-postgres';
+  const check = ['pg_isready', '-U', user, '-d', db];
 
   for (;;) {
     const result = runner(
@@ -418,8 +412,8 @@ export async function runDev(opts: DevOptions = {}): Promise<number> {
   // ---- 2. infra (compose do projeto — o mesmo que o deploy reutiliza) ------
   const record = env.toRecord();
   const engine = record['DB_ENGINE'] ?? 'postgres';
-  if (!['postgres', 'mysql', 'mariadb'].includes(engine)) {
-    prompt.error(`DB_ENGINE=${engine} is not a supported database provider.`);
+  if (engine !== 'postgres') {
+    prompt.error(`DB_ENGINE=${engine} is not a supported database provider. Use postgres.`);
     return 1;
   }
   let startedDb = false;
@@ -442,7 +436,7 @@ export async function runDev(opts: DevOptions = {}): Promise<number> {
         if (goRedis) services.push('redis');
         const result = infraCompose(cwd, ['up', '-d', ...services], runner, true);
         if (!result.ok) {
-          prompt.error(`failed to start the infrastructure — run \`docker compose -f ${getInfraComposePath(engine)} up -d\` to see why`);
+          prompt.error(`failed to start the infrastructure — run \`docker compose -f ${getInfraComposePath()} up -d\` to see why`);
           return 1;
         }
         if (goDb) startedDb = true;

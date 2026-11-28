@@ -1,5 +1,17 @@
 # @oktis-works/validation
 
+## 1.0.5
+
+### Patch Changes
+
+- Sync CMS_VERSION constant to product version 2.0.0.
+
+## 1.0.4
+
+### Patch Changes
+
+- Sync CMS_VERSION constant to product version 2.0.0.
+
 ## 1.0.3
 
 ### Patch Changes

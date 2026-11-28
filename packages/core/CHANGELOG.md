@@ -1,5 +1,32 @@
 # @oktis-works/core
 
+## 1.0.10
+
+### Patch Changes
+
+- Updated dependencies
+  - @oktis-works/validation@1.0.5
+  - @oktis-works/theme-runtime@1.0.6
+
+## 1.0.9
+
+### Patch Changes
+
+- Removed MySQL/MariaDB references from database provider abstraction.
+  
+  Changes:
+  - Removed MySQL/MariaDB from supported providers list
+  - Simplified RLS capability reporting to PostgreSQL only
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @oktis-works/auth@1.0.0
+  - @oktis-works/config@2.0.0
+  - @oktis-works/database@1.0.0
+  - @oktis-works/validation@1.0.4
+  - @oktis-works/theme-runtime@1.0.5
+
 ## 1.0.8
 
 ### Patch Changes

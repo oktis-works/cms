@@ -76,10 +76,10 @@ function answersFor(overrides: Record<string, string>, finalConfirm?: 'y' | 'n')
 
   for (const section of ENV_SECTIONS) {
     if (section.id === 'database') {
-      // 1. Engine select (1 resposta: '1'=postgres, '2'=mysql, '3'=mariadb)
+      // 1. Engine select (1 resposta: '1'=postgres)
       const engine = overrides['DB_ENGINE'] ?? '1';
       lines.push(engine);
-      record['DB_ENGINE'] = engine === '1' ? 'postgres' : engine === '2' ? 'mysql' : 'mariadb';
+      record['DB_ENGINE'] = 'postgres';
 
       // 2. Mode select (1 resposta: '1'=connectionString, '2'=individual)
       const mode = overrides['DB_MODE'] ?? '2';

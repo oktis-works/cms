@@ -86,24 +86,8 @@ export interface EnsureCoreSchemaOptions {
   adoptLegacy?: boolean;
 }
 
-async function applyInfrastructure(sql: ReturnType<typeof getConnection>, provider: string, infrastructureSql: string): Promise<void> {
-  if (provider === 'postgres') {
-    await sql.unsafe(infrastructureSql);
-    return;
-  }
-
-  // MySQL and MariaDB do not share PostgreSQL's ADD COLUMN IF NOT EXISTS
-  // behavior across supported versions. Execute the additive statements one
-  // at a time and tolerate a column that was already provisioned by a schema
-  // snapshot or a previous bootstrap attempt.
-  for (const statement of infrastructureSql.split(';').map((part) => part.trim()).filter(Boolean)) {
-    try {
-      await sql.unsafe(statement);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (!/duplicate column|duplicate field name|ER_DUP_FIELDNAME/i.test(message)) throw error;
-    }
-  }
+async function applyInfrastructure(sql: ReturnType<typeof getConnection>, infrastructureSql: string): Promise<void> {
+  await sql.unsafe(infrastructureSql);
 }
 
 export async function ensureCoreSchema(options: EnsureCoreSchemaOptions = {}): Promise<boolean> {
@@ -111,8 +95,7 @@ export async function ensureCoreSchema(options: EnsureCoreSchemaOptions = {}): P
   if ((sql as { driver?: string }).driver) {
     await (await import('../connection.js')).assertSupportedServerVersion();
   }
-  const provider = (sql as { driver?: 'postgres' | 'mysql' | 'mariadb' }).driver ?? 'postgres';
-  const schemaSql = getSchema(provider);
+  const schemaSql = getSchema();
   const schemaChecksum = createHash('sha256').update(schemaSql).digest('hex');
 
   const probe = await sql<{ exists: string | null }[]>`
@@ -143,13 +126,10 @@ export async function ensureCoreSchema(options: EnsureCoreSchemaOptions = {}): P
     // redundantes (a coluna já vem no CREATE TABLE) e o Postgres responde
     // NOTICE 42701 "already exists, skipping" — ruído puro no output do init.
     await tx`SET client_min_messages = warning`;
-    const infrastructureSql = provider === 'postgres'
-      ? MIGRATION_INFRASTRUCTURE
-      : MIGRATION_INFRASTRUCTURE.replaceAll("DEFAULT 'postgres'", `DEFAULT '${provider}'`);
     if (fresh) {
       await tx.unsafe(schemaSql);
     } else {
-      await applyInfrastructure(tx, provider, infrastructureSql);
+      await applyInfrastructure(tx, MIGRATION_INFRASTRUCTURE);
     }
     await tx`
       INSERT INTO schema_bootstrap (id, schema_version, schema_checksum)

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { loadEnvFile } from './env-file.js';
 
 export interface ParsedDatabaseUrl {
-  engine: 'postgres' | 'mysql' | 'mariadb';
+  engine: 'postgres';
   host: string;
   port: number;
   database: string;
@@ -22,26 +22,19 @@ export interface ResolvedDatabaseConfig {
   error?: string;
 }
 
-type DatabaseEngine = 'postgres' | 'mysql' | 'mariadb';
+type DatabaseEngine = 'postgres';
 
 export function parseDatabaseUrl(url: string): ParsedDatabaseUrl | null {
   try {
     const parsed = new URL(url);
     const protocol = parsed.protocol.replace(/:$/, '');
-    const engine = protocol === 'postgres' || protocol === 'postgresql'
-      ? 'postgres'
-      : protocol === 'mysql'
-        ? 'mysql'
-        : protocol === 'mariadb'
-          ? 'mariadb'
-          : null;
-    if (!engine) return null;
+    if (protocol !== 'postgres' && protocol !== 'postgresql') return null;
     const database = decodeURIComponent(parsed.pathname.replace(/^\//, ''));
     if (!parsed.hostname || !database) return null;
     return {
-      engine,
+      engine: 'postgres',
       host: parsed.hostname,
-      port: Number(parsed.port || (engine === 'postgres' ? 5432 : 3306)),
+      port: Number(parsed.port || 5432),
       database,
       user: decodeURIComponent(parsed.username),
       password: decodeURIComponent(parsed.password),
@@ -67,8 +60,8 @@ export function resolveDatabaseConfig(
   const explicitEngine = env['DB_ENGINE']?.toLowerCase();
   const explicitDriver = env['DB_DRIVER']?.toLowerCase();
   const engine = (explicitEngine ?? explicitDriver ?? 'postgres') as DatabaseEngine;
-  if (!['postgres', 'mysql', 'mariadb'].includes(engine)) {
-    return { engine, configured: false, error: `Unsupported database engine "${engine}".` };
+  if (engine !== 'postgres') {
+    return { engine, configured: false, error: `Unsupported database engine "${engine}". Use postgres.` };
   }
   if (explicitEngine && explicitDriver && explicitEngine !== explicitDriver) {
     return { engine, configured: true, error: 'DB_ENGINE and DB_DRIVER must match.' };
@@ -77,7 +70,7 @@ export function resolveDatabaseConfig(
   const hasVariables = Boolean(env['DB_HOST'] || env['DB_NAME'] || env['DB_USER'] || env['DB_PORT']);
   if (explicitUrl) {
     const parsed = parseDatabaseUrl(explicitUrl);
-    if (!parsed) return { engine, configured: true, error: 'Invalid DATABASE_URL (expected postgres://, mysql://, or mariadb://).' };
+    if (!parsed) return { engine, configured: true, error: 'Invalid DATABASE_URL (expected postgres://user:pass@host:5432/db).' };
     if (parsed.engine !== engine && (explicitEngine || explicitDriver)) {
       return { engine, configured: true, error: 'DATABASE_URL protocol conflicts with DB_ENGINE/DB_DRIVER.' };
     }
@@ -96,11 +89,11 @@ export function resolveDatabaseConfig(
       configured: true,
       error: 'Database connection is incomplete: set DB_HOST, DB_NAME, and DB_USER.',
       source: 'variables',
-      parsed: { engine, host: host ?? 'localhost', port: Number(env['DB_PORT'] ?? (engine === 'postgres' ? 5432 : 3306)), database: database ?? 'okcms' },
+      parsed: { engine, host: host ?? 'localhost', port: Number(env['DB_PORT'] ?? 5432), database: database ?? 'okcms' },
     };
   }
-  const port = Number(env['DB_PORT'] ?? (engine === 'postgres' ? 5432 : 3306));
+  const port = Number(env['DB_PORT'] ?? 5432);
   const password = env['DB_PASSWORD'] ?? '';
-  const url = `${engine === 'postgres' ? 'postgresql' : engine}://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}:${port}/${encodeURIComponent(database)}`;
+  const url = `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}:${port}/${encodeURIComponent(database)}`;
   return { engine, configured: true, source: 'variables', url, parsed: { engine, host, port, database } };
 }

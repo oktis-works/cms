@@ -20,7 +20,7 @@ interface Config {
     secret: string;            // JWT signing secret
   };
   database: {
-    provider: 'postgres' | 'mysql' | 'mariadb';
+    provider: 'postgres';
     host: string;
     port: number;
     user: string;

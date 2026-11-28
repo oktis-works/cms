@@ -28,28 +28,7 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
-      mysql:
-        image: mysql:8.0.36
-        env:
-          MYSQL_ROOT_PASSWORD: root
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping -h localhost -uroot -proot"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=20
-      mariadb:
-        image: mariadb:11.4
-        env:
-          MARIADB_ROOT_PASSWORD: root
-        ports:
-          - 3307:3306
-        options: >-
-          --health-cmd="healthcheck.sh --connect --innodb_initialized"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=20
+
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-project
@@ -72,11 +51,6 @@ jobs:
         run: bun run build && node packages/database/scripts/postgres-upgrade-acceptance.mjs
         env:
           OKCMS_ACCEPTANCE_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
-      - name: MySQL and MariaDB acceptance matrix
-        run: bun run build && bun run test:providers
-        env:
-          OKCMS_MYSQL_ACCEPTANCE_URL: mysql://root:root@127.0.0.1:3306/mysql
-          OKCMS_MARIADB_ACCEPTANCE_URL: mariadb://root:root@127.0.0.1:3307/mysql
 
   # ============================================================
   # Step 2: Typecheck
