@@ -110,6 +110,30 @@ describe('buildTheme — compiled engines', () => {
     expect(module.render('home', pageData).html).toContain('<h1>Built</h1>');
   }, 60_000);
 
+  it('preserves the manifest-declared stylesheet at dist/theme.css', async () => {
+    writeBase('react');
+    rmSync(join(dir, 'dist', 'theme.css'));
+    writeFileSync(join(dir, 'src', 'theme.css'), '[data-theme="react-theme"] main { color: red; }');
+    writeFileSync(
+      join(dir, 'theme.json'),
+      JSON.stringify({
+        name: 'react-theme',
+        version: '1.0.0',
+        type: 'theme',
+        render: { engine: 'react', apiVersion: 2, hydration: 'none', entry: 'src/entry-server.tsx' },
+        stylesConfig: { engine: 'css', entry: 'src/theme.css', output: 'dist/theme.css', isolation: true },
+        provides: { assets: ['dist/theme.css'] },
+      }),
+    );
+
+    await buildTheme({ themesRoot: root, themeName: 'react-theme' });
+
+    expect(readFileSync(join(dir, 'dist', 'theme.css'), 'utf8')).toContain(
+      '[data-theme="react-theme"]',
+    );
+    expect(existsSync(join(dir, 'dist', 'theme-build.json'))).toBe(true);
+  }, 60_000);
+
   it('builds an islands client entry when hydration is islands', async () => {
     writeBase('react');
     const manifestPath = join(dir, 'theme.json');

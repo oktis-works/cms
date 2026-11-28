@@ -85,8 +85,8 @@ export interface DevHooks {
   createUser: (input: DevUserInput) => Promise<void>;
   /** Sobe api · admin · web · worker (bloqueia — é o processo do dev). */
   startApps: () => Promise<void>;
-  /** Rebuild contínuo dos temas React/Solid (dev). Opcional em testes. */
-  startThemeWatchers?: () => Promise<void> | void;
+  /** Build and watch React/Solid themes (dev). Optional in tests. */
+  startThemeWatchers?: () => Promise<(() => void) | void> | (() => void) | void;
 }
 
 export interface DevOptions {
@@ -442,10 +442,29 @@ export async function runDev(opts: DevOptions = {}): Promise<number> {
     }
   }
 
-  // ---- 3. banco: schema + seed + migrations -------------------------------
+  // ---- 3. temas + banco: build compiled themes before synchronization ------
+  // Theme synchronization validates dist/theme.css and the compiled SSR
+  // artifact. The watcher performs its initial build, so it must start before
+  // prepareDatabase rather than after the database seed.
+  let stopThemeWatchers: (() => void) | undefined;
+  const stopThemes = (): void => {
+    stopThemeWatchers?.();
+    stopThemeWatchers = undefined;
+  };
+  try {
+    const cleanup = await hooks.startThemeWatchers?.();
+    if (typeof cleanup === 'function') stopThemeWatchers = cleanup;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    prompt.error(`theme setup failed: ${message}`);
+    return 1;
+  }
+
+  // ---- 4. banco: schema + seed + migrations -------------------------------
   try {
     await hooks.prepareDatabase();
   } catch (error) {
+    stopThemes();
     const message = error instanceof Error ? error.message : String(error);
     prompt.error(`database setup failed: ${message}`);
     if (/ECONNREFUSED|ENOTFOUND|ETIMEDOUT|starting up|Connection terminated/i.test(message)) {
@@ -456,7 +475,7 @@ export async function runDev(opts: DevOptions = {}): Promise<number> {
   }
   prompt.success('database ready (schema + seed + migrations)');
 
-  // ---- 4. primeiro usuário (se o banco está vazio ou o hash é inválido) -------
+  // ---- 5. primeiro usuário (se o banco está vazio ou o hash é inválido) -------
   const hasUsers = await hooks.anyUserExists();
   if (!hasUsers) {
     prompt.info('no users yet — the first account becomes SUPER_ADMIN');
@@ -470,6 +489,7 @@ export async function runDev(opts: DevOptions = {}): Promise<number> {
         password ?? (await prompt.secret('Admin password (min 8 characters)', { validate: min8 }));
     }
     if (!email || !name || !password) {
+      stopThemes();
       prompt.error('first user required — pass --email, --name and --password (non-TTY)');
       return 1;
     }
@@ -490,6 +510,7 @@ export async function runDev(opts: DevOptions = {}): Promise<number> {
           password ?? (await prompt.secret('Admin password (min 8 characters)', { validate: min8 }));
       }
       if (!email || !name || !password) {
+        stopThemes();
         prompt.error('admin credentials required — pass --email, --name and --password (non-TTY)');
         return 1;
       }
@@ -515,6 +536,7 @@ export async function runDev(opts: DevOptions = {}): Promise<number> {
   };
 
   if (opts.skipStart === true) {
+    stopThemes();
     finishNotStarted();
     return 0;
   }
@@ -528,13 +550,13 @@ export async function runDev(opts: DevOptions = {}): Promise<number> {
         })
       : true;
     if (!restart) {
+      stopThemes();
       prompt.info('kept as is — `okcms status` to inspect, `okcms stop` to stop');
       return 0;
     }
     stopAll('SIGTERM', cwd);
   }
 
-  await hooks.startThemeWatchers?.();
   await hooks.startApps();
   prompt.success('all apps started');
   for (const url of urls) prompt.info(`  ${url}`);

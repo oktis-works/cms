@@ -4,7 +4,7 @@
 // Framework code is bundled into the artifact; @oktis-works/theme-runtime does
 // not depend on React or Solid.
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { join, relative, resolve, sep } from 'node:path';
@@ -421,6 +421,15 @@ export async function buildTheme(opts: BuildThemeOptions): Promise<ThemeBuildRes
     }
   } else {
     rmSync(stagingRoot!, { recursive: true, force: true });
+  }
+
+  // Keep the manifest-declared stylesheet available at its stable public path.
+  // The versioned copy is used by the compiled artifact, while the stable copy
+  // is required by theme synchronization and by the web fallback chain.
+  if (styleReport?.entry && generationRoot && existsSync(join(generationRoot, 'theme.css'))) {
+    const stableStyle = assertInside(themeDir, styleReport.output);
+    mkdirSync(resolve(stableStyle, '..'), { recursive: true });
+    copyFileSync(join(generationRoot, 'theme.css'), stableStyle);
   }
 
   mkdirSync(join(themeDir, 'dist'), { recursive: true });
