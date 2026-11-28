@@ -149,7 +149,7 @@ describe('scaffoldProject', () => {
     const defaultThemePackage = JSON.parse(
       readFileSync(join(root, 'themes', 'default', 'package.json'), 'utf-8'),
     ) as { scripts?: Record<string, string> };
-    expect(defaultThemePackage.scripts?.build).toBe(
+    expect(defaultThemePackage.scripts?.['build']).toBe(
       'okcms theme:build --name default --themes-dir ..',
     );
 
