@@ -1,7 +1,7 @@
 -- @okcms domain=tenant_data provider=mysql
 -- +migrate Up
--- Add visibility column
-ALTER TABLE settings ADD COLUMN `visibility` VARCHAR(20) NOT NULL DEFAULT 'internal';
+-- `visibility` is part of the canonical baseline and is repaired by
+-- ensureCoreSchema before tenant-data migrations run.
 
 -- Deduplicate settings
 DELETE older FROM settings older

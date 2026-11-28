@@ -115,6 +115,8 @@ CREATE INDEX idx_content_status ON content(status);
 CREATE INDEX idx_content_slug ON content(tenant_id, type, slug);
 CREATE INDEX idx_content_author ON content(author_id);
 CREATE INDEX idx_content_published ON content(published_at);
+ALTER TABLE content ADD COLUMN published_at_gmt TIMESTAMP;
+CREATE INDEX idx_content_published_gmt ON content(published_at_gmt);
 ALTER TABLE content ADD COLUMN data JSON NOT NULL DEFAULT ('{}');
 ALTER TABLE content ADD COLUMN layout VARCHAR(255);
 ALTER TABLE content ADD COLUMN parent_id CHAR(36) REFERENCES content(id) ON DELETE SET NULL;
@@ -271,6 +273,7 @@ CREATE TABLE IF NOT EXISTS settings (
   value JSON NOT NULL,
   `group` VARCHAR(255) NOT NULL,
   type VARCHAR(100) NOT NULL,
+  visibility VARCHAR(20) NOT NULL DEFAULT 'internal',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(`key`, tenant_id)
