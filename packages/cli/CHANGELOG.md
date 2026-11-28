@@ -1,5 +1,11 @@
 # @oktis-works/cms
 
+## 1.0.7
+
+### Patch Changes
+
+- Restore declared default-theme style assets during project scaffolding when a published theme directory is incomplete.
+
 ## 1.0.6
 
 ### Patch Changes
