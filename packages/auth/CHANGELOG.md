@@ -1,5 +1,14 @@
 # @oktis-works/auth
 
+## 0.9.9
+
+### Patch Changes
+
+- Add stable error codes (AuthErrorCode) and typed errors (AuthError, InvalidCredentialsError, NoActiveSessionError, InternalAuthError) for authentication. Login errors now return 401 with code for invalid credentials and 500 with code for internal errors (session create, db, etc.) instead of masking everything as 401. Add normalizeEmail utility for case-insensitive email comparison.
+- Updated dependencies
+  - @oktis-works/database@0.16.13
+  - @oktis-works/core@1.0.8
+
 ## 0.9.7
 
 ### Patch Changes

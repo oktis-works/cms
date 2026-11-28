@@ -34,27 +34,29 @@ export async function createUserAccount(input: CreateUserInput): Promise<void> {
   const { ensureCoreSchema, resolveTenantId, seedDefaultRoles, getConnection } = await import(
     '@oktis-works/database'
   );
-  const { hashPassword } = await import('@oktis-works/auth');
+  const { hashPassword, normalizeEmail } = await import('@oktis-works/auth');
   const { randomUUID } = await import('node:crypto');
 
   await ensureCoreSchema();
   await seedDefaultRoles();
 
   const sql = getConnection();
-  const existing = await sql.unsafe('SELECT id FROM users WHERE email = $1', [input.email]);
+  const normalizedEmail = normalizeEmail(input.email);
+  const existing = await sql.unsafe('SELECT id FROM users WHERE email = $1', [normalizedEmail]);
   if (existing.length > 0) {
-    throw new Error(`User already exists: ${input.email}`);
+    throw new Error(`User already exists: ${normalizedEmail}`);
   }
 
   const passwordHash = await hashPassword(input.password);
   const userId = randomUUID();
-  await sql.unsafe(
-    `INSERT INTO users (id, email, name, password_hash, status)
-     VALUES ($1, $2, $3, $4, 'ACTIVE')`,
-    [userId, input.email, input.name, passwordHash]
-  );
 
   const tenantId = await resolveTenantId(input.tenant ?? 'default');
+  await sql.unsafe(
+    `INSERT INTO users (id, email, name, password_hash, status, tenant_id)
+     VALUES ($1, $2, $3, $4, 'ACTIVE', $5)`,
+    [userId, normalizedEmail, input.name, passwordHash, tenantId]
+  );
+
   const roles = await sql.unsafe(
     `SELECT id FROM roles
      WHERE slug = $1 AND (tenant_id IS NULL OR tenant_id = $2)
@@ -97,4 +99,38 @@ export async function getFirstUser(): Promise<{ email: string; password_hash: st
 export function isValidBcryptHash(hash: string): boolean {
   // bcrypt hashes start with $2a$, $2b$, or $2y$ followed by cost and 53-char salt/hash
   return /^\$2[aby]\$\d{2}\$[A-Za-z0-9]{53}$/.test(hash);
+}
+
+/** Verifica se um e-mail específico já existe no banco (case-insensitive). */
+export async function userExistsByEmail(email: string): Promise<boolean> {
+  await initDb();
+  const { ensureCoreSchema, getConnection } = await import('@oktis-works/database');
+  const { normalizeEmail } = await import('@oktis-works/auth');
+  await ensureCoreSchema();
+  const normalizedEmail = normalizeEmail(email);
+  const rows = await getConnection().unsafe(
+    'SELECT 1 AS one FROM users WHERE email = $1 LIMIT 1',
+    [normalizedEmail]
+  );
+  return rows.length > 0;
+}
+
+/** Redefine a senha de um usuário existente. */
+export async function resetUserPassword(input: { email: string; password: string }): Promise<void> {
+  await initDb();
+  const { ensureCoreSchema, getConnection } = await import('@oktis-works/database');
+  const { hashPassword, normalizeEmail } = await import('@oktis-works/auth');
+  await ensureCoreSchema();
+
+  const normalizedEmail = normalizeEmail(input.email);
+  const passwordHash = await hashPassword(input.password);
+
+  const result = await getConnection().unsafe(
+    'UPDATE users SET password_hash = $1 WHERE email = $2 RETURNING id',
+    [passwordHash, normalizedEmail]
+  );
+
+  if (result.length === 0) {
+    throw new Error(`User not found: ${normalizedEmail}`);
+  }
 }

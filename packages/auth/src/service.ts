@@ -9,6 +9,12 @@ import { JWTService } from './jwt/index.js';
 import { SessionService } from './sessions/index.js';
 import { RBACService } from './rbac/index.js';
 import { ApiKeyService } from './api-keys/index.js';
+import {
+  InvalidCredentialsError,
+  InternalAuthError,
+  AuthErrorCode,
+} from './errors.js';
+import { normalizeEmail } from './utils.js';
 
 export interface AuthResult {
   user: User;
@@ -69,7 +75,9 @@ export class AuthService {
   async register(input: RegisterInput): Promise<User> {
     const sql = getConnection();
 
-    const existing = await sql.unsafe('SELECT id FROM users WHERE email = $1', [input.email]);
+    const normalizedEmail = normalizeEmail(input.email);
+
+    const existing = await sql.unsafe('SELECT id FROM users WHERE email = $1', [normalizedEmail]);
     if (existing.length > 0) {
       throw new Error('User with this email already exists');
     }
@@ -80,7 +88,7 @@ export class AuthService {
       `INSERT INTO users (id, email, name, password_hash, status)
        VALUES ($1, $2, $3, $4, 'ACTIVE')
        RETURNING *`,
-      [randomUUID(), input.email, input.name, passwordHash]
+      [randomUUID(), normalizedEmail, input.name, passwordHash]
     );
 
     const user = result[0] as unknown as User;
@@ -140,15 +148,33 @@ export class AuthService {
 
     // Slug ("default") → UUID real: sessions.tenant_id é FK UUID e o JWT
     // deve carregar o UUID para as rotas usarem c.get('tenantId') direto.
-    const tenantId = await resolveTenantId(input.tenantId);
+    let tenantId: string;
+    try {
+      tenantId = await resolveTenantId(input.tenantId);
+    } catch (error) {
+      throw new InternalAuthError(
+        `Failed to resolve tenant "${input.tenantId}": ${error instanceof Error ? error.message : String(error)}`,
+        AuthErrorCode.TENANT_NOT_FOUND
+      );
+    }
     await setTenantContext(tenantId);
 
-    const users = await sql.unsafe(
-      'SELECT * FROM users WHERE email = $1 AND status = $2',
-      [input.email, 'ACTIVE']
-    );
+    const normalizedEmail = normalizeEmail(input.email);
+
+    let users: Record<string, unknown>[];
+    try {
+      users = await sql.unsafe(
+        'SELECT * FROM users WHERE email = $1 AND status = $2 AND tenant_id = $3',
+        [normalizedEmail, 'ACTIVE', tenantId]
+      );
+    } catch (error) {
+      throw new InternalAuthError(
+        `Database error querying users: ${error instanceof Error ? error.message : String(error)}`,
+        AuthErrorCode.DB_ERROR
+      );
+    }
     if (users.length === 0) {
-      throw new Error('Invalid credentials');
+      throw new InvalidCredentialsError();
     }
 
     const user = users[0] as unknown as User;
@@ -158,40 +184,80 @@ export class AuthService {
     const row = users[0] as unknown as Record<string, unknown>;
     const storedHash = (row['password_hash'] ?? row['passwordHash']) as string | undefined;
     if (typeof storedHash !== 'string') {
-      throw new Error('Invalid credentials');
+      throw new InvalidCredentialsError();
     }
 
-    const valid = await verifyPassword(input.password, storedHash);
+    let valid: boolean;
+    try {
+      valid = await verifyPassword(input.password, storedHash);
+    } catch (error) {
+      throw new InternalAuthError(
+        `Password verification failed: ${error instanceof Error ? error.message : String(error)}`,
+        AuthErrorCode.DB_ERROR
+      );
+    }
     if (!valid) {
-      throw new Error('Invalid credentials');
+      throw new InvalidCredentialsError();
     }
 
-    const roles = await sql.unsafe(
-      `SELECT r.slug
-       FROM roles r
-       JOIN tenant_users tu ON tu.role_id = r.id
-       WHERE tu.user_id = $1
-         AND tu.tenant_id = $2
-         AND tu.status = 'ACTIVE'`,
-      [user.id, tenantId]
-    );
+    let roles: Record<string, unknown>[];
+    try {
+      roles = await sql.unsafe(
+        `SELECT r.slug
+         FROM roles r
+         JOIN tenant_users tu ON tu.role_id = r.id
+         WHERE tu.user_id = $1
+           AND tu.tenant_id = $2
+           AND tu.status = 'ACTIVE'`,
+        [user.id, tenantId]
+      );
+    } catch (error) {
+      throw new InternalAuthError(
+        `Database error querying user roles: ${error instanceof Error ? error.message : String(error)}`,
+        AuthErrorCode.DB_ERROR
+      );
+    }
 
     const userRoles = roles.map((r: Record<string, unknown>) => r['slug'] as string);
 
-    const accessToken = await this.jwt.generateAccessToken({
-      sub: user.id,
-      email: user.email,
-      tenantId,
-      roles: userRoles,
-    });
+    let accessToken: string;
+    try {
+      accessToken = await this.jwt.generateAccessToken({
+        sub: user.id,
+        email: user.email,
+        tenantId,
+        roles: userRoles,
+      });
+    } catch (error) {
+      throw new InternalAuthError(
+        `Failed to generate access token: ${error instanceof Error ? error.message : String(error)}`,
+        AuthErrorCode.INTERNAL_ERROR
+      );
+    }
 
-    const session = await this.session.create(user.id, tenantId, {
-      ipAddress: input.ipAddress,
-      userAgent: input.userAgent,
-      expiresInSeconds: this.config.cookie.refreshTokenMaxAge ?? 60 * 60 * 24 * 30,
-    });
+    let session: Awaited<ReturnType<SessionService['create']>>;
+    try {
+      session = await this.session.create(user.id, tenantId, {
+        ipAddress: input.ipAddress,
+        userAgent: input.userAgent,
+        expiresInSeconds: this.config.cookie.refreshTokenMaxAge ?? 60 * 60 * 24 * 30,
+      });
+    } catch (error) {
+      throw new InternalAuthError(
+        `Failed to create session: ${error instanceof Error ? error.message : String(error)}`,
+        AuthErrorCode.SESSION_CREATE_FAILED
+      );
+    }
 
-    await sql.unsafe('UPDATE users SET last_login_at = NOW() WHERE id = $1', [user.id]);
+    try {
+      await sql.unsafe('UPDATE users SET last_login_at = NOW() WHERE id = $1', [user.id]);
+    } catch (error) {
+      // Não falhar o login por causa do last_login_at — apenas avisa.
+      console.warn(
+        `[auth] failed to update last_login_at for user ${user.id}:`,
+        error instanceof Error ? error.message : String(error)
+      );
+    }
 
     return {
       user: sanitizeUser(user),

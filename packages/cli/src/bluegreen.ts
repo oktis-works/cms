@@ -163,14 +163,17 @@ export function loadDeployEnv(cwd: string): Record<string, string> {
  * permite o `okcms init` usá-lo sem tocar no Docker (o `ensureDeployFiles` do
  * deploy, logo abaixo, é que consulta a lane ativa).
  */
+import { loadProjectConfig } from './project-config.js';
+
 export function writeDeployAssets(
   cwd: string,
   lane: Lane,
   record: Record<string, string>,
   provider: 'postgres' | 'mysql' | 'mariadb' = (record['DB_ENGINE'] as 'postgres' | 'mysql' | 'mariadb' | undefined) ?? 'postgres'
 ): string[] {
+  const projectConfig = loadProjectConfig(cwd);
   const created: string[] = [];
-  for (const asset of deployAssets(lane, portsFromEnv(record), provider)) {
+  for (const asset of deployAssets(lane, portsFromEnv(record), provider, projectConfig.name)) {
     const path = join(cwd, asset.path);
     if (existsSync(path)) continue;
     mkdirSync(dirname(path), { recursive: true });

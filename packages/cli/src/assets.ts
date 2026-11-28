@@ -26,12 +26,51 @@ export const ASSET_MIRROR = {
   nginxTemplate: 'infrastructure/nginx/templates/default.conf.template',
 } as const;
 
+/** Gera sufixo seguro para nomes Docker a partir do nome do projeto. */
+export function dockerProjectSuffix(projectName: string): string {
+  return projectName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 30) || 'okcms';
+}
+
+/** Aplica sufixo do projeto nos nomes de container, volume e rede do compose. */
+export function applyDockerProjectSuffix(composeText: string, projectName: string): string {
+  const suffix = dockerProjectSuffix(projectName);
+  const s = `-${suffix}`;
+  // Substituir nomes conhecidos (mais longos primeiro para evitar match parcial)
+  const replacements: [string, string][] = [
+    ['okcms-postgres-data', `okcms${s}-postgres-data`],
+    ['okcms-redis-data', `okcms${s}-redis-data`],
+    ['okcms-postgres', `okcms${s}-postgres`],
+    ['okcms-redis', `okcms${s}-redis`],
+    ['okcms-proxy', `okcms${s}-proxy`],
+    ['okcms-mysql', `okcms${s}-mysql`],
+    ['okcms-mariadb', `okcms${s}-mariadb`],
+    ['okcms-net', `okcms${s}-net`],
+    ['name: okcms', `name: okcms${s}`],
+    ['-p okcms ', `-p okcms${s} `],
+  ];
+  let result = composeText;
+  for (const [from, to] of replacements) {
+    result = result.split(from).join(to);
+  }
+  return result;
+}
+
 /** Returns the provider-specific infrastructure definition. */
-export function getInfraCompose(engine: string): string {
-  if (engine === 'postgres') return COMPOSE_INFRA;
-  if (engine === 'mysql') return COMPOSE_INFRA_MYSQL;
-  if (engine === 'mariadb') return COMPOSE_INFRA_MARIADB;
-  throw new Error(`Database engine "${engine}" is not supported.`);
+export function getInfraCompose(engine: string, projectName?: string): string {
+  let text: string;
+  if (engine === 'postgres') text = COMPOSE_INFRA;
+  else if (engine === 'mysql') text = COMPOSE_INFRA_MYSQL;
+  else if (engine === 'mariadb') text = COMPOSE_INFRA_MARIADB;
+  else throw new Error(`Database engine "${engine}" is not supported.`);
+
+  if (projectName) {
+    text = applyDockerProjectSuffix(text, projectName);
+  }
+  return text;
 }
 
 /** Returns the provider-specific infrastructure path. */
@@ -1138,13 +1177,14 @@ export function portsFromEnv(record: Record<string, string>): UpstreamPorts {
 export function deployAssets(
   lane: Lane = 'blue',
   ports: UpstreamPorts = DEFAULT_UPSTREAM_PORTS,
-  provider: 'postgres' | 'mysql' | 'mariadb' = 'postgres'
+  provider: 'postgres' | 'mysql' | 'mariadb' = 'postgres',
+  projectName?: string
 ): ProjectAsset[] {
   return [
     { path: DEPLOY_PATHS.dockerignore, content: DOCKERIGNORE },
     { path: DEPLOY_PATHS.dockerfile, content: DOCKERFILE },
     { path: DEPLOY_PATHS.entrypoint, content: ENTRYPOINT_SH, mode: 0o755 },
-    { path: DEPLOY_PATHS.composeInfra, content: getInfraCompose(provider) },
+    { path: DEPLOY_PATHS.composeInfra, content: getInfraCompose(provider, projectName) },
     { path: DEPLOY_PATHS.composeDeploy, content: COMPOSE_DEPLOY },
     { path: DEPLOY_PATHS.composeApp, content: COMPOSE_APP },
     { path: DEPLOY_PATHS.nginxTemplate, content: NGINX_TEMPLATE },

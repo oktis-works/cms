@@ -3,7 +3,7 @@
 import { Hono } from 'hono';
 import type { Context } from 'hono';
 import { setCookie, getCookie, deleteCookie } from 'hono/cookie';
-import { AuthService } from '@oktis-works/auth';
+import { AuthService, AuthError } from '@oktis-works/auth';
 import { loadConfig } from '@oktis-works/config';
 import { establishTenantContext } from '@oktis-works/core';
 import { getConnection } from '@oktis-works/database';
@@ -59,7 +59,7 @@ const authRouter = new Hono();
 // Cookie options from config — None requer Secure (auto em produção)
 const isProd = config.app.nodeEnv === 'production';
 const cookieSecure = cookieCfg.secure ?? isProd;
-const cookieDomain = cookieCfg.domain;
+const cookieDomain = cookieCfg.domain ?? (isProd ? undefined : 'localhost');
 const ACCESS_OPTS = {
   httpOnly: true,
   secure: cookieSecure,
@@ -135,44 +135,6 @@ authRouter.get('/csrf', async (c: Context) => {
   return c.json({ csrfToken: token });
 });
 
-// POST /auth/register
-authRouter.post('/register', async (c: Context) => {
-  try {
-    const body = await c.req.json();
-    const { email, password, name, tenantId } = body;
-
-    if (!email || !password || !name) {
-      return c.json({ error: 'Missing required fields' }, 400);
-    }
-
-    await authService.register({ email, password, name, tenantId });
-
-    // Auto-login pós-registro: tokens em cookies HttpOnly (nunca no localStorage)
-    await establishTenantContext(tenantId ?? 'default');
-    const result = await authService.login({
-      email,
-      password,
-      tenantId: tenantId ?? 'default',
-      ipAddress: c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip'),
-      userAgent: c.req.header('user-agent'),
-    });
-
-    c.set('tenantId', result.tenantId);
-    const userId = (result.user as { id?: string }).id ?? '';
-    if (!userId) return c.json({ error: 'User ID not found' }, 500);
-    c.set('userId', userId);
-
-    setAuthCookies(c, result.accessToken, result.refreshToken);
-    setCsrfCookie(c);
-
-    // Tokens no body também: compat com clientes API-first (@oktis-works/api-client)
-    return c.json(authResponse(c, result), 201);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Registration failed';
-    return c.json({ error: message }, 400);
-  }
-});
-
 // POST /auth/login
 authRouter.post('/login', async (c: Context) => {
   try {
@@ -188,7 +150,7 @@ authRouter.post('/login', async (c: Context) => {
     const tenant = await resolveTenantFromHost(host);
     
     if (!tenant) {
-      return c.json({ error: 'Tenant not found for this host' }, 404);
+      return c.json({ error: 'Tenant not found for this host', code: 'tenant_not_found' }, 404);
     }
 
     await establishTenantContext(tenant.id);
@@ -203,7 +165,7 @@ authRouter.post('/login', async (c: Context) => {
     });
 
     const userId = (result.user as { id?: string }).id ?? '';
-    if (!userId) return c.json({ error: 'User ID not found' }, 500);
+    if (!userId) return c.json({ error: 'User ID not found', code: 'internal_error' }, 500);
     c.set('userId', userId);
 
     setAuthCookies(c, result.accessToken, result.refreshToken);
@@ -213,8 +175,13 @@ authRouter.post('/login', async (c: Context) => {
     // Bearer; o browser continua nos cookies HttpOnly (nunca localStorage).
     return c.json(authResponse(c, result));
   } catch (error) {
+    if (error instanceof AuthError) {
+      c.status(error.statusCode as any);
+      return c.json({ error: error.message, code: error.code });
+    }
+    c.status(500 as any);
     const message = error instanceof Error ? error.message : 'Login failed';
-    return c.json({ error: message }, 401);
+    return c.json({ error: message, code: 'internal_error' });
   }
 });
 
@@ -259,8 +226,13 @@ authRouter.post('/api-key-login', async (c: Context) => {
 
     return c.json(authResponse(c, result));
   } catch (error) {
+    if (error instanceof AuthError) {
+      c.status(error.statusCode as any);
+      return c.json({ error: error.message, code: error.code });
+    }
+    c.status(500 as any);
     const message = error instanceof Error ? error.message : 'API key login failed';
-    return c.json({ error: message }, 401);
+    return c.json({ error: message, code: 'internal_error' });
   }
 });
 
@@ -272,7 +244,7 @@ authRouter.post('/refresh', async (c: Context) => {
     const refreshToken = getCookie(c, 'refresh_token') ?? body['refreshToken'];
 
     if (!refreshToken) {
-      return c.json({ error: 'Missing refresh token' }, 400);
+      return c.json({ error: 'No active session', code: 'no_active_session' }, 401);
     }
 
     const tokens = await authService.refreshToken(refreshToken, {
@@ -281,7 +253,7 @@ authRouter.post('/refresh', async (c: Context) => {
     });
     if (!tokens) {
       clearAuthCookies(c);
-      return c.json({ error: 'Invalid refresh token' }, 401);
+      return c.json({ error: 'Invalid refresh token', code: 'invalid_credentials' }, 401);
     }
 
     setAuthCookies(c, tokens.accessToken, tokens.refreshToken);
@@ -292,8 +264,13 @@ authRouter.post('/refresh', async (c: Context) => {
       ? { success: true }
       : { success: true, accessToken: tokens.accessToken, refreshToken: tokens.refreshToken });
   } catch (error) {
+    if (error instanceof AuthError) {
+      c.status(error.statusCode as any);
+      return c.json({ error: error.message, code: error.code });
+    }
+    c.status(500 as any);
     const message = error instanceof Error ? error.message : 'Token refresh failed';
-    return c.json({ error: message }, 400);
+    return c.json({ error: message, code: 'internal_error' });
   }
 });
 
@@ -311,8 +288,13 @@ authRouter.post('/logout', async (c: Context) => {
 
     return c.json({ success: true });
   } catch (error) {
+    if (error instanceof AuthError) {
+      c.status(error.statusCode as any);
+      return c.json({ error: error.message, code: error.code });
+    }
+    c.status(500 as any);
     const message = error instanceof Error ? error.message : 'Logout failed';
-    return c.json({ error: message }, 400);
+    return c.json({ error: message, code: 'internal_error' });
   }
 });
 
@@ -345,8 +327,13 @@ authRouter.get('/me', async (c: Context) => {
 
     return c.json({ user: rows[0], tenantId: payload.tenantId, roles: payload.roles });
   } catch (error) {
+    if (error instanceof AuthError) {
+      c.status(error.statusCode as any);
+      return c.json({ error: error.message, code: error.code });
+    }
+    c.status(500 as any);
     const message = error instanceof Error ? error.message : 'Failed to get user';
-    return c.json({ error: message }, 400);
+    return c.json({ error: message, code: 'internal_error' });
   }
 });
 

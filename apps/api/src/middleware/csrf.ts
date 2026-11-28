@@ -100,7 +100,6 @@ export async function csrfMiddleware(c: Context, next: Next): Promise<Response |
   // par cookie + header abaixo.
   if (
     c.req.path === '/api/v1/auth/login' ||
-    c.req.path === '/api/v1/auth/register' ||
     c.req.path === '/api/v1/auth/api-key-login'
   ) {
     if (!isSameOrigin(c)) {
