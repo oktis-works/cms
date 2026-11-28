@@ -110,6 +110,20 @@ function currentVersionOf(pkgJsonPath) {
   }
 }
 
+/** Version of the package on `main`; null when the ref is unavailable. */
+function versionOnMain(pkgJsonPath) {
+  try {
+    const raw = execSync(`git show main:${pkgJsonPath}`, {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    return JSON.parse(raw).version ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // 3. For each changed package, verify changeset AND CHANGELOG
 // ---------------------------------------------------------------------------
@@ -131,14 +145,20 @@ for (const pkgName of changedPackages) {
     ? pkgNameFromJson.replace('@oktis-works/', '')
     : pkgName;
 
-  // --- Verification 1: changeset exists for this package ---
-  if (!packagesInChangesets.has(shortName)) {
+  const pkgVersion = currentVersion(pkgJsonPath);
+  const baseVersion = versionOnMain(`packages/${pkgName}/package.json`);
+  // A version already bumped relative to main means version-packages ran and
+  // consumed the changeset (release branch): the bump + CHANGELOG are the record.
+  const consumedBump = baseVersion !== null && baseVersion !== pkgVersion;
+
+  // --- Verification 1: changeset exists (or its bump was already consumed) ---
+  if (!packagesInChangesets.has(shortName) && !consumedBump) {
     errors.push({
       package: shortName,
       rule: 'missing-changeset',
-      message: `Package "${shortName}" was changed but no changeset in .changeset/*.md declares it.
-Create a changeset: bun run changeset → select "${shortName}" → type (patch/minor/major) → description in English.
-Without a changeset, the package is not bumped nor published.`,
+      message: `Package "${shortName}" was changed but no changeset in .changeset/*.md declares it, and its version was not bumped relative to main.
+Create a changeset: bun run changeset → select "${shortName}" → type (patch/minor/major) → description in English, then consume it with \`bun run version-packages\`.
+Without a pending changeset or a consumed bump, the package is not published.`,
     });
   }
 
@@ -153,7 +173,6 @@ The CHANGELOG is documentation for the consumer — it is not generated automati
     });
   } else {
     const changelogContent = readFileSync(changelogPath, 'utf8');
-    const pkgVersion = currentVersion(pkgJsonPath);
 
     if (!changelogContent.includes(`## ${pkgVersion}`)) {
       errors.push({
