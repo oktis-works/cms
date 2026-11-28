@@ -20,8 +20,8 @@ import { execSync } from 'node:child_process';
 const root = process.cwd();
 
 // Get list of packages with changed files in this PR (compared to main)
-function getChangedPackageNames(): Set<string> {
-  let diffOutput: string;
+function getChangedPackageNames() {
+  let diffOutput;
   try {
     diffOutput = execSync('git diff --name-only main...HEAD', {
       cwd: root,
@@ -40,19 +40,22 @@ function getChangedPackageNames(): Set<string> {
     .map((line) => line.trim())
     .filter(Boolean);
 
-  const changedPackages = new Set<string>();
+  const changedPackages = new Set();
 
   for (const file of changedFiles) {
     // Check if the file is inside a package directory (packages/* or apps/*)
     const match = file.match(/^(packages|apps)\/([^\/]+)\//);
     if (match) {
       const pkgDir = match[1]; // 'packages' or 'apps'
-      const pkgName = match[2]; // e.g. 'database', 'auth', 'cli', 'api', etc.
+      const pkgNameDir = match[2]; // e.g. 'database', 'auth', 'cli', 'api', etc.
 
       // Read package.json to get the actual npm package name
       try {
         const pkgJson = JSON.parse(
-          readFileSync(join(root, file.split('/').slice(0, 3).join('/'), 'package.json'), 'utf8')
+          readFileSync(
+            join(root, file.split('/').slice(0, 3).join('/'), 'package.json'),
+            'utf8'
+          )
         );
         if (pkgJson.name && !pkgJson.private) {
           changedPackages.add(pkgJson.name);
@@ -69,7 +72,9 @@ function getChangedPackageNames(): Set<string> {
 const changedPackages = getChangedPackageNames();
 
 if (changedPackages.size === 0) {
-  console.log('ℹ️  No packages with code changes detected. Skipping npm version conflict check.');
+  console.log(
+    'ℹ️  No packages with code changes detected. Skipping npm version conflict check.'
+  );
   process.exit(0);
 }
 
@@ -93,18 +98,22 @@ for (const name of changedPackages) {
     const npmVersion = data['dist-tags']?.latest;
 
     // Read local version
-    let localVersion: string | null = null;
+    let localVersion = null;
     // Find the package directory
     for (const dir of ['packages', 'apps']) {
       try {
-        const entries = await import('node:fs').then((fs) =>
-          fs.readdirSync(join(root, dir), { withFileTypes: true })
-        );
-        for (const entry of entries) {
+        const entries = readFileSync(join(root, dir), 'utf8');
+        // readdirSync returns array of entries
+        const fs = await import('node:fs');
+        const dirEntries = fs.readdirSync(join(root, dir), { withFileTypes: true });
+        for (const entry of dirEntries) {
           if (entry.isDirectory()) {
             try {
               const pkg = JSON.parse(
-                readFileSync(join(root, dir, entry.name, 'package.json'), 'utf8')
+                readFileSync(
+                  join(root, dir, entry.name, 'package.json'),
+                  'utf8'
+                )
               );
               if (pkg.name === name) {
                 localVersion = pkg.version;
@@ -128,15 +137,27 @@ for (const name of changedPackages) {
 
     if (npmVersion === localVersion) {
       console.error(`❌ ${name}@${localVersion} already exists in npm registry.`);
-      console.error(`   npm publish will skip this version silently.`);
-      console.error(`   Code changes in this package will NOT reach consumers.`);
-      console.error(`   Bump to the next patch/minor version and create a new changeset.`);
+      console.error(
+        '   npm publish will skip this version silently.'
+      );
+      console.error(
+        '   Code changes in this package will NOT reach consumers.'
+      );
+      console.error(
+        '   Bump to the next patch/minor version and create a new changeset.'
+      );
       failed++;
     } else if (npmVersion && localVersion < npmVersion) {
-      console.error(`❌ ${name} local ${localVersion} is behind npm ${npmVersion}.`);
+      console.error(
+        `❌ ${name} local ${localVersion} is behind npm ${npmVersion}.`
+      );
       failed++;
     } else {
-      console.log(`✅ ${name}@${localVersion} is safe to publish (npm latest: ${npmVersion ?? 'none'}).`);
+      console.log(
+        `✅ ${name}@${localVersion} is safe to publish (npm latest: ${
+          npmVersion ?? 'none'
+        }).`
+      );
     }
   } catch (error) {
     console.warn(`⚠️  Network error checking ${name}: ${error.message}`);
@@ -144,8 +165,12 @@ for (const name of changedPackages) {
 }
 
 if (failed > 0) {
-  console.error(`\n${failed} package(s) have version conflicts with npm registry.`);
-  console.error('Fix by bumping to a version not yet published and creating a new changeset.');
+  console.error(
+    `\n${failed} package(s) have version conflicts with npm registry.`
+  );
+  console.error(
+    'Fix by bumping to a version not yet published and creating a new changeset.'
+  );
   process.exit(1);
 }
 
