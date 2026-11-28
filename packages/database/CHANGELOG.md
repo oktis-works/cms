@@ -1,5 +1,16 @@
 # @oktis-works/database
 
+## 1.0.1
+
+### Patch Changes
+
+- Republish database package with MySQL/MariaDB removal code.
+  
+  The previous major bump to 1.0.0 was skipped by npm publish because 1.0.0
+  already existed in the registry. This patch bump to 1.0.1 ensures the
+  removed translateProviderSql() and MySQL/MariaDB connection pool code is
+  actually published to consumers.
+
 ## 1.0.0
 
 ### Major Changes
