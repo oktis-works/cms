@@ -1,6 +1,6 @@
 > 📄 **English** · [Português](./README.pt-BR.md)
 
-# OkCMS v1.0.8
+# OkCMS v1.0.9
 
 Hybrid, modular, API-first, extensible CMS with a React/Solid theme platform, Node.js/TypeScript backend, PostgreSQL, Docker immutable deployments, plugin and theme extension systems, and multi-tenancy. Public themes are isolated React or Solid projects compiled with `okcms theme:build` and connected to the host only through `ThemeSdkBridge`.
 
@@ -196,65 +196,84 @@ Failure in preparation (1 or 2) aborts before touching the deploy; a deployment 
 
 ```mermaid
 flowchart TD
-    subgraph Client ["Client Layer"]
-        Browser[Browser / Web]
-        Admin[Admin Panel]
-        APIClient[API Clients / SDKs]
+    subgraph Clients["Clients"]
+        Visitor["Visitors — public site"]
+        Editor["Editors / admins — browser"]
+        APIClient["API clients / SDKs (@oktis-works/api-client)"]
     end
 
-    subgraph Edge ["Edge / Public (Web)"]
-        Web[Web SSR React/Solid]
-        Themes[Public Themes]
+    subgraph Edge["Edge — nginx"]
+        Proxy["Reverse proxy · TLS · blue/green upstreams"]
     end
 
-    subgraph API ["API Layer (Hono)"]
-        Auth[Auth & API Keys]
-        Content[Content API]
-        Media[Media API]
-        Plugins[Plugin Routes]
-        Hooks[Hooks / Filters Catalog]
+    subgraph Services["Applications (apps/)"]
+        Web["web — public SSR (Hono)"]
+        AdminApp["admin — Astro + Solid"]
+        Api["api — JSON API /api/v1 (Hono)"]
+        WorkerApp["worker — BullMQ consumers"]
     end
 
-    subgraph AdminUI ["Admin UI (Astro + Solid)"]
-        Dashboard[Dashboard]
-        Settings[Settings]
-        ThemeCustomizer[Theme Customizer]
-        PluginManager[Plugin Manager]
+    subgraph Runtimes["Extension runtimes"]
+        ThemeRuntime["theme-runtime — loads + renders themes"]
+        PluginRuntime["plugin-runtime — loads plugins + hook registry"]
+        Compatibility["validation — CMS_VERSION compatibility gate"]
     end
 
-    subgraph Core ["Core Services"]
-        Tenant[Tenant Context / RLS]
-        Events[Event Store]
-        Cache[Tagged Cache]
-        Queue[Job Queue]
-        Storage[Storage Drivers]
+    subgraph Extensions["Extensions (filesystem)"]
+        Themes["themes/* — React / Solid SSR"]
+        Plugins["plugins/* — routes, hooks, fields, blocks"]
     end
 
-    subgraph DB ["Database (PostgreSQL)"]
-        Tables[Tables + RLS Policies]
-        Migrations[Migrations]
+    subgraph CoreLib["packages/core — shared services"]
+        Tenant["Tenant context / RLS session"]
+        Events["Event store + event bus"]
+        Cache["Tagged cache"]
+        Queue["Job queue (producer)"]
+        AuthPkg["packages/auth — JWT, RBAC, sessions, API keys"]
     end
 
-    subgraph Infra ["Infrastructure"]
-        Redis[Redis]
-        Worker[Worker Process]
-        Docker[Docker Compose]
+    subgraph Data["Data stores"]
+        Pg[("PostgreSQL — primary, RLS")]
+        OtherDb[("MySQL 8 / MariaDB 11.4")]
+        Redis[("Redis — cache + BullMQ")]
+        Media[("Media — local volume or S3 / R2 / MinIO")]
     end
 
-    Client --> Edge
-    Client --> API
-    Client --> AdminUI
-    Edge --> API
-    AdminUI --> API
-    API --> Core
-    Core --> DB
-    Core --> Infra
-    API --> Infra
-    Worker --> DB
-    Worker --> Redis
-    Themes --> Edge
-    Plugins --> API
-    Hooks --> API
+    subgraph Ops["Operator tooling (host)"]
+        Cli["cli — okcms init · deploy · db:migrate · redeploy"]
+        ThemeBuilder["theme-builder — compiles theme bundles"]
+    end
+
+    Visitor --> Proxy
+    Editor --> Proxy
+    APIClient --> Proxy
+    Proxy -->|"/ and /themes — SSR"| Web
+    Proxy -->|"admin host"| AdminApp
+    Proxy -->|"/api/v1, /health, /storage"| Api
+    AdminApp -->|"fetch /api/v1"| Api
+    Web --> PluginRuntime
+    Web --> ThemeRuntime
+    Web --> CoreLib
+    Web -->|"content reads"| Pg
+    ThemeRuntime --> Themes
+    ThemeRuntime --> Compatibility
+    PluginRuntime --> Plugins
+    PluginRuntime --> Compatibility
+    Api --> AuthPkg
+    Api --> CoreLib
+    WorkerApp --> CoreLib
+    WorkerApp -->|"BullMQ"| Redis
+    WorkerApp --> Pg
+    AuthPkg --> CoreLib
+    Cache --> Redis
+    Queue --> Redis
+    CoreLib --> Pg
+    CoreLib -.->|"provider abstraction"| OtherDb
+    CoreLib --> Media
+    Cli -->|"db:migrate"| Pg
+    Cli -->|"deploy · upstream swap"| Proxy
+    Cli -->|"invokes"| ThemeBuilder
+    ThemeBuilder --> Themes
 ```
 
 ## Project Structure

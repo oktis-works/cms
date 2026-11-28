@@ -180,65 +180,84 @@ Falha no preparo (1 ou 2) aborta antes de tocar no deploy; falha no deploy faz r
 
 ```mermaid
 flowchart TD
-    subgraph Client ["Camada Cliente"]
-        Browser[Browser / Web]
-        Admin[Painel Admin]
-        APIClient[API Clients / SDKs]
+    subgraph Clients["Clientes"]
+        Visitor["Visitantes — site público"]
+        Editor["Editores / admins — navegador"]
+        APIClient["Clientes de API / SDKs (@oktis-works/api-client)"]
     end
 
-    subgraph Edge ["Edge / Público (Web)"]
-        Web[Web SSR React/Solid]
-        Themes[Temas Públicos]
+    subgraph Edge["Borda — nginx"]
+        Proxy["Proxy reverso · TLS · upstreams blue/green"]
     end
 
-    subgraph API ["Camada API (Hono)"]
-        Auth[Auth & API Keys]
-        Content[Content API]
-        Media[Media API]
-        Plugins[Plugin Routes]
-        Hooks[Hooks / Filters Catalog]
+    subgraph Services["Aplicações (apps/)"]
+        Web["web — SSR público (Hono)"]
+        AdminApp["admin — Astro + Solid"]
+        Api["api — API JSON /api/v1 (Hono)"]
+        WorkerApp["worker — consumidores BullMQ"]
     end
 
-    subgraph AdminUI ["Admin UI (Astro + Solid)"]
-        Dashboard[Dashboard]
-        Settings[Settings]
-        ThemeCustomizer[Theme Customizer]
-        PluginManager[Plugin Manager]
+    subgraph Runtimes["Runtimes de extensão"]
+        ThemeRuntime["theme-runtime — carrega + renderiza temas"]
+        PluginRuntime["plugin-runtime — carrega plugins + registro de hooks"]
+        Compatibility["validation — gate de compatibilidade do CMS_VERSION"]
     end
 
-    subgraph Core ["Core Services"]
-        Tenant[Tenant Context / RLS]
-        Events[Event Store]
-        Cache[Tagged Cache]
-        Queue[Job Queue]
-        Storage[Storage Drivers]
+    subgraph Extensions["Extensões (filesystem)"]
+        Themes["themes/* — React / Solid SSR"]
+        Plugins["plugins/* — rotas, hooks, fields, blocks"]
     end
 
-    subgraph DB ["Banco de Dados (PostgreSQL)"]
-        Tables[Tabelas + Políticas RLS]
-        Migrations[Migrations]
+    subgraph CoreLib["packages/core — serviços compartilhados"]
+        Tenant["Contexto de tenant / sessão RLS"]
+        Events["Event store + event bus"]
+        Cache["Cache com tags"]
+        Queue["Fila de jobs (produtor)"]
+        AuthPkg["packages/auth — JWT, RBAC, sessões, API keys"]
     end
 
-    subgraph Infra ["Infraestrutura"]
-        Redis[Redis]
-        Worker[Processo Worker]
-        Docker[Docker Compose]
+    subgraph Data["Armazenamento de dados"]
+        Pg[("PostgreSQL — principal, RLS")]
+        OtherDb[("MySQL 8 / MariaDB 11.4")]
+        Redis[("Redis — cache + BullMQ")]
+        Media[("Mídia — volume local ou S3 / R2 / MinIO")]
     end
 
-    Client --> Edge
-    Client --> API
-    Client --> AdminUI
-    Edge --> API
-    AdminUI --> API
-    API --> Core
-    Core --> DB
-    Core --> Infra
-    API --> Infra
-    Worker --> DB
-    Worker --> Redis
-    Themes --> Edge
-    Plugins --> API
-    Hooks --> API
+    subgraph Ops["Ferramentas do operador (host)"]
+        Cli["cli — okcms init · deploy · db:migrate · redeploy"]
+        ThemeBuilder["theme-builder — compila bundles de tema"]
+    end
+
+    Visitor --> Proxy
+    Editor --> Proxy
+    APIClient --> Proxy
+    Proxy -->|"/ e /themes — SSR"| Web
+    Proxy -->|"host do admin"| AdminApp
+    Proxy -->|"/api/v1, /health, /storage"| Api
+    AdminApp -->|"fetch /api/v1"| Api
+    Web --> PluginRuntime
+    Web --> ThemeRuntime
+    Web --> CoreLib
+    Web -->|"leitura de conteúdo"| Pg
+    ThemeRuntime --> Themes
+    ThemeRuntime --> Compatibility
+    PluginRuntime --> Plugins
+    PluginRuntime --> Compatibility
+    Api --> AuthPkg
+    Api --> CoreLib
+    WorkerApp --> CoreLib
+    WorkerApp -->|"BullMQ"| Redis
+    WorkerApp --> Pg
+    AuthPkg --> CoreLib
+    Cache --> Redis
+    Queue --> Redis
+    CoreLib --> Pg
+    CoreLib -.->|"abstração de provider"| OtherDb
+    CoreLib --> Media
+    Cli -->|"db:migrate"| Pg
+    Cli -->|"deploy · troca de upstream"| Proxy
+    Cli -->|"invoca"| ThemeBuilder
+    ThemeBuilder --> Themes
 ```
 
 ## Estrutura do Projeto
