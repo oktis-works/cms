@@ -6,6 +6,7 @@ This document defines strict operational rules and workflows that the AI Agent m
 * **Language:** Every commit message must be written in English.
 * **Format:** Use the full Conventional Commits specification. This includes types such as `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`, etc.
 * **CMS_VERSION check before commit:** Before every commit, verify that `CMS_VERSION` is in sync across the three anchors (root `CMS_VERSION` file, `packages/validation/src/compatibility.ts`, and README.md title). Run `bun run sync-version --write` if the root `package.json` version was changed. Never commit without confirming `bun run sync-version` (validate mode) passes.
+* **Published `CMS_VERSION` check (npm):** the three anchors only fix the source tree. The constant reaches consumers through the published `@oktis-works/validation` package, so a product bump is only complete when that package is republished with the new value. Before the release PR is merged, a `@oktis-works/validation` changeset must have been consumed; after the publish workflow runs, verify `npm view @oktis-works/validation version` and that the tarball's `dist/compatibility.js` exports `CMS_VERSION` equal to the product version. A published anchor lagging behind the product version is a release blocker.
 
 ## 2. Versioning Model (memorize this — the release gate validates it)
 * **Product version anchor:** the `version` in the ROOT `package.json` (private workspace `okcms`, never published). It carries product semantics and is the ONLY source of truth for releases.
@@ -13,6 +14,10 @@ This document defines strict operational rules and workflows that the AI Agent m
 * **README.md title rule:** The title **MUST** always match the product version in root `package.json`. It is `# OkCMS v{version}` (e.g. `# OkCMS v0.36.9`), never `# OkCMS v2` or any other hardcoded string. If you bump `version` in `package.json`, you **MUST** run `bun run sync-version --write` before committing.
 * **No manual README title edits:** Never edit the `# OkCMS v...` line by hand. Always use `bun run sync-version --write` so all three anchors stay identical.
 * **Individual package versions are independent:** managed by Changesets (`.changeset/*.md`), consumed with `bun run version-packages` (which also runs `sync-version --write` at the end).
+* **`@oktis-works/validation` is the carrier of `CMS_VERSION`:** every product bump changes that constant, so it requires a `patch` changeset for `@oktis-works/validation` **consumed before the merge**. `sync-version` rewrites only the source; the publish workflow is idempotent and skips versions already in the registry, so publishing the same package version again will **never** carry the new constant. Never edit the version on npm, and never republish an existing version.
+* **Release blocker — lagging published anchor:** if the product is `X.Y.Z` and the published `@oktis-works/validation` still exports another value (incident: product `1.0.8` while npm `1.0.2` exported `CMS_VERSION = '1.0.4'`), the release is broken for npm consumers. Fix it by bumping and publishing validation in the same release — never by lowering the product version to match the published package.
+* **`CMS_VERSION` must never be used as a package version:** the root `okcms` product version and the `@oktis-works/validation` package version are independent numbers. A mismatch between them is expected; what must never diverge is the `CMS_VERSION` constant and the product version.
+* **Check the validation bump on every release, without exception:** before preparing any release, compare `npm view @oktis-works/validation version` with `packages/validation/package.json`. Whenever the product version changes, the package version must already be ahead of npm; if it is not — even for a documentation-only or diagram-only release — add and consume the `@oktis-works/validation` patch changeset. Future agents (including those without this conversation's context) must repeat this check every time: the published anchor has already lagged silently (`1.0.4` while the product was `1.0.8`).
 
 ## 3. GitHub & CI/CD Pipeline Workflow
 Before preparing or recommending a push to GitHub, evaluate if the updates trigger the CI/CD and Publish workflows.
@@ -56,15 +61,16 @@ Este é o fluxo padrão de release:
 * Nunca reutilize uma versão já publicada (CI falhou). Pule para a próxima versão (patch/minor).
 
 ### Release checklist (execute in this exact order)
-1. Ensure a changeset exists for every changed package (`.changeset/*.md`).
-2. Consume changesets: `bun run version-packages` (bumps package versions + syncs CMS_VERSION).
+1. Ensure a changeset exists for every changed package (`.changeset/*.md`), **including `@oktis-works/validation` whenever `CMS_VERSION` changes** (which is every product bump).
+2. Consume changesets: `bun run version-packages` (bumps package versions, writes each package `CHANGELOG.md` entry, syncs `CMS_VERSION` and regenerates app versions). The changeset files are removed by this step — never re-add a changeset for a bump already consumed.
 3. Bump the product version in root `package.json` (Patch for fixes, Minor for features, Major for breaking).
 4. Re-sync anchors: `bun run sync-version --write` (then `bun run sync-version` to validate).
-5. Run `bun run build`, `bun run test:run`, `bun run lint` and `bun run typecheck` (the same CI gates).
-6. Commit with a conventional commit message (English), e.g. `chore(release): v0.16.2`.
-7. Push the release branch: `git push origin release/vX.Y.Z`.
-8. Merge the PR to `main` — the publish fires automatically via `publish-on-merge.yml` → `publish.yml` (npm publish).
-9. Watch the main CI run; when green, npm publish runs automatically.
+5. Verify the npm carrier: `packages/validation/package.json` version is **higher** than `npm view @oktis-works/validation version`, and `packages/validation/CHANGELOG.md` has an entry for that new version. If the version is not ahead of npm, the published `CMS_VERSION` will lag and the release must not proceed.
+6. Run `bun run build`, `bun run test:run`, `bun run lint` and `bun run typecheck` (the same CI gates).
+7. Commit with a conventional commit message (English), e.g. `chore(release): v0.16.2`.
+8. Push the release branch: `git push origin release/vX.Y.Z`.
+9. Merge the PR to `main` — the publish fires automatically via `publish-on-merge.yml` → `publish.yml` (npm publish).
+10. Watch the main CI run; when green, npm publish runs automatically. After it finishes, confirm `npm view @oktis-works/validation version` matches the bumped version and the published `dist/compatibility.js` exports `CMS_VERSION` equal to the root product version. If it does not, cut another validation patch release immediately — never reuse a published version.
 
 ## 4. Custom Field Types via Plugins
 When implementing custom field types via plugins, follow these rules:
@@ -213,6 +219,8 @@ These invariants must hold for every release.
 
   # 3. Commit both before opening/merging the PR
   ```
+
+* **Release branches — consumed changesets:** a branch prepared with `bun run version-packages` no longer has changeset files by design: the version bump itself (package version higher than `main`) plus the new `CHANGELOG.md` entry are the permanent record. Never re-add a changeset for a bump already consumed; `check-changelog-and-changeset` accepts a package whose version was bumped relative to `main`.
 
 ## 16. Mandatory Pre-Merge CI/CD Validation
 Before pushing a release branch to GitHub, the agent MUST execute the full CI/CD test suite locally **until zero errors remain**. This prevents failed CI runs and broken PRs.

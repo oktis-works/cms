@@ -1,5 +1,13 @@
 # @oktis-works/theme-runtime
 
+## 1.0.4
+
+### Patch Changes
+
+- Updated dependencies [6d252fa]
+  - @oktis-works/validation@1.0.3
+  - @oktis-works/theme-sdk@1.0.4
+
 ## 1.0.3
 
 ### Patch Changes
