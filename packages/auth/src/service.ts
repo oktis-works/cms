@@ -10,9 +10,7 @@ import { SessionService } from './sessions/index.js';
 import { RBACService } from './rbac/index.js';
 import { ApiKeyService } from './api-keys/index.js';
 import {
-  AuthError,
   InvalidCredentialsError,
-  NoActiveSessionError,
   InternalAuthError,
   AuthErrorCode,
 } from './errors.js';

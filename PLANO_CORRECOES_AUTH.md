@@ -2,7 +2,7 @@
 
 **Projeto:** OkCMS  
 **Versão do produto:** conforme root `package.json` / `CMS_VERSION`  
-**Status:** Implementado (código alterado, pendente validação pré-release e commit)  
+**Status:** Concluído — código implementado, validado (1375 testes, lint, typecheck, build OK) e commitado na branch `release/v1.1.0`. Pendente: push para GitHub (dispara create-release-pr.yml → CI → publish).  
 **Causa raiz provável:** estado de banco/ambiente herdado (volume Docker compartilhado `okcms-postgres-data` e/ou `DATABASE_URL` residual no `.env`), agravado por fragilidades de código que mascaram o diagnóstico.
 
 ---
