@@ -66,6 +66,7 @@ interface FakeHooks extends DevHooks {
   users: boolean;
   firstUser: { email: string; password_hash: string } | null;
   isValidBcryptHash: (hash: string) => Promise<boolean>;
+  resetPasswords: { email: string; password: string }[];
 }
 
 function fakeHooks(): FakeHooks {
@@ -76,6 +77,7 @@ function fakeHooks(): FakeHooks {
     users: false,
     firstUser: null as { email: string; password_hash: string } | null,
     isValidBcryptHash: async (hash: string) => Promise.resolve(/^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/.test(hash)),
+    resetPasswords: [] as { email: string; password: string }[],
   } as FakeHooks;
   hooks.prepareDatabase = async (): Promise<void> => {
     hooks.prepared += 1;
@@ -85,6 +87,12 @@ function fakeHooks(): FakeHooks {
   hooks.isValidBcryptHash = async (hash: string) => Promise.resolve(/^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/.test(hash));
   hooks.createUser = async (input: DevUserInput): Promise<void> => {
     hooks.created.push(input);
+  };
+  hooks.userExistsByEmail = async (email: string): Promise<boolean> => {
+    return hooks.users && hooks.firstUser?.email === email;
+  };
+  hooks.resetUserPassword = async (input: { email: string; password: string }): Promise<void> => {
+    hooks.resetPasswords.push(input);
   };
   hooks.startApps = async (): Promise<void> => {
     hooks.started += 1;
@@ -181,7 +189,7 @@ describe('runDev', () => {
     expect(code).toBe(0);
     expect(hooks.created).toEqual([]);
     expect(hooks.started).toBe(0);
-    expect(prompt.printed()).toContain('skipped');
+    expect(prompt.printed()).toContain('using existing user');
     prompt.close();
   });
 

@@ -169,6 +169,7 @@ async function main() {
   // limiter global — anônimo por IP real, autenticado por user id da sessão.
   app.use('/api/v1/auth/login', loginRateLimitMiddleware());
   app.use('/api/v1/auth/api-key-login', loginRateLimitMiddleware());
+  app.use('/api/v1/auth/refresh', loginRateLimitMiddleware());
   app.use('*', rateLimitMiddleware());
 
   app.use('/api/*', csrfMiddleware);

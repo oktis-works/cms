@@ -1,5 +1,11 @@
 # @oktis-works/database
 
+## 0.16.14
+
+### Patch Changes
+
+- Add migration V032__core__user_tenant_id.sql: add tenant_id column to users table (FK to tenants), backfill existing users to tenant 'default', add idx_users_email_tenant index. Update schema.sql users table definition with tenant_id column.
+
 ## 0.16.12
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "@oktis-works/database",
-  "version": "0.16.12",
+  "version": "0.16.14",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",

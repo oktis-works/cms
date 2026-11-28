@@ -1,5 +1,19 @@
 # @oktis-works/api
 
+## 0.20.0
+
+### Minor Changes
+
+- Remove public POST /auth/register route (security: anonymous users could self-register as TENANT_ADMIN). User creation remains CLI-only via okcms dev / user:create (createUserAccount). Standardize auth responses with error codes: /auth/login returns 401 invalid_credentials / 500 internal_error, /auth/refresh returns 401 no_active_session instead of 400 Missing refresh token. Apply AuthError typed handling to /auth/api-key-login, /auth/logout, /auth/me. Add rate limiting to /auth/refresh. Set AUTH_COOKIE_DOMAIN default to 'localhost' in dev. Remove CSRF exemption for removed /auth/register route.
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+  - @oktis-works/auth@0.9.8
+  - @oktis-works/database@0.16.13
+  - @oktis-works/core@1.0.8
+
 ## 0.19.11
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "okcms",
-  "version": "1.0.9",
+  "version": "1.1.0",
   "private": true,
   "license": "GPL-2.0-or-later",
   "description": "Hybrid, modular, API-first CMS",
@@ -27,6 +27,7 @@
     "audit:contracts": "node scripts/check-audit-contract.mjs",
     "check:provider-matrix": "node scripts/check-provider-matrix.mjs",
     "test:postgres": "bun --cwd packages/database scripts/postgres-acceptance.mjs",
+    "test:e2e-dev-login": "node scripts/e2e-dev-login.mjs",
     "test:providers": "bun --cwd packages/database scripts/provider-acceptance.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
     "check:api-drift": "node scripts/check-api-plugin-source-drift.mjs",
@@ -47,9 +48,9 @@
   },
   "devDependencies": {
     "@changesets/changelog-github": "^1.0.1",
-    "@changesets/cli": "^3.0.3",
+    "@changesets/cli": "^3.1.0",
     "@oktis-works/api-client": "workspace:*",
-    "@oktis-works/cms": "^1.0.10",
+    "@oktis-works/cms": "^1.1.0",
     "@types/node": "22.0.0",
     "@types/react": "19",
     "@types/react-dom": "19",

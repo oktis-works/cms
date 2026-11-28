@@ -1,5 +1,19 @@
 # @oktis-works/cms
 
+## 1.1.0
+
+### Minor Changes
+
+- Normalize email (lowercase + trim) in createUserAccount and CLI prompts. Add userExistsByEmail and resetUserPassword to DevHooks. okcms dev now asks which email to use when users exist, offers password reset for existing --email, and generates JWT_SECRET / AUTH_COOKIE_DOMAIN automatically when missing. Add --force-env flag to overwrite existing .env keys. Warn when DATABASE_URL has precedence over DB_*. Apply project name suffix to Docker container/volume/network names in compose templates. Add dockerProjectSuffix and applyDockerProjectSuffix helpers.
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+  - @oktis-works/auth@0.9.8
+  - @oktis-works/database@0.16.13
+  - @oktis-works/core@1.0.8
+
 ## 1.0.10
 
 ### Patch Changes

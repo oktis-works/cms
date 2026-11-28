@@ -81,6 +81,10 @@ export interface DevHooks {
   getFirstUser: () => Promise<{ email: string; password_hash: string } | null>;
   /** Verifica se o hash é um hash bcrypt válido. */
   isValidBcryptHash: (hash: string) => Promise<boolean>;
+  /** Verifica se um e-mail específico já existe no banco. */
+  userExistsByEmail: (email: string) => Promise<boolean>;
+  /** Redefine a senha de um usuário existente. */
+  resetUserPassword: (input: { email: string; password: string }) => Promise<void>;
   /** Cria o primeiro admin (mesmo caminho do `user:create`). */
   createUser: (input: DevUserInput) => Promise<void>;
   /** Sobe api · admin · web · worker (bloqueia — é o processo do dev). */
@@ -107,6 +111,8 @@ export interface DevOptions {
   prompt?: Prompt;
   /** `assertHostOnly` probe (tests). */
   probe?: ContainerProbe;
+  /** `--force-env`: sobrescreve chaves existentes no .env (ex.: DATABASE_URL). */
+  forceEnv?: boolean;
   hooks?: DevHooks;
   log?: (message: string) => void;
   /** Sondas/timeouts da infra (tests). */
@@ -304,6 +310,14 @@ async function defaultHooks(log: (message: string) => void): Promise<DevHooks> {
       const { isValidBcryptHash } = await import('./users.js');
       return isValidBcryptHash(hash);
     },
+    userExistsByEmail: async (email: string) => {
+      const { userExistsByEmail } = await import('./users.js');
+      return userExistsByEmail(email);
+    },
+    resetUserPassword: async (input: { email: string; password: string }) => {
+      const { resetUserPassword } = await import('./users.js');
+      await resetUserPassword(input);
+    },
     createUser: async (input: DevUserInput) => {
       const { createUserAccount } = await import('./users.js');
       await createUserAccount(input);
@@ -349,7 +363,7 @@ export async function runDev(opts: DevOptions = {}): Promise<number> {
     ? loadEnvFile(envPath)
     : new EnvFile(existsSync(examplePath) ? readFileSync(examplePath, 'utf-8') : '', envPath);
 
-  const missing = fillMissingEnv(env);
+  const missing = fillMissingEnv(env, { force: opts.forceEnv === true });
   if (missing.length > 0) {
     if (interactive) {
       const go = await prompt.confirm(
@@ -373,6 +387,33 @@ export async function runDev(opts: DevOptions = {}): Promise<number> {
   // cura as migrations conectam com '' enquanto o compose criou o banco com o
   // valor da .env da raiz.
   syncProcessEnv(env);
+
+  // ---- 1.5. Segredos automáticos (JWT_SECRET e AUTH_COOKIE_DOMAIN) ------
+  const envRecord = env.toRecord();
+  const jwtSecret = envRecord['JWT_SECRET']?.trim();
+  const defaultJwtSecret = 'change-me-in-production';
+  if (!jwtSecret || jwtSecret === defaultJwtSecret) {
+    const { randomBytes } = await import('node:crypto');
+    const generatedSecret = randomBytes(32).toString('base64url');
+    env.set('JWT_SECRET', generatedSecret);
+    prompt.info(`JWT_SECRET gerado automaticamente (não definido no .env)`);
+  }
+
+  const cookieDomain = envRecord['AUTH_COOKIE_DOMAIN']?.trim();
+  if (!cookieDomain) {
+    env.set('AUTH_COOKIE_DOMAIN', 'localhost');
+    prompt.info(`AUTH_COOKIE_DOMAIN definido como 'localhost' (não definido no .env)`);
+  }
+  env.save();
+
+  // ---- 1.6. Aviso de precedência de DATABASE_URL ------
+  const databaseUrl = envRecord['DATABASE_URL']?.trim();
+  if (databaseUrl) {
+    prompt.warn(
+      `DATABASE_URL está definido e tem precedência sobre DB_* (DB_HOST/DB_PORT/DB_NAME/DB_USER). ` +
+      `Se quiser usar DB_*, remova DATABASE_URL do .env ou use --force-env.`
+    );
+  }
 
   // ---- 2. infra (compose do projeto — o mesmo que o deploy reutiliza) ------
   const record = env.toRecord();
@@ -496,26 +537,82 @@ export async function runDev(opts: DevOptions = {}): Promise<number> {
     await hooks.createUser({ email, name, password, role: 'SUPER_ADMIN' });
     prompt.success(`first user created: ${email} (SUPER_ADMIN)`);
   } else {
-    // Verifica se o usuário existente tem hash válido
+    // Usuários já existem: perguntar qual e-mail usar ou se deseja recriar/atualizar
     const firstUser = await hooks.getFirstUser();
-    if (firstUser && !(await hooks.isValidBcryptHash(firstUser.password_hash))) {
-      prompt.warn('existing user has invalid password hash — please set new admin credentials');
-      let email = opts.email;
-      let name = opts.name;
-      let password = opts.password;
-      if (interactive) {
-        email = email ?? (await prompt.ask('Admin email', { validate: isEmail }));
-        name = name ?? (await prompt.ask('Admin name', { validate: nonEmpty }));
-        password =
-          password ?? (await prompt.secret('Admin password (min 8 characters)', { validate: min8 }));
+    const existingEmail = firstUser?.email ?? '';
+
+    if (opts.email) {
+      // --email fornecido: verificar se já existe e oferecer redefinir senha
+      const emailExists = await hooks.userExistsByEmail?.(opts.email);
+      if (emailExists) {
+        prompt.warn(`user ${opts.email} already exists — password reset requested`);
+        if (interactive) {
+          const reset = await prompt.confirm(
+            `Reset password for existing user ${opts.email}?`,
+            { defaultValue: true }
+          );
+          if (reset) {
+            const password =
+              opts.password ??
+              (await prompt.secret('New password (min 8 characters)', { validate: min8 }));
+            if (!password) {
+              stopThemes();
+              prompt.error('password required — pass --password (non-TTY)');
+              return 1;
+            }
+            await hooks.resetUserPassword?.({ email: opts.email, password });
+            prompt.success(`password reset for ${opts.email}`);
+          } else {
+            prompt.info(`skipping password reset for ${opts.email}`);
+          }
+        } else {
+          const password = opts.password;
+          if (!password) {
+            stopThemes();
+            prompt.error('password required — pass --password (non-TTY)');
+            return 1;
+          }
+          await hooks.resetUserPassword?.({ email: opts.email, password });
+          prompt.success(`password reset for ${opts.email}`);
+        }
+      } else {
+        prompt.info(`user ${opts.email} not found — creating new user`);
+        let name = opts.name;
+        let password = opts.password;
+        if (interactive) {
+          name = name ?? (await prompt.ask('Admin name', { validate: nonEmpty }));
+          password =
+            password ?? (await prompt.secret('Admin password (min 8 characters)', { validate: min8 }));
+        }
+        if (!name || !password) {
+          stopThemes();
+          prompt.error('name and password required — pass --name and --password (non-TTY)');
+          return 1;
+        }
+        await hooks.createUser({ email: opts.email, name, password, role: 'SUPER_ADMIN' });
+        prompt.success(`user created: ${opts.email} (SUPER_ADMIN)`);
       }
-      if (!email || !name || !password) {
-        stopThemes();
-        prompt.error('admin credentials required — pass --email, --name and --password (non-TTY)');
-        return 1;
+    } else if (interactive) {
+      // Sem --email e modo interativo: perguntar qual e-mail usar
+      prompt.info(`existing user: ${existingEmail}`);
+      const useExisting = await prompt.confirm(
+        `Use existing user ${existingEmail}?`,
+        { defaultValue: true }
+      );
+      if (useExisting) {
+        prompt.info(`using existing user: ${existingEmail}`);
+      } else {
+        let email = await prompt.ask('New admin email', { validate: isEmail });
+        let name = await prompt.ask('Admin name', { validate: nonEmpty });
+        let password = await prompt.secret('Admin password (min 8 characters)', { validate: min8 });
+        if (!email || !name || !password) {
+          stopThemes();
+          prompt.error('email, name and password required');
+          return 1;
+        }
+        await hooks.createUser({ email, name, password, role: 'SUPER_ADMIN' });
+        prompt.success(`user created: ${email} (SUPER_ADMIN)`);
       }
-      await hooks.createUser({ email, name, password, role: 'SUPER_ADMIN' });
-      prompt.success(`admin user updated: ${email} (SUPER_ADMIN)`);
     } else {
       prompt.success('users already exist — user creation skipped');
     }
@@ -570,12 +667,13 @@ export async function runDev(opts: DevOptions = {}): Promise<number> {
  * (ex.: DB_PASSWORD não existe quando o projeto usa DATABASE_URL).
  * Devolve as chaves preenchidas (nunca os valores).
  */
-export function fillMissingEnv(env: EnvFile): string[] {
+export function fillMissingEnv(env: EnvFile, opts: { force?: boolean } = {}): string[] {
   const record = env.toRecord();
   const filled: string[] = [];
+  const force = opts.force === true;
 
   for (const field of ENV_FIELDS) {
-    if ((record[field.key] ?? '').trim() !== '') continue;
+    if (!force && (record[field.key] ?? '').trim() !== '') continue;
     if (field.when && !field.when(record)) continue;
 
     if (field.required) {

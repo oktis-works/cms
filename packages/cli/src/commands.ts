@@ -311,6 +311,12 @@ Run 'okcms wp import --help' or 'okcms wp validate --help' for subcommand option
         description: 'Allow running inside a container (not recommended)',
         required: false,
       },
+      {
+        name: 'force-env',
+        alias: 'w',
+        description: 'Sobrescreve chaves existentes no .env (ex.: DATABASE_URL)',
+        required: false,
+      },
     ],
     handler: async (_args, options) => {
       const { runDev } = await import('./dev.js');
@@ -319,6 +325,7 @@ Run 'okcms wp import --help' or 'okcms wp validate --help' for subcommand option
         skipStart: options['skip-start'] !== undefined,
         noInfra: options['no-infra'] !== undefined,
         force: options['force'] !== undefined,
+        forceEnv: options['force-env'] !== undefined,
         email: options['email'] ? String(options['email']) : undefined,
         name: options['name'] ? String(options['name']) : undefined,
         password: options['password'] ? String(options['password']) : undefined,
