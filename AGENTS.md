@@ -40,6 +40,8 @@ npm view <package-name> version
 
 **This check applies to ALL packages**, not just `@oktis-works/validation`. The `CMS_VERSION` anchor check (section 2) only covers the validation package; this check covers every package in the monorepo.
 
+**CI enforcement:** The CI job `check-npm-version-conflict` (`.github/workflows/ci.yml`) runs on every PR and automatically fails if any local package version already exists in the npm registry. Do not bypass this check.
+
 ## 3. GitHub & CI/CD Pipeline Workflow
 Before preparing or recommending a push to GitHub, evaluate if the updates trigger the CI/CD and Publish workflows.
 
