@@ -17,7 +17,7 @@ function theme(name: string, manifest: Record<string, unknown>, templates: Recor
     name,
     version: '1.0.0',
     type: 'theme',
-    compatibility: { okcms: '^1.0.0' },
+    compatibility: { okcms: '^2.0.0' },
     render: mergedRender,
     ...manifest,
   }));
@@ -34,7 +34,7 @@ function compiled(name: string, engine: 'react' | 'solid', keys: string[], paren
       name,
       version: '1.0.0',
       type: 'theme',
-      compatibility: { okcms: '^1.0.0' },
+      compatibility: { okcms: '^2.0.0' },
       ...(parent ? { parent } : {}),
       render: { engine, apiVersion: 2, hydration: 'none' },
     })

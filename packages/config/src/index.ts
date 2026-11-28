@@ -279,12 +279,12 @@ export function parseDatabaseUrl(url: string): ParsedDatabaseUrl {
     throw new Error(`Invalid DATABASE_URL: not a valid URL — ${url}`);
   }
   const protocol = parsed.protocol.replace(/:$/, '');
-  const driver: DatabaseDriver = 'postgres';
-  if (!driver) {
+  if (protocol !== 'postgres' && protocol !== 'postgresql') {
     throw new Error(
       `DATABASE_URL protocol "${protocol}" is not supported (use postgres:// or postgresql://)`
     );
   }
+  const driver: DatabaseDriver = 'postgres';
   const database = decodeURIComponent(parsed.pathname.replace(/^\//, ''));
   if (!database) {
     throw new Error(`DATABASE_URL inválida: falta o nome do banco (ex.: postgres://user:pass@host:5432/okcms)`);

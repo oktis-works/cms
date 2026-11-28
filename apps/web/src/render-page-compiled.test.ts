@@ -66,7 +66,7 @@ beforeAll(() => {
       name: 'react-theme',
       version: '1.0.0',
       type: 'theme',
-      compatibility: { okcms: '^1.0.0' },
+      compatibility: { okcms: '^2.0.0' },
       render: { engine: 'react', apiVersion: 2, hydration: 'none', entry: 'src/entry-server.tsx' },
     })
   );
@@ -92,7 +92,7 @@ beforeAll(() => {
       name: '_shared',
       version: '1.0.0',
       type: 'theme',
-      compatibility: { okcms: '^1.0.0' },
+      compatibility: { okcms: '^2.0.0' },
       render: { engine: 'react', apiVersion: 2, entry: 'src/entry-server.tsx' },
     })
   );
@@ -111,7 +111,7 @@ beforeAll(() => {
       name: 'default',
       version: '1.0.0',
       type: 'theme',
-      compatibility: { okcms: '^1.0.0' },
+      compatibility: { okcms: '^2.0.0' },
       render: { engine: 'react', apiVersion: 2, entry: 'src/entry-server.tsx' },
     })
   );
@@ -211,7 +211,7 @@ describe('renderContentPageAsync — compiled React theme', () => {
         name: 'mismatch',
         version: '1.0.0',
         type: 'theme',
-      compatibility: { okcms: '^1.0.0' },
+      compatibility: { okcms: '^2.0.0' },
         render: { engine: 'react', apiVersion: 2, entry: 'src/entry-server.tsx' },
       })
     );
@@ -242,7 +242,7 @@ describe('renderContentPageAsync — compiled React theme', () => {
         name: 'broken',
         version: '1.0.0',
         type: 'theme',
-      compatibility: { okcms: '^1.0.0' },
+      compatibility: { okcms: '^2.0.0' },
         render: { engine: 'react', apiVersion: 2, entry: 'src/entry-server.tsx' },
       })
     );
