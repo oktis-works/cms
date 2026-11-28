@@ -5,7 +5,16 @@ import { mkdtempSync, mkdirSync, rmSync, existsSync, readFileSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { scaffoldProject, toPackageName, appRangeFor, resolveAppRanges, validateScaffold, APP_PACKAGES, getThemeAssetDir } from './scaffold.js';
+import {
+  scaffoldProject,
+  toPackageName,
+  appRangeFor,
+  resolveAppRanges,
+  validateScaffold,
+  APP_PACKAGES,
+  getThemeAssetDir,
+  ensureThemeStyleAssets,
+} from './scaffold.js';
 import {
   detectPackageManager,
   installProjectDepsLive,
@@ -15,6 +24,7 @@ import {
 import { DEFAULT_CONFIG_FILENAME } from './project-config.js';
 import { DEPLOY_PATHS } from './assets.js';
 import { DEFAULT_DOCS_LANG } from './scaffold-docs.js';
+import { DEFAULT_THEME_FILES } from './theme-assets.js';
 import { EventEmitter } from 'node:events';
 
 // Hermetic: the scaffold must never hit the real registry in tests. Null =
@@ -512,6 +522,30 @@ describe('getThemeAssetDir', () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  });
+});
+
+describe('ensureThemeStyleAssets', () => {
+  it('restores a declared stylesheet omitted from an incomplete published theme directory', () => {
+    const files = new Map<string, string | Buffer>([
+      ['theme.json', DEFAULT_THEME_FILES['theme.json'] ?? ''],
+    ]);
+
+    ensureThemeStyleAssets(files);
+
+    expect(files.get('dist/theme.css')).toBe(DEFAULT_THEME_FILES['dist/theme.css']);
+  });
+
+  it('does not replace an existing stylesheet', () => {
+    const existing = 'custom stylesheet';
+    const files = new Map<string, string | Buffer>([
+      ['theme.json', DEFAULT_THEME_FILES['theme.json'] ?? ''],
+      ['dist/theme.css', existing],
+    ]);
+
+    ensureThemeStyleAssets(files);
+
+    expect(files.get('dist/theme.css')).toBe(existing);
   });
 });
 

@@ -135,6 +135,36 @@ function embeddedThemeFiles(): Map<string, string | Buffer> {
   return files;
 }
 
+/**
+ * Completes a bundled theme directory with generated assets that are required
+ * by its manifest but were omitted from an older or incomplete package.
+ *
+ * Published CLI packages contain both a real theme directory and an embedded
+ * snapshot. Prefer the real files, but use the snapshot for the declared style
+ * output so `okcms init` never creates a theme that fails synchronization.
+ */
+export function ensureThemeStyleAssets(themeFiles: Map<string, string | Buffer>): Map<string, string | Buffer> {
+  const manifestText = themeFiles.get('theme.json');
+  if (typeof manifestText !== 'string') return themeFiles;
+
+  let manifest: unknown;
+  try {
+    manifest = JSON.parse(manifestText);
+  } catch {
+    return themeFiles;
+  }
+
+  if (!manifest || typeof manifest !== 'object') return themeFiles;
+  const stylesConfig = (manifest as { stylesConfig?: unknown }).stylesConfig;
+  if (!stylesConfig || typeof stylesConfig !== 'object') return themeFiles;
+  const output = (stylesConfig as { output?: unknown }).output;
+  if (typeof output !== 'string' || themeFiles.has(output)) return themeFiles;
+
+  const fallback = DEFAULT_THEME_FILES[output];
+  if (fallback !== undefined) themeFiles.set(output, fallback);
+  return themeFiles;
+}
+
 /** Normaliza o nome do projeto para um npm name válido (slug). */
 export function toPackageName(name: string): string {
   const slug = name
@@ -266,7 +296,9 @@ export async function scaffoldProject(
       style.dim('  [scaffold] theme directory not found — using embedded themes/default copy')
     );
   }
-  const themeFiles = themeAssetDir ? await readThemeFiles(themeAssetDir) : embeddedThemeFiles();
+  const themeFiles = ensureThemeStyleAssets(
+    themeAssetDir ? await readThemeFiles(themeAssetDir) : embeddedThemeFiles(),
+  );
   for (const [relative, content] of themeFiles) {
     const target = join(root, 'themes', 'default', relative);
     if (existsSync(target)) continue;
